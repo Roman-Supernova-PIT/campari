@@ -15,12 +15,12 @@ from erfa import ErfaWarning
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 import scipy.sparse as sp 
-from pixmappy import Gnomonic
+#from pixmappy import Gnomonic
 from scipy.linalg import block_diag, lstsq
 from numpy.linalg import LinAlgError
 from astropy.nddata import Cutout2D
 import galsim
-from reproject import reproject_interp
+#from reproject import reproject_interp
 print('Updated version of SMP')
 '''
 def calibration(pointing, SCA, band, snid = None):
@@ -156,7 +156,6 @@ def getPSF_Image(refim,stamp_size,x=None,y=None,pupil_bin=8,sed=None,
             the PSF GalSim image object (use image.array to get a numpy array representation)
         """
         if sed is None:
-            print('default SED')
             sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
         else:
@@ -195,7 +194,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     
     #Need to customize band stuff here too XXX TODO 
     print('while cwork is down')
-    config_file = '/hpc/home/cfm37/temp_tds.yaml'
+    config_file = '../temp_tds.yaml'
     #config_file = '/hpc/home/cfm37/my_tds.yaml'
     util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
 
@@ -208,6 +207,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     sed = galsim.SED(galsim.LookupTable(a.Wavelength/10, a.Flux, interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
     
+    print('For source, x y x cen y cen', x, y, x_center, y_center)
     master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed).array
     
     return master.flatten()
@@ -414,7 +414,7 @@ class Detection:
         else:
             return x, y
     
-    def constructImages(self, size = 25, background = False):
+    def constructImages(self, size = 25, background = False, roman_path = None):
     
             '''
             Constructs the array of images in the format required for the linear algebra operations
@@ -440,73 +440,64 @@ class Detection:
             bgflux = []
 
             for i in self.exposures:
-                try:
-                    #truth = 'truth' #THIS IS A TEST CHANGE THIS BACK XXX XXX TODO'
-                    truth = 'simple_model'
-                    band = i['BAND']
-                    pointing = i['Pointing']
-                    SCA = i['SCA']
-                    image = fits.open(f'/cwork/mat90/RomanDESC_sims_2024/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
+                #try:   This has to be put back
+
+                truth = 'simple_model'
+                band = i['BAND']
+                pointing = i['Pointing']
+                SCA = i['SCA']
+                image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
+
+                #Switched w to wcs here
+                if truth == 'truth':
+                    wcs = WCS(image[0].header)
+                    a = 0
+                else:
+                    wcs = WCS(image[1].header)
+                    a = 1
 
 
-                    if truth == 'truth':
-                        w = WCS(image[0].header)
-                        a = 0
-                    else:
-                        w = WCS(image[1].header)
-                        a = 1
+                pixel = wcs.world_to_pixel(SkyCoord(ra=self.ra*u.degree, dec=self.dec*u.degree))
+                print('pixel', pixel)
+                #pixel = (pixel[0] + 0.5, pixel[1] + 0.5)
+                #Astropy defines pixel coordinates as the center of the pixel, so we add 0.5.
 
 
-                    pixel = w.world_to_pixel(SkyCoord(ra=self.ra*u.degree, dec=self.dec*u.degree))
-                    print('pixel', pixel)
-                    #pixel = (pixel[0] + 0.5, pixel[1] + 0.5)
+                #XXX This should be put back ! XXX
+                #try:
+                result = Cutout2D(image[a].data, pixel, size, mode = 'strict', wcs = wcs)
+                if i['DETECTED']:
+                    self.xpix, self.ypix = result.wcs.world_to_pixel(SkyCoord(ra=self.ra*u.degree, dec=self.dec*u.degree))
+                    #self.xpix += 0.5
+                    #self.ypix += 0.5
                     #Astropy defines pixel coordinates as the center of the pixel, so we add 0.5.
 
 
-                    #XXX This should be put back ! XXX
-                    #try:
-                    result = Cutout2D(image[a].data, pixel, size, mode = 'strict', wcs = w)
+                '''       
+                except:
                     if i['DETECTED']:
-                        self.xpix, self.ypix = result.wcs.world_to_pixel(SkyCoord(ra=self.ra*u.degree, dec=self.dec*u.degree))
-                        #self.xpix += 0.5
-                        #self.ypix += 0.5
-                        #Astropy defines pixel coordinates as the center of the pixel, so we add 0.5.
+                        print('No stamp for the detection!')
+                    m.append(np.zeros(size*size))
+                    mask.append(np.ones(size*size))
+                    wgt.append(np.zeros(size*size))
+                    continue
+                '''
 
+                ff = 1
+                cutout = result.data
+                if truth == 'truth':
+                    img = Cutout2D(image[0].data, pixel, size, mode = 'strict').data 
+                    img += np.abs(np.min(img))
+                    img += 1
 
-                        #print('SMP FUNCS IS SETTING SELF CUTOUT')
-                        #self.cutout_wcs = result.wcs
-                        #print('SN is at the cutout pixel location', self.xpix, self.ypix)
+                    img = np.sqrt(img)
+                    err_cutout = 1 / img
 
-                    '''       
-                    except:
-                        if i['DETECTED']:
-                            print('No stamp for the detection!')
-                        m.append(np.zeros(size*size))
-                        mask.append(np.ones(size*size))
-                        wgt.append(np.zeros(size*size))
-                        continue
-                    '''
-                    
-                    ff = 1
-                    cutout = result.data
-                    if truth == 'truth':
-                        img = Cutout2D(image[0].data, pixel, size, mode = 'strict').data 
-                        img += np.abs(np.min(img))
-                        img += 1
-                        
-                        img = np.sqrt(img)
-                        err_cutout = 1 / img
-                        if i['DETECTED']:
-                            #print('F U D G E  F A C T O R', ff)
-                            #print(ff)
-                            err_cutout *= ff
-                    else:
-                        err_cutout = Cutout2D(image[2].data, pixel, size, mode = 'strict').data #I think this is supposed to be image[2] XXX TODO
-                        if i['DETECTED']:
-                            #print('F U D G E  F A C T O R', ff)
-                            #print(ff)
-                            err_cutout *= ff
-
+                else:
+                    err_cutout = Cutout2D(image[2].data, pixel, size, mode = 'strict').data #I think this is supposed to be image[2] XXX TODO
+           
+                #This also has to be put back
+                '''
                 except OSError:
                     if i['DETECTED']:
                         print('No stamp for the detection!')
@@ -514,10 +505,8 @@ class Detection:
                     mask.append(np.ones(size*size))
                     wgt.append(np.zeros(size*size))
                     continue
+                '''
 
-            
-                #print('About to try')
-                #print(i['zeropoint'])
                 try:
                 
                     zero = np.power(10, -(i['zeropoint'] - self.common_zpt)/2.5)
@@ -554,6 +543,14 @@ class Detection:
                 mask.append(np.zeros(size*size))
                 w = zero**2/err_cutout.flatten()
                 w[err_cutout.flatten() == 0] = 0 
+                print('Modulating weight by PSF!')
+                x_center, y_center = result.wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
+                x_cen, y_cen = wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
+                print('Before multiplying,', np.min(w), np.max(w))
+                psf = construct_psf_source(x_cen, y_cen, i['Pointing'], i['SCA'], stampsize = size, x_center = x_center, y_center=y_center)
+                psf[np.where(psf < 0 )] == 0
+                w *= psf
+                print('After multiplying', np.min(w), np.max(w))
                 wgt.append(w)
             
                 
@@ -562,6 +559,7 @@ class Detection:
             self.bgflux = bgflux
 
             self.wgt = np.hstack(wgt)
+            print('WGT shape', np.shape(self.wgt))
 
             self.invwgt = 1/self.wgt
 
@@ -789,8 +787,8 @@ def SNID_to_loc(SNID, parq, band = 'F184', date = False):
         return RA, DEC, p, s, start, end, peak
 
 
-def calibration(pointing, SCA, band, snid = None, return_mag = False):
-    cat = pd.read_csv(f'/cwork/mat90/RomanDESC_sims_2024/RomanTDS/truth/{band}/{pointing}/Roman_TDS_index_{band}_{pointing}_{SCA}.txt',\
+def calibration(pointing, SCA, band, snid = None, return_mag = False, roman_path = None):
+    cat = pd.read_csv(roman_path+f'/RomanTDS/truth/{band}/{pointing}/Roman_TDS_index_{band}_{pointing}_{SCA}.txt',\
                               sep="\s+", skiprows = 1,
                               names = ['object_id', 'ra', 'dec', 'x', 'y', 'realized_flux', 'flux', 'mag', 'obj_type'])
     if snid is not None:
