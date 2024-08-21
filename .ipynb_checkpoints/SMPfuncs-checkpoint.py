@@ -543,14 +543,7 @@ class Detection:
                 mask.append(np.zeros(size*size))
                 w = zero**2/err_cutout.flatten()
                 w[err_cutout.flatten() == 0] = 0 
-                print('Modulating weight by PSF!')
-                x_center, y_center = result.wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
-                x_cen, y_cen = wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
-                print('Before multiplying,', np.min(w), np.max(w))
-                psf = construct_psf_source(x_cen, y_cen, i['Pointing'], i['SCA'], stampsize = size, x_center = x_center, y_center=y_center)
-                psf[np.where(psf < 0 )] == 0
-                w *= psf
-                print('After multiplying', np.min(w), np.max(w))
+
                 wgt.append(w)
             
                 
