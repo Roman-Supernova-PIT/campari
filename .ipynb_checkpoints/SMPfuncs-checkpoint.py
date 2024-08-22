@@ -181,7 +181,8 @@ def getPSF_Image(refim,stamp_size,x=None,y=None,pupil_bin=8,sed=None,
                                 image=stamp,
                                 photon_ops=photon_ops,
                                 poisson_flux=False,
-                                center = galsim.PositionD(x_center + 1, y_center + 1))
+                                center = galsim.PositionD(x_center + 1, y_center + 1),
+                                use_true_center = True)
 
 def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_center = None, sed = None):
     '''
@@ -207,7 +208,6 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     sed = galsim.SED(galsim.LookupTable(a.Wavelength/10, a.Flux, interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
     
-    print('For source, x y x cen y cen', x, y, x_center, y_center)
     master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed).array
     
     return master.flatten()
@@ -430,7 +430,8 @@ class Detection:
 
             #will be used for gain corrections later on
             #zpt = self.exposures['zeropoint'][np.where((self.exposures['Pointing'] == self.pointing)&(self.exposures['SCA'] == self.scanum))][0]
-            print('This zpt line commented out')
+            
+            #print('This zpt line commented out')
             #self.zp = np.power(10, -(zpt - self.common_zpt)/2.5) #Need to figure out zeropointing XXX TODO
 
 
@@ -458,7 +459,6 @@ class Detection:
 
 
                 pixel = wcs.world_to_pixel(SkyCoord(ra=self.ra*u.degree, dec=self.dec*u.degree))
-                print('pixel', pixel)
                 #pixel = (pixel[0] + 0.5, pixel[1] + 0.5)
                 #Astropy defines pixel coordinates as the center of the pixel, so we add 0.5.
 
