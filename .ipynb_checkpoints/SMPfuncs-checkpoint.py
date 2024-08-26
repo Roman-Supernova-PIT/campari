@@ -176,7 +176,7 @@ def getPSF_Image(refim,stamp_size,x=None,y=None,pupil_bin=8,sed=None,
         return point.drawImage(refim.bpass,
                                 method='phot',
                                 rng=refim.rng,
-                                maxN=int(1e6), #This needs to be changed back to 1e6 once I figure out memory issues XXX TODO
+                                maxN=int(1e7), #This needs to be changed back to 1e6 once I figure out memory issues XXX TODO
                                 n_photons=int(1e6),
                                 image=stamp,
                                 photon_ops=photon_ops,
@@ -194,8 +194,8 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     '''
     
     #Need to customize band stuff here too XXX TODO 
-    print('while cwork is down')
-    config_file = '../temp_tds.yaml'
+    print('while cwork is down, need to customize this yaml file.')
+    config_file = './temp_tds.yaml'
     #config_file = '/hpc/home/cfm37/my_tds.yaml'
     util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
 
@@ -219,13 +219,16 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25):
     Generates a local grid around a RA-Dec center, choosing step size and number of points
     '''
 
-    extra = 3
+    extra = 1
     x = np.linspace(-extra, size+extra, npoints)
     y = np.linspace(-extra, size+extra, npoints)
 
-    xx, yy = np.meshgrid(x, y)
+    xx, yy = np.meshgrid(x, y) 
     xx = xx.flatten()
     yy = yy.flatten()
+
+    
+    
     print('Creating Grid with +', extra)
     result = wcs.pixel_to_world(xx, yy)
     ra_grid = result.ra.deg
@@ -541,8 +544,33 @@ class Detection:
 
                 m.append(im.flatten())
                 mask.append(np.zeros(size*size))
-                w = zero**2/err_cutout.flatten()
-                w[err_cutout.flatten() == 0] = 0 
+                w = (zero**2)*err_cutout.flatten()
+
+                
+                #Should this be times err_cutout? XXXX
+                            
+                w[err_cutout.flatten() == 0] = 0 #should i remove this line?
+                
+                x_center, y_center = result.wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
+                x_cen, y_cen = wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
+                psf = construct_psf_source(x_cen, y_cen, i['Pointing'], i['SCA'], stampsize = size, x_center = x_center, y_center=y_center)
+                
+                if psf.any() < 0:
+                    print('NEGATIVE PSF........')
+                psf[np.where(psf < 0 )] == 0
+
+                #print('Trying a weird thing')
+                #psf = np.zeros((size,size))
+                #psf += 1e-8
+                #boxsize  = 3
+                #psf[size//2 - boxsize: size//2+boxsize+1,size//2 - boxsize: size//2+boxsize+1] = 1
+                
+                psf = psf.flatten()
+                #psf /= np.sum(psf**2)
+                w /= psf
+
+                
+                
 
                 wgt.append(w)
             
@@ -552,7 +580,7 @@ class Detection:
             self.bgflux = bgflux
 
             self.wgt = np.hstack(wgt)
-            print('WGT shape', np.shape(self.wgt))
+
 
             self.invwgt = 1/self.wgt
 
