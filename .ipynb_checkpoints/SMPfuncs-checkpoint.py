@@ -551,19 +551,56 @@ class Detection:
                             
                 w[err_cutout.flatten() == 0] = 0 #should i remove this line?
                 
-                x_center, y_center = result.wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
-                x_cen, y_cen = wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
-                psf = construct_psf_source(x_cen, y_cen, i['Pointing'], i['SCA'], stampsize = size, x_center = x_center, y_center=y_center)
+                #x_center, y_center = result.wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
+                #x_cen, y_cen = wcs.world_to_pixel(SkyCoord(ra = self.ra*u.degree, dec = self.dec*u.degree))
+                #psf = construct_psf_source(x_cen, y_cen, i['Pointing'], i['SCA'], stampsize = size, x_center = x_center, y_center=y_center)
                 
-                if psf.any() < 0:
-                    print('NEGATIVE PSF........')
-                psf[np.where(psf < 0 )] == 0
+                #if psf.any() < 0:
+                    #print('NEGATIVE PSF........')
+                #psf[np.where(psf < 0 )] == 0
 
                 #print('Trying a weird thing')
                 #psf = np.zeros((size,size))
                 #psf += 1e-8
                 #boxsize  = 3
                 #psf[size//2 - boxsize: size//2+boxsize+1,size//2 - boxsize: size//2+boxsize+1] = 1
+                
+                print('GAUSSIAN WEIGHTING')
+                x = np.arange(0, size, 1.0)
+                y = np.arange(0, size, 1.0)
+                xx,yy =np.meshgrid(x,y)
+                
+                #weight_points = result.wcs.pixel_to_world(xx,yy)
+                #ra_weight_points = weight_points.ra.deg
+                #dec_weight_points = weight_points.dec.deg
+                
+                #ra_weight_points -= self.ra
+                #dec_weight_points -= self.dec
+                
+                #dist = np.sqrt(ra_weight_points**2 + dec_weight_points**2)
+                
+                #gaus_sigma = 1.5 * 0.146 / 3600 #From https://roman.gsfc.nasa.gov/science/WFI_technical.html
+                
+                xx -= np.mean(xx)
+                yy -= np.mean(yy)
+                dist = np.sqrt(xx**2 + yy**2)
+                gaus_sigma = 3
+                
+                psf = np.exp(-dist**2 / (2 * gaus_sigma**2))
+                
+                '''
+                print('DIST')
+                print(dist)
+                plt.imshow(dist)
+                plt.title('dist')
+                plt.show()
+                
+                print('WGT')
+                plt.imshow(psf)
+                plt.title('wgt')
+                plt.show()
+                '''
+            
                 
                 psf = psf.flatten()
                 #psf /= np.sum(psf**2)
