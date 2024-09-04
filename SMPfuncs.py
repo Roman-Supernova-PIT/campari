@@ -584,7 +584,7 @@ class Detection:
                 xx -= np.mean(xx)
                 yy -= np.mean(yy)
                 dist = np.sqrt(xx**2 + yy**2)
-                gaus_sigma = 3
+                gaus_sigma = self.sigma_gaus
                 
                 psf = np.exp(-dist**2 / (2 * gaus_sigma**2))
                 

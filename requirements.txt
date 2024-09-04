@@ -6,3 +6,4 @@ pandas
 pyerfa
 git+https://github.com/matroxel/roman_imsim.git
 scipy
+git+https://github.com/LSSTDESC/Coord.git
