@@ -171,7 +171,8 @@ def getPSF_Image(refim,stamp_size,x=None,y=None,pupil_bin=8,sed=None,
         stamp = galsim.Image(stamp_size*oversampling_factor,stamp_size*oversampling_factor,wcs=wcs)
         if not include_photonOps:
             psf = galsim.Convolve(point, refim.getPSF(x,y,pupil_bin))
-            return psf.drawImage(refim.bpass,image=stamp,wcs=wcs,method='no_pixel', offset=offset)
+            return psf.drawImage(refim.bpass,image=stamp,wcs=wcs,method='no_pixel', center = galsim.PositionD(x_center + 1, y_center + 1),\
+                                use_true_center = True)
         photon_ops = [refim.getPSF(x,y,pupil_bin)] + refim.photon_ops
         return point.drawImage(refim.bpass,
                                 method='phot',
@@ -195,7 +196,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     
     #Need to customize band stuff here too XXX TODO 
     print('while cwork is down')
-    config_file = '../temp_tds.yaml'
+    config_file = './temp_tds.yaml'
     #config_file = '/hpc/home/cfm37/my_tds.yaml'
     util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
 
@@ -213,21 +214,58 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     return master.flatten()
 
 #def local_grid(ra_center, dec_center, step, npoints):
+'''
+def local_grid(ra_center, dec_center, wcs, npoints, size = 25):
+
+'''
+#Generates a local grid around a RA-Dec center, choosing step size and number of points
+'''
+
+extra = 1
+x = np.linspace(-extra, size+extra, npoints)
+y = np.linspace(-extra, size+extra, npoints)
+
+xx, yy = np.meshgrid(x, y)
+xx = xx.flatten()
+yy = yy.flatten()
+print('Creating Grid with +', extra)
+result = wcs.pixel_to_world(xx, yy)
+ra_grid = result.ra.deg
+dec_grid = result.dec.deg
+
+return ra_grid, dec_grid
+'''
+    
 def local_grid(ra_center, dec_center, wcs, npoints, size = 25):
 
     '''
     Generates a local grid around a RA-Dec center, choosing step size and number of points
     '''
-
-    extra = 3
+    print('Constructing grid locally centered')
+    
+    '''
+    extra = 1
     x = np.linspace(-extra, size+extra, npoints)
     y = np.linspace(-extra, size+extra, npoints)
+    '''
+    
+    x_center, y_center = wcs.world_to_pixel(SkyCoord(ra = ra_center*u.degree, dec = dec_center*u.degree))
+    
+    spacing = 1.1
+    x = np.arange(-npoints, npoints + spacing, spacing)
+    y = np.arange(-npoints, npoints + spacing, spacing) #Place grid points in a defined grid
+    print('x in grid', x)
+    print('y in grid', y)
+    x += x_center 
+    y += y_center 
 
-    xx, yy = np.meshgrid(x, y)
+    xx, yy = np.meshgrid(x, y) 
     xx = xx.flatten()
     yy = yy.flatten()
-    print('Creating Grid with +', extra)
-    result = wcs.pixel_to_world(xx, yy)
+
+    
+
+    result = wcs.pixel_to_world(xx, yy) #Convert them to RA/DEC and return
     ra_grid = result.ra.deg
     dec_grid = result.dec.deg
 
@@ -522,6 +560,9 @@ class Detection:
                                          im[0:size,size//10:size].flatten(),\
                                               im[size//10:size,0:size//10].flatten(),\
                                                   im[size//10:size,size//10:size].flatten()))
+                print(bgarr, 'bgarr')
+                plt.hist(bgarr)
+                plt.show()
                 bgarr = bgarr[bgarr != 0]
 
                 if len(bgarr) == 0:
@@ -536,7 +577,8 @@ class Detection:
                 bgflux.append(bg)
 
                 if background:
-                    im -= bg 
+                    im -= bg - 811 
+                    print('MANUALLY ADDING BACKGROUND THIS MUST BE CHANGED BACK XXXX')
                     print('Subtracted a BG of', bg)
 
                 m.append(im.flatten())
