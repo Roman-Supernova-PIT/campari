@@ -9,6 +9,7 @@ module load conda
 conda create -n multismp ipykernel python=3.11
 
 conda activate multismp
+conda install -c conda-forge fitsio
 pip install -r requirements.txt
 
 # Create a Jupyter kernel with this environment
