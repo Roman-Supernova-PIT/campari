@@ -612,19 +612,14 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     all_images['realized flux'] = realized_fluxes
     all_images['BAND'] = band
 
-
-
     explist = Table.from_pandas(all_images)
-    #explist.sort('SCA')
     explist.sort(['DETECTED', 'SCA'])
     print(explist)
 
-
-    
     if return_list:
         return explist
 
-def find_parq(ID, path = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint/'):
+def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -740,11 +735,11 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
 
     return master.flatten()
 
-    def gaussian(x, A, mu, sigma):
-        '''
-        See name of function. :D
-        '''
-        return A*np.exp(-(x-mu)**2/(2*sigma**2))
+def gaussian(x, A, mu, sigma):
+    '''
+    See name of function. :D
+    '''
+    return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 def constructImages(exposures, ra, dec, size = 7, background = False, roman_path = None):
     
