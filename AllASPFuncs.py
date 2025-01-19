@@ -132,7 +132,8 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         bins = [-np.inf]
         #bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), [30, 85]))
         if len(percentiles) == 0:
-            percentiles = [25, 80, 90]
+            #percentiles = [25, 80, 90]
+            percentiles = [45, 95]
         bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), percentiles))
         print('added 90 percentile to local grid')
         #85, 
@@ -963,7 +964,7 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False):
+def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7):
     if adaptive_grid:
         a = images[:size**2].reshape(size,size)
         ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
