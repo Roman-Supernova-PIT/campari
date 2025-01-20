@@ -1,0 +1,43 @@
+#In this configuration file, enter all of the information that is needed to run the RomanASP program.
+#Many of these can be left as is, the parameters for choosing your specific needs are at the top. 
+
+SNID: 30666595                  #The ID of the supernova you want to fit...
+band: 'Y106'                    #..and in what band. Multiband fitting coming soon!
+npoints: 7                      #Not used. To be removed soon.
+size: 11                        #Stampsize of the image used
+testnum: 2                     #Total number of images
+detim: 1                      #Number of images with a supernova
+use_real_images: True           #Use Open Universe images (True) or simulate your own (False)
+use_roman: True                 #Use a Roman PSF
+roman_path: '/hpc/group/cosmology/OpenUniverse2024'
+sn_path: '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
+
+#These are only for my simulated images #------------------------------------------------------------------------#
+#These 5 options are a sanity check. If flipped all to true, the code should be able to perfectly recover the input.
+check_perfection: False   
+make_exact: False                            
+avoid_non_linearity: False         #The PSF does not scale perfectly linearly. This cheats by making the SN model point have a flux equal to that of the 
+                                        #SN, rather than giving it a flux of 1 and scaling the SN flux by the fit value. Therfore a perfect fit will recover
+                                        # a value of 1.00000
+deltafcn_profile: False            #This is a check to see if the code can recover the input when the input is a delta function.
+single_grid_point: False           #This cheats and makes the grid only one point, which is the location of the bg galaxy.
+#-----------------------
+do_xshift: True                     #whether to shift the images in the x direction (they will still be centered on the same point, this is just to emulate\
+                                    #Roman taking a series of images at different locations.)
+do_rotation: True                   #whether to rotate the images
+noise: 30                           #Standard Deviation of noise to add to a simulated image. 
+background_level: 0                 #mean of the noise to add to the image
+#-----------------------------------------------------------------------------------------------------------------#
+#The following are for the fitting methods and matter for all images.
+
+method: 'lsqr'  #The method to use to fit the images. Currently only 'lsqr' is supported.
+make_initial_guess: True  #Make an initial guess for the grid point values by averaging over pixels
+adaptive_grid: True      #Use my new adaptive grid method rather than a static evenly spaced grid. Bizarrely, this seems to be worse
+                            #when just fitting background, but gives better results when fitting for the supernova flux.
+spline_grid: False
+fit_background: False    #If true, each image will have a new parameter introduced with it that fits for the background. If False
+                            #the background will be subtracted from the images before fitting based on the background level over the whole image.
+                            #So far, I've found keeping this to be False is better.
+
+weighting: True #Apply a weighting to the fit. Currently, this is a tophat of radius 4 pix around the SN location and a 2D gaussian of width 2.5.
+pixel: True  #Use a tophat profile to be convolved with the PSF, rather than delta functions. This does not seem to make a huge difference.

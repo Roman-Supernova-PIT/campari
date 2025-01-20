@@ -132,7 +132,8 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         bins = [-np.inf]
         #bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), [30, 85]))
         if len(percentiles) == 0:
-            percentiles = [25, 80, 90]
+            #percentiles = [25, 80, 90]
+            percentiles = [45, 95]
         bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), percentiles))
         print('added 90 percentile to local grid')
         #85, 
@@ -612,19 +613,14 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     all_images['realized flux'] = realized_fluxes
     all_images['BAND'] = band
 
-
-
     explist = Table.from_pandas(all_images)
-    #explist.sort('SCA')
     explist.sort(['DETECTED', 'SCA'])
     print(explist)
 
-
-    
     if return_list:
         return explist
 
-def find_parq(ID, path = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint/'):
+def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -740,11 +736,11 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
 
     return master.flatten()
 
-    def gaussian(x, A, mu, sigma):
-        '''
-        See name of function. :D
-        '''
-        return A*np.exp(-(x-mu)**2/(2*sigma**2))
+def gaussian(x, A, mu, sigma):
+    '''
+    See name of function. :D
+    '''
+    return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 def constructImages(exposures, ra, dec, size = 7, background = False, roman_path = None):
     
@@ -968,7 +964,7 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False):
+def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7):
     if adaptive_grid:
         a = images[:size**2].reshape(size,size)
         ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
