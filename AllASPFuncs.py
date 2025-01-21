@@ -68,76 +68,18 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units = 'deg')
 
-
-    if spline_grid:
-        print('fitting spline grid')
-
-        #testimage = images[0*size**2:(0+1)*size**2].reshape(size,size)
-        testimage = image
-        x = np.arange(0,size,1)
-        y = np.arange(0,size,1)
-        xx, yy = np.meshgrid(x,y)
-        spline = RectBivariateSpline(x, y, testimage)
-
-        x = np.linspace(0,size-1,100)+1
-        y = np.linspace(0,size-1,100)+1
-        print('Adding 1 in spline grid')
-        xx, yy = np.meshgrid(x,y)
-
-
-
-        splineval = spline.__call__(x,y)
-        splineval /= np.max(splineval)
-
-        splinederiv = np.sqrt(spline.__call__(x,y,dx = 1)**2 + spline.__call__(x,y,dy = 1)**2) 
-        splinederiv /= np.max(splinederiv)
-        combo = splinederiv + splineval
-        argsort = np.argsort(combo.flatten())
-        argsort = argsort[::-1]
-
-
-
-        xx_sort = xx.flatten()[argsort]
-        yy_sort = yy.flatten()[argsort]
-
-        indices_zero = np.arange(0,100,5)
-        indices = np.arange(0,1000,5)
-
-        indices2 = np.arange(1000,3000, 20)
-        indices3 = np.arange(3000,np.size(xx_sort), 50)
-
-        totindices = np.concatenate([indices, indices2, indices3])
-        print(np.size(totindices))
-        plt.subplot(1,2,1)
-        plt.imshow(image, origin = 'lower')
-        plt.scatter(xx_sort[totindices],yy_sort[totindices], c = 'r', s = 1) 
-
-        plt.subplot(1,2,2)
-        plt.imshow(splinederiv, origin = 'lower')
-        plt.scatter(xx_sort[totindices]*10,yy_sort[totindices]*10, c = 'r', s = 1) 
-
-        xx = np.array(xx_sort[totindices])
-        print('xx from spline grid')
-        print(xx[:20])
-        yy = np.array(yy_sort[totindices])
-        print('overwriting as a test')
-
-
-    
-    elif image is not None:
+ 
+    if image is not None:
 
         #Bin the image in logspace and allocate grid points based on the brightness.
         imcopy = np.copy(image)
         imcopy[imcopy <= 0] = 1e-10
         bins = [-np.inf]
-        #bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), [30, 85]))
         if len(percentiles) == 0:
             #percentiles = [25, 80, 90]
             percentiles = [45, 95]
         bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), percentiles))
         print('added 90 percentile to local grid')
-        #85, 
-        #bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), [35, 90]))
         bins.append(np.inf)
 
         a = np.digitize(np.log(np.copy(imcopy)),bins)
@@ -223,43 +165,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
 
     return ra_grid, dec_grid
 
-def gradientGrid(im, wcs, ra_grid, dec_grid):
-    '''
 
-    '''
-    plt.imshow(im,origin = 'lower')
-
-    gradient = np.gradient(im)
-
-    plt.quiver(gradient[1], gradient[0])
-    imx = np.arange(0,size,1)
-    imy = np.arange(0,size,1)
-    xx, yy = wcs.toImage(ra_grid, dec_grid,units='deg')
-
-
-
-    xx_mod = []
-    yy_mod = []
-    for xcoord, ycoord in zip(xx,yy):
-        xarg = np.argmin(np.abs(imx - xcoord))
-        yarg = np.argmin(np.abs(imy - ycoord))
-        gradx = gradient[1][yarg-1,xarg-1]
-        grady = gradient[0][yarg-1,xarg-1]
-        #plt.arrow(xcoord, ycoord, gradx/100, grady/100, color = 'blue', head_width = 0.1, head_length = 0.1, zorder = 10)
-        xx_mod.append(gradx/np.max(gradient))
-        yy_mod.append(grady/np.max(gradient))
-
-    xx_prime = xx + np.array(xx_mod)
-    yy_prime = yy + np.array(yy_mod)
-
-
-       
-
-    ra_grid, dec_grid = wcs.toWorld(xx_prime,yy_prime,units='deg')
-    #plt.scatter(xx,yy, color = 'red')
-    plt.scatter(xx_prime-1, yy_prime-1, color = 'blue')
-    plt.show()
-    return ra_grid, dec_grid
     
 
 
@@ -369,7 +275,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, \
 
     return psfs
 
-def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, use_roman,band, size=11):
+def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, use_roman,band, size=11, deltafcn_profile = False):
     '''
     This function simulates images using galsim for testing purposes. It is not used in the main pipeline.
     Inputs:
@@ -389,6 +295,17 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
     '''
+    galra = ra + 1.5e-5
+    galdec = dec + 1.5e-5
+    snra = ra
+    sndec = dec
+    im_wcs_list = []
+    cutout_wcs_list = []
+    imagelist = []
+    lam = 1293  # nm
+    lam_over_diam = 0.11300864172775239   #This is the roman value
+    airy = galsim.ChromaticOpticalPSF(lam, diam = 2.36, aberrations=galsim.roman.getPSF(1,band, pupil_bin = 1).aberrations)
+    roman_bandpasses = galsim.roman.getBandpasses()
     for i in range(testnum):
         #Spinny loader just for fun :D
         spinner = ['|', '/', '-', '\\']
@@ -858,9 +775,6 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             #print('Subtracted a BG of', bg)
 
 
-        
-
-
         m.append(im.flatten())
         err.append(err_cutout.flatten())
         mask.append(np.zeros(size*size))
@@ -948,10 +862,8 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
         snx, sny = wcs.toImage(snra, sndec, units = 'deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
         
-        #wgt = np.zeros(size**2)
         wgt = np.ones(size**2)
         
-
         wgt = 5*np.exp(-dist**2/gaussian_std)
         
         wgt[np.where(dist > 4)] = 0

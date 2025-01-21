@@ -25,10 +25,11 @@ import os
 import scipy
 import time
 import galsim
-
 import sklearn
 from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
+from AllASPFuncs import *
+import yaml
 
 
 
@@ -58,9 +59,6 @@ Adapted from code by Pedro Bernardinelli
                                                         
 '''
 
-from AllASPFuncs import *
-
-import yaml
 
 config_path = './config.yaml'
 
@@ -75,7 +73,11 @@ def main():
     print("Running the main function")
 
     # Access configuration parameters
+
+# Extract all the configuration variables dynamically
     config = load_config(config_path)
+
+
     band = config['band']
     npoints = config['npoints']
     size = config['size']
@@ -102,10 +104,10 @@ def main():
     SNID = config['SNID']
     roman_path = config['roman_path']
     sn_path = config['sn_path']
+
     print('All Configurations Loaded')
 
-    biases = []
-    stds = []
+ 
     roman_bandpasses = galsim.roman.getBandpasses()
     
     #PSF for when not using the Roman PSF:
@@ -150,24 +152,19 @@ def main():
 
         psf_matrix = []
         imagelist = []
-
         sn_matrix = []
         cutout_wcs_list = []
         im_wcs_list = []
         gridmade = False
-
         #This is a catch for when I'm doing my own simulated WCS's
         image = None
         util_ref = None
-
         percentiles = []
         psf_matrix = []
         imagelist = []
-
         sn_matrix = []
         cutout_wcs_list = []
         im_wcs_list = []
-
 
         if use_real_images:
             #Find SN Info, find exposures containig it, and load those as images. 
@@ -175,23 +172,18 @@ def main():
             if len(exposures) != testnum:
                     print('Not enough exposures')
                     continue
-            imlist = [images[i*size**2:(i+1)*size**2].reshape(size,size) for i in range(testnum)]
-
+        
         else:
             #Simulate the images of the SN and galaxy.
             ra, dec = 7.541534306163982, -44.219205940734625
-            snra = ra
-            sndec = dec
+            snra, sndec = ra, dec
             galra = ra + 1.5e-5
             galdec = dec + 1.5e-5
-
-
             images, im_wcs_list, cutout_wcs_list = simulateImages(testnum,detim,ra,dec,do_xshift,\
-                do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band)
-            imlist = [images[i*size**2:(i+1)*size**2].reshape(size,size) for i in range(testnum)]
+                do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band, deltafcn_profile = deltafcn_profile)
 
+        imlist = [images[i*size**2:(i+1)*size**2].reshape(size,size) for i in range(testnum)]
 
-        #If not using the adaptive grid, make a grid of points to fit over.
         ra_grid, dec_grid = makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, single_grid_point=single_grid_point, percentiles=percentiles, npoints = npoints)
 
         if weighting:
@@ -210,7 +202,6 @@ def main():
             x0test = None
 
         ############################################### Fitting Section ###############################################
-
 
         #Calculate the Confusion Metric
         if use_real_images:
@@ -235,6 +226,9 @@ def main():
             x,y = im_wcs_list[i].toImage(ra,dec, units = 'deg')
 
             #Build the model for the background using the correct psf and the grid we made in the previous section. 
+
+
+
             if use_real_images:
                 util_ref = roman_utils(config_file='./temp_tds.yaml', visit = exposures['Pointing'][i], sca = exposures['SCA'][i])
             else:
@@ -298,11 +292,8 @@ def main():
 
         psf_matrix = np.array(psf_matrix)
         psf_matrix = np.vstack(psf_matrix)
-
         matrix_list = []
         matrix_list.append(psf_matrix)
-
-
         psf_zeros = np.zeros((psf_matrix.shape[0], testnum))
 
         #Add in the supernova images to the matrix in the appropriate location so that it matches up with the image 
@@ -352,16 +343,9 @@ def main():
         pred = X*psf_matrix
         sumimages = np.sum(pred, axis = 1)
         res = sumimages - images
-        biases.append(np.mean(res))
-        stds.append(np.std(res))
-
-
-
         true_mags = -2.5*np.log10(supernova) + 14
         model_mags = -2.5*np.log10(X[-detim:]) + 14
         res = true_mags - model_mags
-        biases.append(np.mean(res))
-        stds.append(np.std(res))
 
 
         if check_perfection:
@@ -374,19 +358,16 @@ def main():
             else:
                 X = np.zeros_like(X)
                 X[106] = f
-        print(np.size(ra_grid))
-        print(biases[-1])
-        print(stds[-1])
 
         detections = exposures[np.where(exposures['DETECTED'])]
         detections['measured_flux'] = X[-detim:]
         detections['confusion_metric'] = confusion_metric
         parq_file = find_parq(ID, path = sn_path)
-        print(parq_file)
         df = open_parq(parq_file, path = sn_path)
         detections['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
         detections['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
         detections['grid points'] = np.size(ra_grid)
+        print(detections)
         detections = detections.to_pandas()
         #detections.to_csv(f'./results/{ID}_{band}_detections.csv', index = False)
         #print('Saved to ./results/' + f'{ID}_{band}_detections.csv')
