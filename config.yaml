@@ -5,7 +5,7 @@ SNID: 30666595                  #The ID of the supernova you want to fit...
 band: 'Y106'                    #..and in what band. Multiband fitting coming soon!
 npoints: 7                      #Not used. To be removed soon.
 size: 11                        #Stampsize of the image used
-testnum: 2                     #Total number of images
+testnum: 10                     #Total number of images
 detim: 1                      #Number of images with a supernova
 use_real_images: True           #Use Open Universe images (True) or simulate your own (False)
 use_roman: True                 #Use a Roman PSF
