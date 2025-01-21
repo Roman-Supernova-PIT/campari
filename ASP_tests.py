@@ -40,6 +40,13 @@ def test_findAllExposures():
     assert explist['SCA'].all() == compare_table['SCA'].all()
     assert explist['date'].all() == compare_table['date'].all()
 
+def test_simulateImages():
+    images, im_wcs_list, cutout_wcs_list = simulateImages(10,5,7.541534306163982, -44.219205940734625, True, True, \
+        [10, 100, 1000, 10**4, 10**5], 0, False, 'F184', size=11)
+    compare_images = np.load('tests/testdata/images.npy')
+    assert compare_images.all() == images.all()
+
+
 
 
     

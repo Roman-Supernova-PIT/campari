@@ -391,7 +391,6 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
             profile = gal*sed
             profile = profile.withFlux(9e6, roman_bandpasses[band])
             convolved = galsim.Convolve(profile, sim_psf)
-
         a = convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
             wcs = cutoutgalwcs, center = (pointx, pointy), use_true_center = True).array
         
