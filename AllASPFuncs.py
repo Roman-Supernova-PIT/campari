@@ -629,7 +629,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         stampsize = size of cutout image used
         x_center and y_center need to be given in coordinates of the cutout.
         sed: the SED of the source (XXX CURRENTLY NOT IMPLEMENTED XXX)
-        flux: the flux of the source. If you are using this function to build a model grid point, this should be 1. If
+        flux: If you are using this function to build a model grid point, this should be 1. If
             you are using this function to build a model of a source, this should be the flux of the source.
 
     '''
@@ -826,10 +826,9 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         psf = galsim.Convolve(point, self.getPSF(x,y,pupil_bin))
         return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',center = galsim.PositionD(x_center, y_center),use_true_center = True)
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
-
-    
+    print('Using 1e7 photons in getPSF_Image')
     result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
-        n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
+        n_photons=int(1e7),maxN=int(1e7),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
