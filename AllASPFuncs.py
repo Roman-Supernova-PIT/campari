@@ -133,7 +133,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         
     else:
 
-        subsize = 6 #Taking a smaller square inside the image to fit on
+        subsize = 8 #Taking a smaller square inside the image to fit on
         difference = int((size - subsize)/2)
 
         spacing = 0.4
@@ -198,7 +198,7 @@ def generateGuess(imlist, wcslist, ra_grid, dec_grid):
 
 
 
-def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, \
+def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_roman, \
     color=0.61, psf = None, pixel = False, include_photonOps = False, util_ref = None):
 
     '''
@@ -225,12 +225,16 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, \
 
 
     if type(wcs) == galsim.fitswcs.AstropyWCS:
+        #print('using astropy')
         x,y = wcs.toImage(ra,dec,units='deg')
     else:
+        #print('using not astropy')
         x, y = wcs.world_to_pixel(SkyCoord(ra = np.array(ra)*u.degree, dec = np.array(dec)*u.degree))
+    #print('-----')
+    #print(wcs)
+    #print('ra and dec in construct psf background', ra, dec)
 
-    #print('xx in construct bg grid')
-    #print(x[:20])
+
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
     k = 0 
@@ -238,44 +242,64 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, \
     #For now, we use a flat SED. This is not ideal, but it is a good starting point.
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
-
+    point = None
     if pixel:
         point = galsim.Pixel(0.1)*sed
     else:
-        point = galsim.DeltaFunction()*sed
+        point = galsim.DeltaFunction()
+        point *= sed
 
     point = point.withFlux(1,bpass)
     oversampling_factor = 1
     pupil_bin = 8
 
     newwcs = wcs
-
     #Loop over the grid points, draw the PSF at each one, and append to a list.
     for a,ij in enumerate(zip(x.flatten(),y.flatten())):
         i,j = ij
         stamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
         
         if not include_photonOps:
-            if not psf:
-                convolvedpsf = galsim.Convolve(point, util_ref.getPSF(x,y,pupil_bin))
+            if use_roman:
+                #print('PSF x and y in construct psf background', x_loc, y_loc)
+                #print('Ive changed this to xloc and yloc for now but its possibly wrong')
                 
+                #print(stamp)
+                #print(newwcs)
+
+                convolvedpsf = galsim.Convolve(point, util_ref.getPSF(x_loc,y_loc,pupil_bin))                
             else:
                 convolvedpsf = galsim.Convolve(point, psf)
+            #print(i,j)
+            #print(convolvedpsf)
             result = convolvedpsf.drawImage(bpass, method='no_pixel',\
                 center = galsim.PositionD(i, j),use_true_center = True, image = stamp, wcs = newwcs) 
+            #print(result)
 
         else:
             photon_ops = [util_ref.getPSF(i,j,8)] + util_ref.photon_ops 
             result = point.drawImage(bpass,wcs=newwcs, method='phot', photon_ops=photon_ops, rng=util_ref.rng, \
                 n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(i+1, j+1),\
                     use_true_center = True, image=stamp)
-
+        '''
+        plt.figure(figsize = (5,5))
+        plt.title('PSF inside CBg')
+        plt.imshow(result.array)
+        plt.colorbar()
+        '''
         psfs[:,k] = result.array.flatten() 
         k += 1
 
-    return psfs
+    newstamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
+    #roman_bandpasses[band]
+    if not psf:
+        bgpsf = (util_ref.getPSF(2048,2048,pupil_bin)*sed).drawImage(bpass, wcs = newwcs, center = (5, 5), use_true_center = True, image = newstamp)
+    else:
+        bgpsf = (psf*sed).drawImage(bpass, wcs = newwcs, center = (5, 5), use_true_center = True, image = newstamp)
+    bgpsf = bgpsf.array
+    return psfs, bgpsf
 
-def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, use_roman,band, size=11, deltafcn_profile = False):
+def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, use_roman,band, deltafcn_profile, size=11, input_psf =None):
     '''
     This function simulates images using galsim for testing purposes. It is not used in the main pipeline.
     Inputs:
@@ -297,16 +321,22 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
     '''
     galra = ra + 1.5e-5
     galdec = dec + 1.5e-5
+    #print('ra and dec in simulate images', galra, galdec)
     snra = ra
     sndec = dec
     im_wcs_list = []
     cutout_wcs_list = []
     imagelist = []
-    lam = 1293  # nm
-    lam_over_diam = 0.11300864172775239   #This is the roman value
-    airy = galsim.ChromaticOpticalPSF(lam, diam = 2.36, aberrations=galsim.roman.getPSF(1,band, pupil_bin = 1).aberrations)
+    #lam = 1293  # nm
+    #lam_over_diam = 0.11300864172775239   #This is the roman value
+    #airy = galsim.ChromaticOpticalPSF(lam, diam = 2.36, aberrations=galsim.roman.getPSF(1,band, pupil_bin = 1).aberrations)
     roman_bandpasses = galsim.roman.getBandpasses()
+    psf_storage = []
+    sn_storage = []
+
     for i in range(testnum):
+
+        
         #Spinny loader just for fun :D
         spinner = ['|', '/', '-', '\\']
         print('Image ' + str(i) + '   ' + spinner[i%4], end = '\r')
@@ -371,18 +401,28 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
 
         stamp = galsim.Image(size,size,wcs=cutoutgalwcs)
 
+        print('ra and dec in simulate images', galra, galdec)
         pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units = 'deg')
 
         if use_roman:
-            sim_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = cutoutgalwcs)
+            #sim_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = cutoutgalwcs)
+            pupil_bin = 8
+            util_ref = roman_utils(config_file='./temp_tds.yaml', visit = 502, sca = 13)
+
+            sim_psf = util_ref.getPSF(x,y,pupil_bin)
+            
         else:
-            sim_psf = airy
+            print('\n')
+            print('Using input PSF')
+            #sim_psf = airy
+            sim_psf = input_psf
 
         
         #Draw the galaxy.
         if deltafcn_profile:
             profile = galsim.DeltaFunction()*sed
             profile = profile.withFlux(9e6, roman_bandpasses[band]) 
+            #print(pointx, pointy)
             convolved = galsim.Convolve(profile, sim_psf)
         else:
             bulge = galsim.Sersic(n=3, half_light_radius=1.6)
@@ -391,29 +431,48 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
             profile = gal*sed
             profile = profile.withFlux(9e6, roman_bandpasses[band])
             convolved = galsim.Convolve(profile, sim_psf)
+        #print(convolved)
+        #print('Changed to PositionD')
         a = convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
-            wcs = cutoutgalwcs, center = (pointx, pointy), use_true_center = True).array
+            wcs = cutoutgalwcs, center = galsim.PositionD(pointx, pointy), use_true_center = True)
+        #print(a)
+        a = a.array
+        '''
+        plt.figure(figsize = (5,5))
+        plt.imshow(a)
+        plt.title('Image in sim image')
+        plt.colorbar()
+        '''
+        stamp2 = galsim.Image(size,size,wcs=cutoutgalwcs)
+        psf_storage.append((sim_psf*sed).drawImage(roman_bandpasses[band], wcs = cutoutgalwcs, center = (5, 5), use_true_center = True, image = stamp2).array)
+
         
         #Noise it up!
         if noise > 0:
-            a += np.random.normal(background_level, noise, size**2).reshape(size,size)
-        
+            a += np.random.normal(0, noise, size**2).reshape(size,size)
         #Inject a supernova! If using.
         if supernova != 0:
             if i >= testnum - detim:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units = 'deg')
                 if use_roman:
-                    a += construct_psf_source(x, y, 662, 11, stampsize=size,  \
+                    supernova_image = construct_psf_source(x, y, 502, 13, stampsize=size,  \
                         x_center = snx, y_center = sny, flux = supernova[i - testnum + detim], sed = sed).reshape(size,size)
+                    a += supernova_image
+                    
+
                 else:
                     stamp = galsim.Image(size,size,wcs=cutoutgalwcs)
                     profile = galsim.DeltaFunction()*sed
                     profile = profile.withFlux(supernova[i - testnum + detim], roman_bandpasses[band]) 
                     
                     convolved = galsim.Convolve(profile, sim_psf)
-                    a += convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
+                    supernova_image = convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
                                 wcs = cutoutgalwcs, center = (snx, sny), \
                                     use_true_center = True, add_to_image = False).array
+                    a += supernova_image
+                sn_storage.append(supernova_image)
+                print('appending sn to storage')
+                print('now at length', len(sn_storage))
 
 
         cutout_wcs_list.append(cutoutgalwcs)
@@ -424,7 +483,7 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
 
     
 
-    return images, im_wcs_list, cutout_wcs_list
+    return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage
 
 
 def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, \
@@ -850,6 +909,7 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
     wgt_matrix = []
     gaussian_std = 2.5
     print('Gaussian std in getWeights', gaussian_std)
+    #print('No Gaussian weighting')
     for i,wcs in enumerate(cutout_wcs_list):
         xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
         xx = xx.flatten()
@@ -874,7 +934,7 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7):
+def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False):
     if adaptive_grid:
         a = images[:size**2].reshape(size,size)
         ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
