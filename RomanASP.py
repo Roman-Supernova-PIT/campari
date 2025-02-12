@@ -31,6 +31,8 @@ from scipy.interpolate import RectBivariateSpline
 from AllASPFuncs import *
 import yaml
 
+import argparse
+import pickle
 
 
 '''
@@ -72,9 +74,12 @@ def main():
     # Your main code logic goes here
     print("Running the main function")
 
+    parser = argparse.ArgumentParser(description="Can overwrite config file")
+    parser.add_argument("-r", "--roman", action="store_true", help="Overwrite config file and use a roman PSF")
+
     # Access configuration parameters
 
-# Extract all the configuration variables dynamically
+    # Extract all the configuration variables dynamically
     config = load_config(config_path)
 
 
@@ -104,8 +109,15 @@ def main():
     SNID = config['SNID']
     roman_path = config['roman_path']
     sn_path = config['sn_path']
+    turn_grid_off = config['turn_grid_off']
+    bg_gal_flux = config['bg_gal_flux']
 
     print('All Configurations Loaded')
+
+    args = parser.parse_args()
+    if args.roman:
+        use_roman = True
+        print('Overwriting config file to use Roman PSF')
 
  
     roman_bandpasses = galsim.roman.getBandpasses()
@@ -160,7 +172,6 @@ def main():
         image = None
         util_ref = None
         percentiles = []
-        psf_matrix = []
         imagelist = []
         sn_matrix = []
         cutout_wcs_list = []
@@ -179,13 +190,21 @@ def main():
             snra, sndec = ra, dec
             galra = ra + 1.5e-5
             galdec = dec + 1.5e-5
-            images, im_wcs_list, cutout_wcs_list = simulateImages(testnum,detim,ra,dec,do_xshift,\
-                do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band, deltafcn_profile = deltafcn_profile)
+            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = simulateImages(testnum,detim,ra,dec,do_xshift,\
+                do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band, \
+                    deltafcn_profile = deltafcn_profile, input_psf = airy, bg_gal_flux = bg_gal_flux)
 
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size,size) for i in range(testnum)]
 
-        ra_grid, dec_grid = makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, single_grid_point=single_grid_point, percentiles=percentiles, npoints = npoints)
+        #Build the background grid
+        if not turn_grid_off:
+            ra_grid, dec_grid = makeGrid(adaptive_grid, images,size,galra,galdec,cutout_wcs_list, single_grid_point=single_grid_point, percentiles=percentiles, npoints = npoints)
+        else:
+            ra_grid = np.array([])
+            dec_grid = np.array([])
 
+
+        #Get the weights
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list,size,snra,sndec, error = None)
         
@@ -217,7 +236,7 @@ def main():
 
         for i in range(testnum):
             spinner = ['|', '/', '-', '\\']
-            print('Constructing Model ' + str(i) + '   ' + spinner[i%4], end = '\r')
+            #print('Constructing Model ' + str(i) + '   ' + spinner[i%4], end = '\r')
             if use_roman:
                 sim_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = cutout_wcs_list[i])
             else:
@@ -227,33 +246,14 @@ def main():
 
             #Build the model for the background using the correct psf and the grid we made in the previous section. 
 
-
-
             if use_real_images:
                 util_ref = roman_utils(config_file='./temp_tds.yaml', visit = exposures['Pointing'][i], sca = exposures['SCA'][i])
             else:
-                util_ref = roman_utils(config_file='./temp_tds.yaml', visit = 662, sca = 11)
+                util_ref = roman_utils(config_file='./temp_tds.yaml', visit = 502, sca = 13)
 
-            array = construct_psf_background(ra_grid, dec_grid, cutout_wcs_list[i],\
+            array, bgpsf = construct_psf_background(ra_grid, dec_grid, cutout_wcs_list[i],\
                 x, y, size, roman_bandpasses[band], color=0.61, \
-                    psf = sim_psf, pixel = pixel, include_photonOps = False, util_ref = util_ref)
-
-            
-            if single_grid_point:
-                pointx, pointy = cutout_wcs_list[i].toImage(galra, galdec, units = 'deg')
-                stamp = galsim.Image(size,size,wcs=cutout_wcs_list[i])
-                profile = galsim.DeltaFunction()*sed
-                if avoid_non_linearity:
-                    fluxpoint = 5000
-                else:
-                    fluxpoint = 1
-                profile = profile.withFlux(fluxpoint, util_ref.bpass) 
-                convolved = galsim.Convolve(profile, sim_psf)
-                
-                array = convolved.drawImage(util_ref.bpass, method='no_pixel', image = stamp, \
-                            wcs = cutout_wcs_list[i], center = (pointx, pointy), \
-                                use_true_center = True, add_to_image = False).array.flatten().reshape(-1,1)
-
+                    psf = sim_psf, pixel = pixel, include_photonOps = False, util_ref = util_ref, use_roman = use_roman, band = band)
             
             if fit_background:
                 for j in range(testnum):
@@ -274,8 +274,8 @@ def main():
                         pointing = exposures['Pointing'][i]
                         SCA = exposures['SCA'][i]
                     else:
-                        pointing = 662
-                        SCA = 11
+                        pointing = 502
+                        SCA = 13
                     array = construct_psf_source(x, y, pointing, SCA, \
                             stampsize = size, x_center = snx, y_center = sny, sed = sed)
                 else:
@@ -359,23 +359,66 @@ def main():
                 X = np.zeros_like(X)
                 X[106] = f
 
-        detections = exposures[np.where(exposures['DETECTED'])]
-        detections['measured_flux'] = X[-detim:]
-        detections['confusion_metric'] = confusion_metric
-        parq_file = find_parq(ID, path = sn_path)
-        df = open_parq(parq_file, path = sn_path)
-        detections['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
-        detections['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
-        detections['grid points'] = np.size(ra_grid)
-        print(detections)
-        detections = detections.to_pandas()
-        #detections.to_csv(f'./results/{ID}_{band}_detections.csv', index = False)
-        #print('Saved to ./results/' + f'{ID}_{band}_detections.csv')
-        print('Saving not performed')
+
+        #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
+        if not os.path.exists('./results'):
+            print('Making a results directory for output at ', os.getcwd(), '/results')
+            os.makedirs('./results')
+            os.makedirs('./results/images')
+            os.makedirs('./results/lightcurves')
+
+        if use_real_images:
+            detections = exposures[np.where(exposures['DETECTED'])]
+            detections['measured_flux'] = X[-detim:]
+            detections['confusion_metric'] = confusion_metric
+            parq_file = find_parq(ID, path = sn_path)
+            df = open_parq(parq_file, path = sn_path)
+            detections['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
+            detections['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
+            detections['grid points'] = np.size(ra_grid)
+            print(detections)
+            detections = detections.to_pandas()
+            #detections.to_csv(f'./results/{ID}_{band}_detections.csv', index = False)
+            #print('Saved to ./results/' + f'{ID}_{band}_detections.csv')
+            print('Saving not performed')
+
+        else:
+            if use_roman:
+                psftype = 'romanpsf'
+            else:
+                psftype = 'analyticpsf'
+            if detim != 0:
+            #First, build the lc file
+                lc = pd.DataFrame()
+                lc['true_flux'] = X[-detim:]
+                lc['model_flux'] = supernova
+                lc['MJD'] = np.arange(0, detim, 1)
+                print('Saving lightcurve to ./results/lightcurves/simulated_' + f'{band}_{psftype}_lc.csv')            
+                lc.to_csv(f'./results/lightcurves/simulated_{band}_{psftype}_lc.csv', index = False)
+            else:
+                print('No LC to save')
+
+            #Now, save the images
+            images_and_model = np.array([images, sumimages, wgt_matrix])
+            print('Saving images to ./results/images/simulated_' + f'{band}_{psftype}_images.npy')
+            np.save(f'./results/images/simulated_{band}_{psftype}_images.npy', images_and_model)
+
+            #Save the ra and decgrid
+            np.save(f'./results/images/simulated_{band}_{psftype}_grid.npy', [ra_grid, dec_grid])
+
+
+            #save wcses
+            primary_hdu = fits.PrimaryHDU()
+            hdul = [primary_hdu]
+            for i, galsimwcs in enumerate(cutout_wcs_list):
+                hdul.append(fits.ImageHDU(header=galsimwcs.wcs.to_header(), name="WCS" + str(i)))
+            hdul = fits.HDUList(hdul)
+            hdul.writeto(f'./results/images/simulated_{band}_{psftype}_wcs.fits', overwrite = True)
+
 
         '''
         except Exception as e:
-            print('Failed on ID:', ID)
+            print('Failed on ID:', ID) 
             print(e)
             continue
         '''
@@ -388,6 +431,7 @@ def main():
     #Tests running a function and see if it returns the expected value
     #Make big chunks of code into functions
     #Export as python
+
 
 if __name__ == "__main__":
     main()
