@@ -26,9 +26,11 @@ import scipy
 import time
 import galsim
 
+import h5py
 import sklearn
 from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
+from scipy.interpolate import RegularGridInterpolator
 
 roman_path = '/hpc/group/cosmology/OpenUniverse2024'
 sn_path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
@@ -59,17 +61,36 @@ Adapted from code by Pedro Bernardinelli
                                                         
 '''
 
-def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = []):
+def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = [], makecontourGrid = True):
 
     '''
     Generates a local grid around a RA-Dec center, choosing step size and number of points
     '''
-
+    #Build the basic grid
+    subsize = 9 #Taking a smaller square inside the image to fit on
+    difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units = 'deg')
 
+    if image is None:
+        spacing = 0.5
+    else:
+        spacing = 1.0
+    print('GRID SPACE', spacing)
+    x = np.arange(difference, subsize+difference, spacing) 
+    y = np.arange(difference, subsize+difference, spacing) 
+
+    '''
+    x -= np.mean(x)
+    x+= x_center
+
+    y -= np.mean(y)
+    y+= y_center 
+    '''
+
+  
  
-    if image is not None:
+    if image is not None and not makecontourGrid:
 
         #Bin the image in logspace and allocate grid points based on the brightness.
         imcopy = np.copy(image)
@@ -86,36 +107,40 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         xes = []
         ys = []
         
-        subsize = 5 #Taking a smaller square inside the image to fit on
-        difference = int((size - subsize)/2)
 
-        a = a.reshape(size,size)
+        '''
         xvals = np.array(range(-2, subsize+2)).astype(float)
+        print('xvals', xvals)
         xvals -= np.mean(xvals)
+        print('xvals', xvals)
         xvals += x_center 
+        print('xvals', xvals)
         
-        xvals = np.rint(xvals).astype(int)
-
+        
+        
         yvals = np.array(range(-2, subsize+2)).astype(float)
         yvals -= np.mean(yvals)
         yvals += y_center 
-        yvals = np.rint(yvals).astype(int)
+        
+        '''
 
+        xvals = x
+        yvals = y
+        yvals = np.rint(yvals).astype(int)
+        xvals = np.rint(xvals).astype(int)
         for xindex in xvals: 
-            x = xindex - 1
+            x = xindex + 1
             for yindex in yvals: 
-                y = yindex - 1
+                y = yindex + 1
                 num = int(a[x][y])
-                #if xindex == size//2 + 1 and yindex == size//2 + 1:
-                    #continue
                 if num == 0:
                     pass
                 elif num == 1:
-                    xes.append(yindex)
-                    ys.append(xindex)
+                    xes.append(y)
+                    ys.append(x)
                 else: 
-                    xx = np.linspace(xindex-0.6,xindex+0.6,num+2)[1:-1]
-                    yy = np.linspace(yindex-0.6,yindex+0.6,num+2)[1:-1]
+                    xx = np.linspace(x-0.6,x+0.6,num+2)[1:-1]
+                    yy = np.linspace(y-0.6,y+0.6,num+2)[1:-1]
                     X,Y = np.meshgrid(xx,yy)
                     ys.extend(list(X.flatten()))
                     xes.extend(list(Y.flatten()))
@@ -123,20 +148,21 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         xx = np.array(xes)
         yy = np.array(ys)
 
-        print('Built a grid with', np.size(xx), 'points')
-        #dist = np.sqrt((xx - x_center)**2 + (yy - y_center)**2)
-        #delete xx and yy that are too close
-        #xx = xx[dist >= 1]
-        #yy = yy[dist >= 1]
+    elif image is not None and makecontourGrid:
+        print('USING CONTOUR GRID')
+        xx, yy = contourGrid(image)
+        xx = np.array(xx)
+        yy = np.array(yy)
 
 
-        
     else:
 
+        xx, yy = np.meshgrid(x+1, y+1) 
+    '''
         subsize = 8 #Taking a smaller square inside the image to fit on
         difference = int((size - subsize)/2)
 
-        spacing = 0.5
+        spacing = 1.0
         print('GRID SPACE', spacing)
         x = np.arange(difference, subsize+difference, spacing) 
         y = np.arange(difference, subsize+difference, spacing) 
@@ -148,9 +174,13 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         y+= y_center 
 
         xx, yy = np.meshgrid(x, y) 
-        
+        print(xx)
+    '''
+    
+
     xx = xx.flatten()
     yy = yy.flatten()
+    print('Built a grid with', np.size(xx), 'points')
 
     
     if type(wcs)==galsim.fitswcs.AstropyWCS:
@@ -168,9 +198,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
 
 
     
-
-
-
 
 def generateGuess(imlist, wcslist, ra_grid, dec_grid):
     '''
@@ -250,6 +277,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
     k = 0 
 
     #For now, we use a flat SED. This is not ideal, but it is a good starting point.
+    print('In construct psf bg using flat SED')
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
     point = None
@@ -306,15 +334,18 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
 
     newstamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
     #roman_bandpasses[band]
+    '''
     if not psf:
         bgpsf = (util_ref.getPSF(2048,2048,pupil_bin)*sed).drawImage(bpass, wcs = newwcs, center = (5, 5), use_true_center = True, image = newstamp)
     else:
         bgpsf = (psf*sed).drawImage(bpass, wcs = newwcs, center = (5, 5), use_true_center = True, image = newstamp)
     bgpsf = bgpsf.array
+    '''
+    bgpsf = None
     return psfs, bgpsf
 
 def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, use_roman,band, deltafcn_profile, size=11, \
-    input_psf =None, constant_imgs = False, bg_gal_flux = None):
+    input_psf =None, constant_imgs = False, bg_gal_flux = None, source_phot_ops = True, mismatch_seds = False):
     '''
     This function simulates images using galsim for testing purposes. It is not used in the main pipeline.
     Inputs:
@@ -411,7 +442,21 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
         galx2, galy2 = galwcs2.toImage(galra*u.degree,galdec*u.degree, units = 'deg')
 
         im_wcs_list.append(galwcs2)
-        sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
+        if mismatch_seds:
+            print('INTENTIONALLY MISMATCHING SEDS, 1a SED')
+            
+            file_path = r"snflux_1a.dat"
+            df = pd.read_csv(file_path, sep = '\s+', header = None, names = ['Day', 'Wavelength', 'Flux'])
+            a = df.loc[df.Day == 0]
+            del df
+            sed = galsim.SED(galsim.LookupTable(a.Wavelength/10, a.Flux, interpolant='linear'),
+                                    wave_type='nm', flux_type='fphotons')
+            '''
+            sed = galsim.SED(galsim.LookupTable([100, 2600], [0.8,1], interpolant='linear'),
+                                wave_type='nm', flux_type='fphotons')
+            '''
+        else:
+            sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                                 wave_type='nm', flux_type='fphotons')
 
         stamp = galsim.Image(size,size,wcs=cutoutgalwcs)
@@ -439,6 +484,8 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
         else:
             bulge = galsim.Sersic(n=3, half_light_radius=1.6)
             disk = galsim.Exponential(half_light_radius=5)
+            #bulge = galsim.Sersic(n=3, half_light_radius=3)
+            #disk = galsim.Exponential(half_light_radius=6)
             gal = bulge + disk
             profile = gal*sed
             profile = profile.withFlux(bg_gal_flux, roman_bandpasses[band])
@@ -469,8 +516,8 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
             if i >= testnum - detim:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units = 'deg')
                 if use_roman:
-                    supernova_image = construct_psf_source(x, y, 502, 13, stampsize=size,  \
-                        x_center = snx, y_center = sny, flux = supernova[i - testnum + detim], sed = sed).reshape(size,size)
+                    supernova_image = construct_psf_source(x, y, 662, 11, stampsize=size,  \
+                        x_center = snx, y_center = sny, flux = supernova[i - testnum + detim], sed = sed, photOps = source_phot_ops).reshape(size,size)
                     a += supernova_image
                     
 
@@ -607,12 +654,16 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     if return_list:
         return explist
 
-def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'):
+def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/', star = False):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
     files = os.listdir(path)
-    files = [f for f in files if 'snana' in f]
+    if star:
+        files = [f for f in files if 'pointsource' in f]
+        files = [f for f in files if 'flux' not in f]
+    else:
+        files = [f for f in files if 'snana' in f]
     files = [f for f in files if '.parquet' in f]
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
@@ -691,7 +742,7 @@ def radec2point(RA, DEC, filt, start = None, end = None, path = '/cwork/mat90/Ro
     #The plus 1 is because the SCA numbering starts at 1
     return rows, cols + 1
 
-def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_center = None, sed = None, flux = 1):
+def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_center = None, sed = None, flux = 1, photOps = True):
     '''
         Constructs the PSF around the point source (x,y) location, allowing for some offset from the center
         Inputs:
@@ -699,27 +750,24 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         pointing, SCA: the pointing and SCA of the image
         stampsize = size of cutout image used
         x_center and y_center need to be given in coordinates of the cutout.
-        sed: the SED of the source (XXX CURRENTLY NOT IMPLEMENTED XXX)
+        sed: the SED of the source
         flux: If you are using this function to build a model grid point, this should be 1. If
             you are using this function to build a model of a source, this should be the flux of the source.
 
     '''
 
+    print('ARGS IN PSF SOURCE', x, y, pointing, SCA, stampsize, x_center, y_center, sed, flux)
+
     config_file = './temp_tds.yaml'
     util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
 
-    '''
-    file_path = r"snflux_1a.dat"
-    df = pd.read_csv(file_path, sep = '\s+', header = None, names = ['Day', 'Wavelength', 'Flux'])
-    a = df.loc[df.Day == 0]
-    del df
-    sed = galsim.SED(galsim.LookupTable(a.Wavelength/10, a.Flux, interpolant='linear'),
-                            wave_type='nm', flux_type='fphotons')
-    '''
-    sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
-                                wave_type='nm', flux_type='fphotons')
+    assert sed is not None, 'You must provide an SED for the source'
 
-    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=True, flux = flux).array
+    if not photOps:
+        print('WARNING: NOT USING PHOTON OPS IN PSF SOURCE')
+        print('ARE YOU SURE YOU WANT TO DO THIS?')
+
+    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
 
     return master.flatten()
 
@@ -869,11 +917,14 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         the PSF GalSim image object (use image.array to get a numpy array representation)
     """
     time1 = time.time()
+    '''
     if sed is None:
         sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
+    '''
     if pixel:
         point = galsim.Pixel(1)*sed
+        print('Building a Pixel shaped PSF source')
     else:
         point = galsim.DeltaFunction()*sed
     time2 = time.time()
@@ -891,10 +942,11 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     if not include_photonOps:
         psf = galsim.Convolve(point, self.getPSF(x,y,pupil_bin))
         return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',center = galsim.PositionD(x_center, y_center),use_true_center = True)
+
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
-    print('Using 1e7 photons in getPSF_Image')
+    print('Using 1e6 photons in getPSF_Image')
     result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
-        n_photons=int(1e7),maxN=int(1e7),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
+        n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
@@ -912,14 +964,14 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures
 
-def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
+def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 1000, cutoff = np.inf):
     wgt_matrix = []
-    gaussian_std = 2.5
     print('Gaussian std in getWeights', gaussian_std)
     for i,wcs in enumerate(cutout_wcs_list):
         xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
         xx = xx.flatten()
         yy = yy.flatten()
+        
         rara, decdec = wcs.toWorld(xx, yy, units = 'deg')
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
@@ -930,22 +982,23 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None):
         
 
         wgt = 5*np.exp(-dist**2/gaussian_std)
-        
         wgt[np.where(dist > 4)] = 0
-
 
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
         wgt /= error
         wgt = wgt / np.sum(wgt)
+        if i >= cutoff:
+            print('Setting wgt to zero on image', i)
+            wgt = np.zeros_like(wgt)
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False):
+def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False, makecontourGrid = False):
     if adaptive_grid:
         a = images[:size**2].reshape(size,size)
         ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
-                npoints, size = size,  spacing = 0.75, image = a, spline_grid = False, percentiles = percentiles)
+                npoints, size = size,  spacing = 0.75, image = a, spline_grid = False, percentiles = percentiles, makecontourGrid = makecontourGrid)
         print('removed wgt when making adaptive grid')
     else:
         if single_grid_point:
@@ -971,7 +1024,7 @@ def plot_lc(fileroot):
 
     fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.csv')
     supernova = fluxdata['true_flux']
-    measured_flux = fluxdata['model_flux']
+    measured_flux = fluxdata['measured_flux']
 
     plt.figure(figsize = (10,10))
     plt.subplot(2,1,1)
@@ -993,7 +1046,7 @@ def plot_lc(fileroot):
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
     textstr = 'Overall Bias: ' + str(bias) + ' mmag \n' + \
         'Overall Scatter: ' + str(scatter) + ' mmag'
-    plt.text(np.percentile(dates,75), 14 - 2.5*np.log10(np.mean(supernova)), textstr,  fontsize=14,
+    plt.text(np.percentile(dates,60), 14 - 2.5*np.log10(np.mean(supernova)), textstr,  fontsize=14,
             verticalalignment='top', bbox=props)
     plt.legend()
 
@@ -1007,7 +1060,7 @@ def plot_lc(fileroot):
             plt.text(d+1,r,i+testnum-detim, fontsize = 8)
     else:
         plt.scatter(dates, -2.5*np.log10(measured_flux)+2.5*np.log10(supernova), color = 'k')
-        plt.plot([np.min(dates), np.max(dates)], [0,0], ls = '--', color = 'k')
+        plt.axhline(0, ls = '--', color = 'k')
         plt.ylabel('Mag Residuals (Model - Truth)')
 
     plt.ylabel('Mag Residuals (Model - Truth)')
@@ -1015,11 +1068,11 @@ def plot_lc(fileroot):
     plt.ylim(-0.1, 0.1)
 
 
-    plt.axhline(0.001, color = 'r', ls = '--')
-    plt.axhline(-0.001, color = 'r', ls = '--', label = 'Millimag photometry')
+    plt.axhline(0.005, color = 'r', ls = '--')
+    plt.axhline(-0.005, color = 'r', ls = '--', label = '5 mmag photometry')
 
     plt.axhline(0.02, color = 'b', ls = '--')
-    plt.axhline(-0.02, color = 'b', ls = '--', label = '20 mmag photometry, \n Revised goal until we can sort out PSF')
+    plt.axhline(-0.02, color = 'b', ls = '--', label = '20 mmag photometry')
     plt.legend()
 
 
@@ -1033,7 +1086,10 @@ def plot_images(fileroot, size = 11):
 
     fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.csv')
     supernova = fluxdata['true_flux']
-    measured_flux = fluxdata['model_flux']
+    measured_flux = fluxdata['measured_flux']
+
+    snra, sndec = fluxdata['sn_ra'][0], fluxdata['sn_dec'][0]
+    galra, galdec = fluxdata['host_ra'][0], fluxdata['host_dec'][0]
 
 
     hdul = fits.open('./results/images/'+str(fileroot)+'_wcs.fits')
@@ -1046,7 +1102,7 @@ def plot_images(fileroot, size = 11):
     
     biases = []
 
-    ra_grid, dec_grid = np.load('./results/images/'+str(fileroot)+'_grid.npy')
+    ra_grid, dec_grid, gridvals = np.load('./results/images/'+str(fileroot)+'_grid.npy')
 
     fig = plt.figure(figsize = (15,3*testnum))
 
@@ -1054,17 +1110,16 @@ def plot_images(fileroot, size = 11):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
         xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
-        xx -= 1
-        yy -= 1
-        
-        
-        #snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        galx, galy = wcs.toImage(galra, galdec, units = 'deg')
         
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
-        plt.scatter(xx, yy, color = 'k', s = 1)
-        plt.title('True Image ' + str(i))
-        #plt.scatter(snx-1, sny-1, c = 'k', s = 8, marker = '*')
-        #plt.scatter(galx-1,galy-1, c = 'r', s = 8, marker = '*')
+        vmin = np.mean(gridvals) - np.std(gridvals)
+        vmax = np.mean(gridvals) + np.std(gridvals)
+        plt.scatter(xx-1, yy-1, s = 1, c= 'k', vmin = vmin, vmax = vmax)
+        plt.title('True Image')
+        plt.scatter(snx-1, sny-1, c = 'r', s = 8, marker = '*')
+        plt.scatter(galx-1,galy-1, c = 'b', s = 8, marker = '*')
         imshow = plt.imshow(images[i*size**2:(i+1)*size**2].reshape(size,size), origin = 'lower', extent = extent)
         plt.colorbar(fraction=0.046, pad=0.04)
         trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
@@ -1082,12 +1137,11 @@ def plot_images(fileroot, size = 11):
         xx -= 1
         yy -= 1
 
-
             
         vmin = np.min(images[i*size**2:(i+1)*size**2].reshape(size,size))
         vmax = np.max(images[i*size**2:(i+1)*size**2].reshape(size,size))
 
-        im1[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) == 0)] = 0
+        #im1[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) == 0)] = 0
 
 
         vmin = imshow.get_clim()[0]
@@ -1107,22 +1161,23 @@ def plot_images(fileroot, size = 11):
         ############################################
         plt.subplot(len(cutout_wcs_list),4,4*i+3)
         plt.title('Residuals')
-        plt.scatter(xx,yy,color = 'k', s = 1)
+        vmin = np.mean(gridvals) - np.std(gridvals)
+        vmax = np.mean(gridvals) + np.std(gridvals)
+        plt.scatter(xx,yy, s = 1, c= gridvals,  vmin = vmin, vmax = vmax)
         res = images - sumimages
 
 
             
         current_res= res[i*size**2:(i+1)*size**2].reshape(size,size)
 
-
-
+        #if i == 0:
+        norm = 3*np.std(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)])
         
-        if i == 0:
-            norm = np.max(np.abs(res[np.where(wgt_matrix != 0)]))
-        
+        #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) == 0)] = 0
+        #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)] = \
+            #np.log10(np.abs(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)]))
 
-
-        plt.imshow(current_res, extent = extent, origin = 'lower', cmap = 'seismic', vmin = -norm, vmax = norm)
+        plt.imshow(current_res, extent = extent, origin = 'lower', cmap = 'seismic', vmin = -100, vmax = 100)
         #plt.imshow(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size), extent = extent, origin = 'lower')
         plt.colorbar(fraction=0.046, pad=0.14)
         #plt.scatter(galx,galy, c = 'r', s = 12, marker = '*', edgecolors='k')
@@ -1132,7 +1187,160 @@ def plot_images(fileroot, size = 11):
     
 
 
-    plt.subplots_adjust(wspace = 0.4)
+    plt.subplots_adjust(wspace = 0.4, hspace = 0.3)
+
+
+def slice_plot(fileroot):
+    biases = []
+    fig = plt.figure(figsize = (15,2*testnum))
+    images = imgdata[0]
+    sumimages = imgdata[1]
+    wgt_matrix = imgdata[2]
+
+    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.csv')
+    supernova = fluxdata['true_flux']
+    measured_flux = fluxdata['measured_flux']
+    snra, sndec = fluxdata['sn_ra'][0], fluxdata['sn_dec'][0]
+
+    hdul = fits.open('./results/images/'+str(fileroot)+'_wcs.fits')
+    cutout_wcs_list = []
+    for i,savedwcs in enumerate(hdul):
+        if i == 0:
+            continue
+        newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        cutout_wcs_list.append(newwcs)
+
+
+    magresiduals = -2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova))
+    
+
+    galxes = []
+    stds = []
+    biases = []
+
+    for i, wcs in enumerate(cutout_wcs_list):
+
+        extent = [-0.5, size-0.5, -0.5, size-0.5]
+        trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
+        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+
+        plt.subplot(len(cutout_wcs_list)//3 + 1,3,i+1)
+        if i >= testnum - detim:
+            plt.title('MagBias: ' + str(np.round(magresiduals[i - testnum + detim],4)) + ' mag')
+
+
+        justbgX = np.copy(X)
+        justbgX[-testnum:] = 0
+
+        justbgpred = justbgX * psf_matrix
+        justbgsumimages = np.sum(justbgpred, axis = 1)
+        justbgim = justbgsumimages[i*size**2:(i+1)*size**2].reshape(size,size)
+        
+
+        #subtract off the real sn
+        #if i >= testnum - detim:
+            #print('subtracting sn')
+            #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
+        
+
+
+        
+        justbgres = trueimage - justbgim
+        im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
+
+
+        #plt.plot(trueimage[5], label = 'Image')
+
+        plt.axhline(0, ls = '--', color = 'k')
+        #plt.plot(im1[5], label = 'Model', lw = 3)
+        plt.plot(trueimage[5] - im1[5], label = 'Im-Model', alpha = 0.4)
+        plt.ylim(-250,250)
+
+        
+        if i >= testnum - detim:
+            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
+            plt.plot(snim[5], label = 'True SN', lw = 3)
+            plt.fill_between(np.arange(0,11,1), trueimage[5] - snim[5] + 50, trueimage[5] - snim[5] - 50, label = 'Im-True SN', alpha = 0.4)
+            plt.plot(np.arange(0,11,1), trueimage[5] - snim[5] , color = 'k', ls = '--')
+            plt.plot(justbgim[5], label = 'BGModel')
+            plt.plot(justbgres[5], label = 'Im-BGModel')
+            
+            #plt.plot(justbgres[5] - snim[5], label = 'SN Residuals', ls = '--')
+            plt.ylim(-500,np.max(trueimage[5]))
+            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-detim:][i - testnum + detim]
+
+        else:
+            snim = np.zeros_like(justbgres)
+
+
+        
+        plt.axvline(snx-1+4, ls = '--', color = 'k')
+        plt.axvline(snx-1-4, ls = '--', color = 'k')
+        plt.axvline(snx-1, ls = '--', color = 'r')
+
+        plt.xlim(snx-1-3.8, snx-1+3.8)
+
+
+        plt.legend(loc = 'upper left')
+    
 
 
 
+
+
+def get_SED(SNID, date, star = False):
+    filenum = find_parq(SNID, star = star)
+    if star:
+        filename = sn_path + 'pointsource_' + str(filenum) + '.hdf5'
+    else:
+        filename = sn_path + 'snana_' + str(filenum) + '.hdf5'
+    h5 = h5py.File(filename,'r')
+    h5 = h5[str(SNID)]
+    lam = h5['lambda']
+    flambda = h5['flambda']
+    mjd = h5['mjd']
+
+    bestindex = np.argmin(np.abs(np.array(mjd) - date))
+    if np.min(np.abs(np.array(mjd) - date)) > 10:
+        print('WARNING: No SED data within 10 days of date. \n \
+            The closest SED is ' + str(np.min(np.abs(np.array(mjd) - date))) + ' days away.')
+    return np.array(lam), np.array(flambda[bestindex])
+
+
+def contourGrid(image, numlevels = 5, subsize = 4):
+    size = image.shape[0]
+    x = np.arange(0,size,1.0)
+    y = np.arange(0,size,1.0)
+    xg, yg = np.meshgrid(x, y, indexing='ij')
+    xg = xg.ravel()
+    yg = yg.ravel()
+
+    levels = list(np.linspace(np.min(image), np.max(image), numlevels))
+    levels = list(np.percentile(image, [0,90, 98, 100]))
+    print(levels)
+
+    interp = RegularGridInterpolator((x, y), image, method='linear',
+                                 bounds_error=False, fill_value=None)
+
+    aa = interp((xg,yg))
+
+    x_totalgrid = []
+    y_totalgrid = []
+
+    for i in range(len(levels) - 1):
+
+        zmin = levels[i]
+        zmax = levels[i+1]
+        x = np.arange(0,size,1/(i+1))
+        y = np.arange(0,size,1/(i+1))
+        if i == 0:
+            x = x[np.where(np.abs(x - size/2) < subsize)]
+            y = y[np.where(np.abs(y - size/2) < subsize)]
+        xg, yg = np.meshgrid(x, y, indexing='ij')
+        aa = interp((xg,yg))
+        xg = xg[np.where((aa > zmin) & (aa <= zmax))]
+        yg = yg[np.where((aa > zmin) & (aa <= zmax))]
+        x_totalgrid.extend(xg)
+        y_totalgrid.extend(yg)
+
+    return y_totalgrid, x_totalgrid

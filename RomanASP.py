@@ -30,7 +30,7 @@ from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
 from AllASPFuncs import *
 import yaml
-
+import h5py
 import argparse
 import pickle
 
@@ -111,6 +111,10 @@ def main():
     sn_path = config['sn_path']
     turn_grid_off = config['turn_grid_off']
     bg_gal_flux = config['bg_gal_flux']
+    source_phot_ops = config['source_phot_ops']
+    mismatch_seds = config['mismatch_seds']
+    fetch_SED = config['fetch_SED']
+    makecontourGrid = config['makecontourGrid']
 
     print('All Configurations Loaded')
 
@@ -145,8 +149,9 @@ def main():
 
 
     galsim.roman.roman_psfs._make_aperture.clear() #clear cache
-    sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
-                                    wave_type='nm', flux_type='fphotons')
+
+
+
 
     ################### Finding and Preparing Images Section #########
 
@@ -192,13 +197,33 @@ def main():
             galdec = dec + 1.5e-5
             images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = simulateImages(testnum,detim,ra,dec,do_xshift,\
                 do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band, \
-                    deltafcn_profile = deltafcn_profile, input_psf = airy, bg_gal_flux = bg_gal_flux)
+                    deltafcn_profile = deltafcn_profile, input_psf = airy, bg_gal_flux = bg_gal_flux, source_phot_ops = source_phot_ops, mismatch_seds = mismatch_seds)
+
+
+        if fetch_SED:
+            assert use_real_images, 'Cannot fetch SED if not using OpenUniverse sims'
+            sedlist = []
+            for date in exposures['date'][exposures['DETECTED']]:
+                print('Getting SED for date:', date)
+                lam, flam = get_SED(ID, date)
+                sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'),
+                                        wave_type='Angstroms', flux_type='fphotons')
+                sedlist.append(sed)
+            
+
+            
+
+        else:
+            sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
+                                        wave_type='nm', flux_type='fphotons')
+
+        
 
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size,size) for i in range(testnum)]
 
         #Build the background grid
         if not turn_grid_off:
-            ra_grid, dec_grid = makeGrid(adaptive_grid, images,size,galra,galdec,cutout_wcs_list, single_grid_point=single_grid_point, percentiles=percentiles, npoints = npoints)
+            ra_grid, dec_grid = makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, single_grid_point=single_grid_point, percentiles=percentiles, npoints = npoints, makecontourGrid = makecontourGrid)
         else:
             ra_grid = np.array([])
             dec_grid = np.array([])
@@ -249,7 +274,7 @@ def main():
             if use_real_images:
                 util_ref = roman_utils(config_file='./temp_tds.yaml', visit = exposures['Pointing'][i], sca = exposures['SCA'][i])
             else:
-                util_ref = roman_utils(config_file='./temp_tds.yaml', visit = 502, sca = 13)
+                util_ref = roman_utils(config_file='./temp_tds.yaml', visit = 662, sca = 11)
 
             array, bgpsf = construct_psf_background(ra_grid, dec_grid, cutout_wcs_list[i],\
                 x, y, size, roman_bandpasses[band], color=0.61, \
@@ -274,10 +299,16 @@ def main():
                         pointing = exposures['Pointing'][i]
                         SCA = exposures['SCA'][i]
                     else:
-                        pointing = 502
-                        SCA = 13
+                        pointing = 662
+                        SCA = 11
+                    if fetch_SED:
+                        print('Using SED #', i - (testnum - detim))
+                        sed = sedlist[i - (testnum - detim)]
+                    else:
+                        print('Using default SED')
+                    print(x,y,snx,sny)
                     array = construct_psf_source(x, y, pointing, SCA, \
-                            stampsize = size, x_center = snx, y_center = sny, sed = sed)
+                            stampsize = size, x_center = snx, y_center = sny, sed = sed, photOps = source_phot_ops)
                 else:
                     stamp = galsim.Image(size,size,wcs=cutout_wcs_list[i])
                     profile = galsim.DeltaFunction()*sed
@@ -367,6 +398,13 @@ def main():
             os.makedirs('./results/images')
             os.makedirs('./results/lightcurves')
 
+
+        if use_real_images:
+            identifier = str(ID)
+        else:
+            identifier = 'simulated'
+
+        '''
         if use_real_images:
             detections = exposures[np.where(exposures['DETECTED'])]
             detections['measured_flux'] = X[-detim:]
@@ -381,39 +419,59 @@ def main():
             #detections.to_csv(f'./results/{ID}_{band}_detections.csv', index = False)
             #print('Saved to ./results/' + f'{ID}_{band}_detections.csv')
             print('Saving not performed')
+        '''
 
+        #else:
+        #####
+        if use_roman:
+            psftype = 'romanpsf'
         else:
-            if use_roman:
-                psftype = 'romanpsf'
+            psftype = 'analyticpsf'
+        if detim != 0:
+        #First, build the lc file
+            lc = pd.DataFrame()
+            if use_real_images:
+                detections = exposures[np.where(exposures['DETECTED'])]
+                parq_file = find_parq(ID, path = sn_path)
+                df = open_parq(parq_file, path = sn_path)
+                lc['true_flux'] = detections['realized flux']
+                lc['MJD'] = detections['date']
+                lc['confusion metric'] = confusion_metric
+                lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
+                lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
+                lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
+                lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
+                lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
+                lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
+
             else:
-                psftype = 'analyticpsf'
-            if detim != 0:
-            #First, build the lc file
-                lc = pd.DataFrame()
-                lc['true_flux'] = X[-detim:]
-                lc['model_flux'] = supernova
+                lc['true_flux'] = supernova
                 lc['MJD'] = np.arange(0, detim, 1)
-                print('Saving lightcurve to ./results/lightcurves/simulated_' + f'{band}_{psftype}_lc.csv')            
-                lc.to_csv(f'./results/lightcurves/simulated_{band}_{psftype}_lc.csv', index = False)
-            else:
-                print('No LC to save')
 
-            #Now, save the images
-            images_and_model = np.array([images, sumimages, wgt_matrix])
-            print('Saving images to ./results/images/simulated_' + f'{band}_{psftype}_images.npy')
-            np.save(f'./results/images/simulated_{band}_{psftype}_images.npy', images_and_model)
+            lc['measured_flux'] = X[-detim:]
+            
+            print('Saving lightcurve to ./results/lightcurves/'+ f'{identifier}_{band}_{psftype}_lc.csv')            
+            lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
+        else:
+            print('No LC to save')
 
-            #Save the ra and decgrid
-            np.save(f'./results/images/simulated_{band}_{psftype}_grid.npy', [ra_grid, dec_grid])
+        #Now, save the images
+        images_and_model = np.array([images, sumimages, wgt_matrix])
+        print('Saving images to ./results/images/'+ f'{identifier}_{band}_{psftype}_images.npy')
+        np.save(f'./results/images/{identifier}_{band}_{psftype}_images.npy', images_and_model)
+
+        #Save the ra and decgrid
+
+        np.save(f'./results/images/{identifier}_{band}_{psftype}_grid.npy', [ra_grid, dec_grid, X[:np.size(ra_grid)]])
 
 
-            #save wcses
-            primary_hdu = fits.PrimaryHDU()
-            hdul = [primary_hdu]
-            for i, galsimwcs in enumerate(cutout_wcs_list):
-                hdul.append(fits.ImageHDU(header=galsimwcs.wcs.to_header(), name="WCS" + str(i)))
-            hdul = fits.HDUList(hdul)
-            hdul.writeto(f'./results/images/simulated_{band}_{psftype}_wcs.fits', overwrite = True)
+        #save wcses
+        primary_hdu = fits.PrimaryHDU()
+        hdul = [primary_hdu]
+        for i, galsimwcs in enumerate(cutout_wcs_list):
+            hdul.append(fits.ImageHDU(header=galsimwcs.wcs.to_header(), name="WCS" + str(i)))
+        hdul = fits.HDUList(hdul)
+        hdul.writeto(f'./results/images/{identifier}_{band}_{psftype}_wcs.fits', overwrite = True)
 
 
         '''
