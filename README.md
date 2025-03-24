@@ -68,13 +68,12 @@ make_exact
 check_perfection   TODO: Ensure users can use the avoid non linearity and check perfection options. 
 
 ## Output
-All output is stored in the results directory. Two sub directories are created. \
-
+All output is stored in the results directory. Two sub directories are created. 
 ### images
 3 Outputs are placed in this directory. \
 SNID_band_psftype_grid.npy --> ra and dec locations of model points used. \
 SNID_band_psftype_wcs.fits --> WCS objects for each image used. \
-SNID_band_psftype_images.npy --> pixel values for each image used. \
+SNID_band_psftype_images.npy --> pixel values for each image used. 
 
 ### lightcurves 
 #### SNID_band_psftype_lc.csv 
@@ -88,7 +87,7 @@ sn_ra: RA location of SN, from OpenUniverse truth files.\
 sn_dec: DEC location of SN, from OpenUniverse truth files.\
 host_ra: RA location of host galaxy, from OpenUniverse truth files.\
 host_dec: DEC location of host galaxy, from OpenUniverse truth files.\
-measured_flux: Flux as measured by the RomanASP algorithm.\
+measured_flux: Flux as measured by the RomanASP algorithm.
 
 
 
