@@ -49,23 +49,22 @@ make_initial_guess: bool, if true, the algorithm uses an average of the pixel va
 source_phot_ops: bool, if true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.
 
 ### Simulating your own images.
-For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:\
-
-bg_gal_flux: float, total flux of the background galaxy.\
-background_level: int, sky background in simulated images.\
-noise: int, std of Gaussian noise added to images.\
-do_rotation: bool, if true, sucessive images are rotated (as they will be for real Roman images)\
-do_xshift: bool, if true, sucessive images have their centers offset (as they will be for real Roman images)\
-use_roman: bool, if true, use a galsim-generated Roman PSF to create images, if false, use an analytic Airy PSF.\
-mismatch_seds: bool, if true, intentionally use a different SED to generate the SN than to fit it later. This is useful for testing how much the SED matters in our fit.\
-turn_grid_off: bool, if true, don't generate a background model at all. This is useful for testing just the PSF photometry of the SN if you also set bg_gal_flux to zero.\
-single_grid_point: see below\
-deltafcn_profile: If true, the galaxy is no longer a realistic galaxy profile and is rather a dirac delta function. Setting this to true along with single_grid_point above means that it is hypothetically possible that the algorithm can perfectly recover the background, since a single dirac delta is being fit to a single dirac delta at the exact same location. TODO: explain this better.\
+For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:  
+**bg_gal_flux:** float, total flux of the background galaxy.\
+**background_level:** int, sky background in simulated images.\
+**noise:** int, std of Gaussian noise added to images.\
+**do_rotation:** bool, if true, sucessive images are rotated (as they will be for real Roman images)\
+**do_xshift:** bool, if true, sucessive images have their centers offset (as they will be for real Roman images)\
+**use_roman:** bool, if true, use a galsim-generated Roman PSF to create images, if false, use an analytic Airy PSF.\
+**mismatch_seds:** bool, if true, intentionally use a different SED to generate the SN than to fit it later. This is useful for testing how much the SED matters in our fit.\
+**turn_grid_off:** bool, if true, don't generate a background model at all. This is useful for testing just the PSF photometry of the SN if you also set bg_gal_flux to zero.\
+**single_grid_point:** see below  
+**deltafcn_profile:** If true, the galaxy is no longer a realistic galaxy profile and is rather a dirac delta function. Setting this to true along with single_grid_point above means that it is hypothetically possible that the algorithm can perfectly recover the background, since a single dirac delta is being fit to a single dirac delta at the exact same location. TODO: explain this better.\
 
 ### Experimental
-pixel: bool, if true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.\
-makecontourGrid: bool, a new method I am working on to generate the adaptive grid. Seems to be better! TODO: Consider replacing the default method.\
-fit_background: bool, if true, add an extra parameter that fits for the mean sky background level. Since we have the exact number in the image header, this should be false.\
+**pixel:** bool, if true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.\
+**makecontourGrid:** bool, a new method I am working on to generate the adaptive grid. Seems to be better! TODO: Consider replacing the default method.\
+**fit_background:** bool, if true, add an extra parameter that fits for the mean sky background level. Since we have the exact number in the image header, this should be false.\
 
 
 ### Not currently used, to be removed.
@@ -87,16 +86,16 @@ SNID_band_psftype_images.npy --> pixel values for each image used.
 ### lightcurves 
 #### SNID_band_psftype_lc.csv 
 csv file containing a measured lightcurve for the supernova. \
-true_flux: flux of the supernova from the OpenUniverse truth files \
-MJD: MJD date of the current epoch. \
-confusion metric: A current experimental metric that measures how much contamination the background galaxy imparts. Formally, it is the dot product of an evaluation of the PSF at the SN location with an image of the galaxy with no supernova detection. Essentially, it is the amount of background flux "under" the SN in a detection image! This metric seems to roughly correlate with measurement error but I need to look into this further.\
-host_sep: Seperation between galaxy center and SN, from OpenUniverse truth files.\
-host_mag_g: Host galaxy magnitude in g band, from OpenUniverse truth files.\
-sn_ra: RA location of SN, from OpenUniverse truth files.\
-sn_dec: DEC location of SN, from OpenUniverse truth files.\
-host_ra: RA location of host galaxy, from OpenUniverse truth files.\
-host_dec: DEC location of host galaxy, from OpenUniverse truth files.\
-measured_flux: Flux as measured by the RomanASP algorithm.
+**true_flux:** flux of the supernova from the OpenUniverse truth files \
+**MJD:** MJD date of the current epoch. \
+**confusion metric:** A current experimental metric that measures how much contamination the background galaxy imparts. Formally, it is the dot product of an evaluation of the PSF at the SN location with an image of the galaxy with no supernova detection. Essentially, it is the amount of background flux "under" the SN in a detection image! This metric seems to roughly correlate with measurement error but I need to look into this further.\
+**host_sep:** Seperation between galaxy center and SN, from OpenUniverse truth files.\
+**host_mag_g:** Host galaxy magnitude in g band, from OpenUniverse truth files.\
+**sn_ra:** RA location of SN, from OpenUniverse truth files.\
+**sn_dec:** DEC location of SN, from OpenUniverse truth files.\
+**host_ra:** RA location of host galaxy, from OpenUniverse truth files.\
+**host_dec:** DEC location of host galaxy, from OpenUniverse truth files.\
+**measured_flux:** Flux as measured by the RomanASP algorithm.
 
 
 
