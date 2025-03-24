@@ -4,33 +4,37 @@ The following 'module load' will be necessary on NERSC \
 On other systems 'conda' may be already in your path. \
 Consult the documentation for the relevant system. \
 
+```
 module load conda
-
+```
 ### Create our conda environment.  
 
 Will fill it with pip installable Python libraries below.
-
+```
 conda create -n multismp ipykernel python=3.11
-
+```
+```
 conda activate multismp
 conda install -c conda-forge fitsio
 pip install -r requirements.txt
-
+```
 #### Create a Jupyter kernel with this environment
+```
 python -m ipykernel install --user --name multismp --display-name multismp
+```
 
 ## Doing a simple run.
 The RomanASP code can be run from the command line. For now, the command line takes no arguments and instead all input is done via the input file config.yaml. 
 To do a simple test run to ensure everything is installed correctly, you can just run:
-
+```
 python RomanASP.py
+```
 
 ## Modifying the yaml file.
 To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
 
 ### Basics:
 SNID: int, ID of the supernova you want to fit.
-
 adaptive_grid: bool, if true, use the adaptive grid method. If false, use a standard grid. \
 band: str, which Roman passband to use \
 testnum: int, total number of images to utilize in the SMP algorithm \
