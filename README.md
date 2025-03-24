@@ -29,7 +29,7 @@ python RomanASP.py
 To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
 
 ### Basics:
-SNID: int, ID of the supernova you want to fit. \ 
+SNID: int, ID of the supernova you want to fit.\ 
 adaptive_grid: bool, if true, use the adaptive grid method. If false, use a standard grid. \
 band: str, which Roman passband to use \
 testnum: int, total number of images to utilize in the SMP algorithm \
