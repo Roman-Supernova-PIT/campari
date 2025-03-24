@@ -37,7 +37,7 @@ use_real_images:  bool, if true, use roman OpenUniverse images. If false, use im
 weighting: bool, if true, use a Gaussian weighting centered on the SN. This typically sees improved results.\
 fetch_SED: bool, if true, get the SN SED from the OpenUniverse parquet files. If false, use a flat SED. This may not be perfectly functional yet, as it does not seem to improve results. TODO: see if this is improvable\
 make_initial_guess: bool, if true, the algorithm uses an average of the pixel values at each model point to set an initial guess for each model point. Have seen slight improvement in certain cases but certainly not pivotal to set to true.\
-source_phot_ops: bool, if true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.\
+source_phot_ops: bool, if true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.
 
 ### Simulating your own images.
 For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:\
