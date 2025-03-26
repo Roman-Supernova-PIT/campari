@@ -1,8 +1,6 @@
 ## Environment
-To create an environment to run this code \
-The following 'module load' will be necessary on NERSC \
-On other systems 'conda' may be already in your path. \
-Consult the documentation for the relevant system. \
+To create an environment to run this code the following 'module load' will be necessary on NERSC \
+On other systems 'conda' may be already in your path. Consult the documentation for the relevant system. \
 
 ```
 module load conda
