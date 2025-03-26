@@ -78,10 +78,30 @@ For testing the algorithm, it is often beneficial to simulate our own galaxy and
 **single_grid_point:** see below  
 **deltafcn_profile:** If true, the galaxy is no longer a realistic galaxy profile and is rather a dirac delta function. Setting this to true along with single_grid_point above means that it is hypothetically possible that the algorithm can perfectly recover the background, since a single dirac delta is being fit to a single dirac delta at the exact same location. TODO: explain this better.\
 
+| Parameter             | Type   | Description                                                                                                                           |
+|------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
+| bg_gal_flux            | float  | Total flux of the background galaxy.                                                                                                |
+| background_level       | int    | Sky background in simulated images.                                                                                                 |
+| noise                  | int    | Standard deviation of Gaussian noise added to images.                                                                              |
+| do_rotation            | bool   | If true, successive images are rotated (as they will be for real Roman images).                                                    |
+| do_xshift              | bool   | If true, successive images have their centers offset (as they will be for real Roman images).                                     |
+| use_roman              | bool   | If true, use a Galsim-generated Roman PSF to create images. If false, use an analytic Airy PSF.                                   |
+| mismatch_seds          | bool   | If true, intentionally use a different SED to generate the SN than to fit it later. Useful for testing how much the SED affects the fit. |
+| turn_grid_off          | bool   | If true, don't generate a background model at all. Useful for testing just the PSF photometry of the SN if bg_gal_flux is set to zero. |
+| single_grid_point      | bool   | See below.                                                                                                                           |
+| deltafcn_profile       | bool   | If true, the galaxy is no longer a realistic galaxy profile and instead a Dirac delta function. Combined with single_grid_point, it is hypothetically possible for the algorithm to perfectly recover the background by fitting a Dirac delta to a Dirac delta at the exact same location. TODO: explain this better. |
+
+
 ### Experimental
 **pixel:** bool, if true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.\
 **makecontourGrid:** bool, a new method I am working on to generate the adaptive grid. Seems to be better! TODO: Consider replacing the default method.\
 **fit_background:** bool, if true, add an extra parameter that fits for the mean sky background level. Since we have the exact number in the image header, this should be false.\
+
+| Parameter          | Type  | Description                                                                                                                                |
+|---------------------|-------|-------------------------------------------------------------------------------------------------------------------------------------------|
+| pixel               | bool  | If true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.            |
+| makecontourGrid     | bool  | A new method being developed to generate the adaptive grid. Seems to be better! TODO: Consider replacing the default method.             |
+| fit_background      | bool  | If true, add an extra parameter that fits for the mean sky background level. Should be false since the exact number is in the image header. |
 
 
 ### Not currently used, to be removed.
@@ -113,6 +133,19 @@ csv file containing a measured lightcurve for the supernova. \
 **host_ra:** RA location of host galaxy, from OpenUniverse truth files.\
 **host_dec:** DEC location of host galaxy, from OpenUniverse truth files.\
 **measured_flux:** Flux as measured by the RomanASP algorithm.
+
+| Parameter            | Type            | Description                                                                                                                                            |
+|-----------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
+| true_flux             | float           | Flux of the supernova from the OpenUniverse truth files.                                                                                              |
+| MJD                   | float           | MJD date of the current epoch.                                                                                                                        |
+| confusion metric      | float           | An experimental metric measuring how much contamination the background galaxy imparts. It is the dot product of the PSF at the SN location with an image of the galaxy without a supernova detection. This metric seems to roughly correlate with measurement error but requires further investigation. |
+| host_sep              | float           | Separation between galaxy center and SN, from OpenUniverse truth files.                                                                              |
+| host_mag_g            | float           | Host galaxy magnitude in g band, from OpenUniverse truth files.                                                                                      |
+| sn_ra                 | float           | RA location of the SN, from OpenUniverse truth files.                                                                                                |
+| sn_dec                | float           | DEC location of the SN, from OpenUniverse truth files.                                                                                               |
+| host_ra               | float           | RA location of the host galaxy, from OpenUniverse truth files.                                                                                       |
+| host_dec              | float           | DEC location of the host galaxy, from OpenUniverse truth files.                                                                                      |
+| measured_flux         | float           | Flux as measured by the RomanASP algorithm.                                                                                                           |
 
 
 
