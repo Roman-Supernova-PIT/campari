@@ -48,6 +48,23 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 **make_initial_guess:** bool, if true, the algorithm uses an average of the pixel values at each model point to set an initial guess for each model point. Have seen slight improvement in certain cases but certainly not pivotal to set to true.\
 **source_phot_ops:** bool, if true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.
 
+| Parameter             | Type  | Description                                                                                                                           |
+|------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
+| SNID                   | int    | ID of the supernova you want to fit.                                                                                            |
+| adaptive_grid          | bool   | If true, use the adaptive grid method. If false, use a standard grid.                                                        |
+| band                   | str    | Which Roman passband to use.                                                                                                   |
+| testnum                | int    | Total number of images to utilize in the SMP algorithm.                                                                        |
+| detim                  | int    | Number of images with a SN detection in them. Rule of thumb, this should be 1/2 or less of testnum.                           |
+| roman_path             | str    | Path to the Roman data on your machine.                                                                                        |
+| sn_path                | str    | Path to the Roman SN parquet files on your machine. On DCC, this is roman_path + roman_rubin_cats_v1.1.2_faint/.              |
+| size                   | int    | Size of the image stamps in pixels. Should be an odd number for a well-defined central pixel.                                |
+| use_real_images        | bool   | If true, use Roman OpenUniverse images. If false, use images you simulate yourself, see the simulating images section below.|
+| weighting              | bool   | If true, use a Gaussian weighting centered on the SN. This typically sees improved results.                                 |
+| fetch_SED              | bool   | If true, get the SN SED from the OpenUniverse parquet files. If false, use a flat SED. May not be perfectly functional yet. TODO: see if this is improvable. |
+| make_initial_guess     | bool   | If true, the algorithm uses an average of the pixel values at each model point to set an initial guess for each model point. Slight improvement in certain cases but not pivotal. |
+| source_phot_ops        | bool   | If true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.     |
+
+
 ### Simulating your own images.
 For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:  
 **bg_gal_flux:** float, total flux of the background galaxy.\
