@@ -32,24 +32,11 @@ python RomanASP.py
 To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
 
 ### Basics:
-**SNID:** int, ID of the supernova you want to fit.
-**adaptive_grid:** bool, if true, use the adaptive grid method. If false, use a standard grid. \
-**band:** str, which Roman passband to use \
-**testnum:** int, total number of images to utilize in the SMP algorithm \
-**detim:** int, number of images with a SN detection in them. Rule of thumb, this should be 1/2 or less of testnum. \
-**roman_path:** str, path to the roman data on your machine \
-**sn_path:** str, path to the roman SN parquet files on your machine. On DCC, this is roman_path + roman_rubin_cats_v1.1.2_faint/ \
-**size:** int, size of the image stamps in pixels. Should be an odd number for a well defined central pixel. \
-**use_real_images:**  bool, if true, use roman OpenUniverse images. If false, use images you simulate yourself, see the simulating images section below. \
-**weighting:** bool, if true, use a Gaussian weighting centered on the SN. This typically sees improved results.\
-**fetch_SED:** bool, if true, get the SN SED from the OpenUniverse parquet files. If false, use a flat SED. This may not be perfectly functional yet, as it does not seem to improve results. TODO: see if this is improvable\
-**make_initial_guess:** bool, if true, the algorithm uses an average of the pixel values at each model point to set an initial guess for each model point. Have seen slight improvement in certain cases but certainly not pivotal to set to true.\
-**source_phot_ops:** bool, if true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.
 
 | Parameter             | Type  | Description                                                                                                                           |
 |------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
 | SNID                   | int    | ID of the supernova you want to fit.                                                                                            |
-| adaptive_grid          | bool   | If true, use the adaptive grid method. If false, use a standard grid.                                                        |
+| adaptive_grid          | bool   | If true, use the adaptive grid method. If false, use a standard (rectilinear) grid.                                                        |
 | band                   | str    | Which Roman passband to use.                                                                                                   |
 | testnum                | int    | Total number of images to utilize in the SMP algorithm.                                                                        |
 | detim                  | int    | Number of images with a SN detection in them. Rule of thumb, this should be 1/2 or less of testnum.                           |
@@ -65,16 +52,6 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 
 ### Simulating your own images.
 For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:  
-**bg_gal_flux:** float, total flux of the background galaxy.\
-**background_level:** int, sky background in simulated images.\
-**noise:** int, std of Gaussian noise added to images.\
-**do_rotation:** bool, if true, sucessive images are rotated (as they will be for real Roman images)\
-**do_xshift:** bool, if true, sucessive images have their centers offset (as they will be for real Roman images)\
-**use_roman:** bool, if true, use a galsim-generated Roman PSF to create images, if false, use an analytic Airy PSF.\
-**mismatch_seds:** bool, if true, intentionally use a different SED to generate the SN than to fit it later. This is useful for testing how much the SED matters in our fit.\
-**turn_grid_off:** bool, if true, don't generate a background model at all. This is useful for testing just the PSF photometry of the SN if you also set bg_gal_flux to zero.\
-**single_grid_point:** see below  
-**deltafcn_profile:** If true, the galaxy is no longer a realistic galaxy profile and is rather a dirac delta function. Setting this to true along with single_grid_point above means that it is hypothetically possible that the algorithm can perfectly recover the background, since a single dirac delta is being fit to a single dirac delta at the exact same location. TODO: explain this better.\
 
 | Parameter             | Type   | Description                                                                                                                           |
 |------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
@@ -91,10 +68,6 @@ For testing the algorithm, it is often beneficial to simulate our own galaxy and
 
 
 ### Experimental
-**pixel:** bool, if true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.\
-**makecontourGrid:** bool, a new method I am working on to generate the adaptive grid. Seems to be better! TODO: Consider replacing the default method.\
-**fit_background:** bool, if true, add an extra parameter that fits for the mean sky background level. Since we have the exact number in the image header, this should be false.\
-
 | Parameter          | Type  | Description                                                                                                                                |
 |---------------------|-------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | pixel               | bool  | If true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.            |
