@@ -84,7 +84,7 @@ make_exact
 check_perfection   TODO: Ensure users can use the avoid non linearity and check perfection options. 
 
 ## Output
-All output is stored in the results directory. Two sub directories are created. 
+All output is stored in the results directory. Two sub directories are created, **images** and **lightcurves**. 
 ### images
 3 Outputs are placed in this directory. \
 SNID_band_psftype_grid.npy --> ra and dec locations of model points used. \
@@ -93,23 +93,13 @@ SNID_band_psftype_images.npy --> pixel values for each image used.
 
 ### lightcurves 
 #### SNID_band_psftype_lc.csv 
-csv file containing a measured lightcurve for the supernova. \
-**true_flux:** flux of the supernova from the OpenUniverse truth files \
-**MJD:** MJD date of the current epoch. \
-**confusion metric:** A current experimental metric that measures how much contamination the background galaxy imparts. Formally, it is the dot product of an evaluation of the PSF at the SN location with an image of the galaxy with no supernova detection. Essentially, it is the amount of background flux "under" the SN in a detection image! This metric seems to roughly correlate with measurement error but I need to look into this further.\
-**host_sep:** Seperation between galaxy center and SN, from OpenUniverse truth files.\
-**host_mag_g:** Host galaxy magnitude in g band, from OpenUniverse truth files.\
-**sn_ra:** RA location of SN, from OpenUniverse truth files.\
-**sn_dec:** DEC location of SN, from OpenUniverse truth files.\
-**host_ra:** RA location of host galaxy, from OpenUniverse truth files.\
-**host_dec:** DEC location of host galaxy, from OpenUniverse truth files.\
-**measured_flux:** Flux as measured by the RomanASP algorithm.
+csv file containing a measured lightcurve for the supernova.  
 
 | Parameter            | Type            | Description                                                                                                                                            |
 |-----------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|
 | true_flux             | float           | Flux of the supernova from the OpenUniverse truth files.                                                                                              |
 | MJD                   | float           | MJD date of the current epoch.                                                                                                                        |
-| confusion metric      | float           | An experimental metric measuring how much contamination the background galaxy imparts. It is the dot product of the PSF at the SN location with an image of the galaxy without a supernova detection. This metric seems to roughly correlate with measurement error but requires further investigation. |
+| confusion metric      | float           | An experimental metric measuring how much contamination the background galaxy imparts. It is the dot product of the PSF at the SN location with an image of the galaxy without a supernova detection. Essentially, it is the amount of background flux "under" the SN in a detection image!This metric seems to roughly correlate with measurement error but requires further investigation. |
 | host_sep              | float           | Separation between galaxy center and SN, from OpenUniverse truth files.                                                                              |
 | host_mag_g            | float           | Host galaxy magnitude in g band, from OpenUniverse truth files.                                                                                      |
 | sn_ra                 | float           | RA location of the SN, from OpenUniverse truth files.                                                                                                |
