@@ -1,0 +1,140 @@
+Running the main function
+All Configurations Loaded
+ID: 50106142
+filter Pointing SCA     date    ...  true mag  true flux  realized flux BAND
+------ -------- --- ----------- ... ---------- ---------- ------------- ----
+  Y106      882   6  62010.4067 ...         --         --            -- Y106
+  Y106      497   7 62005.40666 ...         --         --            -- Y106
+  Y106      887  10  62010.4325 ...         --         --            -- Y106
+  Y106     1272  14  62015.4325 ...         --         --            -- Y106
+  Y106     1277  16  62015.4584 ...         --         --            -- Y106
+  Y106    42847   5   62555.407 ... 2.85230551 73874.8604       73494.0 Y106
+  Y106    43623   7   62565.437 ... 2.60903472 92428.3053       92483.0 Y106
+  Y106    43618   9   62565.411 ... 2.60943127 92394.5532       92128.0 Y106
+  Y106    43242  16   62560.458 ... 2.67600364 86899.5288       87040.0 Y106
+  Y106    43622  18   62565.433 ... 2.60909571 92423.1131       92780.0 Y106
+truth in construct images simple_model
+Image 0   |Image 1   /Image 2   -Image 3   \Image 4   |Image 5   /Image 6   -Image 7   \Image 8   |Image 9   /GRID SPACE 0.5
+Built a grid with 324 points
+Gaussian std in getWeights 1000
+setting initial guess to 3000
+ARGS IN PSF SOURCE 4074.74729960802 2936.5550297921923 882 6 19 9.747299608020024 10.555029792192176 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+Confusion Metric: 64.09980308273738
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 2984.8788053066396 406.73150799742405 42847 5 19 9.878805306639428 9.731507997424021 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 958.7807659195473 170.72852021473574 43623 7 19 9.780765919547369 9.728520214735736 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 1108.266185685163 3156.7814004056954 43618 9 19 10.26618568516293 9.781400405695443 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 3708.056361005085 657.7687870060105 43242 16 19 10.056361005084703 9.768787006010442 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 2361.82002798552 797.1371349327002 43622 18 19 9.820027985519909 10.137134932700146 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+2 13479 14.372189385216755
+Saving lightcurve to ./results/lightcurves/50106142_Y106_romanpsf_lc.csv
+Saving images to ./results/images/50106142_Y106_romanpsf_images.npy
+Running the main function
+All Configurations Loaded
+ID: 40120913
+filter Pointing SCA     date    ...  true mag  true flux  realized flux BAND
+------ -------- --- ----------- ... ---------- ---------- ------------- ----
+  Y106     2814   1  62035.4411 ...         --         --            -- Y106
+  Y106     6319   1   62080.648 ...         --         --            -- Y106
+  Y106     2424   5  62030.4153 ...         --         --            -- Y106
+  Y106     5934   6   62075.648 ...         --         --            -- Y106
+  Y106     6324  11  62080.6738 ...         --         --            -- Y106
+  Y106      111  13 62000.40235 ...         --         --            -- Y106
+  Y106     2809  14  62035.4153 ...         --         --            -- Y106
+  Y106     3199  16  62040.4411 ...         --         --            -- Y106
+  Y106     1267  16  62015.4067 ...         --         --            -- Y106
+  Y106      496  18 62005.40235 ...         --         --            -- Y106
+  Y106    38270   5   62495.631 ... 6.54495452 2462.84494        2548.0 Y106
+  Y106    44389   8   62575.415 ... 6.57566496 2394.15847        2394.0 Y106
+  Y106    47894   9   62620.622 ... 7.20016149  1346.9587        1312.0 Y106
+  Y106    45164  10   62585.441 ... 6.69057302 2153.72212        2188.0 Y106
+  Y106    41310  10   62535.424 ... 5.52604575  6295.0702        6361.0 Y106
+  Y106    44774  11   62580.415 ... 6.63911057 2258.26368        2219.0 Y106
+  Y106    42461  14   62550.402 ... 5.97136576 4177.07789        4220.0 Y106
+  Y106    38265  15   62495.605 ... 6.54665769 2458.98456        2348.0 Y106
+  Y106    41315  15    62535.45 ... 5.52659678 6291.87611        6263.0 Y106
+  Y106    44388  16   62575.411 ...  6.5756074 2394.28541        2415.0 Y106
+truth in construct images simple_model
+Image 0   |Image 1   /Image 2   -Image 3   \Image 4   |Image 5   /Image 6   -Image 7   \Image 8   |Image 9   /Image 10   -Image 11   \Image 12   |Image 13   /Image 14   -Image 15   \Image 16   |Image 17   /Image 18   -Image 19   \GRID SPACE 1.0
+USING CONTOUR GRID
+[-34.99999, 27.000010000000003, 88.2000100000001, 251.00001]
+Built a grid with 205 points
+removed wgt when making adaptive grid
+Gaussian std in getWeights 1000
+setting initial guess to 3000
+ARGS IN PSF SOURCE 1593.9932308629977 195.68989204228825 2814 1 19 9.993230862997697 9.689892042288264 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+Confusion Metric: 52.822740040183405
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 991.464635428979 2659.8679398610975 38270 5 19 9.464635428978982 9.8679398610975 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 3460.794751436154 141.1548165189461 44389 8 19 9.794751436154357 10.154816518946092 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 2205.252984271221 3353.0155427505283 47894 9 19 10.252984271221015 10.015542750528075 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 312.38308865367804 166.89634602236018 45164 10 19 10.383088653678056 9.896346022360179 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 1790.9078872790794 2568.493029341296 41310 10 19 9.907887279079448 9.493029341295754 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 3451.6190670822266 2327.8075695761036 44774 11 19 9.61906708222645 9.807569576103699 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 665.090891153329 998.9455481430537 42461 14 19 10.090891153329055 9.945548143053655 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 921.4530585857325 861.3523217453053 38265 15 19 10.453058585732435 10.352321745305256 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 2944.3387134260565 1734.5572701243975 41315 15 19 10.338713426056398 9.557270124397649 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+In construct psf bg using flat SED
+Using default SED
+ARGS IN PSF SOURCE 3950.2154568836195 1623.9178751673048 44388 16 19 10.215456883619295 9.917875167305043 galsim.SED(galsim.LookupTable(x=array([ 100., 2600.]), f=array([1., 1.]), interpolant='linear'), redshift=0.0) 1
+Using 1e7 photons in getPSF_Image
+2 8045 10.536484381898507
+Saving lightcurve to ./results/lightcurves/40120913_Y106_romanpsf_lc.csv
+Saving images to ./results/images/40120913_Y106_romanpsf_images.npy
