@@ -32,8 +32,6 @@ from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
 from scipy.interpolate import RegularGridInterpolator
 
-roman_path = '/hpc/group/cosmology/OpenUniverse2024'
-sn_path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
 
 '''
 Cole Meldorf 2024
@@ -654,7 +652,7 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     if return_list:
         return explist
 
-def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/', star = False):
+def find_parq(ID, path, star = False):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -671,15 +669,15 @@ def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats
         if ID in df.id.values:
             return pqfile
 
-def open_parq(ID, path = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint'):
+def open_parq(ID, path):
     '''
     Convenience function to open a parquet file given a supernova ID.
     '''
     df = pd.read_parquet(path+'/snana_'+str(ID)+'.parquet', engine='fastparquet')
     return df
 
-def SNID_to_loc(SNID, parq, band, date = False,\
-     snpath = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint/', roman_path = None, host = False):
+def SNID_to_loc(SNID, parq, band,\
+     snpath, roman_path, host = False, date = False):
     '''
     Fetch some info about a SN given its ID.
     Inputs:
@@ -709,13 +707,13 @@ def SNID_to_loc(SNID, parq, band, date = False,\
         p, s = radec2point(RA, DEC, band, roman_path)
         return RA, DEC, p, s
     else:
-        p, s = radec2point(RA, DEC, band, start, end, roman_path)
+        p, s = radec2point(RA, DEC, band, roman_path,  start, end)
         if host:
             return RA, DEC, p, s, start, end, peak, df.host_ra.values[0], df.host_dec.values[0]
         else:
             return RA, DEC, p, s, start, end, peak
 
-def radec2point(RA, DEC, filt, start = None, end = None, path = '/cwork/mat90/RomanDESC_sims_2024'):
+def radec2point(RA, DEC, filt, path, start = None, end = None):
     '''
     This function takes in RA and DEC and returns the pointing and SCA with
     center closest to desired RA/DEC
@@ -949,7 +947,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
+def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
     pqfile = find_parq(ID, sn_path)
     ra, dec, p, s, start, end, peak, galra, galdec = \
         SNID_to_loc(ID, pqfile, date = True, band = band, snpath = sn_path, roman_path = roman_path, host = True)
@@ -1344,3 +1342,39 @@ def contourGrid(image, numlevels = 5, subsize = 4):
         y_totalgrid.extend(yg)
 
     return y_totalgrid, x_totalgrid
+
+def saveLightcurves(ID, exposures, sn_path, confusion_metric, use_real_images, detim, supernova, X, use_roman, band):   
+    #First, build the lc file
+    if use_real_images:
+        identifier = str(ID)
+    else:
+        identifier = 'simulated'
+    if use_roman:
+        psftype = 'romanpsf'
+    else:
+        psftype = 'analyticpsf'
+
+
+    lc = pd.DataFrame()
+    if use_real_images:
+        detections = exposures[np.where(exposures['DETECTED'])]
+        parq_file = find_parq(ID, path = sn_path)
+        df = open_parq(parq_file, path = sn_path)
+        lc['true_flux'] = detections['realized flux']
+        lc['MJD'] = detections['date']
+        lc['confusion metric'] = confusion_metric
+        lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
+        lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
+        lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
+        lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
+        lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
+        lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
+
+    else:
+        lc['true_flux'] = supernova
+        lc['MJD'] = np.arange(0, detim, 1)
+
+    lc['measured_flux'] = X[-detim:]
+    
+    print('Saving lightcurve to ./results/lightcurves/'+ f'{identifier}_{band}_{psftype}_lc.csv')            
+    lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
