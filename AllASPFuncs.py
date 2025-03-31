@@ -731,9 +731,9 @@ def radec2point(RA, DEC, filt, start = None, end = None, path = '/cwork/mat90/Ro
     allDEC = f['DEC']
 
 
-    all_coords = SkyCoord(allRA*u.deg, allDEC*u.deg, frame='icrs')
+    pointing_sca_coords = SkyCoord(allRA*u.deg, allDEC*u.deg, frame='icrs')
     search_coord = SkyCoord(RA*u.deg, DEC*u.deg, frame='icrs')
-    dist = all_coords.separation(search_coord).arcsec
+    dist = pointing_sca_coords.separation(search_coord).arcsec
 
     dist[np.where(f['filter'] != filt)] = np.inf #Ensuring we only get the filter we want
     reshaped_array = dist.flatten()
