@@ -21,6 +21,7 @@ from astropy.nddata import Cutout2D
 from coord import *
 import requests
 from astropy.table import Table
+from astropy.table import QTable
 import os
 import scipy
 import time
@@ -1381,39 +1382,39 @@ def saveLightcurves(ID, exposures, sn_path, confusion_metric, use_real_images, d
     lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
 '''
 
-def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, supernova, X, use_roman, band):
-    lc = pd.DataFrame()
-   
+def build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, supernova, X, use_roman, band):
+
     detections = exposures[np.where(exposures['DETECTED'])]
     parq_file = find_parq(ID, path = sn_path)
     df = open_parq(parq_file, path = sn_path)
-    lc['true_flux'] = detections['realized flux']
-    lc['MJD'] = detections['date']
-    lc['confusion metric'] = confusion_metric
-    lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
-    lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
-    lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
-    lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
-    lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
-    lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
-    lc['measured_flux'] = X[-detim:]
 
-    return lc
+    meta_dict ={'confusion_metric': confusion_metric, \
+    'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
+     'host_mag_g': df[f'host_mag_g'][df['id'] == ID].values[0],\
+      'sn_ra': df['ra'][df['id'] == ID].values[0], \
+      'sn_dec': df['dec'][df['id'] == ID].values[0], \
+      'host_ra': df['host_ra'][df['id'] == ID].values[0],\
+       'host_dec': df['host_dec'][df['id'] == ID].values[0]}
+
+    data_dict = {'MJD': detections['date'], 'true_flux': detections['realized flux'],  'measured_flux': X[-detim:]}
+    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
+
+    return QTable(data = data_dict, meta = meta_dict, units = units)
 
 
 def build_lightcurve_sim(supernova, detim, X):
-    lc = pd.DataFrame()
-    lc['true_flux'] = supernova
-    lc['MJD'] = np.arange(0, detim, 1)
-    lc['measured_flux'] = X[-detim:]
-    return lc
+    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,  'measured_flux': X[-detim:]}
+    meta_dict = {}
+    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
+    return QTable(data = data_dict, meta = meta_dict, units = units)
+
 
 def save_lightcurve(lc,identifier, band, psftype, output_path = None):
 
     if output_path is None:
         output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
 
-    lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.csv')
+    lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.ecsv')
 
     print('Saving lightcurve to ' + lc_file)            
-    lc.to_csv(lc_file, index = False)
+    lc.write(lc_file, format = 'ascii.ecsv', overwrite = True)
