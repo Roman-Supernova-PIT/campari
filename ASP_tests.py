@@ -47,6 +47,11 @@ def test_simulateImages():
     assert compare_images.all() == images.all()
 
 
+def test_savelightcurve():
+    lcdict = {'MJD': [1,2,3,4,5], 'true_flux': [1,2,3,4,5], 'measured_flux': [1,2,3,4,5]}
+    lc = pd.DataFrame(lcdict)
+    save_lightcurve(lc, 'test', 'test', 'test')
+    output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
+    lc_file = os.path.join(output_path, 'test_test_test_lc.csv')
+    assert os.path.exists(lc_file) == True
 
-
-    

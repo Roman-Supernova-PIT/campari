@@ -396,20 +396,20 @@ def main():
             os.makedirs('./results/images')
             os.makedirs('./results/lightcurves')
 
-        if detim != 0:
-            saveLightcurves(ID, exposures, sn_path, confusion_metric, use_real_images, detim, supernova, X,  use_roman, band)
-        else:
-            print('No LC to save')
 
         if use_real_images:
             identifier = str(ID)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, supernova, X,  use_roman, band)
         else:
             identifier = 'simulated'
+            lc = build_lightcurve_sim(supernova, detim, X)
             
         if use_roman:
             psftype = 'romanpsf'
         else:
             psftype = 'analyticpsf'
+        
+        save_lightcurve(lc, identifier, band, psftype)
 
         #Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])

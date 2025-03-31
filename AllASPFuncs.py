@@ -1343,6 +1343,7 @@ def contourGrid(image, numlevels = 5, subsize = 4):
 
     return y_totalgrid, x_totalgrid
 
+'''
 def saveLightcurves(ID, exposures, sn_path, confusion_metric, use_real_images, detim, supernova, X, use_roman, band):   
     #First, build the lc file
     if use_real_images:
@@ -1378,3 +1379,41 @@ def saveLightcurves(ID, exposures, sn_path, confusion_metric, use_real_images, d
     
     print('Saving lightcurve to ./results/lightcurves/'+ f'{identifier}_{band}_{psftype}_lc.csv')            
     lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
+'''
+
+def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, supernova, X, use_roman, band):
+    lc = pd.DataFrame()
+   
+    detections = exposures[np.where(exposures['DETECTED'])]
+    parq_file = find_parq(ID, path = sn_path)
+    df = open_parq(parq_file, path = sn_path)
+    lc['true_flux'] = detections['realized flux']
+    lc['MJD'] = detections['date']
+    lc['confusion metric'] = confusion_metric
+    lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
+    lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
+    lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
+    lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
+    lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
+    lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
+    lc['measured_flux'] = X[-detim:]
+
+    return lc
+
+
+def build_lightcurve_sim(supernova, detim, X):
+    lc = pd.DataFrame()
+    lc['true_flux'] = supernova
+    lc['MJD'] = np.arange(0, detim, 1)
+    lc['measured_flux'] = X[-detim:]
+    return lc
+
+def save_lightcurve(lc,identifier, band, psftype, output_path = None):
+
+    if output_path is None:
+        output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
+
+    lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.csv')
+
+    print('Saving lightcurve to ' + lc_file)            
+    lc.to_csv(lc_file, index = False)
