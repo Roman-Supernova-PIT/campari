@@ -1,12 +1,11 @@
-SNID: 50106142
+SNID: 40120913
 adaptive_grid: true
 avoid_non_linearity: false
 background_level: 0
-band: Y106
 bg_gal_flux: 100000.0
 check_perfection: false
 deltafcn_profile: false
-detim: 2
+detim: 1
 do_rotation: true
 do_xshift: true
 fetch_SED: false
@@ -25,8 +24,8 @@ size: 19
 sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
 source_phot_ops: true
 spline_grid: false
-testnum: 4
+testnum: 1
 turn_grid_off: false
-use_real_images: false
+use_real_images: true
 use_roman: true
 weighting: true
