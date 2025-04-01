@@ -21,12 +21,13 @@ pip install -r requirements.txt
 python -m ipykernel install --user --name multismp --display-name multismp
 ```
 
-## Doing a simple run.
-The RomanASP code can be run from the command line. For now, the command line takes no arguments and instead all input is done via the input file config.yaml. 
+## Doing a simple run on DCC.
+The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml. 
 To do a simple test run to ensure everything is installed correctly, you can just run:
 ```
-python RomanASP.py
+python RomanASP.py -s 40120913 -b Y106 -t 10 -d 5
 ```
+This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
 
 ## Modifying the yaml file.
 To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
