@@ -32,8 +32,6 @@ from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
 from scipy.interpolate import RegularGridInterpolator
 
-roman_path = '/hpc/group/cosmology/OpenUniverse2024'
-sn_path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
 
 '''
 Cole Meldorf 2024
@@ -654,7 +652,7 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     if return_list:
         return explist
 
-def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/', star = False):
+def find_parq(ID, path, star = False):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -671,15 +669,15 @@ def find_parq(ID, path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats
         if ID in df.id.values:
             return pqfile
 
-def open_parq(ID, path = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint'):
+def open_parq(ID, path):
     '''
     Convenience function to open a parquet file given a supernova ID.
     '''
     df = pd.read_parquet(path+'/snana_'+str(ID)+'.parquet', engine='fastparquet')
     return df
 
-def SNID_to_loc(SNID, parq, band, date = False,\
-     snpath = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint/', roman_path = None, host = False):
+def SNID_to_loc(SNID, parq, band,\
+     snpath, roman_path, host = False, date = False):
     '''
     Fetch some info about a SN given its ID.
     Inputs:
@@ -709,13 +707,13 @@ def SNID_to_loc(SNID, parq, band, date = False,\
         p, s = radec2point(RA, DEC, band, roman_path)
         return RA, DEC, p, s
     else:
-        p, s = radec2point(RA, DEC, band, start, end, roman_path)
+        p, s = radec2point(RA, DEC, band, roman_path,  start, end)
         if host:
             return RA, DEC, p, s, start, end, peak, df.host_ra.values[0], df.host_dec.values[0]
         else:
             return RA, DEC, p, s, start, end, peak
 
-def radec2point(RA, DEC, filt, start = None, end = None, path = '/cwork/mat90/RomanDESC_sims_2024'):
+def radec2point(RA, DEC, filt, path, start = None, end = None):
     '''
     This function takes in RA and DEC and returns the pointing and SCA with
     center closest to desired RA/DEC
@@ -952,7 +950,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
+def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
     pqfile = find_parq(ID, sn_path)
     ra, dec, p, s, start, end, peak, galra, galdec = \
         SNID_to_loc(ID, pqfile, date = True, band = band, snpath = sn_path, roman_path = roman_path, host = True)
@@ -1347,3 +1345,98 @@ def contourGrid(image, numlevels = 5, subsize = 4):
         y_totalgrid.extend(yg)
 
     return y_totalgrid, x_totalgrid
+
+
+def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_roman, band):
+
+    '''
+    This code builds a lightcurve datatable from the output of the SMP algorithm.
+
+    Input:
+    ID (int): supernova ID
+    exposures (table): table of exposures used in the SMP algorithm
+    sn_path (str): path to supernova data
+    confusion_metric (float): the confusion metric derived in the SMP algorithm
+    detim (int): number of detection images in the lightcurve
+    X (array): the output of the SMP algorithm
+    use_roman (bool): whether or not the lightcurve was built using Roman PSF
+    band (str): the bandpass of the images used
+
+    Returns:
+    lc: a pandas dataframe containing the lightcurve data
+    Notes:
+    1.) This will soon be ECSV format instead
+    2.) Soon I will turn many of these inputs into environment variable and they 
+    should be deleted from function arguments and docstring.
+    '''
+    
+    lc = pd.DataFrame()
+    detections = exposures[np.where(exposures['DETECTED'])]
+    parq_file = find_parq(ID, path = sn_path)
+    df = open_parq(parq_file, path = sn_path)
+    lc['true_flux'] = detections['realized flux']
+    lc['MJD'] = detections['date']
+    lc['confusion metric'] = confusion_metric
+    lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
+    lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
+    lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
+    lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
+    lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
+    lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
+    lc['measured_flux'] = X[-detim:]
+
+    return lc
+
+
+def build_lightcurve_sim(supernova, detim, X):
+    '''
+    This code builds a lightcurve datatable from the output of the SMP algorithm 
+    if the user simulated their own lightcurve.
+
+    Inputs  
+    supernova (array): the true lightcurve
+    detim (int): number of detection images in the lightcurve
+    X (array): the output of the SMP algorithm
+
+    Returns
+    lc: a pandas dataframe containing the lightcurve data
+    1.) This will soon be ECSV format instead
+    2.) Soon I will turn many of these inputs into environment variable and they 
+    should be deleted from function arguments and docstring.
+    '''
+    lc = pd.DataFrame()
+    lc['true_flux'] = supernova
+    lc['MJD'] = np.arange(0, detim, 1)
+    lc['measured_flux'] = X[-detim:]
+    return lc
+
+def save_lightcurve(lc,identifier, band, psftype, output_path = None):
+    '''
+    This function parses settings in the SMP algorithm and saves the lightcurve to a csv file
+    with an appropriate name.
+    Input:
+    lc: the lightcurve data 
+    identifier (str): the supernova ID or 'simulated' 
+    band (str): the bandpass of the images used
+    psftype (str): 'romanpsf' or 'analyticpsf'
+    output_path (str): the path to save the lightcurve to.
+
+    Returns:
+    None, saves the lightcurve to a csv file.
+    The file name is:
+    output_path/identifier_band_psftype_lc.csv
+    '''
+
+    if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
+            print('Making a results directory for output at ', os.getcwd(), '/results')
+            os.makedirs(os.path.join(os.getcwd(), 'results/'))
+            os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
+            os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
+
+    if output_path is None:
+        output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
+
+    lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.csv')
+
+    print('Saving lightcurve to ' + lc_file)            
+    lc.to_csv(lc_file, index = False)

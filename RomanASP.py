@@ -184,7 +184,7 @@ def main():
 
         if use_real_images:
             #Find SN Info, find exposures containig it, and load those as images. 
-            images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background)
+            images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
             if len(exposures) != testnum:
                     print('Not enough exposures')
                     continue
@@ -209,8 +209,6 @@ def main():
                 sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'),
                                         wave_type='Angstroms', flux_type='fphotons')
                 sedlist.append(sed)
-            
-
             
 
         else:
@@ -392,68 +390,22 @@ def main():
 
 
         #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
-        if not os.path.exists('./results'):
-            print('Making a results directory for output at ', os.getcwd(), '/results')
-            os.makedirs('./results')
-            os.makedirs('./results/images')
-            os.makedirs('./results/lightcurves')
+        
 
 
         if use_real_images:
             identifier = str(ID)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, X,  use_roman, band)
         else:
             identifier = 'simulated'
-
-        '''
-        if use_real_images:
-            detections = exposures[np.where(exposures['DETECTED'])]
-            detections['measured_flux'] = X[-detim:]
-            detections['confusion_metric'] = confusion_metric
-            parq_file = find_parq(ID, path = sn_path)
-            df = open_parq(parq_file, path = sn_path)
-            detections['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
-            detections['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
-            detections['grid points'] = np.size(ra_grid)
-            print(detections)
-            detections = detections.to_pandas()
-            #detections.to_csv(f'./results/{ID}_{band}_detections.csv', index = False)
-            #print('Saved to ./results/' + f'{ID}_{band}_detections.csv')
-            print('Saving not performed')
-        '''
-
-        #else:
-        #####
+            lc = build_lightcurve_sim(supernova, detim, X)
+            
         if use_roman:
             psftype = 'romanpsf'
         else:
             psftype = 'analyticpsf'
-        if detim != 0:
-        #First, build the lc file
-            lc = pd.DataFrame()
-            if use_real_images:
-                detections = exposures[np.where(exposures['DETECTED'])]
-                parq_file = find_parq(ID, path = sn_path)
-                df = open_parq(parq_file, path = sn_path)
-                lc['true_flux'] = detections['realized flux']
-                lc['MJD'] = detections['date']
-                lc['confusion metric'] = confusion_metric
-                lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
-                lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
-                lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
-                lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
-                lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
-                lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
-
-            else:
-                lc['true_flux'] = supernova
-                lc['MJD'] = np.arange(0, detim, 1)
-
-            lc['measured_flux'] = X[-detim:]
-            
-            print('Saving lightcurve to ./results/lightcurves/'+ f'{identifier}_{band}_{psftype}_lc.csv')            
-            lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
-        else:
-            print('No LC to save')
+        
+        save_lightcurve(lc, identifier, band, psftype)
 
         #Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
