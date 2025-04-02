@@ -409,8 +409,43 @@ def main():
             psftype = 'romanpsf'
         else:
             psftype = 'analyticpsf'
-        
-        save_lightcurve(lc, identifier, band, psftype)
+        if detim != 0:
+        #First, build the lc file
+            lc = pd.DataFrame()
+            if use_real_images:
+                detections = exposures[np.where(exposures['DETECTED'])]
+                parq_file = find_parq(ID, path = sn_path)
+                if len(str(ID)) != 11:
+                    df = open_parq(parq_file, path = sn_path)
+                else:
+                    df = pd.read_parquet(sn_path+'/pointsource_'+str(parq_file)+'.parquet', engine='fastparquet')
+                lc['true_flux'] = detections['realized flux']
+                lc['MJD'] = detections['date']
+
+                if len(str(ID)) != 11:
+                    #Supernovae 
+                    lc['confusion metric'] = confusion_metric
+                    lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
+                    lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
+                    lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
+                    lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
+                    lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
+                    lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
+                else:
+                    #Stars
+                    lc['ra'] = df['ra'][df['id'] == str(ID)].values[0]
+                    lc['dec'] = df['dec'][df['id'] == str(ID)].values[0]
+
+            else:
+                lc['true_flux'] = supernova
+                lc['MJD'] = np.arange(0, detim, 1)
+
+            lc['measured_flux'] = X[-detim:]
+            
+            print('Saving lightcurve to ./results/lightcurves/'+ f'{identifier}_{band}_{psftype}_lc.csv')            
+            lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
+        else:
+            print('No LC to save')
 
         #Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
