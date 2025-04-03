@@ -1344,45 +1344,29 @@ def contourGrid(image, numlevels = 5, subsize = 4):
 
     return y_totalgrid, x_totalgrid
 
-'''
-def saveLightcurves(ID, exposures, sn_path, confusion_metric, use_real_images, detim, supernova, X, use_roman, band):   
-    #First, build the lc file
-    if use_real_images:
-        identifier = str(ID)
-    else:
-        identifier = 'simulated'
-    if use_roman:
-        psftype = 'romanpsf'
-    else:
-        psftype = 'analyticpsf'
 
+def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_roman, band):
 
-    lc = pd.DataFrame()
-    if use_real_images:
-        detections = exposures[np.where(exposures['DETECTED'])]
-        parq_file = find_parq(ID, path = sn_path)
-        df = open_parq(parq_file, path = sn_path)
-        lc['true_flux'] = detections['realized flux']
-        lc['MJD'] = detections['date']
-        lc['confusion metric'] = confusion_metric
-        lc['host_sep'] = df['host_sn_sep'][df['id'] == ID].values[0]
-        lc['host_mag_g'] = df[f'host_mag_g'][df['id'] == ID].values[0]
-        lc['sn_ra'] = df['ra'][df['id'] == ID].values[0]
-        lc['sn_dec'] = df['dec'][df['id'] == ID].values[0]
-        lc['host_ra'] = df['host_ra'][df['id'] == ID].values[0]
-        lc['host_dec'] = df['host_dec'][df['id'] == ID].values[0]
+    '''
+    This code builds a lightcurve datatable from the output of the SMP algorithm.
 
-    else:
-        lc['true_flux'] = supernova
-        lc['MJD'] = np.arange(0, detim, 1)
+    Input:
+    ID (int): supernova ID
+    exposures (table): table of exposures used in the SMP algorithm
+    sn_path (str): path to supernova data
+    confusion_metric (float): the confusion metric derived in the SMP algorithm
+    detim (int): number of detection images in the lightcurve
+    X (array): the output of the SMP algorithm
+    use_roman (bool): whether or not the lightcurve was built using Roman PSF
+    band (str): the bandpass of the images used
 
-    lc['measured_flux'] = X[-detim:]
-    
-    print('Saving lightcurve to ./results/lightcurves/'+ f'{identifier}_{band}_{psftype}_lc.csv')            
-    lc.to_csv(f'./results/lightcurves/{identifier}_{band}_{psftype}_lc.csv', index = False)
-'''
-
-def build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, supernova, X, use_roman, band):
+    Returns:
+    lc: a pandas dataframe containing the lightcurve data
+    Notes:
+    1.) This will soon be ECSV format instead
+    2.) Soon I will turn many of these inputs into environment variable and they 
+    should be deleted from function arguments and docstring.
+    '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
     parq_file = find_parq(ID, path = sn_path)
@@ -1403,13 +1387,47 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, supernova,
 
 
 def build_lightcurve_sim(supernova, detim, X):
+    '''
+    This code builds a lightcurve datatable from the output of the SMP algorithm 
+    if the user simulated their own lightcurve.
+
+    Inputs  
+    supernova (array): the true lightcurve
+    detim (int): number of detection images in the lightcurve
+    X (array): the output of the SMP algorithm
+
+    Returns
+    lc: a QTable containing the lightcurve data
+    2.) Soon I will turn many of these inputs into environment variable and they 
+    should be deleted from function arguments and docstring.
+    '''
     data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,  'measured_flux': X[-detim:]}
     meta_dict = {}
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
-
 def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite = True):
+    '''
+    This function parses settings in the SMP algorithm and saves the lightcurve to a csv file
+    with an appropriate name.
+    Input:
+    lc: the lightcurve data 
+    identifier (str): the supernova ID or 'simulated' 
+    band (str): the bandpass of the images used
+    psftype (str): 'romanpsf' or 'analyticpsf'
+    output_path (str): the path to save the lightcurve to.
+
+    Returns:
+    None, saves the lightcurve to a csv file.
+    The file name is:
+    output_path/identifier_band_psftype_lc.csv
+    '''
+
+    if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
+            print('Making a results directory for output at ', os.getcwd(), '/results')
+            os.makedirs(os.path.join(os.getcwd(), 'results/'))
+            os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
+            os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
 
     if output_path is None:
         output_path = os.path.join(os.getcwd(), 'results/lightcurves/')

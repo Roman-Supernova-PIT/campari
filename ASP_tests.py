@@ -53,6 +53,7 @@ def test_savelightcurve():
     meta_dict = {}
     lc = QTable(data = data_dict, meta = meta_dict, units = units)
     save_lightcurve(lc, 'test', 'test', 'test')
+
     output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
     lc_file = os.path.join(output_path, 'test_test_test_lc.ecsv')
     assert os.path.exists(lc_file) == True
