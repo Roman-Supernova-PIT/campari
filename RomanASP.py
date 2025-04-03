@@ -75,19 +75,24 @@ def main():
     print("Running the main function")
 
     parser = argparse.ArgumentParser(description="Can overwrite config file")
-    parser.add_argument("-r", "--roman", action="store_true", help="Overwrite config file and use a roman PSF")
 
-    # Access configuration parameters
+    parser.add_argument('-b', '--band', type=str, required=True, help='filter')
 
-    # Extract all the configuration variables dynamically
+    parser.add_argument('-s', '--SNID', type=int, required=True, help='Supernova ID')
+    parser.add_argument('-t', '--testnum', type=int, required=True, help='Number of images to use')
+    #TODO:change all instances of this variable to tot_images 
+    parser.add_argument('-d', '--detim', type=int, required=True, help='Number of images to use with SN detections')
+    #TODO:change all instances of this variable to det_images 
+
+
+
     config = load_config(config_path)
 
 
-    band = config['band']
+   
+
     npoints = config['npoints']
     size = config['size']
-    testnum = config['testnum']
-    detim = config['detim']
     use_real_images = config['use_real_images']
     use_roman = config['use_roman']
     check_perfection = config['check_perfection']
@@ -106,7 +111,6 @@ def main():
     fit_background = config['fit_background']
     weighting = config['weighting']
     pixel = config['pixel']
-    SNID = config['SNID']
     roman_path = config['roman_path']
     sn_path = config['sn_path']
     turn_grid_off = config['turn_grid_off']
@@ -116,12 +120,13 @@ def main():
     fetch_SED = config['fetch_SED']
     makecontourGrid = config['makecontourGrid']
 
-    print('All Configurations Loaded')
 
     args = parser.parse_args()
-    if args.roman:
-        use_roman = True
-        print('Overwriting config file to use Roman PSF')
+    band = args.band
+    SNID = args.SNID
+    testnum = args.testnum
+    detim = args.detim
+
 
  
     roman_bandpasses = galsim.roman.getBandpasses()
