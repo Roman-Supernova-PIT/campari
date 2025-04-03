@@ -390,16 +390,12 @@ def main():
 
 
         #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
-        if not os.path.exists('./results'):
-            print('Making a results directory for output at ', os.getcwd(), '/results')
-            os.makedirs('./results')
-            os.makedirs('./results/images')
-            os.makedirs('./results/lightcurves')
+        
 
 
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, supernova, X,  use_roman, band)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, X,  use_roman, band)
         else:
             identifier = 'simulated'
             lc = build_lightcurve_sim(supernova, detim, X)
