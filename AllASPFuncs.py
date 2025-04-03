@@ -1409,7 +1409,7 @@ def build_lightcurve_sim(supernova, detim, X):
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
 
-def save_lightcurve(lc,identifier, band, psftype, output_path = None):
+def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite = True):
 
     if output_path is None:
         output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
@@ -1417,4 +1417,4 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None):
     lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.ecsv')
 
     print('Saving lightcurve to ' + lc_file)            
-    lc.write(lc_file, format = 'ascii.ecsv', overwrite = True)
+    lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
