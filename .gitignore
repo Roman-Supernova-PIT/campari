@@ -2,4 +2,8 @@ results
 *.pytest_cache
 OldCode.py
 PSFPhotometryExample.ipynb
+*.fits
+*.csv
+*core.dcc*
+
 
