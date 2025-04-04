@@ -48,10 +48,13 @@ def test_simulateImages():
 
 
 def test_savelightcurve():
-    lcdict = {'MJD': [1,2,3,4,5], 'true_flux': [1,2,3,4,5], 'measured_flux': [1,2,3,4,5]}
-    lc = pd.DataFrame(lcdict)
-    save_lightcurve(lc, identifier = 'test', band = 'test', psftype= 'test')
+    data_dict = {'MJD': [1,2,3,4,5], 'true_flux': [1,2,3,4,5], 'measured_flux': [1,2,3,4,5]}
+    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
+    meta_dict = {}
+    lc = QTable(data = data_dict, meta = meta_dict, units = units)
+    save_lightcurve(lc, 'test', 'test', 'test')
+
     output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
-    lc_file = os.path.join(output_path, 'test_test_test_lc.csv')
+    lc_file = os.path.join(output_path, 'test_test_test_lc.ecsv')
     assert os.path.exists(lc_file) == True
 
