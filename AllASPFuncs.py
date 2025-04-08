@@ -674,7 +674,7 @@ def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
     Convenience function to open a parquet file given its number.
     '''
     file_prefix = {"SN": "snana", "star": "pointsource"}
-    base_name = "{0:s}_{1:s}.parquet".format(file_prefix[obj_type], ID)
+    base_name = "{0:s}_{1:s}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
     return df
