@@ -674,7 +674,7 @@ def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
     Convenience function to open a parquet file given its number.
     '''
     file_prefix = {"SN": "snana", "star": "pointsource"}
-    base_name = "{0:s}_{1:s}.parquet".format(file_prefix[obj_type], parq)
+    base_name = "{0:s}_{1}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
     return df
@@ -1309,23 +1309,44 @@ def slice_plot(fileroot):
 
 
 
-def get_SED(SNID, date, star = False):
-    filenum = find_parq(SNID, star = star)
-    if star:
-        filename = sn_path + 'pointsource_' + str(filenum) + '.hdf5'
-    else:
-        filename = sn_path + 'snana_' + str(filenum) + '.hdf5'
-    h5 = h5py.File(filename,'r')
-    h5 = h5[str(SNID)]
-    lam = h5['lambda']
-    flambda = h5['flambda']
-    mjd = h5['mjd']
+def get_SED(SNID, date, sn_path, obj_type = 'SN'):
+    #Is this an ok way to do this? 
+    if obj_type == 'SN':
+        lam, flambda = get_SN_SED(SNID, date, sn_path)
+    if obj_type == 'star':
+        lam, flambda = get_star_SED(SNID, sn_path)
 
+    return lam, flambda
+
+
+
+def get_star_SED(SNID, sn_path):
+    filenum = find_parq(SNID, sn_path, obj_type = 'star')
+    pqfile = open_parq(filenum, sn_path, obj_type = 'star')
+    file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
+    #THIS HARDCODE WILL NEED TO BE REMOVED
+    fullpath = os.path.join('/hpc/home/cfm37/rubin_sim_data/sims_sed_library/', file_name)
+    sed_table = pd.read_csv(fullpath,  compression='gzip', sep = '\s+')
+    lam = sed_table.iloc[:, 0]
+    flambda = sed_table.iloc[:, 1]
+    return np.array(lam), np.array(flambda)
+    
+
+def get_SN_SED(SNID, date, sn_path):
+    filenum = find_parq(SNID, sn_path, obj_type = 'SN')
+    file_name = 'snana' + '_' + str(filenum) + '.hdf5'
+    fullpath = os.path.join(sn_path, file_name)
+    sed_table = h5py.File(fullpath, 'r')
+    sed_table = sed_table[str(SNID)]
+    flambda = sed_table['flambda']
+    lam = sed_table['lambda']
+    mjd = sed_table['mjd']
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
     if np.min(np.abs(np.array(mjd) - date)) > 10:
         print('WARNING: No SED data within 10 days of date. \n \
             The closest SED is ' + str(np.min(np.abs(np.array(mjd) - date))) + ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
+
 
 
 def contourGrid(image, numlevels = 5, subsize = 4):

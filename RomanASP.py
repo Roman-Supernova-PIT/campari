@@ -28,6 +28,7 @@ import galsim
 import sklearn
 from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
+import AllASPFuncs
 from AllASPFuncs import *
 import yaml
 import h5py
@@ -210,9 +211,9 @@ def main():
             sedlist = []
             for date in exposures['date'][exposures['DETECTED']]:
                 print('Getting SED for date:', date)
-                lam, flam = get_SED(ID, date)
-                sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'),
-                                        wave_type='Angstroms', flux_type='fphotons')
+                object_type = AllASPFuncs.object_type
+                lam, flam = get_SED(ID, date, sn_path, obj_type = object_type)
+                sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'), wave_type='Angstroms', flux_type='fphotons')
                 sedlist.append(sed)
             
 
