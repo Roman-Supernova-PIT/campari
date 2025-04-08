@@ -653,15 +653,14 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     if return_list:
         return explist
 
-def find_parq(ID, path, star = False):
+def find_parq(ID, path, obj_type = 'SN'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
     files = os.listdir(path)
 
-    star = True if len(str(ID)) == 11 else False
     
-    if star:
+    if obj_type == 'star':
         files = [f for f in files if 'pointsource' in f]
         files = [f for f in files if 'flux' not in f]
     else:
@@ -670,69 +669,21 @@ def find_parq(ID, path, star = False):
 
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
-        if star:
-            df = pd.read_parquet(path+'/pointsource_'+str(pqfile)+'.parquet', engine='fastparquet')
-        else:
-            df = open_parq(pqfile, path)
+        df = open_parq(pqfile, path, obj_type = obj_type)
 
         if ID in df.id.values or str(ID) in df.id.values:
             return pqfile
 
-def open_parq(ID, path):
+def open_parq(parq, path, obj_type = 'SN'):
     '''
-    Convenience function to open a parquet file given a supernova ID.
+    Convenience function to open a parquet file given its number.
     '''
-    df = pd.read_parquet(path+'/snana_'+str(ID)+'.parquet', engine='fastparquet')
+    if obj_type == 'SN':
+        df = pd.read_parquet(path+'/snana_'+str(parq)+'.parquet', engine='fastparquet')
+    if obj_type == 'star':
+        df = pd.read_parquet(path+'/pointsource_'+str(parq)+'.parquet', engine='fastparquet')
     return df
 
-
-def star_to_loc(starID, parq, band, path):
-    '''
-    Returns the RA and DEC of a star given its ID.
-    '''
-    df = pd.read_parquet(path+'/pointsource_'+str(parq)+'.parquet', engine='fastparquet')
-    df = df.loc[df.id == str(starID)]
-    RA, DEC = df.ra.values[0], df.dec.values[0]
-    return RA, DEC
-
-
-
-def SNID_to_loc(SNID, parq, band, date = False,\
-     snpath = '/cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint/', roman_path = None, host = False):
-    '''
-    Fetch some info about a SN given its ID.
-    Inputs:
-    SNID: the ID of the supernova
-    parq: the parquet file containing the supernova
-    band: the band to consider
-    date: whether to return the start end and peak dates of the supernova
-    snpath: the path to the supernova data
-    roman_path: the path to the Roman data
-    host: whether to return the host RA and DEC
-
-    Returns:
-    RA, DEC: the RA and DEC of the supernova
-    p, s: the pointing and SCA of the supernova
-    start, end, peak: the start, end, and peak dates of the supernova
-    host_ra, host_dec: the RA and DEC of the host galaxy
-    '''
-    df = open_parq(parq, snpath)
-    df = df.loc[df.id == SNID]
-    RA, DEC = df.ra.values[0], df.dec.values[0]
-    start = df.start_mjd.values
-    end = df.end_mjd.values
-    peak = df.peak_mjd.values
-
-    
-    if not date:
-        p, s = radec2point(RA, DEC, band, roman_path)
-        return RA, DEC, p, s
-    else:
-        p, s = radec2point(RA, DEC, band, roman_path,  start, end)
-        if host:
-            return RA, DEC, p, s, start, end, peak, df.host_ra.values[0], df.host_dec.values[0]
-        else:
-            return RA, DEC, p, s, start, end, peak
 
 def radec2point(RA, DEC, filt, path, start = None, end = None):
     '''
@@ -971,20 +922,19 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
-
+def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
+    global object_type
     if len(str(ID)) != 8:
+        object_type = 'star'
         print('WARNING: Fitting SMP on a star. You probably want the grid off.')
-        pqfile = find_parq(ID, sn_path, star = True)
-        ra, dec = star_to_loc(ID, pqfile, band, sn_path)
-        start = [0]
-        end = [np.inf]
-        peak = [0]
-
     else:
-        pqfile = find_parq(ID, sn_path, star = False)
-        ra, dec, p, s, start, end, peak, galra, galdec = \
-            SNID_to_loc(ID, pqfile, date = True, band = band, snpath = sn_path, roman_path = roman_path, host = True)
+        object_type = 'SN'
+        
+    pqfile = find_parq(ID, sn_path, obj_type = object_type)
+    ra, dec, p, s, start, end, peak = \
+            get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
+
+        
 
     snra = ra
     sndec = dec
@@ -996,6 +946,49 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background):
         background = fit_background, roman_path = roman_path)
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures
+
+
+def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
+
+    '''
+    Fetch some info about an object given its ID.
+    Inputs:
+    ID: the ID of the object
+    parq: the parquet file containing the object
+    band: the band to consider
+    date: whether to return the start end and peak dates of the object
+    snpath: the path to the supernova data
+    roman_path: the path to the Roman data
+    host: whether to return the host RA and DEC
+
+    Returns:
+    ra, dec: the RA and DEC of the object
+    pointing, sca: the pointing and SCA of the object
+    start, end, peak: the start, end, and peak dates of the object
+    '''
+
+    df = open_parq(parq, snpath, obj_type = obj_type)
+    if obj_type == 'star':
+        ID = str(ID)
+
+
+    df = df.loc[df.id == ID]
+    ra, dec = df.ra.values[0], df.dec.values[0]
+
+    if obj_type == 'SN':
+        start = df.start_mjd.values
+        end = df.end_mjd.values
+        peak = df.peak_mjd.values
+    else:
+        start = [0]
+        end = [np.inf]
+        peak = [0]
+
+    pointing, sca = radec2point(ra, dec, band, roman_path)
+
+    return ra, dec, pointing, sca, start, end, peak
+
+
 
 def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 1000, cutoff = np.inf):
     wgt_matrix = []
@@ -1403,16 +1396,20 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_ro
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
-    parq_file = find_parq(ID, path = sn_path)
-    df = open_parq(parq_file, path = sn_path)
+    parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
+    df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
-    meta_dict ={'confusion_metric': confusion_metric, \
-    'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
-     'host_mag_g': df[f'host_mag_g'][df['id'] == ID].values[0],\
-      'sn_ra': df['ra'][df['id'] == ID].values[0], \
-      'sn_dec': df['dec'][df['id'] == ID].values[0], \
-      'host_ra': df['host_ra'][df['id'] == ID].values[0],\
-       'host_dec': df['host_dec'][df['id'] == ID].values[0]}
+    if object_type == 'SN':
+        meta_dict ={'confusion_metric': confusion_metric, \
+        'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
+        'host_mag_g': df[f'host_mag_g'][df['id'] == ID].values[0],\
+        'sn_ra': df['ra'][df['id'] == ID].values[0], \
+        'sn_dec': df['dec'][df['id'] == ID].values[0], \
+        'host_ra': df['host_ra'][df['id'] == ID].values[0],\
+        'host_dec': df['host_dec'][df['id'] == ID].values[0]}
+    else:
+        meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0], \
+            'dec': df[df['id'] == str(ID)]['dec'].values[0]}
 
     data_dict = {'MJD': detections['date'], 'true_flux': detections['realized flux'],  'measured_flux': X[-detim:]}
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
