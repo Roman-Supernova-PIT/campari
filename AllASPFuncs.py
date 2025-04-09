@@ -1326,7 +1326,7 @@ def get_star_SED(SNID, sn_path):
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
     #THIS HARDCODE WILL NEED TO BE REMOVED
     fullpath = os.path.join('/hpc/home/cfm37/rubin_sim_data/sims_sed_library/', file_name)
-    sed_table = pd.read_csv(fullpath,  compression='gzip', sep = '\s+')
+    sed_table = pd.read_csv(fullpath,  compression='gzip', sep = '\s+', comment = '#')
     lam = sed_table.iloc[:, 0]
     flambda = sed_table.iloc[:, 1]
     return np.array(lam), np.array(flambda)
