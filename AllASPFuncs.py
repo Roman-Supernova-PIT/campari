@@ -666,6 +666,8 @@ def find_parq(ID, path, obj_type = 'SN'):
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
         df = open_parq(pqfile, path, obj_type = obj_type)
+        #The issue is SN parquets store their IDs as ints and star parquets as strings. 
+        # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
             return pqfile
 
@@ -918,7 +920,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     return result
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
-    global object_type
+    #global object_type
     if len(str(ID)) != 8:
         object_type = 'star'
         print('WARNING: Fitting SMP on a star. You probably want the grid off.')
@@ -940,7 +942,7 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
 
-    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures
+    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type 
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -1325,6 +1327,7 @@ def get_star_SED(SNID, sn_path):
     pqfile = open_parq(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
     #THIS HARDCODE WILL NEED TO BE REMOVED
+    #Make hardcodes keyword args until they are fixed
     fullpath = os.path.join('/hpc/home/cfm37/rubin_sim_data/sims_sed_library/', file_name)
     sed_table = pd.read_csv(fullpath,  compression='gzip', sep = '\s+', comment = '#')
     lam = sed_table.iloc[:, 0]
@@ -1388,7 +1391,7 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
-def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_roman, band):
+def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_roman, band, object_type):
 
     '''
     This code builds a lightcurve datatable from the output of the SMP algorithm.

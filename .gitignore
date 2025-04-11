@@ -5,5 +5,7 @@ PSFPhotometryExample.ipynb
 *.fits
 *.csv
 *core.dcc*
+.swp
+
 
 
