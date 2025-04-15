@@ -29,6 +29,7 @@ import sklearn
 from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
 from AllASPFuncs import *
+from simulation import *
 import yaml
 import h5py
 import argparse
@@ -84,12 +85,7 @@ def main():
     parser.add_argument('-d', '--detim', type=int, required=True, help='Number of images to use with SN detections')
     #TODO:change all instances of this variable to det_images 
 
-
-
     config = load_config(config_path)
-
-
-   
 
     npoints = config['npoints']
     size = config['size']
@@ -201,7 +197,7 @@ def main():
             galra = ra + 1.5e-5
             galdec = dec + 1.5e-5
             images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = simulateImages(testnum,detim,ra,dec,do_xshift,\
-                do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band, \
+                do_rotation,supernova,noise = noise,use_roman=use_roman, roman_path = roman_path, size = size, band = band, \
                     deltafcn_profile = deltafcn_profile, input_psf = airy, bg_gal_flux = bg_gal_flux, source_phot_ops = source_phot_ops, mismatch_seds = mismatch_seds)
 
 
