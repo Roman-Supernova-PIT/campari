@@ -115,10 +115,11 @@ def test_simulate_supernova():
     supernova_image = simulate_supernova(snx=6, sny=6, stamp=stamp,
                                          flux=1000, sed=sed, band=band,
                                          sim_psf=sim_psf, source_phot_ops=True,
-                                         base_pointing=662, base_sca=11)
+                                         base_pointing=662, base_sca=11,
+                                         random_seed=12345)
     b = np.load('./tests/testdata/supernova_image.npy')
-    assert np.allclose(supernova_image, b, atol=3), 'Test SN image does not \
-         match expected output. On rare occasions this can happen randomly'
+    assert (supernova_image - b).all() == 0, 'Test SN image does not \
+    match expected output.'
 
 
 def test_savelightcurve():

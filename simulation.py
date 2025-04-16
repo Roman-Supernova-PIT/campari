@@ -211,7 +211,8 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
 
 
 def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
-                       source_phot_ops, base_pointing, base_sca):
+                       source_phot_ops, base_pointing, base_sca,
+                       random_seed=0):
     roman_bandpasses = galsim.roman.getBandpasses()
     profile = galsim.DeltaFunction()*sed
     profile = profile.withFlux(flux, roman_bandpasses[band])
@@ -228,9 +229,12 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
     util_ref = roman_utils(config_file=config_file, visit=base_pointing,
                            sca=base_sca)
     photon_ops = [sim_psf] + util_ref.photon_ops
+
+    # If random_seed is zero, galsim will use the current time to make a seed
+    rng = galsim.BaseDeviate(random_seed)
     result = profile.drawImage(roman_bandpasses[band], wcs=stamp.wcs,
                                method='phot', photon_ops=photon_ops,
-                               rng=util_ref.rng, n_photons=int(1e6),
+                               rng=rng, n_photons=int(1e6),
                                maxN=int(1e6), poisson_flux=False,
                                center=galsim.PositionD(snx, sny),
                                use_true_center=True, image=stamp)
