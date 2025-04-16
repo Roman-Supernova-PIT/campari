@@ -16,11 +16,11 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulateImages(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
-                   noise, use_roman, band, deltafcn_profile, roman_path,
-                   size=11, input_psf=None, constant_imgs=False,
-                   bg_gal_flux=None, source_phot_ops=True, mismatch_seds=False,
-                   base_pointing=662, base_sca=11):
+def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
+                    noise, use_roman, band, deltafcn_profile, roman_path,
+                    size=11, input_psf=None, constant_imgs=False,
+                    bg_gal_flux=None, source_phot_ops=True,
+                    mismatch_seds=False, base_pointing=662, base_sca=11):
     '''
     This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
@@ -93,7 +93,7 @@ def simulateImages(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
         if mismatch_seds:
             print('INTENTIONALLY MISMATCHING SEDS, 1a SED')
             file_path = r"snflux_1a.dat"
-            df = pd.read_csv(file_path, sep='\s+', header=None, names=['Day',
+            df = pd.read_csv(file_path, sep=r'\s+', header=None, names=['Day',
                              'Wavelength', 'Flux'])
             a = df.loc[df.Day == 0]
             del df
@@ -163,9 +163,9 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
                  band):
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
-    image = fits.open(roman_path + f'/RomanTDS/images/truth/{band}/\
-                     {base_pointing}/Roman_TDS_truth_{band}_{base_pointing}\
-                     _{base_sca}.fits.gz')
+    image = fits.open(roman_path + f'/RomanTDS/images/truth/{band}/' +
+                      f'{base_pointing}/Roman_TDS_truth_{band}_{base_pointing}'
+                      + f'_{base_sca}.fits.gz')
 
     CD_matrix = np.zeros((2, 2))
     CD_matrix[0, 0] = image[0].header['CD1_1']
