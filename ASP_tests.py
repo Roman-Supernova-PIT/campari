@@ -25,18 +25,17 @@ def test_radec2point():
     assert s == 14
 
 
-def test_SNID_to_loc():
-    RA, DEC, p, s, start, end, peak, host_ra, host_dec = SNID_to_loc(50134575, 10430, 'Y106', date = True,\
-     snpath = sn_path, roman_path = roman_path, host = True)
-    assert RA == 7.731890048839705
-    assert DEC ==  -44.4589649005717
+def test_get_object_info():
+    ra, dec, p, s, start, end, peak  = get_object_info(50134575, 10430, 'Y106', \
+     snpath = sn_path, roman_path = roman_path, obj_type = 'SN')
+    assert ra == 7.731890048839705
+    assert dec ==  -44.4589649005717
     assert p == 10535
     assert s == 14
     assert start[0] == 62654.
     assert end[0] == 62958.
     assert peak[0] == np.float32(62683.98)
-    assert host_ra == 7.731832
-    assert host_dec == -44.459011
+
 
 
 def test_findAllExposures():
@@ -47,6 +46,7 @@ def test_findAllExposures():
     assert explist['Pointing'].all() == compare_table['Pointing'].all()
     assert explist['SCA'].all() == compare_table['SCA'].all()
     assert explist['date'].all() == compare_table['date'].all()
+
 
 
 def test_simulate_images():
@@ -63,6 +63,7 @@ def test_simulate_images():
                         noise=0, use_roman=False, band='F184',
                         deltafcn_profile=False, roman_path=roman_path, size=11,
                         input_psf=airy, bg_gal_flux=9e5)
+
     compare_images = np.load('tests/testdata/images.npy')
     assert compare_images.all() == images.all()
 
@@ -132,4 +133,7 @@ def test_savelightcurve():
     output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
     lc_file = os.path.join(output_path, 'test_test_test_lc.ecsv')
     assert os.path.exists(lc_file) == True
+
+def test_run_on_star():
+    os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
 

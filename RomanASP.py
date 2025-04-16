@@ -25,6 +25,7 @@ import galsim
 import sklearn
 from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
+import AllASPFuncs
 from AllASPFuncs import *
 from simulation import *
 import yaml
@@ -185,8 +186,9 @@ def main():
         im_wcs_list = []
 
         if use_real_images:
-            #Find SN Info, find exposures containig it, and load those as images.
-            images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
+            #Find SN Info, find exposures containig it, and load those as images. 
+            images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
+
             if len(exposures) != testnum:
                     print('Not enough exposures')
                     continue
@@ -207,9 +209,8 @@ def main():
             sedlist = []
             for date in exposures['date'][exposures['DETECTED']]:
                 print('Getting SED for date:', date)
-                lam, flam = get_SED(ID, date)
-                sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'),
-                                        wave_type='Angstroms', flux_type='fphotons')
+                lam, flam = get_SED(ID, date, sn_path, obj_type = object_type)
+                sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'), wave_type='Angstrom', flux_type='fphotons')
                 sedlist.append(sed)
 
 
@@ -248,7 +249,7 @@ def main():
         ############################################### Fitting Section ###############################################
 
         #Calculate the Confusion Metric
-        if use_real_images:
+        if use_real_images and object_type == 'SN':
             x,y = im_wcs_list[0].toImage(ra,dec, units = 'deg')
             snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units = 'deg')
             pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
@@ -256,6 +257,9 @@ def main():
                             stampsize = size, x_center = snx, y_center = sny, sed = sed)
             confusion_metric = np.dot(images[:size**2], array)
             print('Confusion Metric:', confusion_metric)
+        else:
+            confusion_metric = 0
+            print('No confusion metric calculated')
 
         #Build the backgrounds loop
 
@@ -392,12 +396,9 @@ def main():
 
 
         #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
-
-
-
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, X,  use_roman, band)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, X, use_roman, band, object_type)
         else:
             identifier = 'simulated'
             lc = build_lightcurve_sim(supernova, detim, X)
@@ -415,7 +416,6 @@ def main():
         np.save(f'./results/images/{identifier}_{band}_{psftype}_images.npy', images_and_model)
 
         #Save the ra and decgrid
-
         np.save(f'./results/images/{identifier}_{band}_{psftype}_grid.npy', [ra_grid, dec_grid, X[:np.size(ra_grid)]])
 
 
