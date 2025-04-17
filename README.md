@@ -26,7 +26,7 @@ The RomanASP code can be run from the command line. Basic arguments are given in
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
 ```
-srun -n 1 -N 1 -t 4:00:00 --mem 20000 -p cosmology --account=cosmology --pty bash -I
+srun -n 1 -N 1 -t 4:00:00 --mem 20000 -p cosmology --account=cosmology --pty bash
 conda activate multismp
 ```
 
