@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 from roman_imsim import *
 import astropy.table as tb
-import warnings 
+import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
-import scipy.sparse as sp 
+import scipy.sparse as sp
 from scipy.linalg import block_diag, lstsq
 from numpy.linalg import LinAlgError
 from astropy.nddata import Cutout2D
@@ -38,10 +38,10 @@ from scipy.interpolate import RegularGridInterpolator
 Cole Meldorf 2024
 Adapted from code by Pedro Bernardinelli
 
-                    ___                         
-                   / _ \___  __ _  ___ ____     
-                  / , _/ _ \/  ' \/ _ `/ _ \    
-                 /_/|_|\___/_/_/_/\_,_/_//_/    
+                    ___
+                   / _ \___  __ _  ___ ____
+                  / , _/ _ \/  ' \/ _ `/ _ \
+                 /_/|_|\___/_/_/_/\_,_/_//_/
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣔⣴⣦⣔⣠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣭⣿⣟⣿⣿⣿⣅⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣷⣾⣿⣿⣿⣿⣿⣿⣿⡶⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -54,10 +54,10 @@ Adapted from code by Pedro Bernardinelli
 
                  _____  __     ___  __________
                 / __/ |/ /    / _ \/  _/_  __/
-               _\ \/    /    / ___// /  / /   
-              /___/_/|_/    /_/  /___/ /_/    
-                                
-                                                        
+               _\ \/    /    / ___// /  / /
+              /___/_/|_/    /_/  /___/ /_/
+
+
 '''
 
 def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = [], makecontourGrid = True):
@@ -76,19 +76,19 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     else:
         spacing = 1.0
     print('GRID SPACE', spacing)
-    x = np.arange(difference, subsize+difference, spacing) 
-    y = np.arange(difference, subsize+difference, spacing) 
+    x = np.arange(difference, subsize+difference, spacing)
+    y = np.arange(difference, subsize+difference, spacing)
 
     '''
     x -= np.mean(x)
     x+= x_center
 
     y -= np.mean(y)
-    y+= y_center 
+    y+= y_center
     '''
 
-  
- 
+
+
     if image is not None and not makecontourGrid:
 
         #Bin the image in logspace and allocate grid points based on the brightness.
@@ -105,31 +105,31 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         a = np.digitize(np.log(np.copy(imcopy)),bins)
         xes = []
         ys = []
-        
+
 
         '''
         xvals = np.array(range(-2, subsize+2)).astype(float)
         print('xvals', xvals)
         xvals -= np.mean(xvals)
         print('xvals', xvals)
-        xvals += x_center 
+        xvals += x_center
         print('xvals', xvals)
-        
-        
-        
+
+
+
         yvals = np.array(range(-2, subsize+2)).astype(float)
         yvals -= np.mean(yvals)
-        yvals += y_center 
-        
+        yvals += y_center
+
         '''
 
         xvals = x
         yvals = y
         yvals = np.rint(yvals).astype(int)
         xvals = np.rint(xvals).astype(int)
-        for xindex in xvals: 
+        for xindex in xvals:
             x = xindex + 1
-            for yindex in yvals: 
+            for yindex in yvals:
                 y = yindex + 1
                 num = int(a[x][y])
                 if num == 0:
@@ -137,13 +137,13 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
                 elif num == 1:
                     xes.append(y)
                     ys.append(x)
-                else: 
+                else:
                     xx = np.linspace(x-0.6,x+0.6,num+2)[1:-1]
                     yy = np.linspace(y-0.6,y+0.6,num+2)[1:-1]
                     X,Y = np.meshgrid(xx,yy)
                     ys.extend(list(X.flatten()))
                     xes.extend(list(Y.flatten()))
-        
+
         xx = np.array(xes)
         yy = np.array(ys)
 
@@ -156,32 +156,32 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
 
     else:
 
-        xx, yy = np.meshgrid(x+1, y+1) 
+        xx, yy = np.meshgrid(x+1, y+1)
     '''
         subsize = 8 #Taking a smaller square inside the image to fit on
         difference = int((size - subsize)/2)
 
         spacing = 1.0
         print('GRID SPACE', spacing)
-        x = np.arange(difference, subsize+difference, spacing) 
-        y = np.arange(difference, subsize+difference, spacing) 
+        x = np.arange(difference, subsize+difference, spacing)
+        y = np.arange(difference, subsize+difference, spacing)
 
         x -= np.mean(x)
         x+= x_center
 
         y -= np.mean(y)
-        y+= y_center 
+        y+= y_center
 
-        xx, yy = np.meshgrid(x, y) 
+        xx, yy = np.meshgrid(x, y)
         print(xx)
     '''
-    
+
 
     xx = xx.flatten()
     yy = yy.flatten()
     print('Built a grid with', np.size(xx), 'points')
 
-    
+
     if type(wcs)==galsim.fitswcs.AstropyWCS:
         result = wcs.toWorld(xx, yy, units = 'deg')
         ra_grid = result[0]
@@ -196,11 +196,11 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     return ra_grid, dec_grid
 
 
-    
+
 
 def generateGuess(imlist, wcslist, ra_grid, dec_grid):
     '''
-    This function initializes the guess for the optimization. For each grid point, it finds the average value of the pixel it is sitting in on 
+    This function initializes the guess for the optimization. For each grid point, it finds the average value of the pixel it is sitting in on
     each image. In some cases, this has offered minor improvements but it is not make or break for the algorithm.
     '''
     size = np.shape(imlist[0])[0]
@@ -245,7 +245,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
             that this needs to be for the correct SCA/Pointing combination.
 
     Returns:
-    A numpy array of the PSFs at each grid point, with the shape (stampsize*stampsize, npoints)    
+    A numpy array of the PSFs at each grid point, with the shape (stampsize*stampsize, npoints)
     '''
 
     assert util_ref is not None or psf is not None, 'you must provide at least util_ref or psf'
@@ -257,9 +257,9 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
     else:
         psf = None
 
-    
 
-    
+
+
 
 
     if type(wcs) == galsim.fitswcs.AstropyWCS:
@@ -273,7 +273,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
 
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
-    k = 0 
+    k = 0
 
     #For now, we use a flat SED. This is not ideal, but it is a good starting point.
     print('In construct psf bg using flat SED')
@@ -299,23 +299,23 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
     for a,ij in enumerate(zip(x.flatten(),y.flatten())):
         i,j = ij
         stamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
-        
+
         if not include_photonOps:
             if use_roman:
                 #print('PSF x and y in construct psf background', x_loc, y_loc)
                 #print('Ive changed this to xloc and yloc for now but its possibly wrong')
-                
+
                 #print(stamp)
                 #print(newwcs)
 
-                convolvedpsf = galsim.Convolve(point, roman_psf)                
+                convolvedpsf = galsim.Convolve(point, roman_psf)
             else:
                 convolvedpsf = galsim.Convolve(point, psf)
             result = convolvedpsf.drawImage(bpass, method='no_pixel',\
-                center = galsim.PositionD(i, j),use_true_center = True, image = stamp, wcs = newwcs) 
+                center = galsim.PositionD(i, j),use_true_center = True, image = stamp, wcs = newwcs)
 
         else:
-            photon_ops = [util_ref.getPSF(i,j,8)] + util_ref.photon_ops 
+            photon_ops = [util_ref.getPSF(i,j,8)] + util_ref.photon_ops
             result = point.drawImage(bpass,wcs=newwcs, method='phot', photon_ops=photon_ops, rng=util_ref.rng, \
                 n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(i+1, j+1),\
                     use_true_center = True, image=stamp)
@@ -327,8 +327,8 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_r
         plt.colorbar()
         plt.show()
         '''
-    
-        psfs[:,k] = result.array.flatten() 
+
+        psfs[:,k] = result.array.flatten()
         k += 1
 
     newstamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
@@ -387,7 +387,7 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
         #Spinny loader just for fun :D
         spinner = ['|', '/', '-', '\\']
         print('Image ' + str(i) + '   ' + spinner[i%4], end = '\r')
- 
+
         if do_xshift:
                 xshift = 1e-5/3 * i
                 yshift = 0
@@ -405,35 +405,35 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
         rotation_matrix = np.array([np.cos(rotation_angle), -np.sin(rotation_angle), np.sin(rotation_angle), np.cos(rotation_angle)]).reshape(2,2)
         CD_matrix = np.array([[-2.0951875487247e-05,  -1.9726924681363e-05], [2.11521248003807e-05,  -2.1222586081326e-05]])
         CD_matrix_rotated = CD_matrix @ rotation_matrix
-        
+
         wcs_dict = {
-            'CTYPE1': 'RA---TAN-SIP',                                                        
+            'CTYPE1': 'RA---TAN-SIP',
             'CTYPE2': 'DEC--TAN-SIP',
 
-            'CRPIX1':               2044.0,                                                  
-            'CRPIX2':               2044.0,                                                    
+            'CRPIX1':               2044.0,
+            'CRPIX2':               2044.0,
             'CD1_1': CD_matrix_rotated[0,0],
             'CD1_2': CD_matrix_rotated[0,1],
             'CD2_1': CD_matrix_rotated[1,0],
-            'CD2_2': CD_matrix_rotated[1,1],                                               
-            'CUNIT1': 'deg     '   ,                                                         
-            'CUNIT2': 'deg     '    ,                                                        
-            'CRVAL1':   7.5942407686430995 + xshift,   #This is an arbitrary RA / DEC value for the center of the SCA, this should probably be formalized.                                   
-            'CRVAL2':  -44.180904726970695 + yshift,    
+            'CD2_2': CD_matrix_rotated[1,1],
+            'CUNIT1': 'deg     '   ,
+            'CUNIT2': 'deg     '    ,
+            'CRVAL1':   7.5942407686430995 + xshift,   #This is an arbitrary RA / DEC value for the center of the SCA, this should probably be formalized.
+            'CRVAL2':  -44.180904726970695 + yshift,
 
-            'NAXIS1':                 4088,                                                  
-            'NAXIS2':                 4088 
+            'NAXIS1':                 4088,
+            'NAXIS2':                 4088
         }
-        
+
         imwcs = WCS(wcs_dict)
 
 
         #Just using this astropy tool to get the cutout wcs.
         cutoutstamp = Cutout2D(np.zeros((4088,4088)), SkyCoord(ra = ra*u.degree, dec = dec*u.degree), size, wcs=imwcs)
         cutoutgalwcs = galsim.AstropyWCS(wcs = cutoutstamp.wcs)
-        
+
         galwcs = galsim.AstropyWCS(wcs = imwcs)
-        
+
 
         galwcs2, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
         x,y = galwcs2.toImage(ra, dec, units = 'deg')
@@ -443,7 +443,7 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
         im_wcs_list.append(galwcs2)
         if mismatch_seds:
             print('INTENTIONALLY MISMATCHING SEDS, 1a SED')
-            
+
             file_path = r"snflux_1a.dat"
             df = pd.read_csv(file_path, sep = '\s+', header = None, names = ['Day', 'Wavelength', 'Flux'])
             a = df.loc[df.Day == 0]
@@ -467,18 +467,18 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
             #util_ref = roman_utils(config_file='./temp_tds.yaml', visit = 502, sca = 13)
 
             #sim_psf = util_ref.getPSF(x,y,pupil_bin)
-            
+
         else:
             #print('\n')
            # print('Using input PSF')
             #sim_psf = airy
             sim_psf = input_psf
 
-        
+
         #Draw the galaxy.
         if deltafcn_profile:
             profile = galsim.DeltaFunction()*sed
-            profile = profile.withFlux(bg_gal_flux, roman_bandpasses[band]) 
+            profile = profile.withFlux(bg_gal_flux, roman_bandpasses[band])
             convolved = galsim.Convolve(profile, sim_psf)
         else:
             bulge = galsim.Sersic(n=3, half_light_radius=1.6)
@@ -489,7 +489,7 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
             profile = gal*sed
             profile = profile.withFlux(bg_gal_flux, roman_bandpasses[band])
             convolved = galsim.Convolve(profile, sim_psf)
-        
+
 
         a = convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
             wcs = cutoutgalwcs, center = galsim.PositionD(pointx, pointy), use_true_center = True)
@@ -502,11 +502,11 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
         plt.colorbar()
         plt.show()
         '''
-        
+
         stamp2 = galsim.Image(size,size,wcs=cutoutgalwcs)
         psf_storage.append((sim_psf*sed).drawImage(roman_bandpasses[band], wcs = cutoutgalwcs, center = (5, 5), use_true_center = True, image = stamp2).array)
 
-        
+
         #Noise it up!
         if noise > 0:
             a += np.random.normal(0, noise, size**2).reshape(size,size)
@@ -518,13 +518,13 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
                     supernova_image = construct_psf_source(x, y, 662, 11, stampsize=size,  \
                         x_center = snx, y_center = sny, flux = supernova[i - testnum + detim], sed = sed, photOps = source_phot_ops).reshape(size,size)
                     a += supernova_image
-                    
+
 
                 else:
                     stamp = galsim.Image(size,size,wcs=cutoutgalwcs)
                     profile = galsim.DeltaFunction()*sed
-                    profile = profile.withFlux(supernova[i - testnum + detim], roman_bandpasses[band]) 
-                    
+                    profile = profile.withFlux(supernova[i - testnum + detim], roman_bandpasses[band])
+
                     convolved = galsim.Convolve(profile, sim_psf)
                     supernova_image = convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
                                 wcs = cutoutgalwcs, center = (snx, sny), \
@@ -539,14 +539,14 @@ def simulateImages(testnum,detim,ra,dec,do_xshift,do_rotation,supernova,noise, u
     images = np.array(imagelist)
     images = np.hstack(images)
 
-    
+
 
     return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage
 
 
 def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, \
                         return_list = False, stampsize = 25, roman_path = None,\
-                    pointing_list = None, SCA_list = None, truth = 'simple_model'): 
+                    pointing_list = None, SCA_list = None, truth = 'simple_model'):
     '''
     This function finds all the exposures that contain a given supernova, and returns a list of them.
     Utilizes Rob's awesome database method to find the exposures. Humongous speed up thanks to this.
@@ -579,7 +579,7 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
             dtype=('i8', 'i4', 'str', 'f8', 'f8', 'f8', 'f8','f8', 'f8', 'f8'))
 
     #Rob's database method! :D
-    
+
     server_url = 'https://roman-desc-simdex.lbl.gov'
     req = requests.Session()
     result = req.post( f'{server_url}/findromanimages/containing=({ra},{dec})' )
@@ -595,14 +595,14 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     det = det.sort_values('offpeak_time')
     det = det.iloc[:maxdet]
     det['DETECTED'] = True
-    
+
     if pointing_list is not None:
         det = det.loc[det['Pointing'].isin(pointing_list)]
-    
+
     bg = res.loc[(res['date'] < start) | (res['date'] > end)]
     bg['offpeak_time'] = np.abs(bg['date'] - peak)
     bg = bg.iloc[:maxbg]
-    bg['DETECTED'] = False  
+    bg['DETECTED'] = False
 
     #combine these two dataframes
     all_images = pd.concat([det, bg])
@@ -622,20 +622,20 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
         mag = cat_star['mag']
         zpt = np.mean(mag - logflux)
         zpts.append(zpt)
-    
+
         if row.DETECTED:
             try:
                 true_mags.append(cat.loc[cat['object_id'] == snid].mag.values[0])
-                true_fluxes.append(cat.loc[cat['object_id'] == snid].flux.values[0])    
-                realized_fluxes.append(cat.loc[cat['object_id'] == snid].realized_flux.values[0])      
-            
+                true_fluxes.append(cat.loc[cat['object_id'] == snid].flux.values[0])
+                realized_fluxes.append(cat.loc[cat['object_id'] == snid].realized_flux.values[0])
+
             except:
                 print('No truth file found for ', row.Pointing, row.SCA)
                 true_mags.append(np.nan)
                 true_fluxes.append(np.nan)
                 realized_fluxes.append(np.nan)
                 continue
-            
+
         else:
             true_mags.append(np.nan)
             true_fluxes.append(np.nan)
@@ -666,7 +666,7 @@ def find_parq(ID, path, obj_type = 'SN'):
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
         df = open_parq(pqfile, path, obj_type = obj_type)
-        #The issue is SN parquets store their IDs as ints and star parquets as strings. 
+        #The issue is SN parquets store their IDs as ints and star parquets as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
             return pqfile
@@ -748,7 +748,7 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 def constructImages(exposures, ra, dec, size = 7, background = False, roman_path = None):
-    
+
     '''
     Constructs the array of Roman images in the format required for the linear algebra operations
 
@@ -769,7 +769,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
     truth = 'simple_model'
     print('truth in construct images', truth)
 
-            
+
     for indx, i in enumerate(exposures):
         spinner = ['|', '/', '-', '\\']
         print('Image ' + str(indx) + '   ' + spinner[indx%4], end = '\r')
@@ -794,14 +794,14 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
         ff = 1
         cutout = result.data
         if truth == 'truth':
-            img = Cutout2D(image[0].data, pixel, size, mode = 'strict').data 
+            img = Cutout2D(image[0].data, pixel, size, mode = 'strict').data
             img += np.abs(np.min(img))
             img += 1
             img = np.sqrt(img)
             err_cutout = 1 / img
 
         else:
-            err_cutout = Cutout2D(image[2].data, pixel, size, mode = 'strict').data 
+            err_cutout = Cutout2D(image[2].data, pixel, size, mode = 'strict').data
         cutouttime_end = time.time()
 
         im = cutout
@@ -814,7 +814,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             zero = -99
 
         if zero < 0:
-            zero = 
+            zero =
         im = cutout * zero
         '''
 
@@ -834,7 +834,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             bg = np.median(bgarr)
 
         bgflux.append(bg)
-        
+
 
 
         #If we are not fitting the background we manually subtract it here.
@@ -847,7 +847,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             #fit a Gaussian to the truth image
 
             #popt, pcov = scipy.optimize.curve_fit(gaussian, bincenters, x[0], p0 = [.01, 400, 100])
-            
+
             im -= image[1].header['SKY_MEAN']
             #print('subtracting sky mean not my fit')
             #print('subtracted a bg of', popt[1])
@@ -862,7 +862,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
         err.append(err_cutout.flatten())
         mask.append(np.zeros(size*size))
         #w = (zero**2)*err_cutout.flatten()
-     
+
     image = np.hstack(m)
     err = np.hstack(err)
     return image, wcs_list, sca_wcs_list, err
@@ -870,9 +870,9 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
                         oversampling_factor=1,include_photonOps=False,n_phot=1e6, pixel = False, flux = 1):
-    
+
     """
-    This is a roman imsim function that I have repurposed slightly for off center placement. 
+    This is a roman imsim function that I have repurposed slightly for off center placement.
 
     Return a Roman PSF image for some image position
     Parameters:
@@ -926,12 +926,12 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
         print('WARNING: Fitting SMP on a star. You probably want the grid off.')
     else:
         object_type = 'SN'
-        
+
     pqfile = find_parq(ID, sn_path, obj_type = object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
 
-        
+
 
     snra = ra
     sndec = dec
@@ -942,7 +942,7 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
 
-    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type 
+    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -994,15 +994,15 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 100
         xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
         xx = xx.flatten()
         yy = yy.flatten()
-        
+
         rara, decdec = wcs.toWorld(xx, yy, units = 'deg')
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
         snx, sny = wcs.toImage(snra, sndec, units = 'deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
-        
+
         wgt = np.ones(size**2)
-        
+
 
         wgt = 5*np.exp(-dist**2/gaussian_std)
         wgt[np.where(dist > 4)] = 0
@@ -1037,7 +1037,7 @@ def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = []
                 galra = ra_grid[106]
                 galdec = dec_grid[106]
 
-            
+
         ra_grid = np.array(ra_grid)
         dec_grid = np.array(dec_grid)
     return ra_grid, dec_grid
@@ -1122,7 +1122,7 @@ def plot_images(fileroot, size = 11):
             continue
         newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
         cutout_wcs_list.append(newwcs)
-    
+
     biases = []
 
     ra_grid, dec_grid, gridvals = np.load('./results/images/'+str(fileroot)+'_grid.npy')
@@ -1135,7 +1135,7 @@ def plot_images(fileroot, size = 11):
         xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
         snx, sny = wcs.toImage(snra, sndec, units = 'deg')
         galx, galy = wcs.toImage(galra, galdec, units = 'deg')
-        
+
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
         vmin = np.mean(gridvals) - np.std(gridvals)
         vmax = np.mean(gridvals) + np.std(gridvals)
@@ -1152,7 +1152,7 @@ def plot_images(fileroot, size = 11):
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+2)
         plt.title('Model')
-        
+
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
         xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
 
@@ -1160,7 +1160,7 @@ def plot_images(fileroot, size = 11):
         xx -= 1
         yy -= 1
 
-            
+
         vmin = np.min(images[i*size**2:(i+1)*size**2].reshape(size,size))
         vmax = np.max(images[i*size**2:(i+1)*size**2].reshape(size,size))
 
@@ -1172,15 +1172,15 @@ def plot_images(fileroot, size = 11):
 
         plt.imshow(im1, extent = extent, origin = 'lower', vmin = vmin, vmax = vmax)
         plt.colorbar(fraction=0.046, pad=0.04)
-           
-        
+
+
         #plt.scatter(galx-1,galy-1, c = 'r', s = 8, marker = '*')
         #plt.scatter(snx-1, sny-1, c = 'k', s = 8, marker = '*')
 
         #plt.xlim(-1,size)
         #plt.ylim(-1,size)
 
-        
+
         ############################################
         plt.subplot(len(cutout_wcs_list),4,4*i+3)
         plt.title('Residuals')
@@ -1190,12 +1190,12 @@ def plot_images(fileroot, size = 11):
         res = images - sumimages
 
 
-            
+
         current_res= res[i*size**2:(i+1)*size**2].reshape(size,size)
 
         #if i == 0:
         norm = 3*np.std(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)])
-        
+
         #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) == 0)] = 0
         #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)] = \
             #np.log10(np.abs(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)]))
@@ -1204,10 +1204,10 @@ def plot_images(fileroot, size = 11):
         #plt.imshow(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size), extent = extent, origin = 'lower')
         plt.colorbar(fraction=0.046, pad=0.14)
         #plt.scatter(galx,galy, c = 'r', s = 12, marker = '*', edgecolors='k')
-        
 
-        
-    
+
+
+
 
 
     plt.subplots_adjust(wspace = 0.4, hspace = 0.3)
@@ -1235,7 +1235,7 @@ def slice_plot(fileroot):
 
 
     magresiduals = -2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova))
-    
+
 
     galxes = []
     stds = []
@@ -1258,16 +1258,16 @@ def slice_plot(fileroot):
         justbgpred = justbgX * psf_matrix
         justbgsumimages = np.sum(justbgpred, axis = 1)
         justbgim = justbgsumimages[i*size**2:(i+1)*size**2].reshape(size,size)
-        
+
 
         #subtract off the real sn
         #if i >= testnum - detim:
             #print('subtracting sn')
             #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
-        
 
 
-        
+
+
         justbgres = trueimage - justbgim
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
 
@@ -1279,7 +1279,7 @@ def slice_plot(fileroot):
         plt.plot(trueimage[5] - im1[5], label = 'Im-Model', alpha = 0.4)
         plt.ylim(-250,250)
 
-        
+
         if i >= testnum - detim:
             snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
             plt.plot(snim[5], label = 'True SN', lw = 3)
@@ -1287,7 +1287,7 @@ def slice_plot(fileroot):
             plt.plot(np.arange(0,11,1), trueimage[5] - snim[5] , color = 'k', ls = '--')
             plt.plot(justbgim[5], label = 'BGModel')
             plt.plot(justbgres[5], label = 'Im-BGModel')
-            
+
             #plt.plot(justbgres[5] - snim[5], label = 'SN Residuals', ls = '--')
             plt.ylim(-500,np.max(trueimage[5]))
             snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-detim:][i - testnum + detim]
@@ -1296,7 +1296,7 @@ def slice_plot(fileroot):
             snim = np.zeros_like(justbgres)
 
 
-        
+
         plt.axvline(snx-1+4, ls = '--', color = 'k')
         plt.axvline(snx-1-4, ls = '--', color = 'k')
         plt.axvline(snx-1, ls = '--', color = 'r')
@@ -1305,14 +1305,14 @@ def slice_plot(fileroot):
 
 
         plt.legend(loc = 'upper left')
-    
+
 
 
 
 
 
 def get_SED(SNID, date, sn_path, obj_type = 'SN'):
-    #Is this an ok way to do this? 
+    #Is this an ok way to do this?
     if obj_type == 'SN':
         lam, flambda = get_SN_SED(SNID, date, sn_path)
     if obj_type == 'star':
@@ -1333,7 +1333,7 @@ def get_star_SED(SNID, sn_path):
     lam = sed_table.iloc[:, 0]
     flambda = sed_table.iloc[:, 1]
     return np.array(lam), np.array(flambda)
-    
+
 
 def get_SN_SED(SNID, date, sn_path):
     filenum = find_parq(SNID, sn_path, obj_type = 'SN')
@@ -1391,7 +1391,8 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
-def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_roman, band, object_type):
+def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X,
+                     use_roman, band, object_type, sigma_flux):
 
     '''
     This code builds a lightcurve datatable from the output of the SMP algorithm.
@@ -1410,7 +1411,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_ro
     lc: a pandas dataframe containing the lightcurve data
     Notes:
     1.) This will soon be ECSV format instead
-    2.) Soon I will turn many of these inputs into environment variable and they 
+    2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
 
@@ -1430,30 +1431,34 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X, use_ro
         meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0], \
             'dec': df[df['id'] == str(ID)]['dec'].values[0]}
 
-    data_dict = {'MJD': detections['date'], 'true_flux': detections['realized flux'],  'measured_flux': X[-detim:]}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
+    data_dict = {'MJD': detections['date'], 'true_flux':
+    detections['realized flux'],  'measured_flux': X[-detim:], 'flux_error':
+    sigma_flux}
+    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '',
+             'flux_error': ''}
 
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
 
-def build_lightcurve_sim(supernova, detim, X):
+def build_lightcurve_sim(supernova, detim, X, sigma_flux):
     '''
-    This code builds a lightcurve datatable from the output of the SMP algorithm 
+    This code builds a lightcurve datatable from the output of the SMP algorithm
     if the user simulated their own lightcurve.
 
-    Inputs  
+    Inputs
     supernova (array): the true lightcurve
     detim (int): number of detection images in the lightcurve
     X (array): the output of the SMP algorithm
 
     Returns
     lc: a QTable containing the lightcurve data
-    2.) Soon I will turn many of these inputs into environment variable and they 
+    2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,  'measured_flux': X[-detim:]}
+    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
+          'measured_flux': X[-detim:], 'flux_error': sigma_flux}
     meta_dict = {}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': ''}
+    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
 def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite = True):
@@ -1461,8 +1466,8 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite 
     This function parses settings in the SMP algorithm and saves the lightcurve to a csv file
     with an appropriate name.
     Input:
-    lc: the lightcurve data 
-    identifier (str): the supernova ID or 'simulated' 
+    lc: the lightcurve data
+    identifier (str): the supernova ID or 'simulated'
     band (str): the bandpass of the images used
     psftype (str): 'romanpsf' or 'analyticpsf'
     output_path (str): the path to save the lightcurve to.
@@ -1484,5 +1489,11 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite 
 
     lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.ecsv')
 
-    print('Saving lightcurve to ' + lc_file)            
+    print('Saving lightcurve to ' + lc_file)
     lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
+
+def banner(text):
+    length = len(text) + 8
+    print("#" * length)
+    print('#   ' + text + '   #')
+    print("#" * length)

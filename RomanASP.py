@@ -9,12 +9,12 @@ from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 from roman_imsim import *
 import astropy.table as tb
-import warnings 
+import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
-import scipy.sparse as sp 
+import scipy.sparse as sp
 from scipy.linalg import block_diag, lstsq
 from numpy.linalg import LinAlgError
 from astropy.nddata import Cutout2D
@@ -40,10 +40,10 @@ import pickle
 Cole Meldorf 2024
 Adapted from code by Pedro Bernardinelli
 
-                    ___                         
-                   / _ \___  __ _  ___ ____     
-                  / , _/ _ \/  ' \/ _ `/ _ \    
-                 /_/|_|\___/_/_/_/\_,_/_//_/    
+                    ___
+                   / _ \___  __ _  ___ ____
+                  / , _/ _ \/  ' \/ _ `/ _ \
+                 /_/|_|\___/_/_/_/\_,_/_//_/
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢠⣔⣴⣦⣔⣠⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⢀⣼⣿⣭⣿⣟⣿⣿⣿⣅⢀⠀⠀⠀⠀⠀⠀⠀⠀⠀
 ⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣷⣾⣿⣿⣿⣿⣿⣿⣿⡶⠀⠀⠀⠀⠀⠀⠀⠀⠀
@@ -56,10 +56,10 @@ Adapted from code by Pedro Bernardinelli
 
                  _____  __     ___  __________
                 / __/ |/ /    / _ \/  _/_  __/
-               _\ \/    /    / ___// /  / /   
-              /___/_/|_/    /_/  /___/ /_/    
-                                
-                                                        
+               _\ \/    /    / ___// /  / /
+              /___/_/|_/    /_/  /___/ /_/
+
+
 '''
 
 
@@ -81,23 +81,23 @@ def main():
 
     parser.add_argument('-s', '--SNID', type=int, required=True, help='Supernova ID')
     parser.add_argument('-t', '--testnum', type=int, required=True, help='Number of images to use')
-    #TODO:change all instances of this variable to tot_images 
+    #TODO:change all instances of this variable to tot_images
     parser.add_argument('-d', '--detim', type=int, required=True, help='Number of images to use with SN detections')
-    #TODO:change all instances of this variable to det_images 
+    #TODO:change all instances of this variable to det_images
 
 
 
     config = load_config(config_path)
 
 
-   
+
 
     npoints = config['npoints']
     size = config['size']
     use_real_images = config['use_real_images']
     use_roman = config['use_roman']
     check_perfection = config['check_perfection']
-    make_exact = config['make_exact']                           
+    make_exact = config['make_exact']
     avoid_non_linearity = config['avoid_non_linearity']
     deltafcn_profile = config['deltafcn_profile']
     single_grid_point = config['single_grid_point']
@@ -129,9 +129,9 @@ def main():
     detim = args.detim
 
 
- 
+
     roman_bandpasses = galsim.roman.getBandpasses()
-    
+
     #PSF for when not using the Roman PSF:
     lam = 1293  # nm
     lam_over_diam = 0.11300864172775239   #This is the roman value
@@ -155,9 +155,6 @@ def main():
 
 
     galsim.roman.roman_psfs._make_aperture.clear() #clear cache
-
-
-
 
     ################### Finding and Preparing Images Section #########
 
@@ -189,12 +186,12 @@ def main():
         im_wcs_list = []
 
         if use_real_images:
-            #Find SN Info, find exposures containig it, and load those as images. 
+            #Find SN Info, find exposures containig it, and load those as images.
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
             if len(exposures) != testnum:
                     print('Not enough exposures')
                     continue
-        
+
         else:
             #Simulate the images of the SN and galaxy.
             ra, dec = 7.541534306163982, -44.219205940734625
@@ -214,13 +211,13 @@ def main():
                 lam, flam = get_SED(ID, date, sn_path, obj_type = object_type)
                 sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'), wave_type='Angstrom', flux_type='fphotons')
                 sedlist.append(sed)
-            
+
 
         else:
             sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                                         wave_type='nm', flux_type='fphotons')
 
-        
+
 
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size,size) for i in range(testnum)]
 
@@ -235,7 +232,7 @@ def main():
         #Get the weights
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list,size,snra,sndec, error = None)
-        
+
         #Using the images, hazard an initial guess.
         if make_initial_guess and testnum - detim != 0:
             if supernova != 0:
@@ -275,7 +272,7 @@ def main():
 
             x,y = im_wcs_list[i].toImage(ra,dec, units = 'deg')
 
-            #Build the model for the background using the correct psf and the grid we made in the previous section. 
+            #Build the model for the background using the correct psf and the grid we made in the previous section.
 
             if use_real_images:
                 util_ref = roman_utils(config_file='./temp_tds.yaml', visit = exposures['Pointing'][i], sca = exposures['SCA'][i])
@@ -285,7 +282,7 @@ def main():
             array, bgpsf = construct_psf_background(ra_grid, dec_grid, cutout_wcs_list[i],\
                 x, y, size, roman_bandpasses[band], color=0.61, \
                     psf = sim_psf, pixel = pixel, include_photonOps = False, util_ref = util_ref, use_roman = use_roman, band = band)
-            
+
             if fit_background:
                 for j in range(testnum):
                     if i == j:
@@ -293,7 +290,7 @@ def main():
                     else:
                         bg = np.zeros(size**2).reshape(-1,1)
                     array = np.concatenate([array,bg], axis = 1)
-            
+
             #Add the array of the model points and the background (if using) to the matrix of all components of the model.
             psf_matrix.append(array)
 
@@ -314,16 +311,16 @@ def main():
                         print('Using default SED')
                     print(x,y,snx,sny)
                     array = construct_psf_source(x, y, pointing, SCA, \
-                            stampsize = size, x_center = snx, y_center = sny, sed = sed, photOps = source_phot_ops)
+                            stampsize=size, x_center = snx, y_center = sny, sed = sed, photOps = source_phot_ops)
                 else:
                     stamp = galsim.Image(size,size,wcs=cutout_wcs_list[i])
                     profile = galsim.DeltaFunction()*sed
-                    profile = profile.withFlux(1,roman_bandpasses[band]) 
+                    profile = profile.withFlux(1,roman_bandpasses[band])
                     convolved = galsim.Convolve(profile, sim_psf)
                     array = convolved.drawImage(roman_bandpasses[band], method='no_pixel', image = stamp, \
                                 wcs = cutout_wcs_list[i], center = (snx, sny), \
                                     use_true_center = True, add_to_image = False).array.flatten()
-                    
+
                 sn_matrix.append(array)
 
 
@@ -333,7 +330,7 @@ def main():
         matrix_list.append(psf_matrix)
         psf_zeros = np.zeros((psf_matrix.shape[0], testnum))
 
-        #Add in the supernova images to the matrix in the appropriate location so that it matches up with the image 
+        #Add in the supernova images to the matrix in the appropriate location so that it matches up with the image
         #it represent. All others should be zero.
 
         if supernova != 0:
@@ -356,7 +353,7 @@ def main():
             wgt_matrix = np.hstack(wgt_matrix)
 
 
-
+        banner('Solving Photometry')
         #These if statements can definitely be written more elegantly.
         if not make_initial_guess:
             x0test = np.zeros(psf_matrix.shape[1])
@@ -374,6 +371,21 @@ def main():
 
             X, istop, itn, r1norm = lsqr[:4]
             print(istop, itn, r1norm)
+
+        #if err:
+        inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+        print(np.shape(inv_cov), 'inv cov shape')
+        print(np.shape(wgt_matrix), 'wgt shape')
+        print(np.shape(psf_matrix), 'psf shape')
+        try:
+            cov = np.linalg.inv(inv_cov)
+        except LinAlgError:
+            cov = np.linalg.pinv(inv_cov)
+
+        print(np.shape(cov), 'cov shape')
+        sigma_flux = np.sqrt(np.diag(cov))[-detim:]
+        print('sigma flux', sigma_flux)
+        #self.sigma_mag = 2.5*np.sqrt(self.cov[-1,-1]/(self.flux**2))/np.log(10)
 
 
         #Using the values found in the fit, construct the model images.
@@ -396,15 +408,17 @@ def main():
                 X = np.zeros_like(X)
                 X[106] = f
 
+        # Saving the output. The output needs two sections, one where we
+        # create a lightcurve compared to true values, and one where we save
+        # the images.
 
-        #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
-        
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, X, use_roman, band, object_type)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, \
+                detim, X, use_roman, band, object_type, sigma_flux)
         else:
             identifier = 'simulated'
-            lc = build_lightcurve_sim(supernova, detim, X)
+            lc = build_lightcurve_sim(supernova, detim, X, sigma_flux)
         if use_roman:
             psftype = 'romanpsf'
         else:
@@ -419,7 +433,6 @@ def main():
         #Save the ra and decgrid
         np.save(f'./results/images/{identifier}_{band}_{psftype}_grid.npy', [ra_grid, dec_grid, X[:np.size(ra_grid)]])
 
-
         #save wcses
         primary_hdu = fits.PrimaryHDU()
         hdul = [primary_hdu]
@@ -431,7 +444,7 @@ def main():
 
         '''
         except Exception as e:
-            print('Failed on ID:', ID) 
+            print('Failed on ID:', ID)
             print(e)
             continue
         '''
