@@ -4,7 +4,6 @@ from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import pandas as pd
-pd.options.mode.chained_assignment = None  # default='warn'
 from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 from roman_imsim import *
@@ -12,29 +11,22 @@ import astropy.table as tb
 import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-warnings.simplefilter('ignore', category=AstropyWarning)
-warnings.filterwarnings("ignore", category=ErfaWarning)
-import scipy.sparse as sp
-from scipy.linalg import block_diag, lstsq
-from numpy.linalg import LinAlgError
 from astropy.nddata import Cutout2D
 from coord import *
 import requests
 from astropy.table import Table
 from astropy.table import QTable
 import os
-import scipy
 import time
 import galsim
-
 import h5py
-import sklearn
-from sklearn import linear_model
-from scipy.interpolate import RectBivariateSpline
 from scipy.interpolate import RegularGridInterpolator
 
+pd.options.mode.chained_assignment = None  # default='warn'
+warnings.simplefilter('ignore', category=AstropyWarning)
+warnings.filterwarnings("ignore", category=ErfaWarning)
 
-'''
+r'''
 Cole Meldorf 2024
 Adapted from code by Pedro Bernardinelli
 
@@ -60,38 +52,31 @@ Adapted from code by Pedro Bernardinelli
 
 '''
 
+
 def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = [], makecontourGrid = True):
 
     '''
-    Generates a local grid around a RA-Dec center, choosing step size and number of points
+    Generates a local grid around a RA-Dec center, choosing step size and
+    number of points
     '''
-    #Build the basic grid
-    subsize = 9 #Taking a smaller square inside the image to fit on
+    # Build the basic grid
+    subsize = 9  # Taking a smaller square inside the image to fit on
     difference = int((size - subsize)/2)
 
-    x_center, y_center = wcs.toImage(ra_center, dec_center, units = 'deg')
+    x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
 
     if image is None:
         spacing = 0.5
     else:
         spacing = 1.0
+
     print('GRID SPACE', spacing)
     x = np.arange(difference, subsize+difference, spacing)
     y = np.arange(difference, subsize+difference, spacing)
 
-    '''
-    x -= np.mean(x)
-    x+= x_center
-
-    y -= np.mean(y)
-    y+= y_center
-    '''
-
-
-
     if image is not None and not makecontourGrid:
-
-        #Bin the image in logspace and allocate grid points based on the brightness.
+        # Bin the image in logspace and allocate grid points based on the
+        # brightness.
         imcopy = np.copy(image)
         imcopy[imcopy <= 0] = 1e-10
         bins = [-np.inf]
@@ -105,23 +90,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         a = np.digitize(np.log(np.copy(imcopy)),bins)
         xes = []
         ys = []
-
-
-        '''
-        xvals = np.array(range(-2, subsize+2)).astype(float)
-        print('xvals', xvals)
-        xvals -= np.mean(xvals)
-        print('xvals', xvals)
-        xvals += x_center
-        print('xvals', xvals)
-
-
-
-        yvals = np.array(range(-2, subsize+2)).astype(float)
-        yvals -= np.mean(yvals)
-        yvals += y_center
-
-        '''
 
         xvals = x
         yvals = y
@@ -138,9 +106,9 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
                     xes.append(y)
                     ys.append(x)
                 else:
-                    xx = np.linspace(x-0.6,x+0.6,num+2)[1:-1]
-                    yy = np.linspace(y-0.6,y+0.6,num+2)[1:-1]
-                    X,Y = np.meshgrid(xx,yy)
+                    xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
+                    yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
+                    X, Y = np.meshgrid(xx,yy)
                     ys.extend(list(X.flatten()))
                     xes.extend(list(Y.flatten()))
 
@@ -176,7 +144,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         print(xx)
     '''
 
-
     xx = xx.flatten()
     yy = yy.flatten()
     print('Built a grid with', np.size(xx), 'points')
@@ -188,88 +155,90 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         dec_grid = result[1]
     else:
         print('swapped x and y here')
-        result = wcs.pixel_to_world(yy, xx) #Convert them to RA/DEC and return
+        result = wcs.pixel_to_world(yy, xx)
         ra_grid = result.ra.deg
         dec_grid = result.dec.deg
-
 
     return ra_grid, dec_grid
 
 
-
-
 def generateGuess(imlist, wcslist, ra_grid, dec_grid):
     '''
-    This function initializes the guess for the optimization. For each grid point, it finds the average value of the pixel it is sitting in on
-    each image. In some cases, this has offered minor improvements but it is not make or break for the algorithm.
+    This function initializes the guess for the optimization. For each grid
+    point, it finds the average value of the pixel it is sitting in on
+    each image. In some cases, this has offered minor improvements but it is
+    not make or break for the algorithm.
     '''
     size = np.shape(imlist[0])[0]
-    imx = np.arange(0,size,1)
-    imy = np.arange(0,size,1)
+    imx = np.arange(0, size, 1)
+    imy = np.arange(0, size, 1)
     imx, imy = np.meshgrid(imx, imy)
     all_vals = np.zeros_like(ra_grid)
 
-    for i,imwcs in enumerate(zip(imlist,wcslist)):
+    for i,imwcs in enumerate(zip(imlist, wcslist)):
         im, wcs = imwcs
         if type(wcs) == galsim.fitswcs.AstropyWCS:
-            #This actually means that we have a galsim wcs that was loaded from an astropy one
+            # This actually means that we have a galsim wcs that was loaded from an astropy one
             xx, yy = wcs.toImage(ra_grid, dec_grid,units='deg')
         else:
-            xx,yy = wcs.world_to_pixel(SkyCoord(ra = ra_grid*u.degree, dec = dec_grid*u.degree))
+            xx, yy = wcs.world_to_pixel(SkyCoord(ra = ra_grid*u.degree, dec = dec_grid*u.degree))
 
         grid_point_vals = np.zeros_like(xx)
         for imval, imxval, imyval in zip(im.flatten(), imx.flatten(), imy.flatten()):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
-        all_vals+= grid_point_vals
+        all_vals += grid_point_vals
     return all_vals/len(wcslist)
 
 
 
-def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass, use_roman, \
-    color=0.61, psf = None, pixel = False, include_photonOps = False, util_ref = None, band = None):
+def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
+                             use_roman, color=0.61, psf=None, pixel=False,
+                             include_photonOps=False, util_ref=None,
+                             band=None):
 
     '''
-    Constructs the background model around a certain image (x,y) location and a given array of RA and DECs.
+    Constructs the background model around a certain image (x,y) location and
+    a given array of RA and DECs.
     Inputs:
     ra, dec: arrays of RA and DEC values for the grid
-    wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs of the CUTOUT
-    x_loc, y_loc: the pixel location of the image in the FULL image, i.e. x y location in the SCA.
+    wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs
+    of the CUTOUT
+    x_loc, y_loc: the pixel location of the image in the FULL image, i.e. x y
+    location in the SCA.
     stampsize: the size of the stamp being used
     bpass: the bandpass being used
     flatten: whether to flatten the output array (REMOVED XXXXXX)
     color: the color of the star being used (currently not used)
-    psf: Here you can provide a PSF to use, if you don't provide one, you must provide a util_ref, which will calculate the Roman PSF instead.
-    pixel: If True, use a pixel tophat function to convolve the PSF with, otherwise use a delta function. Does not seem to hugely affect results.
-    include_photonOps: If True, use photon ops in the background model. This is not recommended for general use, as it is very slow.
-    util_ref: A reference to the util object, which is used to calculate the PSF. If you provide this, you don't need to provide a PSF. Note
+    psf: Here you can provide a PSF to use, if you don't provide one, you must
+    provide a util_ref, which will calculate the Roman PSF instead.
+    pixel: If True, use a pixel tophat function to convolve the PSF with,
+    otherwise use a delta function. Does not seem to hugely affect results.
+    include_photonOps: If True, use photon ops in the background model.
+    This is not recommended for general use, as it is very slow.
+    util_ref: A reference to the util object, which is used to calculate the
+            PSF. If you provide this, you don't need to provide a PSF. Note
             that this needs to be for the correct SCA/Pointing combination.
 
     Returns:
-    A numpy array of the PSFs at each grid point, with the shape (stampsize*stampsize, npoints)
+    A numpy array of the PSFs at each grid point, with the shape
+    (stampsize*stampsize, npoints)
     '''
 
-    assert util_ref is not None or psf is not None, 'you must provide at least util_ref or psf'
-
-    assert util_ref is not None or band is not None, 'you must provide at least util_ref or band'
+    assert util_ref is not None or psf is not None, 'you must provide at \
+        least util_ref or psf'
+    assert util_ref is not None or band is not None, 'you must provide at \
+        least util_ref or band'
 
     if not use_roman:
-        assert psf is not None, 'you must provide an input psf if not using roman'
+        assert psf is not None, 'you must provide an input psf if \
+                                 not using roman.'
     else:
         psf = None
 
-
-
-
-
-
     if type(wcs) == galsim.fitswcs.AstropyWCS:
-        #print('using astropy')
-        x,y = wcs.toImage(ra,dec,units='deg')
+        x, y = wcs.toImage(ra,dec,units='deg')
     else:
-        #print('using not astropy')
         x, y = wcs.world_to_pixel(SkyCoord(ra = np.array(ra)*u.degree, dec = np.array(dec)*u.degree))
-
-
 
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
