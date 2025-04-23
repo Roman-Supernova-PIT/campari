@@ -87,6 +87,7 @@ def main():
     parser.add_argument('-d', '--detim', type=int, required=True, help='Number of images to use with SN detections')
     #TODO:change all instances of this variable to det_images
 
+
     config = load_config(config_path)
 
     npoints = config['npoints']
@@ -153,9 +154,6 @@ def main():
 
     galsim.roman.roman_psfs._make_aperture.clear() #clear cache
 
-
-
-
     ################### Finding and Preparing Images Section #########
 
     if type(SNID) != 'list':
@@ -186,7 +184,7 @@ def main():
         im_wcs_list = []
 
         if use_real_images:
-            #Find SN Info, find exposures containig it, and load those as images. 
+            #Find SN Info, find exposures containig it, and load those as images.
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
 
             if len(exposures) != testnum:
@@ -312,7 +310,7 @@ def main():
                         print('Using default SED')
                     print(x,y,snx,sny)
                     array = construct_psf_source(x, y, pointing, SCA, \
-                            stampsize = size, x_center = snx, y_center = sny, sed = sed, photOps = source_phot_ops)
+                            stampsize=size, x_center = snx, y_center = sny, sed = sed, photOps = source_phot_ops)
                 else:
                     stamp = galsim.Image(size,size,wcs=cutout_wcs_list[i])
                     profile = galsim.DeltaFunction()*sed
@@ -354,7 +352,7 @@ def main():
             wgt_matrix = np.hstack(wgt_matrix)
 
 
-
+        banner('Solving Photometry')
         #These if statements can definitely be written more elegantly.
         if not make_initial_guess:
             x0test = np.zeros(psf_matrix.shape[1])
@@ -372,6 +370,21 @@ def main():
 
             X, istop, itn, r1norm = lsqr[:4]
             print(istop, itn, r1norm)
+
+        flux = X[-detim:]
+        inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+        print(np.shape(inv_cov), 'inv cov shape')
+        print(np.shape(wgt_matrix), 'wgt shape')
+        print(np.shape(psf_matrix), 'psf shape')
+        try:
+            cov = np.linalg.inv(inv_cov)
+        except LinAlgError:
+            cov = np.linalg.pinv(inv_cov)
+
+        print(np.shape(cov), 'cov shape')
+        sigma_flux = np.sqrt(np.diag(cov))[-detim:]
+        print('sigma flux', sigma_flux)
+        #self.sigma_mag = 2.5*np.sqrt(self.cov[-1,-1]/(self.flux**2))/np.log(10)
 
 
         #Using the values found in the fit, construct the model images.
@@ -394,15 +407,21 @@ def main():
                 X = np.zeros_like(X)
                 X[106] = f
 
+        # Saving the output. The output needs two sections, one where we
+        # create a lightcurve compared to true values, and one where we save
+        # the images.
+
 
         #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
+
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, detim, X, use_roman, band, object_type)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
+                                  flux, use_roman, band, object_type,
+                                  sigma_flux)
         else:
             identifier = 'simulated'
-            lc = build_lightcurve_sim(supernova, detim, X)
-
+            lc = build_lightcurve_sim(supernova, flux, sigma_flux)
         if use_roman:
             psftype = 'romanpsf'
         else:
@@ -417,7 +436,6 @@ def main():
 
         #Save the ra and decgrid
         np.save(f'./results/images/{identifier}_{band}_{psftype}_grid.npy', [ra_grid, dec_grid, X[:np.size(ra_grid)]])
-
 
         #save wcses
         primary_hdu = fits.PrimaryHDU()
