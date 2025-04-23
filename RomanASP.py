@@ -4,7 +4,6 @@ from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import pandas as pd
-pd.options.mode.chained_assignment = None  # default='warn'
 from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 from roman_imsim import *
@@ -12,8 +11,6 @@ import astropy.table as tb
 import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-warnings.simplefilter('ignore', category=AstropyWarning)
-warnings.filterwarnings("ignore", category=ErfaWarning)
 import scipy.sparse as sp
 from scipy.linalg import block_diag, lstsq
 from numpy.linalg import LinAlgError
@@ -30,10 +27,15 @@ from sklearn import linear_model
 from scipy.interpolate import RectBivariateSpline
 import AllASPFuncs
 from AllASPFuncs import *
+from simulation import *
 import yaml
 import h5py
 import argparse
 import pickle
+
+pd.options.mode.chained_assignment = None  # default='warn'
+warnings.simplefilter('ignore', category=AstropyWarning)
+warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
 '''
@@ -86,11 +88,7 @@ def main():
     #TODO:change all instances of this variable to det_images
 
 
-
     config = load_config(config_path)
-
-
-
 
     npoints = config['npoints']
     size = config['size']
@@ -188,6 +186,7 @@ def main():
         if use_real_images:
             #Find SN Info, find exposures containig it, and load those as images.
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
+
             if len(exposures) != testnum:
                     print('Not enough exposures')
                     continue
@@ -199,7 +198,7 @@ def main():
             galra = ra + 1.5e-5
             galdec = dec + 1.5e-5
             images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = simulateImages(testnum,detim,ra,dec,do_xshift,\
-                do_rotation,supernova,noise = noise,use_roman=use_roman, size = size, band = band, \
+                do_rotation,supernova,noise = noise,use_roman=use_roman, roman_path = roman_path, size = size, band = band, \
                     deltafcn_profile = deltafcn_profile, input_psf = airy, bg_gal_flux = bg_gal_flux, source_phot_ops = source_phot_ops, mismatch_seds = mismatch_seds)
 
 
@@ -412,17 +411,23 @@ def main():
         # create a lightcurve compared to true values, and one where we save
         # the images.
 
+
+        #Saving the output. The output needs two sections, one where we create a lightcurve compared to true values, and one where we save the images.
+
         if use_real_images:
             identifier = str(ID)
             lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, \
                 detim, X, use_roman, band, object_type, sigma_flux)
         else:
             identifier = 'simulated'
+
             lc = build_lightcurve_sim(supernova, detim, X, sigma_flux)
+
         if use_roman:
             psftype = 'romanpsf'
         else:
             psftype = 'analyticpsf'
+
         save_lightcurve(lc, identifier, band, psftype)
 
         #Now, save the images
