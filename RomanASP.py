@@ -372,7 +372,6 @@ def main():
             print(istop, itn, r1norm)
 
         flux = X[-detim:]
-        #if err:
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
         print(np.shape(inv_cov), 'inv cov shape')
         print(np.shape(wgt_matrix), 'wgt shape')
