@@ -1192,7 +1192,7 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
-def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X,
+def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                      use_roman, band, object_type, sigma_flux):
 
     '''
@@ -1233,7 +1233,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X,
             'dec': df[df['id'] == str(ID)]['dec'].values[0]}
 
     data_dict = {'MJD': detections['date'], 'true_flux':
-    detections['realized flux'],  'measured_flux': X[-detim:], 'flux_error':
+    detections['realized flux'],  'measured_flux': flux, 'flux_error':
     sigma_flux}
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '',
              'flux_error': ''}
@@ -1241,7 +1241,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric,  detim, X,
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
 
-def build_lightcurve_sim(supernova, detim, X, sigma_flux):
+def build_lightcurve_sim(supernova, flux, sigma_flux):
     '''
     This code builds a lightcurve datatable from the output of the SMP algorithm
     if the user simulated their own lightcurve.
@@ -1257,7 +1257,7 @@ def build_lightcurve_sim(supernova, detim, X, sigma_flux):
     should be deleted from function arguments and docstring.
     '''
     data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
-          'measured_flux': X[-detim:], 'flux_error': sigma_flux}
+          'measured_flux':flux , 'flux_error': sigma_flux}
     meta_dict = {}
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)

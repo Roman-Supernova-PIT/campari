@@ -371,6 +371,7 @@ def main():
             X, istop, itn, r1norm = lsqr[:4]
             print(istop, itn, r1norm)
 
+        flux = X[-detim:]
         #if err:
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
         print(np.shape(inv_cov), 'inv cov shape')
@@ -416,13 +417,12 @@ def main():
 
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric, \
-                detim, X, use_roman, band, object_type, sigma_flux)
+            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
+                                  flux, use_roman, band, object_type,
+                                  sigma_flux)
         else:
             identifier = 'simulated'
-
-            lc = build_lightcurve_sim(supernova, detim, X, sigma_flux)
-
+            lc = build_lightcurve_sim(supernova, flux, sigma_flux)
         if use_roman:
             psftype = 'romanpsf'
         else:
