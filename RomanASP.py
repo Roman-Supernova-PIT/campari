@@ -32,6 +32,7 @@ import yaml
 import h5py
 import argparse
 import pickle
+from galsim import roman
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -371,7 +372,22 @@ def main():
             X, istop, itn, r1norm = lsqr[:4]
             print(istop, itn, r1norm)
 
+        exptime = {'F184': 901.175,
+                   'J129': 302.275,
+                   'H158': 302.275,
+                   'K213': 901.175,
+                   'R062': 161.025,
+                   'Y106': 302.275,
+                   'Z087': 101.7}
+
         flux = X[-detim:]
+        area_eff = roman.collecting_area
+        galsim_zp = roman.getBandpasses()[band].zeropoint
+        mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) \
+            + galsim_zp
+
+        print('Measured mags:', mags)
+
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
         print(np.shape(inv_cov), 'inv cov shape')
         print(np.shape(wgt_matrix), 'wgt shape')
