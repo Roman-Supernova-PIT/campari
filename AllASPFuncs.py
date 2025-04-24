@@ -539,7 +539,6 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
     truth = 'simple_model'
     print('truth in construct images', truth)
 
-
     for indx, i in enumerate(exposures):
         spinner = ['|', '/', '-', '\\']
         print('Image ' + str(indx) + '   ' + spinner[indx%4], end = '\r')
@@ -689,20 +688,19 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
-    #global object_type
+
+def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
+                roman_path):
     if len(str(ID)) != 8:
         object_type = 'star'
-        print('WARNING: Fitting SMP on a star. You probably want the grid off.')
+        print('WARNING: Fitting SMP on a star.\
+               You probably want the grid off.')
     else:
         object_type = 'SN'
 
     pqfile = find_parq(ID, sn_path, obj_type = object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
-
-
-
     snra = ra
     sndec = dec
     start = start[0]
@@ -711,6 +709,8 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
         maxdet = detim, return_list = True, band = band)
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
+
+    print('images shape', images.shape, 'error shape', err.shape)
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
 
@@ -756,34 +756,30 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-
-def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 1000, cutoff = np.inf):
+def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
+               gaussian_std=1000):
     wgt_matrix = []
     print('Gaussian std in getWeights', gaussian_std)
-    for i,wcs in enumerate(cutout_wcs_list):
-        xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
+    for i, wcs in enumerate(cutout_wcs_list):
+        xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
 
-        rara, decdec = wcs.toWorld(xx, yy, units = 'deg')
+        rara, decdec = wcs.toWorld(xx, yy, units='deg')
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.toImage(snra, sndec, units='deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
-
-
         wgt = 5*np.exp(-dist**2/gaussian_std)
         wgt[np.where(dist > 4)] = 0
 
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
-        wgt /= error
+        wgt /= error[i*size**2:(i+1)*size**2]
         wgt = wgt / np.sum(wgt)
-        if i >= cutoff:
-            print('Setting wgt to zero on image', i)
-            wgt = np.zeros_like(wgt)
+
         wgt_matrix.append(wgt)
     return wgt_matrix
 
@@ -1161,6 +1157,24 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
+def calc_mags_and_err(flux, sigma_flux, band):
+    exptime = {'F184': 901.175,
+            'J129': 302.275,
+            'H158': 302.275,
+            'K213': 901.175,
+            'R062': 161.025,
+            'Y106': 302.275,
+            'Z087': 101.7}
+
+    area_eff = roman.collecting_area
+    galsim_zp = roman.getBandpasses()[band].zeropoint
+    mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) \
+        + galsim_zp
+
+    magerr = 2.5 * sigma_flux / (flux * np.log(10))
+    return mags, magerr
+
+
 def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                      use_roman, band, object_type, sigma_flux):
 
@@ -1189,6 +1203,8 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
+    mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
+
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
         'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
@@ -1201,10 +1217,11 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
         meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0], \
             'dec': df[df['id'] == str(ID)]['dec'].values[0]}
 
-    data_dict = {'MJD': detections['date'], 'true_flux':
-    detections['realized flux'],  'measured_flux': flux, 'flux_error':
-    sigma_flux}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '',
+    data_dict = {'MJD': detections['date'], 'flux': flux,
+                 'flux_error': sigma_flux, 'mag': mags,
+                 'mag_err': magerr, 'SIM_flux':
+                  detections['realized flux'],}
+    units = {'MJD':u.d, 'SIM_flux': '',  'flux': '',
              'flux_error': ''}
 
     return QTable(data = data_dict, meta = meta_dict, units = units)
@@ -1225,10 +1242,10 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
-          'measured_flux':flux , 'flux_error': sigma_flux}
+    data_dict = {'MJD': np.arange(0, detim, 1), 'flux':flux,
+                 'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
+    units = {'MJD':u.d, 'SIM_flux': '',  'flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
 def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite = True):

@@ -15,7 +15,6 @@ from AllASPFuncs import banner, fetchImages, save_lightcurve, \
 from simulation import simulate_images
 import yaml
 import argparse
-from galsim import roman
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -212,7 +211,7 @@ def main():
         # Get the weights
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
-                                    error=None)
+                                    error=err)
 
         # Using the images, hazard an initial guess.
         if make_initial_guess and testnum - detim != 0:
@@ -326,7 +325,6 @@ def main():
 
         psf_matrix = np.array(psf_matrix)
         psf_matrix = np.vstack(psf_matrix)
-        print(psf_matrix.shape, 'psf matrix shape')
         matrix_list = []
         matrix_list.append(psf_matrix)
         psf_zeros = np.zeros((psf_matrix.shape[0], testnum))
@@ -346,14 +344,9 @@ def main():
             sn_matrix = np.vstack(sn_matrix)
             matrix_list.append(sn_matrix)
 
-        print(sn_matrix)
-        print(sn_matrix.shape, 'sn matrix shape')
-
         # Combine the background model and the supernova model into one matrix.
         psf_matrix_all = np.hstack(matrix_list)
 
-        print(psf_matrix_all.shape, 'psf matrix all shape')
-        print(psf_matrix_all)
         psf_matrix = psf_matrix_all
 
         if weighting:
@@ -379,34 +372,16 @@ def main():
             X, istop, itn, r1norm = lsqr[:4]
             print(istop, itn, r1norm)
 
-        exptime = {'F184': 901.175,
-                   'J129': 302.275,
-                   'H158': 302.275,
-                   'K213': 901.175,
-                   'R062': 161.025,
-                   'Y106': 302.275,
-                   'Z087': 101.7}
-
-        flux = X[-detim:]
-        area_eff = roman.collecting_area
-        galsim_zp = roman.getBandpasses()[band].zeropoint
-        mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) \
-            + galsim_zp
-
-        print('Measured mags:', mags)
-
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
-        print(np.shape(inv_cov), 'inv cov shape')
-        print(np.shape(wgt_matrix), 'wgt shape')
-        print(np.shape(psf_matrix), 'psf shape')
+
         try:
             cov = np.linalg.inv(inv_cov)
         except LinAlgError:
             cov = np.linalg.pinv(inv_cov)
 
-        print(np.shape(cov), 'cov shape')
-        sigma_flux = np.sqrt(np.diag(cov))[-detim:]
-        print('sigma flux', sigma_flux)
+        flux = X[-detim:]
+        sigma_flux = np.sqrt(np.diag(cov)[-detim:])
+        print(flux, sigma_flux)
 
         # Using the values found in the fit, construct the model images.
         pred = X*psf_matrix
