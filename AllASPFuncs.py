@@ -773,12 +773,14 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
         wgt = np.ones(size**2)
         wgt = 5*np.exp(-dist**2/gaussian_std)
-        wgt[np.where(dist > 4)] = 0
+        wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
 
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
-        wgt /= error[i*size**2:(i+1)*size**2]
-        wgt = wgt / np.sum(wgt)
+
+        wgt /= error[i*size**2:(i+1)*size**2] # Define an inv variance TODO
+        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        # What fraction of the flux is contained in the PSF? TODO
 
         wgt_matrix.append(wgt)
     return wgt_matrix
@@ -1192,11 +1194,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     band (str): the bandpass of the images used
 
     Returns:
-    lc: a pandas dataframe containing the lightcurve data
-    Notes:
-    1.) This will soon be ECSV format instead
-    2.) Soon I will turn many of these inputs into environment variable and they
-    should be deleted from function arguments and docstring.
+    lc: a QTable containing the lightcurve data
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
@@ -1204,6 +1202,11 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
     mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
+    zeros = np.zeros_like(detections['realized flux'])
+    sim_realized_mags, _ = calc_mags_and_err(detections['realized flux'],
+                                             zeros, band)
+    sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
+                                         zeros, band)
 
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
@@ -1214,15 +1217,19 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
         'host_ra': df['host_ra'][df['id'] == ID].values[0],\
         'host_dec': df['host_dec'][df['id'] == ID].values[0]}
     else:
-        meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0], \
-            'dec': df[df['id'] == str(ID)]['dec'].values[0]}
+        meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0],
+                     'dec': df[df['id'] == str(ID)]['dec'].values[0]}
 
     data_dict = {'MJD': detections['date'], 'flux': flux,
                  'flux_error': sigma_flux, 'mag': mags,
-                 'mag_err': magerr, 'SIM_flux':
-                  detections['realized flux'],}
-    units = {'MJD':u.d, 'SIM_flux': '',  'flux': '',
-             'flux_error': ''}
+                 'mag_err': magerr,
+                 'SIM_realized_flux': detections['realized flux'],
+                 'SIM_true_flux': detections['true flux'],
+                 'SIM_realized_mag': sim_realized_mags,
+                 'SIM_true_mag': sim_true_mags,}
+    units = {'MJD':u.d, 'SIM_realized_flux': '',  'flux': '',
+             'flux_error': '', 'SIM_realized_mag': '',
+              'SIM_true_flux': '', 'SIM_true_mag': ''}
 
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
