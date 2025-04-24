@@ -87,6 +87,9 @@ def main():
     parser.add_argument('-d', '--detim', type=int, required=True, help='Number of images to use with SN detections')
     #TODO:change all instances of this variable to det_images
 
+    parser.add_argument('-o', '--output_path', type=str, required=False,
+                        help='relative output path')
+
     config = load_config(config_path)
 
     npoints = config['npoints']
@@ -125,7 +128,7 @@ def main():
     testnum = args.testnum
     detim = args.detim
 
-
+    output_path = args.output_path
 
     roman_bandpasses = galsim.roman.getBandpasses()
 
@@ -186,7 +189,7 @@ def main():
         im_wcs_list = []
 
         if use_real_images:
-            #Find SN Info, find exposures containig it, and load those as images. 
+            #Find SN Info, find exposures containig it, and load those as images.
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type = fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path)
 
             if len(exposures) != testnum:
@@ -408,7 +411,8 @@ def main():
         else:
             psftype = 'analyticpsf'
 
-        save_lightcurve(lc, identifier, band, psftype)
+        save_lightcurve(lc, identifier, band, psftype,
+                        output_path=output_path)
 
         #Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
