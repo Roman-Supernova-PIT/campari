@@ -15,6 +15,7 @@ from AllASPFuncs import banner, fetchImages, save_lightcurve, \
 from simulation import simulate_images
 import yaml
 import argparse
+import os
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -46,8 +47,8 @@ Adapted from code by Pedro Bernardinelli
 
 '''
 
-
-config_path = './config.yaml'
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'config.yaml')
 
 
 def load_config(config_path):

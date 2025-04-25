@@ -145,7 +145,9 @@ def test_run_on_star():
 
 
 def temp_regression_test():
-    config = yaml.safe_load(open("config.yaml"))
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'config.yaml')
+    config = yaml.safe_load(open(config_path))
     config['use_roman'] = True
     config['use_real_images'] = True
     config['fetch_SED'] = False
