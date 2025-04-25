@@ -107,8 +107,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
                     xes.append(y)
                     ys.append(x)
                 else:
-
-
                     xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
                     yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
                     X, Y = np.meshgrid(xx,yy)
@@ -126,7 +124,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
 
 
     else:
-
         xx, yy = np.meshgrid(x+1, y+1)
     '''
         subsize = 8 #Taking a smaller square inside the image to fit on
@@ -163,7 +160,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         dec_grid = result.dec.deg
 
     return ra_grid, dec_grid
-
 
 
 def generateGuess(imlist, wcslist, ra_grid, dec_grid):
@@ -1248,9 +1244,9 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None,
     output_path (str): the path to save the lightcurve to.
 
     Returns:
-    None, saves the lightcurve to a csv file.
+    None, saves the lightcurve to a ecsv file.
     The file name is:
-    output_path/identifier_band_psftype_lc.csv
+    output_path/identifier_band_psftype_lc.ecsv
     '''
 
     if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
