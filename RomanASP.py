@@ -1,3 +1,13 @@
+# TODO -- remove these next few lines!
+# This needs to be set up in an environment
+# where snappl is available.  This will happen "soon"
+# Get Rob to fix all of this.  For now, this is a hack
+# so you can work short term.
+import sys
+import pathlib
+sys.path.insert( 0, str( pathlib.Path( __file__ ).parent / "extern/snappl" ) )
+# End of lines that will go away once we do this right
+
 import numpy as np
 from astropy.io import fits
 import pandas as pd
@@ -16,6 +26,11 @@ from simulation import simulate_images
 import yaml
 import argparse
 import os
+
+from snappl.logger import Lager
+from snappl.config import Config
+from snappl.image import OpenUniverse2024FITSImage
+
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -142,7 +157,7 @@ def main():
         SNID = [SNID]
 
     for ID in SNID:
-        print('ID:', ID)
+        Lager.debug( f'ID: {ID}' )
 
         psf_matrix = []
         sn_matrix = []
