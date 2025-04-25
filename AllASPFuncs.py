@@ -22,6 +22,8 @@ import galsim
 import h5py
 from scipy.interpolate import RegularGridInterpolator
 
+from snappl.image import OpenUniverse2024FTISImage
+
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -546,18 +548,30 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
         band = i['BAND']
         pointing = i['Pointing']
         SCA = i['SCA']
-        image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
+
+        # image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
+        
+        imagepath = roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz'
+        # TODO : replace None with the right thing once Exposure is implemented
+        image = OpenUniverse2024FITSImage( imagepath, None, SCA )
+        
+        
         if truth == 'truth':
+            raise RuntimeError( "Truth is broken." )
             wcs = WCS(image[0].header)
             a = 0
         else:
-            wcs = WCS(image[1].header)
+            # wcs = WCS(image[1].header)
+            wcs = image.get_wcs()
             a = 1
 
         sca_wcs_list.append(galsim.AstropyWCS(wcs = wcs)) #Made this into a galsim wcs
 
         pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
 
+        imagedata, = image.get_data( which='data' )
+        # Use this where you would have used image[...].data below
+        
         result = Cutout2D(image[a].data, pixel, size, mode = 'strict', wcs = wcs)
         wcs_list.append(galsim.AstropyWCS(wcs = result.wcs)) # Made this into a galsim wcs
 
