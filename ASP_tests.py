@@ -8,6 +8,7 @@ import galsim
 import numpy as np
 import os
 import pandas as pd
+import tempfile
 import warnings
 import yaml
 
@@ -162,7 +163,6 @@ def test_regression():
     # In the future, this should be True, but random seeds not working rn.
     config['source_phot_ops'] = False
 
-    import tempfile
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
             as temp_config:
         yaml.dump(config, temp_config)
