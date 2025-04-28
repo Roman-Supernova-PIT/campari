@@ -19,10 +19,14 @@ from erfa import ErfaWarning
 import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 import galsim
+import AllASPFuncs
+import importlib
+importlib.reload(AllASPFuncs)
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
-                        makeGrid, get_SED, getWeights, generateGuess
+                        makeGrid, get_SED, getWeights, generateGuess, \
+                        prep_data_for_fit
 from simulation import simulate_images
 import yaml
 import argparse
@@ -229,13 +233,13 @@ def main():
                                                 interpolant='linear'),
                              wave_type='nm', flux_type='fphotons')
 
-        imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
-                  for i in range(testnum)]
+        # TODO delete this XXX imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
+        #          for i in range(testnum)]
 
         # Build the background grid
         if not turn_grid_off:
             if object_type == 'star':
-                Lager.warn('For fitting stars, you probably dont want a grid.')
+                Lager.warning('For fitting stars, you probably dont want a grid.')
             ra_grid, dec_grid = makeGrid(adaptive_grid, images, size, ra, dec,
                                          cutout_wcs_list,
                                          single_grid_point=single_grid_point,
@@ -257,7 +261,7 @@ def main():
         # TODO: Are testnum and detim both ints? Then compare for equality.
         if make_initial_guess and testnum - detim != 0:
             if supernova != 0:
-                x0test = generateGuess(imlist[:-detim], cutout_wcs_list,
+                x0test = generateGuess(images[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
                 # TODO: The initial flux value for sn points shoudln't be hard-
                 # coded.
@@ -265,7 +269,7 @@ def main():
                                         axis=0)
                 Lager.debug('setting initial guess to 3000')
             else:
-                x0test = generateGuess(imlist, cutout_wcs_list, ra_grid,
+                x0test = generateGuess(images, cutout_wcs_list, ra_grid,
                                        dec_grid)
 
         else:
@@ -280,7 +284,7 @@ def main():
             pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
             array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
                                          x_center=snx, y_center=sny, sed=sed)
-            confusion_metric = np.dot(images[:size**2], array)
+            confusion_metric = np.dot(images[0].flatten(), array)
             Lager.debug(f'Confusion Metric: {confusion_metric}')
         else:
             confusion_metric = 0
@@ -384,6 +388,8 @@ def main():
         # Add in the supernova images to the matrix in the appropriate location
         # so that it matches up with the image it represents.
         # All others should be zero.
+
+        images, err = prep_data_for_fit(images, err)
 
         if supernova != 0:
             for i in range(detim):

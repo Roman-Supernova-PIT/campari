@@ -61,6 +61,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     Generates a local grid around a RA-Dec center, choosing step size and
     number of points
     '''
+    Lager.debug('image shape: {}'.format(np.shape(image)))
     # Build the basic grid
     subsize = 9  # Taking a smaller square inside the image to fit on
     difference = int((size - subsize)/2)
@@ -109,7 +110,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
                 else:
                     xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
                     yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
-                    X, Y = np.meshgrid(xx,yy)
+                    X, Y = np.meshgrid(xx, yy)
                     ys.extend(list(X.flatten()))
                     xes.extend(list(Y.flatten()))
 
@@ -150,7 +151,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         ra_grid = result[0]
         dec_grid = result[1]
     else:
-        Lager.warn('swapped x and y here')
+        Lager.warning('swapped x and y here')
         result = wcs.pixel_to_world(yy, xx)
         ra_grid = result.ra.deg
         dec_grid = result.dec.deg
@@ -617,14 +618,26 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
 
-        m.append(im.flatten())
-        err.append(err_cutout.flatten())
-        mask.append(np.zeros(size*size))
-        #w = (zero**2)*err_cutout.flatten()
+        #m.append(im.flatten())
+        #err.append(err_cutout.flatten())
+        #mask.append(np.zeros(size*size))
 
-    image = np.hstack(m)
-    err = np.hstack(err)
+        # Switching to not flattening for now
+
+        m.append(im)
+        err.append(err_cutout)
+        mask.append(np.zeros((size, size)))
+
+
+    #image = np.hstack(m)
+    #err = np.hstack(err)
+
+    # Switching to not flattening for now
+    image = m
+
     return image, wcs_list, sca_wcs_list, err
+
+
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -772,11 +785,16 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 100
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False, makecontourGrid = False):
+
+def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
+             percentiles=[], single_grid_point=False, npoints=7,
+             make_exact=False, makecontourGrid=False):
     if adaptive_grid:
-        a = images[:size**2].reshape(size,size)
-        ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
-                npoints, size = size,  spacing = 0.75, image = a, spline_grid = False, percentiles = percentiles, makecontourGrid = makecontourGrid)
+        ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
+                                       npoints, size=size,  spacing=0.75,
+                                       image=images[0], spline_grid=False,
+                                       percentiles=percentiles,
+                                       makecontourGrid=makecontourGrid)
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
@@ -1255,3 +1273,15 @@ def banner(text):
     length = len(text) + 8
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
+
+
+def prep_data_for_fit(images, err):
+    '''
+    This function takes the data from the images and puts it into the form such
+    that we can analytically solve for the best fit using linear algebra.
+    '''
+    # Flatten into 1D arrays
+    images = np.concatenate([arr.flatten() for arr in images])
+    err = np.concatenate([arr.flatten() for arr in err])
+
+    return images, err
