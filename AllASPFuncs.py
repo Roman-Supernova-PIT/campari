@@ -1218,10 +1218,11 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
-def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite = True):
+def save_lightcurve(lc,identifier, band, psftype, output_path = None,
+                    overwrite = True):
     '''
-    This function parses settings in the SMP algorithm and saves the lightcurve to a csv file
-    with an appropriate name.
+    This function parses settings in the SMP algorithm and saves the lightcurve
+    to an ecsv file with an appropriate name.
     Input:
     lc: the lightcurve data
     identifier (str): the supernova ID or 'simulated'
@@ -1230,9 +1231,9 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite 
     output_path (str): the path to save the lightcurve to.
 
     Returns:
-    None, saves the lightcurve to a csv file.
+    None, saves the lightcurve to a ecsv file.
     The file name is:
-    output_path/identifier_band_psftype_lc.csv
+    output_path/identifier_band_psftype_lc.ecsv
     '''
 
     if not os.path.exists(os.path.join(os.getcwd(), 'results/')):

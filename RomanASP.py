@@ -26,6 +26,7 @@ from AllASPFuncs import banner, fetchImages, save_lightcurve, \
 from simulation import simulate_images
 import yaml
 import argparse
+import os
 
 from snappl.logger import Lager
 from snappl.config import Config
@@ -62,8 +63,8 @@ Adapted from code by Pedro Bernardinelli
 
 '''
 
-
-config_path = './config.yaml'
+config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'config.yaml')
 
 
 def load_config(config_path):
@@ -86,6 +87,9 @@ def main():
     parser.add_argument('-d', '--detim', type=int, required=True,
                         help='Number of images to use with SN detections')
     # TODO:change all instances of this variable to det_images
+
+    parser.add_argument('-o', '--output_path', type=str, required=False,
+                        help='relative output path')
 
     config = load_config(config_path)
 
@@ -121,6 +125,7 @@ def main():
     SNID = args.SNID
     testnum = args.testnum
     detim = args.detim
+    output_path = args.output_path
 
     roman_bandpasses = galsim.roman.getBandpasses()
 
@@ -464,7 +469,8 @@ def main():
         else:
             psftype = 'analyticpsf'
 
-        save_lightcurve(lc, identifier, band, psftype)
+        save_lightcurve(lc, identifier, band, psftype,
+                        output_path=output_path)
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])

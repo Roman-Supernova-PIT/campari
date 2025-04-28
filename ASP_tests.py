@@ -1,12 +1,16 @@
-import numpy as np
-import galsim
-import warnings
-from simulation import simulate_images, simulate_galaxy, simulate_wcs, \
-     simulate_supernova
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
+                       simulate_wcs
+import galsim
+import numpy as np
+import os
+import pandas as pd
+import warnings
+import yaml
+
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 roman_path = '/hpc/group/cosmology/OpenUniverse2024'
@@ -37,7 +41,6 @@ def test_get_object_info():
     assert peak[0] == np.float32(62683.98)
 
 
-
 def test_findAllExposures():
     explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,62654.,62958.,62683.98, 'Y106', maxbg = 24, maxdet = 24, \
                         return_list = True, stampsize = 25, roman_path = roman_path,\
@@ -46,7 +49,6 @@ def test_findAllExposures():
     assert explist['Pointing'].all() == compare_table['Pointing'].all()
     assert explist['SCA'].all() == compare_table['SCA'].all()
     assert explist['date'].all() == compare_table['date'].all()
-
 
 
 def test_simulate_images():
@@ -118,7 +120,10 @@ def test_simulate_supernova():
                                          sim_psf=sim_psf, source_phot_ops=True,
                                          base_pointing=662, base_sca=11,
                                          random_seed=12345)
+
+    print(supernova_image.flatten()[:10])
     b = np.load('./tests/testdata/supernova_image.npy')
+    print(b.flatten()[:10])
     assert (supernova_image - b).all() == 0, 'Test SN image does not \
     match expected output.'
 
@@ -139,4 +144,29 @@ def test_run_on_star():
     os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
 
 
-def test_Lager():
+
+def temp_regression_test():
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'config.yaml')
+    config = yaml.safe_load(open(config_path))
+    config['use_roman'] = True
+    config['use_real_images'] = True
+    config['fetch_SED'] = False
+    config['makecontourGrid'] = True
+    config['band'] = 'Y106'
+    config['adaptive_grid'] = True
+    config['turn_grid_off'] = False
+    config['size'] = 19
+    config['weighting'] = True
+    # Weighting is a Gaussian width 1000 when this was made
+    # In the future, this should be True, but random seeds not working rn.
+    config['source_phot_ops'] = False
+    os.system('python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
+              "tests/testdata"')
+    current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
+                          comment='#')
+    comparison = pd.read_csv('tests/testdata/test_lc.ecsv', comment='#')
+
+    for col in current.columns:
+        assert np.array_equal(current[col], comparison[col]), "The lightcurves\
+                                             do not match for column %s" % col
