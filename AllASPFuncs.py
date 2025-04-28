@@ -21,8 +21,6 @@ import time
 import galsim
 import h5py
 from scipy.interpolate import RegularGridInterpolator
-
-
 from snappl.image import OpenUniverse2024FITSImage
 from snappl.logger import Lager
 
@@ -242,7 +240,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
 
     k = 0
 
-    Lager.debug('In construct psf bg using flat SED')
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
     point = None
@@ -615,7 +612,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             im -= image[1].header['SKY_MEAN']
         elif not background and truth == 'truth':
             im -= bg
-            Lager.debug(f'Subtracted a BG of {bg}')
+            Lager.debug(f'Subtracted a background level of {bg}')
 
         m.append(im.flatten())
         err.append(err_cutout.flatten())
@@ -673,23 +670,20 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',center = galsim.PositionD(x_center, y_center),use_true_center = True)
 
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
-    Lager.debug('Using 1e6 photons in getPSF_Image')
+    Lager.debug(f'Using {n_phot:e} photons in getPSF_Image')
     result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
-        n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
+        n_photons=int(n_phot),maxN=int(n_phot),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
     if len(str(ID)) != 8:
         object_type = 'star'
-
     else:
         object_type = 'SN'
 
     pqfile = find_parq(ID, sn_path, obj_type = object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
-
-
 
     snra = ra
     sndec = dec
@@ -1101,10 +1095,13 @@ def get_SN_SED(SNID, date, sn_path):
     lam = sed_table['lambda']
     mjd = sed_table['mjd']
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    if np.min(np.abs(np.array(mjd) - date)) > 10:
-        Lager.warn('WARNING: No SED data within 10 days of date. \n \
-            The closest SED is ' + str(np.min(np.abs(np.array(mjd) - date))) +
-                                       ' days away.')
+    max_days_cutoff = 10
+    closest_days_away = np.min(np.abs(np.array(mjd) - date))
+
+    if closest_days_away > max_days_cutoff:
+        Lager.warn(f'WARNING: No SED data within {max_days_cutoff} days of' +
+                   'date. \n The closest SED is ' + closest_days_away +
+                   ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
 
 
