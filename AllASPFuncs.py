@@ -1275,13 +1275,32 @@ def banner(text):
     Lager.debug(message)
 
 
-def prep_data_for_fit(images, err):
+def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     '''
     This function takes the data from the images and puts it into the form such
     that we can analytically solve for the best fit using linear algebra.
     '''
+    size = int(np.sqrt((images[0].size)))
+    tot_num = len(images)
+    det_num = len(sn_matrix)
+
     # Flatten into 1D arrays
     images = np.concatenate([arr.flatten() for arr in images])
     err = np.concatenate([arr.flatten() for arr in err])
 
-    return images, err
+    psf_zeros = np.zeros((np.size(images), tot_num))
+
+    for i in range(det_num):
+        psf_zeros[
+            (tot_num - det_num + i) * size * size:
+            (tot_num - det_num + i + 1) * size * size,
+            (tot_num - det_num) + i] = sn_matrix[i]
+    sn_matrix = psf_zeros
+    sn_matrix = np.array(sn_matrix)
+    sn_matrix = np.vstack(sn_matrix)
+
+
+    wgt_matrix = np.array(wgt_matrix)
+    wgt_matrix = np.hstack(wgt_matrix)
+
+    return images, err, sn_matrix, wgt_matrix
