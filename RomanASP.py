@@ -1,3 +1,14 @@
+# TODO -- remove these next few lines!
+# This needs to be set up in an environment
+# where snappl is available.  This will happen "soon"
+# Get Rob to fix all of this.  For now, this is a hack
+# so you can work short term.
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
+# End of lines that will go away once we do this right
+
+
 import numpy as np
 from astropy.io import fits
 import pandas as pd
@@ -16,6 +27,11 @@ from simulation import simulate_images
 import yaml
 import argparse
 import os
+
+from snappl.logger import Lager
+from snappl.config import Config
+from snappl.image import OpenUniverse2024FITSImage
+
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -123,6 +139,7 @@ def main():
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36,
                                       aberrations=aberrations)
 
+    # TODO this should get moved to simulations.py
     if detim == 0:
         supernova = 0
     else:
@@ -137,6 +154,7 @@ def main():
     assert detim <= testnum
     if isinstance(supernova, list):
         assert len(supernova) == detim
+    ####
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
@@ -145,9 +163,10 @@ def main():
     if not isinstance(SNID, list):
         SNID = [SNID]
 
+    # run one supernova function TODO
     for ID in SNID:
-        print('ID:', ID)
 
+        Lager.debug(f'ID: {ID}')
         psf_matrix = []
         sn_matrix = []
         cutout_wcs_list = []
@@ -161,6 +180,11 @@ def main():
         if use_real_images:
             # Find SN Info, find exposures containing it,
             # and load those as images.
+
+            # TODO: Calculate peak MJD outside of the function
+            # TODO: When we switch to using the image class, we'll need to make
+            #       the image into a 1D array later right before matrix
+            #       multiplication, in the fitting section.
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
                 exposures, object_type = fetchImages(testnum, detim, ID,
                                                      sn_path, band, size,
@@ -168,9 +192,11 @@ def main():
                                                      roman_path)
 
             if len(exposures) != testnum:
-                print('Not enough exposures')
+                Lager.warning(f'Not Enough Exposures. \
+                    Found {len(exposures)} out of {testnum} requested')
                 continue
 
+        # This also goes to simulation.py TODO
         else:
             # Simulate the images of the SN and galaxy.
             ra, dec = 7.541534306163982, -44.219205940734625
@@ -185,12 +211,13 @@ def main():
                                 source_phot_ops=source_phot_ops,
                                 mismatch_seds=mismatch_seds)
 
+        # TODO write a test to getSED, package this all up.
         if fetch_SED:
             assert use_real_images, 'Cannot fetch SED if not using \
                                      OpenUniverse sims'
             sedlist = []
             for date in exposures['date'][exposures['DETECTED']]:
-                print('Getting SED for date:', date)
+                Lager.debug(f'Getting SED for date: {str(date)}')
                 lam, flam = get_SED(ID, date, sn_path, obj_type=object_type)
                 sed = galsim.SED(galsim.LookupTable(lam, flam,
                                                     interpolant='linear'),
@@ -207,6 +234,8 @@ def main():
 
         # Build the background grid
         if not turn_grid_off:
+            if object_type == 'star':
+                Lager.warn('For fitting stars, you probably dont want a grid.')
             ra_grid, dec_grid = makeGrid(adaptive_grid, images, size, ra, dec,
                                          cutout_wcs_list,
                                          single_grid_point=single_grid_point,
@@ -223,13 +252,18 @@ def main():
                                     error=None)
 
         # Using the images, hazard an initial guess.
+        # The testnum - detim check is to ensure we have pre-detection images.
+        # Otherwise, initializing the model guess does not make sense.
+        # TODO: Are testnum and detim both ints? Then compare for equality.
         if make_initial_guess and testnum - detim != 0:
             if supernova != 0:
                 x0test = generateGuess(imlist[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
+                # TODO: The initial flux value for sn points shoudln't be hard-
+                # coded.
                 x0test = np.concatenate([x0test, np.full(testnum, 3000)],
                                         axis=0)
-                print('setting initial guess to 3000')
+                Lager.debug('setting initial guess to 3000')
             else:
                 x0test = generateGuess(imlist, cutout_wcs_list, ra_grid,
                                        dec_grid)
@@ -247,13 +281,15 @@ def main():
             array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
                                          x_center=snx, y_center=sny, sed=sed)
             confusion_metric = np.dot(images[:size**2], array)
-            print('Confusion Metric:', confusion_metric)
+            Lager.debug(f'Confusion Metric: {confusion_metric}')
         else:
             confusion_metric = 0
-            print('No confusion metric calculated')
+            Lager.debug('Confusion Metric not calculated')
 
         # Build the backgrounds loop
 
+        # TODO: Zip all the things you index [i] on directly and loop over
+        # them.
         for i in range(testnum):
             if use_roman:
                 sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
@@ -266,14 +302,17 @@ def main():
             # Build the model for the background using the correct psf and the
             # grid we made in the previous section.
 
+            # TODO: Put this in snappl
             if use_real_images:
                 util_ref = roman_utils(config_file='./temp_tds.yaml',
                                        visit=exposures['Pointing'][i],
                                        sca=exposures['SCA'][i])
+            # TODO: Don't hardcode the pointing and SCA and put this away
             else:
                 util_ref = roman_utils(config_file='./temp_tds.yaml',
                                        visit=662, sca=11)
-
+            # TODO: better name for array
+            # TODO: Why is band here twice?
             array, bgpsf = construct_psf_background(ra_grid, dec_grid,
                                                     cutout_wcs_list[i], x, y,
                                                     size,
@@ -284,7 +323,8 @@ def main():
                                                     util_ref=util_ref,
                                                     use_roman=use_roman,
                                                     band=band)
-
+            # TODO comment this
+            # Also, maybe make a linear algebra nightmare section.
             if fit_background:
                 for j in range(testnum):
                     if i == j:
@@ -297,6 +337,7 @@ def main():
             # to the matrix of all components of the model.
             psf_matrix.append(array)
 
+            # TODO make this not bad
             if supernova != 0 and i >= testnum - detim:
                 snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
                 if use_roman:
@@ -307,11 +348,12 @@ def main():
                         pointing = 662
                         SCA = 11
                     if fetch_SED:
-                        print('Using SED #', i - (testnum - detim))
+
+                        Lager.debug(f'Using SED #{str(i - (testnum - detim))}')
                         sed = sedlist[i - (testnum - detim)]
                     else:
-                        print('Using default SED')
-                    print(x, y, snx, sny)
+                        Lager.debug('Using default SED')
+                    Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
                     array = construct_psf_source(x, y, pointing, SCA,
                                                  stampsize=size, x_center=snx,
                                                  y_center=sny, sed=sed,
@@ -334,7 +376,7 @@ def main():
 
         psf_matrix = np.array(psf_matrix)
         psf_matrix = np.vstack(psf_matrix)
-        print(psf_matrix.shape, 'psf matrix shape')
+        Lager.debug(f'{psf_matrix.shape} psf matrix shape')
         matrix_list = []
         matrix_list.append(psf_matrix)
         psf_zeros = np.zeros((psf_matrix.shape[0], testnum))
@@ -354,14 +396,9 @@ def main():
             sn_matrix = np.vstack(sn_matrix)
             matrix_list.append(sn_matrix)
 
-        print(sn_matrix)
-        print(sn_matrix.shape, 'sn matrix shape')
-
         # Combine the background model and the supernova model into one matrix.
+        # TODO: Can do np.array() and hstack in one line using .asarray()
         psf_matrix_all = np.hstack(matrix_list)
-
-        print(psf_matrix_all.shape, 'psf matrix all shape')
-        print(psf_matrix_all)
         psf_matrix = psf_matrix_all
 
         if weighting:
@@ -385,26 +422,27 @@ def main():
                                   images*wgt_matrix, x0=x0test, atol=1e-12,
                                   btol=1e-12, iter_lim=300000, conlim=1e10)
             X, istop, itn, r1norm = lsqr[:4]
-            print(istop, itn, r1norm)
+            Lager.debug(f'Stop Condition {istop}, iterations: {itn},' +
+                        f'r1norm: {r1norm}')
 
         flux = X[-detim:]
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
-        print(np.shape(inv_cov), 'inv cov shape')
-        print(np.shape(wgt_matrix), 'wgt shape')
-        print(np.shape(psf_matrix), 'psf shape')
+        Lager.debug(f'inv_cov shape: {inv_cov.shape}')
+        Lager.debug(f'psf_matrix shape: {psf_matrix.shape}')
+        Lager.debug(f'wgt_matrix shape: {wgt_matrix.shape}')
         try:
             cov = np.linalg.inv(inv_cov)
         except LinAlgError:
             cov = np.linalg.pinv(inv_cov)
 
-        print(np.shape(cov), 'cov shape')
         sigma_flux = np.sqrt(np.diag(cov))[-detim:]
-        print('sigma flux', sigma_flux)
+        Lager.debug(f'sigma flux: {sigma_flux}')
 
         # Using the values found in the fit, construct the model images.
         pred = X*psf_matrix
         sumimages = np.sum(pred, axis=1)
 
+        # TODO: Move this to a separate function
         if check_perfection:
             if avoid_non_linearity:
                 f = 1
@@ -419,6 +457,8 @@ def main():
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save
         # the images.
+
+        # TODO: This can be returned by run_one_SN() and then saved.
 
         if use_real_images:
             identifier = str(ID)
@@ -438,8 +478,8 @@ def main():
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
-        print('Saving images to ./results/images/' +
-              f'{identifier}_{band}_{psftype}_images.npy')
+        Lager.info('Saving images to ./results/images/' +
+                   f'{identifier}_{band}_{psftype}_images.npy')
         np.save(f'./results/images/{identifier}_{band}_{psftype}_images.npy',
                 images_and_model)
 
@@ -456,13 +496,6 @@ def main():
         hdul = fits.HDUList(hdul)
         filepath = f'./results/images/{identifier}_{band}_{psftype}_wcs.fits'
         hdul.writeto(filepath, overwrite=True)
-
-        '''
-        except Exception as e:
-            print('Failed on ID:', ID)
-            print(e)
-            continue
-        '''
 
 
 if __name__ == "__main__":
