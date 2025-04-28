@@ -161,6 +161,10 @@ def test_regression():
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
     config['source_phot_ops'] = False
+
+    with open("config.yaml", "w") as f:
+        yaml.dump(config, f)
+
     os.system('python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
               "tests/testdata"')
     current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
