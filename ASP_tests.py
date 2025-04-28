@@ -141,11 +141,11 @@ def test_savelightcurve():
 
 
 def test_run_on_star():
-    os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
+    err_code = os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
+    assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
-
-def temp_regression_test():
+def test_regression():
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'config.yaml')
     config = yaml.safe_load(open(config_path))
