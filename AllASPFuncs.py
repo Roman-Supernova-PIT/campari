@@ -131,7 +131,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         difference = int((size - subsize)/2)
 
         spacing = 1.0
-        print('GRID SPACE', spacing)
         x = np.arange(difference, subsize+difference, spacing)
         y = np.arange(difference, subsize+difference, spacing)
 
@@ -142,7 +141,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         y+= y_center
 
         xx, yy = np.meshgrid(x, y)
-        print(xx)
     '''
 
     xx = xx.flatten()
@@ -588,7 +586,6 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
         try:
             zero = np.power(10, -(i['zeropoint'] - self.common_zpt)/2.5)
         except:
-            print('failed')
             zero = -99
 
         if zero < 0:
@@ -1022,7 +1019,6 @@ def slice_plot(fileroot):
 
         #subtract off the real sn
         #if i >= testnum - detim:
-            #print('subtracting sn')
             #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
 
 
