@@ -134,6 +134,9 @@ def test_savelightcurve():
     lc_file = os.path.join(output_path, 'test_test_test_lc.ecsv')
     assert os.path.exists(lc_file) == True
 
+
 def test_run_on_star():
     os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
 
+
+def test_Lager():
