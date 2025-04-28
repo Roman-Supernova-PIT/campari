@@ -48,8 +48,6 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-
-
 def load_config(config_path):
     """Load parameters from a YAML configuration file."""
     with open(config_path, 'r') as file:
@@ -58,7 +56,6 @@ def load_config(config_path):
 
 
 def main():
-
     parser = argparse.ArgumentParser(description="Can overwrite config file")
 
     parser.add_argument('-b', '--band', type=str, required=True, help='filter')
@@ -117,8 +114,6 @@ def main():
     mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
     makecontourGrid = config['makecontourGrid']
-
-
 
     roman_bandpasses = galsim.roman.getBandpasses()
 
