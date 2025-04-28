@@ -1230,8 +1230,9 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
-          'measured_flux':flux , 'flux_error': sigma_flux}
+    data_dict = {'MJD': np.arange(0, np.size(supernova), 1),
+                 'true_flux': supernova, 'measured_flux':flux ,
+                 'flux_error': sigma_flux}
     meta_dict = {}
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)

@@ -148,7 +148,7 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
             if i >= testnum - detim:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units='deg')
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
-
+                Lager.debug(f'sed: {sed}')
                 supernova_image = \
                     simulate_supernova(snx, sny, stamp,
                                        supernova[i - testnum + detim],
@@ -159,10 +159,14 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
                 sn_storage.append(supernova_image)
 
         cutout_wcs_list.append(cutoutgalwcs)
-        imagelist.append(a.flatten())
+        # No longer flattening
+        imagelist.append(a)
 
-    images = np.array(imagelist)
-    images = np.hstack(images)
+    #images = np.array(imagelist)
+    #images = np.hstack(images)
+    images = imagelist
+    Lager.debug(f'images shape: {images[0].shape}')
+    Lager.debug(f'images length {len(images)}')
 
     return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage
 
@@ -227,7 +231,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
 
     # Code below copied from galsim largely
     if not source_phot_ops:
-        result = sim_psf.drawImage(roman_bandpasses[band], image=stamp,
+        result = profile.drawImage(roman_bandpasses[band], image=stamp,
                                    wcs=stamp.wcs, method='no_pixel',
                                    center=galsim.PositionD(snx, sny),
                                    use_true_center=True)

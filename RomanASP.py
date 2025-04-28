@@ -208,6 +208,8 @@ def main():
                                 input_psf=airy, bg_gal_flux=bg_gal_flux,
                                 source_phot_ops=source_phot_ops,
                                 mismatch_seds=mismatch_seds)
+            object_type = 'SN'
+            err = np.ones_like(images)
 
         # TODO write a test to getSED, package this all up.
         if fetch_SED:
@@ -227,8 +229,6 @@ def main():
                                                 interpolant='linear'),
                              wave_type='nm', flux_type='fphotons')
 
-        # TODO delete this XXX imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
-        #          for i in range(testnum)]
 
         # Build the background grid
         if not turn_grid_off:
@@ -368,7 +368,7 @@ def main():
                 sn_matrix.append(array)
 
         banner('Lin Alg Section')
-        psf_matrix = np.vstack(psf_matrix.asarray())
+        psf_matrix = np.vstack(np.array(psf_matrix))
         Lager.debug(f'{psf_matrix.shape} psf matrix shape')
 
         # Add in the supernova images to the matrix in the appropriate location
