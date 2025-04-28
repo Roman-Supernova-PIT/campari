@@ -47,9 +47,6 @@ Adapted from code by Pedro Bernardinelli
 
 '''
 
-config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                           'config.yaml')
-
 
 def load_config(config_path):
     """Load parameters from a YAML configuration file."""
@@ -59,7 +56,6 @@ def load_config(config_path):
 
 
 def main():
-
     parser = argparse.ArgumentParser(description="Can overwrite config file")
 
     parser.add_argument('-b', '--band', type=str, required=True, help='filter')
@@ -74,6 +70,21 @@ def main():
 
     parser.add_argument('-o', '--output_path', type=str, required=False,
                         help='relative output path')
+
+    parser.add_argument('-c', '--config', type=str, required=False,
+                        help='relative config file path')
+
+    args = parser.parse_args()
+    band = args.band
+    SNID = args.SNID
+    testnum = args.testnum
+    detim = args.detim
+    output_path = args.output_path
+    if args.config is not None:
+        config_path = args.config
+    else:
+        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                           'config.yaml')
 
     config = load_config(config_path)
 
@@ -103,13 +114,6 @@ def main():
     mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
     makecontourGrid = config['makecontourGrid']
-
-    args = parser.parse_args()
-    band = args.band
-    SNID = args.SNID
-    testnum = args.testnum
-    detim = args.detim
-    output_path = args.output_path
 
     roman_bandpasses = galsim.roman.getBandpasses()
 

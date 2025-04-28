@@ -8,6 +8,7 @@ import galsim
 import numpy as np
 import os
 import pandas as pd
+import tempfile
 import warnings
 import yaml
 
@@ -161,8 +162,14 @@ def test_regression():
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
     config['source_phot_ops'] = False
-    os.system('python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
-              "tests/testdata"')
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
+            as temp_config:
+        yaml.dump(config, temp_config)
+        temp_config_path = temp_config.name
+    os.system(f'python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
+              "tests/testdata" --config {temp_config_path}')
+
     current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
                           comment='#')
     comparison = pd.read_csv('tests/testdata/test_lc.ecsv', comment='#')
