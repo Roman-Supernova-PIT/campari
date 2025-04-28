@@ -186,9 +186,7 @@ def main():
             # and load those as images.
 
             # TODO: Calculate peak MJD outside of the function
-            # TODO: When we switch to using the image class, we'll need to make
-            #       the image into a 1D array later right before matrix
-            #       multiplication, in the fitting section.
+
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
                 exposures, object_type = fetchImages(testnum, detim, ID,
                                                      sn_path, band, size,
@@ -249,11 +247,6 @@ def main():
         else:
             ra_grid = np.array([])
             dec_grid = np.array([])
-
-        # Get the weights
-        if weighting:
-            wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
-                                    error=None)
 
         # Using the images, hazard an initial guess.
         # The testnum - detim check is to ensure we have pre-detection images.
@@ -328,7 +321,7 @@ def main():
                                                     use_roman=use_roman,
                                                     band=band)
             # TODO comment this
-            # Also, maybe make a linear algebra nightmare section.
+
             if fit_background:
                 for j in range(testnum):
                     if i == j:
@@ -378,38 +371,28 @@ def main():
 
                 sn_matrix.append(array)
 
-        psf_matrix = np.array(psf_matrix)
-        psf_matrix = np.vstack(psf_matrix)
+        banner('Lin Alg Section')
+        psf_matrix = np.vstack(psf_matrix.asarray())
         Lager.debug(f'{psf_matrix.shape} psf matrix shape')
-        matrix_list = []
-        matrix_list.append(psf_matrix)
-        psf_zeros = np.zeros((psf_matrix.shape[0], testnum))
 
         # Add in the supernova images to the matrix in the appropriate location
         # so that it matches up with the image it represents.
         # All others should be zero.
 
-        images, err = prep_data_for_fit(images, err)
+        # Get the weights
+        if weighting:
+            wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
+                                    error=None)
+        else:
+            wgt_matrix = np.ones(psf_matrix.shape[1])
 
-        if supernova != 0:
-            for i in range(detim):
-                psf_zeros[
-                    (testnum - detim + i) * size * size:
-                    (testnum - detim + i + 1) * size * size,
-                    (testnum - detim) + i] = sn_matrix[i]
-            sn_matrix = psf_zeros
-            sn_matrix = np.array(sn_matrix)
-            sn_matrix = np.vstack(sn_matrix)
-            matrix_list.append(sn_matrix)
+        images, err, sn_matrix, wgt_matrix =\
+            prep_data_for_fit(images, err, sn_matrix, wgt_matrix)
+
 
         # Combine the background model and the supernova model into one matrix.
-        # TODO: Can do np.array() and hstack in one line using .asarray()
-        psf_matrix_all = np.hstack(matrix_list)
-        psf_matrix = psf_matrix_all
 
-        if weighting:
-            wgt_matrix = np.array(wgt_matrix)
-            wgt_matrix = np.hstack(wgt_matrix)
+        psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
         banner('Solving Photometry')
         # These if statements can definitely be written more elegantly.
@@ -419,10 +402,6 @@ def main():
         if fit_background:
             x0test = np.concatenate([x0test, np.zeros(testnum)], axis=0)
 
-        if not weighting:
-            wgt_matrix = np.ones(psf_matrix.shape[1])
-
-        #
         if method == 'lsqr':
             lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
                                   images*wgt_matrix, x0=x0test, atol=1e-12,
