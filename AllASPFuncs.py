@@ -498,6 +498,9 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     assert sed is not None, 'You must provide an SED for the source'
 
     if not photOps:
+        # While I want to do this sometimes, it is very rare that you actually
+        # want to do this. Thus if it was accidentally on while doing a normal
+        # run, I'd want to know.
         Lager.warn('NOT USING PHOTON OPS IN PSF SOURCE')
 
     master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
