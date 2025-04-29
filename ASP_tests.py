@@ -1,3 +1,13 @@
+# TODO -- remove these next few lines!
+# This needs to be set up in an environment
+# where snappl is available.  This will happen "soon"
+# Get Rob to fix all of this.  For now, this is a hack
+# so you can work short term.
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
+# End of lines that will go away once we do this right
+
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
@@ -167,8 +177,9 @@ def test_regression():
             as temp_config:
         yaml.dump(config, temp_config)
         temp_config_path = temp_config.name
-    os.system(f'python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
+    output = os.system(f'python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
               "tests/testdata" --config {temp_config_path}')
+    assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
                           comment='#')

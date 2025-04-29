@@ -750,30 +750,37 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-
-def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 1000, cutoff = np.inf):
+def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
+               gaussian_std=1000, cutoff=np.inf):
     wgt_matrix = []
     Lager.debug(f'Gaussian std in getWeights {gaussian_std}')
-    for i,wcs in enumerate(cutout_wcs_list):
-        xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
+    for i, wcs in enumerate(cutout_wcs_list):
+        xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
 
-        rara, decdec = wcs.toWorld(xx, yy, units = 'deg')
+        rara, decdec = wcs.toWorld(xx, yy, units='deg')
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.toImage(snra, sndec, units='deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
-
-
         wgt = 5*np.exp(-dist**2/gaussian_std)
-        wgt[np.where(dist > 4)] = 0
 
+        # Here, we throw out pixels that are more than 4 pixels away from the
+        # SN. The reason we do this is because by choosing an image size one
+        # has set a square top hat function centered on the SN. When that image
+        # is rotated pixels in the corners leave the image, and new pixels
+        # enter. By making a circular cutout, we minimize this problem. Of
+        # course this is not a perfect solution, because the pixellation of the
+        # circle means that still some pixels will enter and leave, but it
+        # seems to minimize the problem.
+        wgt[np.where(dist > 4)] = 0
+        
         if isinstance(error, np.ndarray):
             wgt /= (error[i*size**2:(i+1)*size**2]**2)
-
+            
         wgt = wgt / np.sum(wgt)
         if i >= cutoff:
             Lager.debug(f'Setting wgt to zero on image {i}')

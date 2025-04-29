@@ -235,7 +235,7 @@ def main():
         Lager.warning('SURPRESSING ERROR UNTIL FIX PUSHED TO MAIN')
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
-                                    error=None)
+                                    error=err)
 
         # Using the images, hazard an initial guess.
         # The testnum - detim check is to ensure we have pre-detection images.
