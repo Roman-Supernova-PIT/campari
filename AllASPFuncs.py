@@ -638,8 +638,6 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
     return image, wcs_list, sca_wcs_list, err
 
 
-
-
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
                         oversampling_factor=1,include_photonOps=False,n_phot=1e6, pixel = False, flux = 1):
 
