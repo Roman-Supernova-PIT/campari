@@ -1,3 +1,12 @@
+# TODO -- remove these next few lines!
+# This needs to be set up in an environment
+# where snappl is available.  This will happen "soon"
+# Get Rob to fix all of this.  For now, this is a hack
+# so you can work short term.
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
+# End of lines that will go away once we do this right
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -501,7 +510,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
         # run, I'd want to know.
-        Lager.warn('NOT USING PHOTON OPS IN PSF SOURCE')
+        Lager.warning('NOT USING PHOTON OPS IN PSF SOURCE')
 
     master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
 
@@ -762,9 +771,9 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 100
         wgt = 5*np.exp(-dist**2/gaussian_std)
         wgt[np.where(dist > 4)] = 0
 
-        if not isinstance(error, np.ndarray):
-            error = np.ones_like(wgt)
-        wgt /= error
+        if isinstance(error, np.ndarray):
+            wgt /= (error[i*size**2:(i+1)*size**2]**2)
+
         wgt = wgt / np.sum(wgt)
         if i >= cutoff:
             Lager.debug(f'Setting wgt to zero on image {i}')
@@ -1255,3 +1264,18 @@ def banner(text):
     length = len(text) + 8
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
+
+def get_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
+    sedlist = []
+    for date in exposures['date'][exposures['DETECTED']]:
+        if fetch_SED:
+            Lager.debug(f'Getting SED for date: {str(date)}')
+            lam, flam = get_SED(ID, date, sn_path, obj_type=object_type)
+        else:
+            lam, flam = [1000, 26000], [1, 1]
+
+        sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'),
+                         wave_type='Angstrom', flux_type='fphotons')
+        sedlist.append(sed)
+
+        return sedlist

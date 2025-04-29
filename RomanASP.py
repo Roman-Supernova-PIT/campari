@@ -22,7 +22,8 @@ import galsim
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
-                        makeGrid, get_SED, getWeights, generateGuess
+                        makeGrid, get_SED, getWeights, generateGuess, \
+                        get_SED_list
 from simulation import simulate_images
 import yaml
 import argparse
@@ -211,23 +212,7 @@ def main():
                                 source_phot_ops=source_phot_ops,
                                 mismatch_seds=mismatch_seds)
 
-        # TODO write a test to getSED, package this all up.
-        if fetch_SED:
-            assert use_real_images, 'Cannot fetch SED if not using \
-                                     OpenUniverse sims'
-            sedlist = []
-            for date in exposures['date'][exposures['DETECTED']]:
-                Lager.debug(f'Getting SED for date: {str(date)}')
-                lam, flam = get_SED(ID, date, sn_path, obj_type=object_type)
-                sed = galsim.SED(galsim.LookupTable(lam, flam,
-                                                    interpolant='linear'),
-                                 wave_type='Angstrom', flux_type='fphotons')
-                sedlist.append(sed)
-
-        else:
-            sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
-                                                interpolant='linear'),
-                             wave_type='nm', flux_type='fphotons')
+        sedlist = get_SED_list(ID, exposures, fetch_SED, object_type, sn_path)
 
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
                   for i in range(testnum)]
@@ -235,7 +220,7 @@ def main():
         # Build the background grid
         if not turn_grid_off:
             if object_type == 'star':
-                Lager.warn('For fitting stars, you probably dont want a grid.')
+                Lager.warning('For fitting stars, you probably dont want a grid.')
             ra_grid, dec_grid = makeGrid(adaptive_grid, images, size, ra, dec,
                                          cutout_wcs_list,
                                          single_grid_point=single_grid_point,
@@ -247,6 +232,7 @@ def main():
             dec_grid = np.array([])
 
         # Get the weights
+        Lager.warning('SURPRESSING ERROR UNTIL FIX PUSHED TO MAIN')
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
                                     error=None)
@@ -279,7 +265,8 @@ def main():
             snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
             pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
             array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
-                                         x_center=snx, y_center=sny, sed=sed)
+                                         x_center=snx, y_center=sny,
+                                         sed=sedlist[0])
             confusion_metric = np.dot(images[:size**2], array)
             Lager.debug(f'Confusion Metric: {confusion_metric}')
         else:
@@ -347,12 +334,8 @@ def main():
                     else:
                         pointing = 662
                         SCA = 11
-                    if fetch_SED:
 
-                        Lager.debug(f'Using SED #{str(i - (testnum - detim))}')
-                        sed = sedlist[i - (testnum - detim)]
-                    else:
-                        Lager.debug('Using default SED')
+                    sed = sedlist[i - (testnum - detim)]
                     Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
                     array = construct_psf_source(x, y, pointing, SCA,
                                                  stampsize=size, x_center=snx,
@@ -435,7 +418,8 @@ def main():
         except LinAlgError:
             cov = np.linalg.pinv(inv_cov)
 
-        sigma_flux = np.sqrt(np.diag(cov))[-detim:]
+        Lager.debug(f'cov diag: {np.diag(cov)[-detim:]}')
+        sigma_flux = np.sqrt(np.diag(cov)[-detim:])
         Lager.debug(f'sigma flux: {sigma_flux}')
 
         # Using the values found in the fit, construct the model images.
