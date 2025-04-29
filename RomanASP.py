@@ -249,7 +249,7 @@ def main():
         # Get the weights
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
-                                    error=None)
+                                    error=err)
 
         # Using the images, hazard an initial guess.
         # The testnum - detim check is to ensure we have pre-detection images.
