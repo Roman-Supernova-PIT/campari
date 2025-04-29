@@ -501,7 +501,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
         # run, I'd want to know.
-        Lager.warn('NOT USING PHOTON OPS IN PSF SOURCE')
+        Lager.warning('NOT USING PHOTON OPS IN PSF SOURCE')
 
     master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
 
@@ -741,30 +741,31 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-
-def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 1000, cutoff = np.inf):
+def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
+               gaussian_std=1000, cutoff=np.inf):
     wgt_matrix = []
     Lager.debug(f'Gaussian std in getWeights {gaussian_std}')
-    for i,wcs in enumerate(cutout_wcs_list):
-        xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
+    for i, wcs in enumerate(cutout_wcs_list):
+        xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
 
-        rara, decdec = wcs.toWorld(xx, yy, units = 'deg')
+        rara, decdec = wcs.toWorld(xx, yy, units='deg')
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.toImage(snra, sndec, units='deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
-
-
         wgt = 5*np.exp(-dist**2/gaussian_std)
+
         wgt[np.where(dist > 4)] = 0
 
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
-        wgt /= error
+
+        Lager.debug(f'error shape: {error.shape}, wgt shape: {wgt.shape}')
+        wgt /= (error[i*size**2 : (i+1)*size**2]**2)
         wgt = wgt / np.sum(wgt)
         if i >= cutoff:
             Lager.debug(f'Setting wgt to zero on image {i}')
