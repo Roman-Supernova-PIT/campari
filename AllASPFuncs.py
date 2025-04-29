@@ -1069,12 +1069,21 @@ def slice_plot(fileroot):
         plt.legend(loc = 'upper left')
 
 
-
-
-
-
 def get_SED(SNID, date, sn_path, obj_type = 'SN'):
-    #Is this an ok way to do this?
+    '''
+    Return the appropriate SED for the object on the day. Since SN's SEDs are
+    time dependent but stars are not, we need to handle them differently.
+
+    Inputs:
+    SNID: the ID of the object
+    date: the date of the observation
+    sn_path: the path to the supernova data
+    obj_type: the type of object (SN or star)
+
+    Returns:
+    lam: the wavelength of the SED in Angstrom
+    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+    '''
     if obj_type == 'SN':
         lam, flambda = get_SN_SED(SNID, date, sn_path)
     if obj_type == 'star':
@@ -1083,8 +1092,17 @@ def get_SED(SNID, date, sn_path, obj_type = 'SN'):
     return lam, flambda
 
 
-
 def get_star_SED(SNID, sn_path):
+    '''
+    Return the appropriate SED for the star.
+    Inputs:
+    SNID: the ID of the object
+    sn_path: the path to the supernova data
+
+    Returns:
+    lam: the wavelength of the SED in Angstrom
+    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+    '''
     filenum = find_parq(SNID, sn_path, obj_type = 'star')
     pqfile = open_parq(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
@@ -1098,6 +1116,18 @@ def get_star_SED(SNID, sn_path):
 
 
 def get_SN_SED(SNID, date, sn_path):
+    '''
+    Return the appropriate SED for the supernova on the given day.
+
+    Inputs:
+    SNID: the ID of the object
+    date: the date of the observation
+    sn_path: the path to the supernova data
+
+    Returns:
+    lam: the wavelength of the SED in Angstrom
+    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+    '''
     filenum = find_parq(SNID, sn_path, obj_type = 'SN')
     file_name = 'snana' + '_' + str(filenum) + '.hdf5'
     fullpath = os.path.join(sn_path, file_name)
@@ -1267,6 +1297,26 @@ def banner(text):
 
 def get_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
     sedlist = []
+    '''
+    Return the appropriate SED for the object for each observation.
+    If you are getting truth SEDs, This function calls get_SED on each exposure
+    of the object. Then, get_SED calls get_SN_SED or get_star_SED depending on
+    the object type.
+    If you are not getting truth SEDs, this function returns a flat SED for
+    each exposure.
+
+    Inputs:
+    ID: the ID of the object
+    exposures: the exposure table returned by fetchImages.
+    fetch_SED: If true, get the SED from truth tables.
+               If false, return a flat SED for each expsoure.
+    object_type: the type of object (SN or star)
+    sn_path: the path to the supernova data
+
+    Returns:
+    sedlist: list of galsim SED objects, length equal to the number of
+             detection images.
+    '''
     for date in exposures['date'][exposures['DETECTED']]:
         if fetch_SED:
             Lager.debug(f'Getting SED for date: {str(date)}')
@@ -1278,4 +1328,4 @@ def get_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
                          wave_type='Angstrom', flux_type='fphotons')
         sedlist.append(sed)
 
-        return sedlist
+    return sedlist

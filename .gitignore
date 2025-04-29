@@ -6,6 +6,4 @@ PSFPhotometryExample.ipynb
 *.csv
 *core.dcc*
 .swp
-__pycache__
-
 

@@ -334,8 +334,14 @@ def main():
                     else:
                         pointing = 662
                         SCA = 11
-
-                    sed = sedlist[i - (testnum - detim)]
+                    # sedlist is the length of the number of supernova
+                    # detection images. Therefore, when we iterate onto the
+                    # first supernova image, we want to be on the first element
+                    # of sedlist. Therefore, we subtract by the number of
+                    # predetection images: testnum - detim.
+                    sn_index = i - (testnum - detim)
+                    Lager.debug(f'Using SED #{str(sn_index)}')
+                    sed = sedlist[sn_index]
                     Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
                     array = construct_psf_source(x, y, pointing, SCA,
                                                  stampsize=size, x_center=snx,
