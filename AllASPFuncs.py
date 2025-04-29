@@ -24,6 +24,10 @@ from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
 from snappl.logger import Lager
 
+
+from snappl.image import OpenUniverse2024FITSImage
+from snappl.logger import Lager
+
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -61,6 +65,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     Generates a local grid around a RA-Dec center, choosing step size and
     number of points
     '''
+    Lager.debug('image shape: {}'.format(np.shape(image)))
     # Build the basic grid
     subsize = 9  # Taking a smaller square inside the image to fit on
     difference = int((size - subsize)/2)
@@ -109,7 +114,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
                 else:
                     xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
                     yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
-                    X, Y = np.meshgrid(xx,yy)
+                    X, Y = np.meshgrid(xx, yy)
                     ys.extend(list(X.flatten()))
                     xes.extend(list(Y.flatten()))
 
@@ -150,7 +155,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         ra_grid = result[0]
         dec_grid = result[1]
     else:
-        Lager.warn('swapped x and y here')
+        Lager.warning('swapped x and y here')
         result = wcs.pixel_to_world(yy, xx)
         ra_grid = result.ra.deg
         dec_grid = result.dec.deg
@@ -239,7 +244,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
     k = 0
-
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
     point = None
@@ -617,14 +621,21 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
 
-        m.append(im.flatten())
-        err.append(err_cutout.flatten())
-        mask.append(np.zeros(size*size))
-        #w = (zero**2)*err_cutout.flatten()
 
-    image = np.hstack(m)
-    err = np.hstack(err)
+        m.append(im)
+        err.append(err_cutout)
+        mask.append(np.zeros((size, size)))
+
+
+    #image = np.hstack(m)
+    #err = np.hstack(err)
+
+    # Switching to not flattening for now
+    image = m
+
     return image, wcs_list, sca_wcs_list, err
+
+
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -674,6 +685,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
     Lager.debug(f'Using {n_phot:e} photons in getPSF_Image')
+
     result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
         n_photons=int(n_phot),maxN=int(n_phot),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
@@ -772,11 +784,17 @@ def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 100
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False, makecontourGrid = False):
+
+def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
+             percentiles=[], single_grid_point=False, npoints=7,
+             make_exact=False, makecontourGrid=False):
     if adaptive_grid:
-        a = images[:size**2].reshape(size,size)
-        ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
-                npoints, size = size,  spacing = 0.75, image = a, spline_grid = False, percentiles = percentiles, makecontourGrid = makecontourGrid)
+        ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
+                                       npoints, size=size,  spacing=0.75,
+                                       image=images[0], spline_grid=False,
+                                       percentiles=percentiles,
+                                       makecontourGrid=makecontourGrid)
+
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
@@ -1100,13 +1118,11 @@ def get_SN_SED(SNID, date, sn_path):
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
     max_days_cutoff = 10
     closest_days_away = np.min(np.abs(np.array(mjd) - date))
-
     if closest_days_away > max_days_cutoff:
         Lager.warn(f'WARNING: No SED data within {max_days_cutoff} days of' +
                    'date. \n The closest SED is ' + closest_days_away +
                    ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
-
 
 
 def contourGrid(image, numlevels = 5, subsize = 4):
@@ -1212,8 +1228,9 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
-          'measured_flux':flux , 'flux_error': sigma_flux}
+    data_dict = {'MJD': np.arange(0, np.size(supernova), 1),
+                 'true_flux': supernova, 'measured_flux':flux ,
+                 'flux_error': sigma_flux}
     meta_dict = {}
     units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
@@ -1255,3 +1272,35 @@ def banner(text):
     length = len(text) + 8
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
+
+    
+def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
+    '''
+    This function takes the data from the images and puts it into the form such
+    that we can analytically solve for the best fit using linear algebra.
+    '''
+    size = int(np.sqrt((images[0].size)))
+    tot_num = len(images)
+    det_num = len(sn_matrix)
+
+    # Flatten into 1D arrays
+    images = np.concatenate([arr.flatten() for arr in images])
+    err = np.concatenate([arr.flatten() for arr in err])
+
+    psf_zeros = np.zeros((np.size(images), tot_num))
+
+    for i in range(det_num):
+        psf_zeros[
+            (tot_num - det_num + i) * size * size:
+            (tot_num - det_num + i + 1) * size * size,
+            (tot_num - det_num) + i] = sn_matrix[i]
+    sn_matrix = psf_zeros
+    sn_matrix = np.array(sn_matrix)
+    sn_matrix = np.vstack(sn_matrix)
+
+
+    wgt_matrix = np.array(wgt_matrix)
+    wgt_matrix = np.hstack(wgt_matrix)
+
+    return images, err, sn_matrix, wgt_matrix
+

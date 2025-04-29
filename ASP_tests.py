@@ -1,3 +1,13 @@
+# TODO -- remove these next few lines!
+# This needs to be set up in an environment
+# where snappl is available.  This will happen "soon"
+# Get Rob to fix all of this.  For now, this is a hack
+# so you can work short term.
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
+# End of lines that will go away once we do this right
+
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
@@ -162,7 +172,7 @@ def test_regression():
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
     config['source_phot_ops'] = False
-
+    
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
             as temp_config:
         yaml.dump(config, temp_config)
