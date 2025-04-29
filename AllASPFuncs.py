@@ -759,6 +759,14 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         wgt = np.ones(size**2)
         wgt = 5*np.exp(-dist**2/gaussian_std)
 
+        # Here, we throw out pixels that are more than 4 pixels away from the
+        # SN. The reason we do this is because by choosing an image size one
+        # has set a square top hat function centered on the SN. When that image
+        # is rotated pixels in the corners leave the image, and new pixels
+        # enter. By making a circular cutout, we minimize this problem. Of
+        # course this is not a perfect solution, because the pixellation of the
+        # circle means that still some pixels will enter and leave, but it
+        # seems to minimize the problem.
         wgt[np.where(dist > 4)] = 0
 
         if not isinstance(error, np.ndarray):
