@@ -1,3 +1,13 @@
+# TODO -- remove these next few lines!
+# This needs to be set up in an environment
+# where snappl is available.  This will happen "soon"
+# Get Rob to fix all of this.  For now, this is a hack
+# so you can work short term.
+import sys
+import pathlib
+sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
+# End of lines that will go away once we do this right
+
 import numpy as np
 import galsim
 import pandas as pd
@@ -10,6 +20,7 @@ from roman_imsim.utils import roman_utils
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from astropy.nddata import Cutout2D
+from snappl.logger import Lager
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -61,9 +72,6 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
     sn_storage = []
 
     for i in range(testnum):
-        # Spinny loader just for fun :D
-        spinner = ['|', '/', '-', '\\']
-        print('Image ' + str(i) + '   ' + spinner[i % 4], end='\r')
 
         if do_xshift:
             x_shift = 1e-5/3 * i
@@ -91,7 +99,7 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
         im_wcs_list.append(galwcs)
 
         if mismatch_seds:
-            print('INTENTIONALLY MISMATCHING SEDS, 1a SED')
+            Lager.debug('INTENTIONALLY MISMATCHING SEDS, 1a SED')
             file_path = r"snflux_1a.dat"
             df = pd.read_csv(file_path, sep=r'\s+', header=None, names=['Day',
                              'Wavelength', 'Flux'])

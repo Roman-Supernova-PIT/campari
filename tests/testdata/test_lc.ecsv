@@ -1,0 +1,23 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: MJD, unit: d, datatype: float64}
+# - {name: true_flux, datatype: float64}
+# - {name: measured_flux, datatype: float64}
+# - {name: flux_error, datatype: float64}
+# meta:
+#   __serialized_columns__:
+#     MJD:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: d}
+#       value: !astropy.table.SerializedColumn {name: MJD}
+#   confusion_metric: 43.06618772049114
+#   host_dec: -44.919194
+#   host_mag_g: 25.508
+#   host_ra: 7.344728
+#   host_sep: 0.17470838
+#   sn_dec: -44.91922993380131
+#   sn_ra: 7.344774044463684
+# schema: astropy-2.0
+MJD true_flux measured_flux flux_error
+62535.424 6361.0 5323.110216147595 234.5227853642747
