@@ -247,7 +247,6 @@ def main():
         else:
             ra_grid = np.array([])
             dec_grid = np.array([])
-
         # Using the images, hazard an initial guess.
         # The testnum - detim check is to ensure we have pre-detection images.
         # Otherwise, initializing the model guess does not make sense.
@@ -382,7 +381,7 @@ def main():
         # Get the weights
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
-                                    error=None)
+                                    error=err)
         else:
             wgt_matrix = np.ones(psf_matrix.shape[1])
 

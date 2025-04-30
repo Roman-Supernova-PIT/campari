@@ -177,8 +177,9 @@ def test_regression():
             as temp_config:
         yaml.dump(config, temp_config)
         temp_config_path = temp_config.name
-    os.system(f'python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
+    output = os.system(f'python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
               "tests/testdata" --config {temp_config_path}')
+    assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
                           comment='#')
