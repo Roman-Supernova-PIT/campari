@@ -412,6 +412,8 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
         return explist
 
 def find_parq(ID, path, obj_type = 'SN'):
+
+
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -427,6 +429,7 @@ def find_parq(ID, path, obj_type = 'SN'):
         #The issue is SN parquets store their IDs as ints and star parquets as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
+            Lager.debug(f'parq file: {pqfile}')
             return pqfile
 
 def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
@@ -1107,7 +1110,7 @@ def get_SN_SED(SNID, date, sn_path):
     closest_days_away = np.min(np.abs(np.array(mjd) - date))
 
     if closest_days_away > max_days_cutoff:
-        Lager.warn(f'WARNING: No SED data within {max_days_cutoff} days of' +
+        Lager.warning(f'WARNING: No SED data within {max_days_cutoff} days of' +
                    'date. \n The closest SED is ' + closest_days_away +
                    ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
@@ -1199,8 +1202,10 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                                              sim_sigma_flux, band)
     sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
                                          sim_sigma_flux, band)
-
-    df_object_row = df.loc[df.id == ID]
+    if object_type == 'SN':
+        df_object_row = df.loc[df.id == ID]
+    if object_type == 'star':
+        df_object_row = df.loc[df.id == str(ID)]
 
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
