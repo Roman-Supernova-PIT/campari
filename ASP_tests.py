@@ -175,7 +175,6 @@ def test_regression():
     config['use_real_images'] = True
     config['fetch_SED'] = False
     config['makecontourGrid'] = True
-    config['band'] = 'Y106'
     config['adaptive_grid'] = True
     config['turn_grid_off'] = False
     config['size'] = 19
@@ -195,6 +194,43 @@ def test_regression():
     current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
                           comment='#')
     comparison = pd.read_csv('tests/testdata/test_lc.ecsv', comment='#')
+
+    for col in current.columns:
+        assert np.array_equal(current[col], comparison[col]), "The lightcurves\
+                                             do not match for column %s" % col
+
+
+def test_sim_regression():
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'config.yaml')
+    config = yaml.safe_load(open(config_path))
+    config['use_roman'] = True
+    config['use_real_images'] = False
+    config['fetch_SED'] = False
+    config['makecontourGrid'] = True
+    config['adaptive_grid'] = True
+    config['turn_grid_off'] = False
+    config['size'] = 19
+    config['weighting'] = True
+    # Weighting is a Gaussian width 1000 when this was made
+    # In the future, this should be True, but random seeds not working rn.
+    config['source_phot_ops'] = False
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
+            as temp_config:
+        yaml.dump(config, temp_config)
+        temp_config_path = temp_config.name
+    # TODO Change band when pointing and sca are chosen
+    output = os.system(f'python RomanASP.py -s 40120913 -b F184 -t 2 -d 1 -o \
+              "tests/testdata" --config {temp_config_path}')
+    assert output == 0, "The test run on a simulated SN failed. Check the logs"
+
+    current_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                              'tests/testdata/simulated_F184_romanpsf_lc.ecsv')
+    current = pd.read_csv(current_path, comment='#')
+
+    comparison_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                                   'tests/testdata/test_sim_lc.ecsv')
+    comparison = pd.read_csv(comparison_path, comment='#')
 
     for col in current.columns:
         assert np.array_equal(current[col], comparison[col]), "The lightcurves\

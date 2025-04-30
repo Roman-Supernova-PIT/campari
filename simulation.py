@@ -224,13 +224,14 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
     roman_bandpasses = galsim.roman.getBandpasses()
     profile = galsim.DeltaFunction()*sed
     profile = profile.withFlux(flux, roman_bandpasses[band])
+    convolved = galsim.Convolve(profile, sim_psf)
 
     # Code below copied from galsim largely
     if not source_phot_ops:
-        result = sim_psf.drawImage(roman_bandpasses[band], image=stamp,
-                                   wcs=stamp.wcs, method='no_pixel',
-                                   center=galsim.PositionD(snx, sny),
-                                   use_true_center=True)
+        result = convolved.drawImage(roman_bandpasses[band], image=stamp,
+                                     wcs=stamp.wcs, method='no_pixel',
+                                     center=galsim.PositionD(snx, sny),
+                                     use_true_center=True)
         return result.array
 
     config_file = './temp_tds.yaml'
@@ -239,6 +240,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
     photon_ops = [sim_psf] + util_ref.photon_ops
 
     # If random_seed is zero, galsim will use the current time to make a seed
+    # Does the below need to be "convolved"? TODO
     rng = galsim.BaseDeviate(random_seed)
     result = profile.drawImage(roman_bandpasses[band], wcs=stamp.wcs,
                                method='phot', photon_ops=photon_ops,

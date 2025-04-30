@@ -1248,7 +1248,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    sim_MJD = np.arange(0, detim, 1)
+    sim_MJD = np.arange(0, np.size(flux), 1)
     data_dict = {'MJD': sim_MJD, 'flux': flux,
                  'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}

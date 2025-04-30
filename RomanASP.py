@@ -207,6 +207,8 @@ def main():
                                 input_psf=airy, bg_gal_flux=bg_gal_flux,
                                 source_phot_ops=source_phot_ops,
                                 mismatch_seds=mismatch_seds)
+            err = np.ones_like(images)
+            object_type = 'SN'
 
         # TODO write a test to getSED, package this all up.
         if fetch_SED:
