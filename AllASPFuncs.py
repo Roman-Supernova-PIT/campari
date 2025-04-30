@@ -773,13 +773,15 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
             error = np.ones_like(wgt)
 
         Lager.debug(f'error shape: {error.shape}, wgt shape: {wgt.shape}')
-        wgt /= (error[i*size**2 : (i+1)*size**2]**2)
-        wgt = wgt / np.sum(wgt)
+        wgt /= (error[i*size**2:(i+1)*size**2]**2)
         if i >= cutoff:
             Lager.debug(f'Setting wgt to zero on image {i}')
             wgt = np.zeros_like(wgt)
         wgt_matrix.append(wgt)
+    wgt_matrix = np.array(wgt_matrix)
+    wgt_matrix /= np.sum(wgt_matrix)
     return wgt_matrix
+
 
 def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False, makecontourGrid = False):
     if adaptive_grid:
