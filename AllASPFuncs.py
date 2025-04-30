@@ -1302,7 +1302,7 @@ def banner(text):
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
 
-def get_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
+def get_all_galsim_SEDs(ID, exposures, fetch_SED, object_type, sn_path):
     sedlist = []
     '''
     Return the appropriate SED for the object for each observation.

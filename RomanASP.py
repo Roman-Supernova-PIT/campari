@@ -23,7 +23,7 @@ from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
                         makeGrid, get_SED, getWeights, generateGuess, \
-                        get_SED_list
+                        get_all_galsim_SEDs
 from simulation import simulate_images
 import yaml
 import argparse
@@ -212,7 +212,8 @@ def main():
                                 source_phot_ops=source_phot_ops,
                                 mismatch_seds=mismatch_seds)
 
-        sedlist = get_SED_list(ID, exposures, fetch_SED, object_type, sn_path)
+        sedlist = get_all_galsim_SEDs(ID, exposures, fetch_SED, object_type,
+                                      sn_path)
 
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
                   for i in range(testnum)]
@@ -232,7 +233,7 @@ def main():
             dec_grid = np.array([])
 
         # Get the weights
-        Lager.warning('SURPRESSING ERROR UNTIL FIX PUSHED TO MAIN')
+        Lager.warning('SURPRESSING ERROR CALCULATION UNTIL FIX PUSHED TO MAIN')
         if weighting:
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
                                     error=err)
@@ -340,7 +341,7 @@ def main():
                     # of sedlist. Therefore, we subtract by the number of
                     # predetection images: testnum - detim.
                     sn_index = i - (testnum - detim)
-                    Lager.debug(f'Using SED #{str(sn_index)}')
+                    Lager.debug(f'Using SED #{sn_index:s}')
                     sed = sedlist[sn_index]
                     Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
                     array = construct_psf_source(x, y, pointing, SCA,
