@@ -7,7 +7,7 @@ check_perfection: false
 deltafcn_profile: false
 do_rotation: true
 do_xshift: true
-fetch_SED: true
+fetch_SED: false
 fit_background: false
 make_exact: false
 make_initial_guess: true
@@ -23,7 +23,7 @@ size: 19
 sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
 source_phot_ops: true
 spline_grid: false
-turn_grid_off: true
+turn_grid_off: false
 use_real_images: true
 use_roman: true
 weighting: true
