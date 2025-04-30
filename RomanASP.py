@@ -138,20 +138,13 @@ def main():
                                       aberrations=aberrations)
 
     # TODO this should get moved to simulations.py
-    if detim == 0:
-        supernova = 0
-    else:
-        d = np.linspace(5, 20, detim)
-        mags = -5 * np.exp(-d/10) + 6
-        fluxes = 10**(mags)
-        supernova = list(fluxes)
+
     if make_exact:
         assert single_grid_point
     if avoid_non_linearity:
         assert deltafcn_profile
     assert detim <= testnum
-    if isinstance(supernova, list):
-        assert len(supernova) == detim
+
     ####
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
@@ -193,20 +186,22 @@ def main():
                     Found {len(exposures)} out of {testnum} requested')
                 continue
 
-        # This also goes to simulation.py TODO
         else:
             # Simulate the images of the SN and galaxy.
-            ra, dec = 7.541534306163982, -44.219205940734625
-            snra, sndec = ra, dec
-            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = \
+            ra, dec = config['sim_host_ra'], config['sim_host_dec']
+            snra, sndec = config['sim_sn_ra'], config['sim_sn_dec']
+            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage, \
+                supernova = \
                 simulate_images(testnum, detim, ra, dec, do_xshift,
-                                do_rotation, supernova, noise=noise,
+                                do_rotation, noise=noise,
                                 use_roman=use_roman, roman_path=roman_path,
                                 size=size, band=band,
                                 deltafcn_profile=deltafcn_profile,
                                 input_psf=airy, bg_gal_flux=bg_gal_flux,
                                 source_phot_ops=source_phot_ops,
-                                mismatch_seds=mismatch_seds)
+                                mismatch_seds=mismatch_seds,
+                                base_pointing=config['sim_pointing'],
+                                base_sca=config['sim_SCA'])
             err = np.ones_like(images)
             object_type = 'SN'
 
@@ -255,7 +250,7 @@ def main():
         # Otherwise, initializing the model guess does not make sense.
         # TODO: Are testnum and detim both ints? Then compare for equality.
         if make_initial_guess and testnum - detim != 0:
-            if supernova != 0:
+            if detim != 0:
                 x0test = generateGuess(imlist[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
                 # TODO: The initial flux value for sn points shoudln't be hard-
@@ -306,10 +301,10 @@ def main():
                 util_ref = roman_utils(config_file='./temp_tds.yaml',
                                        visit=exposures['Pointing'][i],
                                        sca=exposures['SCA'][i])
-            # TODO: Don't hardcode the pointing and SCA and put this away
             else:
                 util_ref = roman_utils(config_file='./temp_tds.yaml',
-                                       visit=662, sca=11)
+                                       visit=config['sim_pointing'],
+                                       sca=config['sim_SCA'])
             # TODO: better name for array
             # TODO: Why is band here twice?
             array, bgpsf = construct_psf_background(ra_grid, dec_grid,
@@ -337,15 +332,15 @@ def main():
             psf_matrix.append(array)
 
             # TODO make this not bad
-            if supernova != 0 and i >= testnum - detim:
+            if detim != 0 and i >= testnum - detim:
                 snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
                 if use_roman:
                     if use_real_images:
                         pointing = exposures['Pointing'][i]
                         SCA = exposures['SCA'][i]
                     else:
-                        pointing = 662
-                        SCA = 11
+                        pointing = config['sim_pointing']
+                        SCA = config['sim_SCA']
                     if fetch_SED:
 
                         Lager.debug(f'Using SED #{str(i - (testnum - detim))}')
@@ -384,7 +379,7 @@ def main():
         # so that it matches up with the image it represents.
         # All others should be zero.
 
-        if supernova != 0:
+        if detim != 0:
             for i in range(detim):
                 psf_zeros[
                     (testnum - detim + i) * size * size:

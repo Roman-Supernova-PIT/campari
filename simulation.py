@@ -27,7 +27,7 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
+def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
                     noise, use_roman, band, deltafcn_profile, roman_path,
                     size=11, input_psf=None, constant_imgs=False,
                     bg_gal_flux=None, source_phot_ops=True,
@@ -54,6 +54,17 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
     '''
+
+    if detim == 0:
+        supernova = 0
+    else:
+        d = np.linspace(5, 20, detim)
+        mags = -5 * np.exp(-d/10) + 6
+        fluxes = 10**(mags)
+        supernova = list(fluxes)
+    if isinstance(supernova, list):
+        assert len(supernova) == detim
+
     if not use_roman:
         assert input_psf is not None, 'you must provide an input psf if not \
              using roman'
@@ -164,7 +175,8 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
     images = np.array(imagelist)
     images = np.hstack(images)
 
-    return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage
+    return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage, \
+        supernova
 
 
 def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
