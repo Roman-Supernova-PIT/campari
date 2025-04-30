@@ -1076,7 +1076,7 @@ def slice_plot(fileroot):
         plt.legend(loc = 'upper left')
 
 
-def get_galsim_SED(SNID, date, sn_path, obj_type = 'SN'):
+def get_galsim_SED(SNID, date, sn_path, fetch_SED, obj_type = 'SN'):
     '''
     Return the appropriate SED for the object on the day. Since SN's SEDs are
     time dependent but stars are not, we need to handle them differently.
@@ -1085,6 +1085,8 @@ def get_galsim_SED(SNID, date, sn_path, obj_type = 'SN'):
     SNID: the ID of the object
     date: the date of the observation
     sn_path: the path to the supernova data
+    fetch_SED: If true, fetch true SED from the database, otherwise return a
+                flat SED.
     obj_type: the type of object (SN or star)
 
     Internal Variables:
@@ -1092,12 +1094,15 @@ def get_galsim_SED(SNID, date, sn_path, obj_type = 'SN'):
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
 
     Returns:
-    sed: the SED of the object in galsim's format
+    sed: galsim.SED object
     '''
-    if obj_type == 'SN':
-        lam, flambda = get_SN_SED(SNID, date, sn_path)
-    if obj_type == 'star':
-        lam, flambda = get_star_SED(SNID, sn_path)
+    if fetch_SED == True:
+        if obj_type == 'SN':
+            lam, flambda = get_SN_SED(SNID, date, sn_path)
+        if obj_type == 'star':
+            lam, flambda = get_star_SED(SNID, sn_path)
+    else:
+        lam, flambda = [1000, 26000], [1, 1]
 
     sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant='linear'),
                          wave_type='Angstrom', flux_type='fphotons')
@@ -1113,8 +1118,9 @@ def get_star_SED(SNID, sn_path):
     sn_path: the path to the supernova data
 
     Returns:
-    lam: the wavelength of the SED in Angstrom
+    lam: the wavelength of the SED in Angstrom (numpy  array of floats)
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+             (numpy array of floats)
     '''
     filenum = find_parq(SNID, sn_path, obj_type = 'star')
     pqfile = open_parq(filenum, sn_path, obj_type = 'star')
@@ -1312,7 +1318,7 @@ def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
     sedlist = []
     '''
     Return the appropriate SED for the object for each observation.
-    If you are getting truth SEDs, This function calls get_SED on each exposure
+    If you are getting truth SEDs, this function calls get_SED on each exposure
     of the object. Then, get_SED calls get_SN_SED or get_star_SED depending on
     the object type.
     If you are not getting truth SEDs, this function returns a flat SED for
@@ -1331,12 +1337,8 @@ def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
              detection images.
     '''
     for date in exposures['date'][exposures['DETECTED']]:
-        if fetch_SED:
-            Lager.debug(f'Getting SED for date: {str(date)}')
-            sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type)
-        else:
-            sed = galsim.SED(galsim.LookupTable([1000, 26000], [1, 1], interpolant='linear'),
-                         wave_type='Angstrom', flux_type='fphotons')
+        sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type,
+                                 fetch_SED=fetch_SED)
         sedlist.append(sed)
 
     return sedlist
