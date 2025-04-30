@@ -5,7 +5,7 @@ PSFPhotometryExample.ipynb
 *.fits
 *.csv
 *core.dcc*
-.swp
+*.swp
 __pycache__
 RomanPSFComparison.ipynb
 
