@@ -7,7 +7,7 @@ check_perfection: false
 deltafcn_profile: false
 do_rotation: true
 do_xshift: true
-fetch_SED: false
+fetch_SED: true
 fit_background: false
 make_exact: false
 make_initial_guess: true

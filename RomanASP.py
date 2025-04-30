@@ -69,7 +69,7 @@ def load_config(config_path):
         config = yaml.safe_load(file)
     return config
 
-  
+
 def main():
     parser = argparse.ArgumentParser(description="Can overwrite config file")
 
@@ -225,14 +225,14 @@ def main():
             sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
                                                 interpolant='linear'),
                              wave_type='nm', flux_type='fphotons')
-            
+
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
                   for i in range(testnum)]
 
         # Build the background grid
         if not turn_grid_off:
             if object_type == 'star':
-                Lager.warn('For fitting stars, you probably dont want a grid.')
+                Lager.warning('For fitting stars, you probably dont want a grid.')
             ra_grid, dec_grid = makeGrid(adaptive_grid, images, size, ra, dec,
                                          cutout_wcs_list,
                                          single_grid_point=single_grid_point,
@@ -421,7 +421,7 @@ def main():
             X, istop, itn, r1norm = lsqr[:4]
             Lager.debug(f'Stop Condition {istop}, iterations: {itn},' +
                         f'r1norm: {r1norm}')
-
+        flux = X[-detim:]
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
         Lager.debug(f'inv_cov shape: {inv_cov.shape}')
         Lager.debug(f'psf_matrix shape: {psf_matrix.shape}')

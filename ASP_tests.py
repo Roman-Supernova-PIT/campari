@@ -152,7 +152,18 @@ def test_savelightcurve():
 
 
 def test_run_on_star():
-    err_code = os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'config.yaml')
+    config = yaml.safe_load(open(config_path))
+    config['turn_grid_off'] = True
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
+            as temp_config:
+        yaml.dump(config, temp_config)
+        temp_config_path = temp_config.name
+
+    err_code = os.system(f'python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1\
+                          -o "tests/testdata" --config {temp_config_path}')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
