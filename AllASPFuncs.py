@@ -21,8 +21,8 @@ import time
 import galsim
 import h5py
 from scipy.interpolate import RegularGridInterpolator
-
-from snappl.image import OpenUniverse2024FTISImage
+from snappl.image import OpenUniverse2024FITSImage
+from snappl.logger import Lager
 
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
@@ -71,8 +71,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         spacing = 0.5
     else:
         spacing = 1.0
-
-    print('GRID SPACE', spacing)
+    Lager.debug(f'GRID SPACE {spacing}')
     x = np.arange(difference, subsize+difference, spacing)
     y = np.arange(difference, subsize+difference, spacing)
 
@@ -83,10 +82,8 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         imcopy[imcopy <= 0] = 1e-10
         bins = [-np.inf]
         if len(percentiles) == 0:
-            #percentiles = [25, 80, 90]
             percentiles = [45, 90]
         bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), percentiles))
-        #print('added 90 percentile to local grid')
         bins.append(np.inf)
 
         a = np.digitize(np.log(np.copy(imcopy)),bins)
@@ -118,21 +115,18 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         yy = np.array(ys)
 
     elif image is not None and makecontourGrid:
-        print('USING CONTOUR GRID')
+        Lager.debug('USING CONTOUR GRID')
         xx, yy = contourGrid(image)
         xx = np.array(xx)
         yy = np.array(yy)
 
-
     else:
-
         xx, yy = np.meshgrid(x+1, y+1)
     '''
         subsize = 8 #Taking a smaller square inside the image to fit on
         difference = int((size - subsize)/2)
 
         spacing = 1.0
-        print('GRID SPACE', spacing)
         x = np.arange(difference, subsize+difference, spacing)
         y = np.arange(difference, subsize+difference, spacing)
 
@@ -143,20 +137,19 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         y+= y_center
 
         xx, yy = np.meshgrid(x, y)
-        print(xx)
     '''
 
     xx = xx.flatten()
     yy = yy.flatten()
-    print('Built a grid with', np.size(xx), 'points')
-
+    Lager.debug(f'Built a grid with {np.size(xx)} points')
 
     if type(wcs)==galsim.fitswcs.AstropyWCS:
-        result = wcs.toWorld(xx, yy, units = 'deg')
+        result = wcs.toWorld(xx, yy, units='deg')
         ra_grid = result[0]
         dec_grid = result[1]
     else:
-        print('swapped x and y here')
+        Lager.warning('swapped x and y here')
+
         result = wcs.pixel_to_world(yy, xx)
         ra_grid = result.ra.deg
         dec_grid = result.dec.deg
@@ -246,8 +239,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
 
     k = 0
 
-    #For now, we use a flat SED. This is not ideal, but it is a good starting point.
-    print('In construct psf bg using flat SED')
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
                             wave_type='nm', flux_type='fphotons')
     point = None
@@ -273,12 +264,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
 
         if not include_photonOps:
             if use_roman:
-                #print('PSF x and y in construct psf background', x_loc, y_loc)
-                #print('Ive changed this to xloc and yloc for now but its possibly wrong')
-
-                #print(stamp)
-                #print(newwcs)
-
                 convolvedpsf = galsim.Convolve(point, roman_psf)
             else:
                 convolvedpsf = galsim.Convolve(point, psf)
@@ -402,7 +387,8 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
                 realized_fluxes.append(cat.loc[cat['object_id'] == snid].realized_flux.values[0])
 
             except:
-                print('No truth file found for ', row.Pointing, row.SCA)
+                Lager.error(f'No truth file found for \
+                             {row.Pointing, row.SCA}')
                 true_mags.append(np.nan)
                 true_fluxes.append(np.nan)
                 realized_fluxes.append(np.nan)
@@ -420,7 +406,7 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
 
     explist = Table.from_pandas(all_images)
     explist.sort(['DETECTED', 'SCA'])
-    print(explist)
+    Lager.info('\n' + str(explist))
 
     if return_list:
         return explist
@@ -498,7 +484,12 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
 
     '''
 
-    print('ARGS IN PSF SOURCE', x, y, pointing, SCA, stampsize, x_center, y_center, sed, flux)
+    Lager.debug(f'ARGS IN PSF SOURCE: \n x, y: {x, y} \n' +
+                f' Pointing, SCA: {pointing, SCA} \n' +
+                f' stamp size: {stampsize} \n' +
+                f' x_center, y_center: {x_center, y_center} \n' +
+                f' sed: {sed} \n' +
+                f' flux: {flux}')
 
     config_file = './temp_tds.yaml'
     util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
@@ -506,8 +497,10 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
     assert sed is not None, 'You must provide an SED for the source'
 
     if not photOps:
-        print('WARNING: NOT USING PHOTON OPS IN PSF SOURCE')
-        print('ARE YOU SURE YOU WANT TO DO THIS?')
+        # While I want to do this sometimes, it is very rare that you actually
+        # want to do this. Thus if it was accidentally on while doing a normal
+        # run, I'd want to know.
+        Lager.warning('NOT USING PHOTON OPS IN PSF SOURCE')
 
     master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
 
@@ -539,39 +532,38 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
     sca_wcs_list = []
     wcs_list = []
     truth = 'simple_model'
-    print('truth in construct images', truth)
 
+    Lager.debug(f'truth in construct images: {truth}')
 
     for indx, i in enumerate(exposures):
-        spinner = ['|', '/', '-', '\\']
-        print('Image ' + str(indx) + '   ' + spinner[indx%4], end = '\r')
+        Lager.debug(f'Constructing image {indx} of {len(exposures)}')
         band = i['BAND']
         pointing = i['Pointing']
         SCA = i['SCA']
 
-        # image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
-        
-        imagepath = roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz'
+        image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
+
+        #imagepath = roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz'
         # TODO : replace None with the right thing once Exposure is implemented
-        image = OpenUniverse2024FITSImage( imagepath, None, SCA )
-        
-        
+        #image = OpenUniverse2024FITSImage( imagepath, None, SCA )
+
+
         if truth == 'truth':
             raise RuntimeError( "Truth is broken." )
             wcs = WCS(image[0].header)
             a = 0
         else:
-            # wcs = WCS(image[1].header)
-            wcs = image.get_wcs()
+            wcs = WCS(image[1].header)
+            #wcs = image.get_wcs()
             a = 1
 
         sca_wcs_list.append(galsim.AstropyWCS(wcs = wcs)) #Made this into a galsim wcs
 
         pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
 
-        imagedata, = image.get_data( which='data' )
+        #imagedata, = image.get_data( which='data' )
         # Use this where you would have used image[...].data below
-        
+
         result = Cutout2D(image[a].data, pixel, size, mode = 'strict', wcs = wcs)
         wcs_list.append(galsim.AstropyWCS(wcs = result.wcs)) # Made this into a galsim wcs
 
@@ -594,7 +586,6 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
         try:
             zero = np.power(10, -(i['zeropoint'] - self.common_zpt)/2.5)
         except:
-            print('failed')
             zero = -99
 
         if zero < 0:
@@ -619,28 +610,12 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
 
         bgflux.append(bg)
 
-
-
         #If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            #calimage = image[1]
-            #bins = np.linspace(0,1000,100)
-            #bincenters = (bins[1:] + bins[:-1])/2
-            #x = plt.hist(calimage.data.flatten(), bins = np.linspace(0,1000,100), histtype = 'step', color = 'k', density = True)
-
-            #fit a Gaussian to the truth image
-
-            #popt, pcov = scipy.optimize.curve_fit(gaussian, bincenters, x[0], p0 = [.01, 400, 100])
-
             im -= image[1].header['SKY_MEAN']
-            #print('subtracting sky mean not my fit')
-            #print('subtracted a bg of', popt[1])
-            #print('compared to: ', image[1].header['SKY_MEAN'])
-            #print('--------------------')
         elif not background and truth == 'truth':
             im -= bg
-            #print('Subtracted a BG of', bg)
-
+            Lager.debug(f'Subtracted a background level of {bg}')
 
         m.append(im.flatten())
         err.append(err_cutout.flatten())
@@ -678,7 +653,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     '''
     if pixel:
         point = galsim.Pixel(1)*sed
-        print('Building a Pixel shaped PSF source')
+        Lager.debug('Building a Pixel shaped PSF source')
     else:
         point = galsim.DeltaFunction()*sed
     time2 = time.time()
@@ -698,25 +673,20 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',center = galsim.PositionD(x_center, y_center),use_true_center = True)
 
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
-    print('Using 1e6 photons in getPSF_Image')
+    Lager.debug(f'Using {n_phot:e} photons in getPSF_Image')
     result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
-        n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
+        n_photons=int(n_phot),maxN=int(n_phot),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
-    #global object_type
     if len(str(ID)) != 8:
         object_type = 'star'
-        print('WARNING: Fitting SMP on a star. You probably want the grid off.')
     else:
         object_type = 'SN'
 
     pqfile = find_parq(ID, sn_path, obj_type = object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
-
-
-
     snra = ra
     sndec = dec
     start = start[0]
@@ -725,6 +695,8 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
         maxdet = detim, return_list = True, band = band)
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
+
+    Lager.debug('images shape', images.shape, 'error shape', err.shape)
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
 
@@ -770,34 +742,38 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-
-def getWeights(cutout_wcs_list,size,snra,sndec, error = None, gaussian_std = 1000, cutoff = np.inf):
+def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
+               gaussian_std=1000, cutoff=np.inf):
     wgt_matrix = []
-    print('Gaussian std in getWeights', gaussian_std)
-    for i,wcs in enumerate(cutout_wcs_list):
-        xx, yy = np.meshgrid(np.arange(0,size,1), np.arange(0,size,1))
+    Lager.debug(f'Gaussian std in getWeights {gaussian_std}')
+    for i, wcs in enumerate(cutout_wcs_list):
+        xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
 
-        rara, decdec = wcs.toWorld(xx, yy, units = 'deg')
+        rara, decdec = wcs.toWorld(xx, yy, units='deg')
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.toImage(snra, sndec, units='deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
-
-
         wgt = 5*np.exp(-dist**2/gaussian_std)
-        wgt[np.where(dist > 4)] = 0
-
+        # Here, we throw out pixels that are more than 4 pixels away from the
+        # SN. The reason we do this is because by choosing an image size one
+        # has set a square top hat function centered on the SN. When that image
+        # is rotated pixels in the corners leave the image, and new pixels
+        # enter. By making a circular cutout, we minimize this problem. Of
+        # course this is not a perfect solution, because the pixellation of the
+        # circle means that still some pixels will enter and leave, but it
+        # seems to minimize the problem.
+        wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
-        wgt /= error
-        wgt = wgt / np.sum(wgt)
-        if i >= cutoff:
-            print('Setting wgt to zero on image', i)
-            wgt = np.zeros_like(wgt)
+        wgt /= error[i*size**2:(i+1)*size**2] # Define an inv variance TODO
+        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        # What fraction of the flux is contained in the PSF? TODO
+
         wgt_matrix.append(wgt)
     return wgt_matrix
 
@@ -806,7 +782,6 @@ def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = []
         a = images[:size**2].reshape(size,size)
         ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
                 npoints, size = size,  spacing = 0.75, image = a, spline_grid = False, percentiles = percentiles, makecontourGrid = makecontourGrid)
-        print('removed wgt when making adaptive grid')
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
@@ -1046,7 +1021,6 @@ def slice_plot(fileroot):
 
         #subtract off the real sn
         #if i >= testnum - detim:
-            #print('subtracting sn')
             #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
 
 
@@ -1129,9 +1103,13 @@ def get_SN_SED(SNID, date, sn_path):
     lam = sed_table['lambda']
     mjd = sed_table['mjd']
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    if np.min(np.abs(np.array(mjd) - date)) > 10:
-        print('WARNING: No SED data within 10 days of date. \n \
-            The closest SED is ' + str(np.min(np.abs(np.array(mjd) - date))) + ' days away.')
+    max_days_cutoff = 10
+    closest_days_away = np.min(np.abs(np.array(mjd) - date))
+
+    if closest_days_away > max_days_cutoff:
+        Lager.warn(f'WARNING: No SED data within {max_days_cutoff} days of' +
+                   'date. \n The closest SED is ' + closest_days_away +
+                   ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
 
 
@@ -1146,7 +1124,7 @@ def contourGrid(image, numlevels = 5, subsize = 4):
 
     levels = list(np.linspace(np.min(image), np.max(image), numlevels))
     levels = list(np.percentile(image, [0,90, 98, 100]))
-    print(levels)
+    Lager.debug(f'Using levels: {levels} in contourGrid')
 
     interp = RegularGridInterpolator((x, y), image, method='linear',
                                  bounds_error=False, fill_value=None)
@@ -1175,6 +1153,22 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
+def calc_mags_and_err(flux, sigma_flux, band, zp = None):
+    exptime = {'F184': 901.175,
+            'J129': 302.275,
+            'H158': 302.275,
+            'K213': 901.175,
+            'R062': 161.025,
+            'Y106': 302.275,
+            'Z087': 101.7}
+
+    area_eff = roman.collecting_area
+    zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
+    mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) + zp
+    magerr = 2.5 * sigma_flux / (flux * np.log(10))
+    return mags, magerr
+
+
 def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                      use_roman, band, object_type, sigma_flux):
 
@@ -1192,34 +1186,44 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     band (str): the bandpass of the images used
 
     Returns:
-    lc: a pandas dataframe containing the lightcurve data
-    Notes:
-    1.) This will soon be ECSV format instead
-    2.) Soon I will turn many of these inputs into environment variable and they
-    should be deleted from function arguments and docstring.
+    lc: a QTable containing the lightcurve data
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
     parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
+    mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
+    sim_sigma_flux = 0 # These are truth values!
+    sim_realized_mags, _ = calc_mags_and_err(detections['realized flux'],
+                                             sim_sigma_flux, band)
+    sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
+                                         sim_sigma_flux, band)
+
+    df_object_row = df.loc[df.id == ID]
+
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
-        'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
-        'host_mag_g': df[f'host_mag_g'][df['id'] == ID].values[0],\
-        'sn_ra': df['ra'][df['id'] == ID].values[0], \
-        'sn_dec': df['dec'][df['id'] == ID].values[0], \
-        'host_ra': df['host_ra'][df['id'] == ID].values[0],\
-        'host_dec': df['host_dec'][df['id'] == ID].values[0]}
+        'host_sep': df_object_row['host_sn_sep'].values[0],\
+        'host_mag_g': df_object_row[f'host_mag_g'].values[0],\
+        'sn_ra': df_object_row['ra'].values[0], \
+        'sn_dec': df_object_row['dec'].values[0], \
+        'host_ra': df_object_row['host_ra'].values[0],\
+        'host_dec': df_object_row['host_dec'].values[0]}
     else:
-        meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0], \
-            'dec': df[df['id'] == str(ID)]['dec'].values[0]}
+        meta_dict = {'ra': df_object_row['ra'].values[0],
+                     'dec': df_object_row['dec'].values[0]}
 
-    data_dict = {'MJD': detections['date'], 'true_flux':
-    detections['realized flux'],  'measured_flux': flux, 'flux_error':
-    sigma_flux}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '',
-             'flux_error': ''}
+    data_dict = {'MJD': detections['date'], 'flux': flux,
+                 'flux_error': sigma_flux, 'mag': mags,
+                 'mag_err': magerr,
+                 'SIM_realized_flux': detections['realized flux'],
+                 'SIM_true_flux': detections['true flux'],
+                 'SIM_realized_mag': sim_realized_mags,
+                 'SIM_true_mag': sim_true_mags,}
+    units = {'MJD':u.d, 'SIM_realized_flux': '',  'flux': '',
+             'flux_error': '', 'SIM_realized_mag': '',
+              'SIM_true_flux': '', 'SIM_true_mag': ''}
 
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
@@ -1239,16 +1243,18 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
-          'measured_flux':flux , 'flux_error': sigma_flux}
+    sim_MJD = np.arange(0, detim, 1)
+    data_dict = {'MJD': sim_MJD, 'flux': flux,
+                 'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
+    units = {'MJD':u.d, 'SIM_flux': '',  'flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
-def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite = True):
+def save_lightcurve(lc,identifier, band, psftype, output_path = None,
+                    overwrite = True):
     '''
-    This function parses settings in the SMP algorithm and saves the lightcurve to a csv file
-    with an appropriate name.
+    This function parses settings in the SMP algorithm and saves the lightcurve
+    to an ecsv file with an appropriate name.
     Input:
     lc: the lightcurve data
     identifier (str): the supernova ID or 'simulated'
@@ -1257,13 +1263,14 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite 
     output_path (str): the path to save the lightcurve to.
 
     Returns:
-    None, saves the lightcurve to a csv file.
+    None, saves the lightcurve to a ecsv file.
     The file name is:
-    output_path/identifier_band_psftype_lc.csv
+    output_path/identifier_band_psftype_lc.ecsv
     '''
 
     if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
-            print('Making a results directory for output at ', os.getcwd(), '/results')
+            Lager.info('Making a results directory for output at ',
+                       os.getcwd(), '/results')
             os.makedirs(os.path.join(os.getcwd(), 'results/'))
             os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
             os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
@@ -1273,11 +1280,10 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None, overwrite 
 
     lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.ecsv')
 
-    print('Saving lightcurve to ' + lc_file)
+    Lager.info(f'Saving lightcurve to {lc_file}')
     lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
 
 def banner(text):
     length = len(text) + 8
-    print("#" * length)
-    print('#   ' + text + '   #')
-    print("#" * length)
+    message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
+    Lager.debug(message)
