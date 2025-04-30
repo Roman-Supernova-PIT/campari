@@ -777,10 +777,10 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
         wgt[np.where(dist > 4)] = 0
-        
+
         if isinstance(error, np.ndarray):
             wgt /= (error[i*size**2:(i+1)*size**2]**2)
-            
+
         wgt = wgt / np.sum(wgt)
         if i >= cutoff:
             Lager.debug(f'Setting wgt to zero on image {i}')
@@ -1076,7 +1076,7 @@ def slice_plot(fileroot):
         plt.legend(loc = 'upper left')
 
 
-def get_SED(SNID, date, sn_path, obj_type = 'SN'):
+def get_galsim_SED(SNID, date, sn_path, obj_type = 'SN'):
     '''
     Return the appropriate SED for the object on the day. Since SN's SEDs are
     time dependent but stars are not, we need to handle them differently.
@@ -1087,16 +1087,22 @@ def get_SED(SNID, date, sn_path, obj_type = 'SN'):
     sn_path: the path to the supernova data
     obj_type: the type of object (SN or star)
 
-    Returns:
+    Internal Variables:
     lam: the wavelength of the SED in Angstrom
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+
+    Returns:
+    sed: the SED of the object in galsim's format
     '''
     if obj_type == 'SN':
         lam, flambda = get_SN_SED(SNID, date, sn_path)
     if obj_type == 'star':
         lam, flambda = get_star_SED(SNID, sn_path)
 
-    return lam, flambda
+    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant='linear'),
+                         wave_type='Angstrom', flux_type='fphotons')
+
+    return sed
 
 
 def get_star_SED(SNID, sn_path):
@@ -1302,7 +1308,7 @@ def banner(text):
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
 
-def get_all_galsim_SEDs(ID, exposures, fetch_SED, object_type, sn_path):
+def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
     sedlist = []
     '''
     Return the appropriate SED for the object for each observation.
@@ -1327,11 +1333,9 @@ def get_all_galsim_SEDs(ID, exposures, fetch_SED, object_type, sn_path):
     for date in exposures['date'][exposures['DETECTED']]:
         if fetch_SED:
             Lager.debug(f'Getting SED for date: {str(date)}')
-            lam, flam = get_SED(ID, date, sn_path, obj_type=object_type)
+            sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type)
         else:
-            lam, flam = [1000, 26000], [1, 1]
-
-        sed = galsim.SED(galsim.LookupTable(lam, flam, interpolant='linear'),
+            sed = galsim.SED(galsim.LookupTable([1000, 26000], [1, 1], interpolant='linear'),
                          wave_type='Angstrom', flux_type='fphotons')
         sedlist.append(sed)
 

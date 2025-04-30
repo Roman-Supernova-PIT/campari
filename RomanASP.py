@@ -22,8 +22,8 @@ import galsim
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
-                        makeGrid, get_SED, getWeights, generateGuess, \
-                        get_all_galsim_SEDs
+                        makeGrid, get_galsim_SED, getWeights, generateGuess, \
+                        get_galsim_SED_list
 from simulation import simulate_images
 import yaml
 import argparse
@@ -212,7 +212,7 @@ def main():
                                 source_phot_ops=source_phot_ops,
                                 mismatch_seds=mismatch_seds)
 
-        sedlist = get_all_galsim_SEDs(ID, exposures, fetch_SED, object_type,
+        sedlist = get_galsim_SED_list(ID, exposures, fetch_SED, object_type,
                                       sn_path)
 
         imlist = [images[i*size**2:(i+1)*size**2].reshape(size, size)
@@ -341,7 +341,7 @@ def main():
                     # of sedlist. Therefore, we subtract by the number of
                     # predetection images: testnum - detim.
                     sn_index = i - (testnum - detim)
-                    Lager.debug(f'Using SED #{sn_index:s}')
+                    Lager.debug(f'Using SED #{sn_index}')
                     sed = sedlist[sn_index]
                     Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
                     array = construct_psf_source(x, y, pointing, SCA,
