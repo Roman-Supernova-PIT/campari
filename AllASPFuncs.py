@@ -148,7 +148,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         ra_grid = result[0]
         dec_grid = result[1]
     else:
-        print('swapped x and y here')
         Lager.warning('swapped x and y here')
 
         result = wcs.pixel_to_world(yy, xx)
@@ -533,7 +532,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
     sca_wcs_list = []
     wcs_list = []
     truth = 'simple_model'
-    
+
     Lager.debug(f'truth in construct images: {truth}')
 
     for indx, i in enumerate(exposures):
@@ -697,7 +696,7 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
 
-    print('images shape', images.shape, 'error shape', err.shape)
+    Lager.debug('images shape', images.shape, 'error shape', err.shape)
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
 
@@ -1154,7 +1153,7 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
-def calc_mags_and_err(flux, sigma_flux, band):
+def calc_mags_and_err(flux, sigma_flux, band, zp = None):
     exptime = {'F184': 901.175,
             'J129': 302.275,
             'H158': 302.275,
@@ -1164,10 +1163,8 @@ def calc_mags_and_err(flux, sigma_flux, band):
             'Z087': 101.7}
 
     area_eff = roman.collecting_area
-    galsim_zp = roman.getBandpasses()[band].zeropoint
-    mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) \
-        + galsim_zp
-
+    zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
+    mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) + zp
     magerr = 2.5 * sigma_flux / (flux * np.log(10))
     return mags, magerr
 
@@ -1197,23 +1194,25 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
     mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
-    zeros = np.zeros_like(detections['realized flux'])
+    sim_sigma_flux = 0 # These are truth values!
     sim_realized_mags, _ = calc_mags_and_err(detections['realized flux'],
-                                             zeros, band)
+                                             sim_sigma_flux, band)
     sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
-                                         zeros, band)
+                                         sim_sigma_flux, band)
+
+    df_object_row = df.loc[df.id == ID]
 
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
-        'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
-        'host_mag_g': df[f'host_mag_g'][df['id'] == ID].values[0],\
-        'sn_ra': df['ra'][df['id'] == ID].values[0], \
-        'sn_dec': df['dec'][df['id'] == ID].values[0], \
-        'host_ra': df['host_ra'][df['id'] == ID].values[0],\
-        'host_dec': df['host_dec'][df['id'] == ID].values[0]}
+        'host_sep': df_object_row['host_sn_sep'].values[0],\
+        'host_mag_g': df_object_row[f'host_mag_g'].values[0],\
+        'sn_ra': df_object_row['ra'].values[0], \
+        'sn_dec': df_object_row['dec'].values[0], \
+        'host_ra': df_object_row['host_ra'].values[0],\
+        'host_dec': df_object_row['host_dec'].values[0]}
     else:
-        meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0],
-                     'dec': df[df['id'] == str(ID)]['dec'].values[0]}
+        meta_dict = {'ra': df_object_row['ra'].values[0],
+                     'dec': df_object_row['dec'].values[0]}
 
     data_dict = {'MJD': detections['date'], 'flux': flux,
                  'flux_error': sigma_flux, 'mag': mags,
@@ -1244,7 +1243,8 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'flux':flux,
+    sim_MJD = np.arange(0, detim, 1)
+    data_dict = {'MJD': sim_MJD, 'flux': flux,
                  'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}
     units = {'MJD':u.d, 'SIM_flux': '',  'flux': '', 'flux_error':''}
