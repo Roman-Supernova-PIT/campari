@@ -80,9 +80,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         spacing = 0.5
     else:
         spacing = 1.0
-
     Lager.debug(f'GRID SPACE {spacing}')
-
     x = np.arange(difference, subsize+difference, spacing)
     y = np.arange(difference, subsize+difference, spacing)
 
@@ -159,7 +157,8 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         ra_grid = result[0]
         dec_grid = result[1]
     else:
-        Lager.warn('swapped x and y here')
+        Lager.warning('swapped x and y here')
+
         result = wcs.pixel_to_world(yy, xx)
         ra_grid = result.ra.deg
         dec_grid = result.dec.deg
@@ -422,6 +421,8 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
         return explist
 
 def find_parq(ID, path, obj_type = 'SN'):
+
+
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -437,6 +438,7 @@ def find_parq(ID, path, obj_type = 'SN'):
         #The issue is SN parquets store their IDs as ints and star parquets as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
+            Lager.debug(f'parq file: {pqfile}')
             return pqfile
 
 def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
@@ -542,6 +544,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
     sca_wcs_list = []
     wcs_list = []
     truth = 'simple_model'
+
     Lager.debug(f'truth in construct images: {truth}')
 
     for indx, i in enumerate(exposures):
@@ -696,7 +699,6 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
     pqfile = find_parq(ID, sn_path, obj_type = object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
-
     snra = ra
     sndec = dec
     start = start[0]
@@ -705,6 +707,8 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
         maxdet = detim, return_list = True, band = band)
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
+
+    Lager.debug('images shape', images.shape, 'error shape', err.shape)
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
 
@@ -767,7 +771,6 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
         wgt = np.ones(size**2)
         wgt = 5*np.exp(-dist**2/gaussian_std)
-
         # Here, we throw out pixels that are more than 4 pixels away from the
         # SN. The reason we do this is because by choosing an image size one
         # has set a square top hat function centered on the SN. When that image
@@ -776,15 +779,12 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         # course this is not a perfect solution, because the pixellation of the
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
-        wgt[np.where(dist > 4)] = 0
-
-        if isinstance(error, np.ndarray):
-            wgt /= (error[i*size**2:(i+1)*size**2]**2)
-
-        wgt = wgt / np.sum(wgt)
-        if i >= cutoff:
-            Lager.debug(f'Setting wgt to zero on image {i}')
-            wgt = np.zeros_like(wgt)
+        wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
+        if not isinstance(error, np.ndarray):
+            error = np.ones_like(wgt)
+        wgt /= error[i*size**2:(i+1)*size**2] # Define an inv variance TODO
+        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        # What fraction of the flux is contained in the PSF? TODO
         wgt_matrix.append(wgt)
     return wgt_matrix
 
@@ -1160,7 +1160,7 @@ def get_SN_SED(SNID, date, sn_path):
     closest_days_away = np.min(np.abs(np.array(mjd) - date))
 
     if closest_days_away > max_days_cutoff:
-        Lager.warn(f'WARNING: No SED data within {max_days_cutoff} days of' +
+        Lager.warning(f'WARNING: No SED data within {max_days_cutoff} days of' +
                    'date. \n The closest SED is ' + closest_days_away +
                    ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
@@ -1206,6 +1206,22 @@ def contourGrid(image, numlevels = 5, subsize = 4):
     return y_totalgrid, x_totalgrid
 
 
+def calc_mags_and_err(flux, sigma_flux, band, zp = None):
+    exptime = {'F184': 901.175,
+            'J129': 302.275,
+            'H158': 302.275,
+            'K213': 901.175,
+            'R062': 161.025,
+            'Y106': 302.275,
+            'Z087': 101.7}
+
+    area_eff = roman.collecting_area
+    zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
+    mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) + zp
+    magerr = 2.5 * sigma_flux / (flux * np.log(10))
+    return mags, magerr
+
+
 def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                      use_roman, band, object_type, sigma_flux):
 
@@ -1223,34 +1239,46 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     band (str): the bandpass of the images used
 
     Returns:
-    lc: a pandas dataframe containing the lightcurve data
-    Notes:
-    1.) This will soon be ECSV format instead
-    2.) Soon I will turn many of these inputs into environment variable and they
-    should be deleted from function arguments and docstring.
+    lc: a QTable containing the lightcurve data
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
     parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
+    mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
+    sim_sigma_flux = 0 # These are truth values!
+    sim_realized_mags, _ = calc_mags_and_err(detections['realized flux'],
+                                             sim_sigma_flux, band)
+    sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
+                                         sim_sigma_flux, band)
+    if object_type == 'SN':
+        df_object_row = df.loc[df.id == ID]
+    if object_type == 'star':
+        df_object_row = df.loc[df.id == str(ID)]
+
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
-        'host_sep': df['host_sn_sep'][df['id'] == ID].values[0],\
-        'host_mag_g': df[f'host_mag_g'][df['id'] == ID].values[0],\
-        'sn_ra': df['ra'][df['id'] == ID].values[0], \
-        'sn_dec': df['dec'][df['id'] == ID].values[0], \
-        'host_ra': df['host_ra'][df['id'] == ID].values[0],\
-        'host_dec': df['host_dec'][df['id'] == ID].values[0]}
+        'host_sep': df_object_row['host_sn_sep'].values[0],\
+        'host_mag_g': df_object_row[f'host_mag_g'].values[0],\
+        'sn_ra': df_object_row['ra'].values[0], \
+        'sn_dec': df_object_row['dec'].values[0], \
+        'host_ra': df_object_row['host_ra'].values[0],\
+        'host_dec': df_object_row['host_dec'].values[0]}
     else:
-        meta_dict = {'ra': df[df['id'] == str(ID)]['ra'].values[0], \
-            'dec': df[df['id'] == str(ID)]['dec'].values[0]}
+        meta_dict = {'ra': df_object_row['ra'].values[0],
+                     'dec': df_object_row['dec'].values[0]}
 
-    data_dict = {'MJD': detections['date'], 'true_flux':
-    detections['realized flux'],  'measured_flux': flux, 'flux_error':
-    sigma_flux}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '',
-             'flux_error': ''}
+    data_dict = {'MJD': detections['date'], 'flux': flux,
+                 'flux_error': sigma_flux, 'mag': mags,
+                 'mag_err': magerr,
+                 'SIM_realized_flux': detections['realized flux'],
+                 'SIM_true_flux': detections['true flux'],
+                 'SIM_realized_mag': sim_realized_mags,
+                 'SIM_true_mag': sim_true_mags,}
+    units = {'MJD':u.d, 'SIM_realized_flux': '',  'flux': '',
+             'flux_error': '', 'SIM_realized_mag': '',
+              'SIM_true_flux': '', 'SIM_true_mag': ''}
 
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
@@ -1270,10 +1298,11 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    data_dict = {'MJD': np.arange(0, detim, 1), 'true_flux': supernova,
-          'measured_flux':flux , 'flux_error': sigma_flux}
+    sim_MJD = np.arange(0, detim, 1)
+    data_dict = {'MJD': sim_MJD, 'flux': flux,
+                 'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}
-    units = {'MJD':u.d, 'true_flux': '',  'measured_flux': '', 'flux_error':''}
+    units = {'MJD':u.d, 'SIM_flux': '',  'flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
 def save_lightcurve(lc,identifier, band, psftype, output_path = None,

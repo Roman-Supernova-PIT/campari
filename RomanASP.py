@@ -33,7 +33,6 @@ from snappl.logger import Lager
 from snappl.config import Config
 from snappl.image import OpenUniverse2024FITSImage
 
-
 pd.options.mode.chained_assignment = None  # default='warn'
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -84,7 +83,6 @@ def main():
     parser.add_argument('-d', '--detim', type=int, required=True,
                         help='Number of images to use with SN detections')
     # TODO:change all instances of this variable to det_images
-
     parser.add_argument('-o', '--output_path', type=str, required=False,
                         help='relative output path')
 
@@ -166,7 +164,6 @@ def main():
 
     # run one supernova function TODO
     for ID in SNID:
-
         Lager.debug(f'ID: {ID}')
         psf_matrix = []
         sn_matrix = []
@@ -181,11 +178,11 @@ def main():
         if use_real_images:
             # Find SN Info, find exposures containing it,
             # and load those as images.
-
             # TODO: Calculate peak MJD outside of the function
             # TODO: When we switch to using the image class, we'll need to make
             #       the image into a 1D array later right before matrix
             #       multiplication, in the fitting section.
+
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
                 exposures, object_type = fetchImages(testnum, detim, ID,
                                                      sn_path, band, size,
@@ -387,8 +384,8 @@ def main():
             matrix_list.append(sn_matrix)
 
         # Combine the background model and the supernova model into one matrix.
-        # TODO: Can do np.array() and hstack in one line using .asarray()
         psf_matrix_all = np.hstack(matrix_list)
+
         psf_matrix = psf_matrix_all
 
         if weighting:
@@ -414,7 +411,6 @@ def main():
             X, istop, itn, r1norm = lsqr[:4]
             Lager.debug(f'Stop Condition {istop}, iterations: {itn},' +
                         f'r1norm: {r1norm}')
-
         flux = X[-detim:]
         inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
         Lager.debug(f'inv_cov shape: {inv_cov.shape}')
@@ -450,7 +446,6 @@ def main():
         # the images.
 
         # TODO: This can be returned by run_one_SN() and then saved.
-
         if use_real_images:
             identifier = str(ID)
             lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
@@ -487,7 +482,6 @@ def main():
         hdul = fits.HDUList(hdul)
         filepath = f'./results/images/{identifier}_{band}_{psftype}_wcs.fits'
         hdul.writeto(filepath, overwrite=True)
-
 
 if __name__ == "__main__":
     main()
