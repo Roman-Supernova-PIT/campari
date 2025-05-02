@@ -557,8 +557,6 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         pointing = i['Pointing']
         SCA = i['SCA']
 
-        # DELETE image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
-
         # TODO : replace None with the right thing once Exposure is implemented
 
         imagepath = roman_path + (f'/RomanTDS/images/{truth}/{band}/{pointing}'
@@ -568,13 +566,12 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         if truth == 'truth':
             raise RuntimeError("Truth is broken.")
-            # DELETE wcs = WCS(image[0].header)
+            # Before I needed to get a different wcs, unclear if that will be
+            # the case for the Image class, but I'll leave this if else here
+            # until that's clearer. # TODO
             wcs = image.get_wcs()
-            a = 0
         else:
-            # DELETE wcs = WCS(image[1].header)
             wcs = image.get_wcs()
-            a = 1
 
         sca_wcs_list.append(galsim.AstropyWCS(wcs=wcs))
         # Note to self, once everything is in the snappl image object, this
@@ -1358,7 +1355,7 @@ def banner(text):
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
 
-    
+
 def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
     sedlist = []
     '''
@@ -1387,7 +1384,7 @@ def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
         sedlist.append(sed)
 
     return sedlist
-  
+
 
 def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     '''
