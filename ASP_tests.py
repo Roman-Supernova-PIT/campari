@@ -199,3 +199,35 @@ def test_regression():
     for col in current.columns:
         assert np.array_equal(current[col], comparison[col]), "The lightcurves\
                                              do not match for column %s" % col
+
+
+def test_get_SED():
+    lam, flambda = get_SED(40973149150, 000, sn_path, obj_type='star')
+    assert np.array_equal(lam, np.load('./tests/testdata/star_lam_test.npy')),\
+        "The wavelengths do not match the star test example"
+    assert np.array_equal(flambda,
+                          np.load('./tests/testdata/star_flambda_test.npy')),\
+        "The fluxes do not match the star test example"
+
+    lam, flambda = get_SED(40120913, 62535.424, sn_path, obj_type='SN')
+    assert np.array_equal(lam, np.load('./tests/testdata/sn_lam_test.npy')), \
+        "The wavelengths do not match the SN test example"
+    assert np.array_equal(flambda,
+                          np.load('./tests/testdata/sn_flambda_test.npy')), \
+        "The fluxes do not match the SN test example"
+
+
+def test_get_SED_list():
+    exposures = {'date': [62535.424], 'DETECTED': [True]}
+    exposures = pd.DataFrame(exposures)
+    fetch_SED = True
+    object_type = 'SN'
+    ID = 40120913
+    sedlist = get_SED_list(ID, exposures, fetch_SED, object_type, sn_path)
+    assert len(sedlist) == 1, "The length of the SED list is not 1"
+    assert np.array_equal(sedlist[0]._spec.x,
+                          np.load('./tests/testdata/sn_lam_test.npy')), \
+        "The wavelengths do not match the SN test example"
+    assert np.array_equal(sedlist[0]._spec.f,
+                          np.load('./tests/testdata/sn_flambda_test.npy')), \
+        "The fluxes do not match the SN test example"

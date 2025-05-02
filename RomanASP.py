@@ -21,8 +21,11 @@ import galsim
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
-                        makeGrid, get_SED, getWeights, generateGuess, \
-                        prep_data_for_fit
+                        makeGrid, get_galsim_SED, getWeights, generateGuess, \
+                        get_galsim_SED_list, prep_data_for_fit
+
+                        
+
 from simulation import simulate_images
 import yaml
 import argparse
@@ -206,23 +209,8 @@ def main():
             object_type = 'SN'
             err = np.ones_like(images)
 
-        # TODO write a test to getSED, package this all up.
-        if fetch_SED:
-            assert use_real_images, 'Cannot fetch SED if not using \
-                                     OpenUniverse sims'
-            sedlist = []
-            for date in exposures['date'][exposures['DETECTED']]:
-                Lager.debug(f'Getting SED for date: {str(date)}')
-                lam, flam = get_SED(ID, date, sn_path, obj_type=object_type)
-                sed = galsim.SED(galsim.LookupTable(lam, flam,
-                                                    interpolant='linear'),
-                                 wave_type='Angstrom', flux_type='fphotons')
-                sedlist.append(sed)
-
-        else:
-            sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
-                                                interpolant='linear'),
-                             wave_type='nm', flux_type='fphotons')
+        sedlist = get_galsim_SED_list(ID, exposures, fetch_SED, object_type,
+                                      sn_path)
 
 
         # Build the background grid
@@ -238,6 +226,13 @@ def main():
         else:
             ra_grid = np.array([])
             dec_grid = np.array([])
+        # Get the weights
+        Lager.warning('SURPRESSING ERROR CALCULATION UNTIL FIX PUSHED TO MAIN')
+        if weighting:
+            wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
+                                    error=err)
+
+
         # Using the images, hazard an initial guess.
         # The testnum - detim check is to ensure we have pre-detection images.
         # Otherwise, initializing the model guess does not make sense.
@@ -268,6 +263,7 @@ def main():
             array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
                                          x_center=snx, y_center=sny, sed=sed)
             confusion_metric = np.dot(images[0].flatten(), array)
+            
             Lager.debug(f'Confusion Metric: {confusion_metric}')
         else:
             confusion_metric = 0
@@ -334,12 +330,14 @@ def main():
                     else:
                         pointing = 662
                         SCA = 11
-                    if fetch_SED:
-
-                        Lager.debug(f'Using SED #{str(i - (testnum - detim))}')
-                        sed = sedlist[i - (testnum - detim)]
-                    else:
-                        Lager.debug('Using default SED')
+                    # sedlist is the length of the number of supernova
+                    # detection images. Therefore, when we iterate onto the
+                    # first supernova image, we want to be on the first element
+                    # of sedlist. Therefore, we subtract by the number of
+                    # predetection images: testnum - detim.
+                    sn_index = i - (testnum - detim)
+                    Lager.debug(f'Using SED #{sn_index}')
+                    sed = sedlist[sn_index]
                     Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
                     array = construct_psf_source(x, y, pointing, SCA,
                                                  stampsize=size, x_center=snx,
@@ -409,7 +407,8 @@ def main():
         except LinAlgError:
             cov = np.linalg.pinv(inv_cov)
 
-        sigma_flux = np.sqrt(np.diag(cov))[-detim:]
+        Lager.debug(f'cov diag: {np.diag(cov)[-detim:]}')
+        sigma_flux = np.sqrt(np.diag(cov)[-detim:])
         Lager.debug(f'sigma flux: {sigma_flux}')
 
         # Using the values found in the fit, construct the model images.
