@@ -212,7 +212,6 @@ def main():
         sedlist = get_galsim_SED_list(ID, exposures, fetch_SED, object_type,
                                       sn_path)
 
-
         # Build the background grid
         if not turn_grid_off:
             if object_type == 'star':

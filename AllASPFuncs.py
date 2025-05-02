@@ -7,6 +7,7 @@ import sys
 import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 # End of lines that will go away once we do this right
+
 import numpy as np
 from astropy.io import fits
 from astropy.wcs import WCS
@@ -518,13 +519,16 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
 
     return master.flatten()
 
+
 def gaussian(x, A, mu, sigma):
     '''
     See name of function. :D
     '''
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
-def constructImages(exposures, ra, dec, size = 7, background = False, roman_path = None):
+
+def constructImages(exposures, ra, dec, size=7, background=False,
+                    roman_path=None):
 
     '''
     Constructs the array of Roman images in the format required for the linear algebra operations
@@ -553,44 +557,46 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
         pointing = i['Pointing']
         SCA = i['SCA']
 
-        image = fits.open(roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz')
-
-        #imagepath = roman_path + f'/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz'
         # TODO : replace None with the right thing once Exposure is implemented
-        #image = OpenUniverse2024FITSImage( imagepath, None, SCA )
 
+        imagepath = roman_path + (f'/RomanTDS/images/{truth}/{band}/{pointing}'
+                                  f'/Roman_TDS_{truth}_{band}_{pointing}_'
+                                  f'{SCA}.fits.gz')
+        image = OpenUniverse2024FITSImage(imagepath, None, SCA)
 
         if truth == 'truth':
-            raise RuntimeError( "Truth is broken." )
-            wcs = WCS(image[0].header)
-            a = 0
+            raise RuntimeError("Truth is broken.")
+            # Before I needed to get a different wcs, unclear if that will be
+            # the case for the Image class, but I'll leave this if else here
+            # until that's clearer. # TODO
+            wcs = image.get_wcs()
         else:
-            wcs = WCS(image[1].header)
-            #wcs = image.get_wcs()
-            a = 1
+            wcs = image.get_wcs()
 
-        sca_wcs_list.append(galsim.AstropyWCS(wcs = wcs)) #Made this into a galsim wcs
+        sca_wcs_list.append(galsim.AstropyWCS(wcs=wcs))
+        # Note to self, once everything is in the snappl image object, this
+        # might be unnecessary if we have a list of Image objects. TODO
 
         pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
 
-        #imagedata, = image.get_data( which='data' )
+        imagedata, = image.get_data(which='data')
         # Use this where you would have used image[...].data below
 
-        result = Cutout2D(image[a].data, pixel, size, mode = 'strict', wcs = wcs)
+        result = Cutout2D(imagedata, pixel, size, mode='strict', wcs=wcs)
         wcs_list.append(galsim.AstropyWCS(wcs = result.wcs)) # Made this into a galsim wcs
 
-        ff = 1
         cutout = result.data
         if truth == 'truth':
-            img = Cutout2D(image[0].data, pixel, size, mode = 'strict').data
+            img = Cutout2D(imagedata, pixel, size, mode='strict').data
             img += np.abs(np.min(img))
             img += 1
             img = np.sqrt(img)
             err_cutout = 1 / img
 
         else:
-            err_cutout = Cutout2D(image[2].data, pixel, size, mode = 'strict').data
-        cutouttime_end = time.time()
+            errordata, = image.get_data(which='noise')
+            err_cutout = Cutout2D(errordata, pixel, size, mode='strict').data
+
 
         im = cutout
 
@@ -624,7 +630,7 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
 
         #If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            im -= image[1].header['SKY_MEAN']
+            im -= image.get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
@@ -689,7 +695,9 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
         n_photons=int(n_phot),maxN=int(n_phot),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
     return result
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_path):
+
+def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
+                roman_path):
     if len(str(ID)) != 8:
         object_type = 'star'
     else:
@@ -707,7 +715,7 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background, roman_p
     images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
         background = fit_background, roman_path = roman_path)
 
-    Lager.debug('images shape', images.shape, 'error shape', err.shape)
+    Lager.debug(f'images shape: {images.shape} error shape: {err.shape}')
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
 
@@ -1336,7 +1344,8 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None,
     if output_path is None:
         output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
 
-    lc_file = os.path.join(output_path, f'{identifier}_{band}_{psftype}_lc.ecsv')
+    lc_file = os.path.join(output_path,
+                           f'{identifier}_{band}_{psftype}_lc.ecsv')
 
     Lager.info(f'Saving lightcurve to {lc_file}')
     lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
@@ -1346,7 +1355,7 @@ def banner(text):
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
 
-    
+
 def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
     sedlist = []
     '''
@@ -1375,7 +1384,7 @@ def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
         sedlist.append(sed)
 
     return sedlist
-  
+
 
 def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     '''
