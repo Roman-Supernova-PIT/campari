@@ -620,21 +620,10 @@ def constructImages(exposures, ra, dec, size = 7, background = False, roman_path
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
 
-        #m.append(im.flatten())
-        #err.append(err_cutout.flatten())
-        #mask.append(np.zeros(size*size))
-
-        # Switching to not flattening for now
-
         m.append(im)
         err.append(err_cutout)
         mask.append(np.zeros((size, size)))
 
-
-    #image = np.hstack(m)
-    #err = np.hstack(err)
-
-    # Switching to not flattening for now
     image = m
 
     return image, wcs_list, sca_wcs_list, err
@@ -1131,7 +1120,6 @@ def get_SN_SED(SNID, date, sn_path):
     return np.array(lam), np.array(flambda[bestindex])
 
 
-
 def contourGrid(image, numlevels = 5, subsize = 4):
     size = image.shape[0]
     x = np.arange(0,size,1.0)
@@ -1313,8 +1301,25 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     '''
     This function takes the data from the images and puts it into the form such
     that we can analytically solve for the best fit using linear algebra.
+
+    n = total number of images
+    s = image size (so the image is s x s)
+    d = number of detection images
+
+    Inputs:
+    images: list of np arrays of image data. List of length n of sxs arrays.
+    err: list of np arrays of error data. List of length n of sxs arrays.
+    sn_matrix: list of np arrays of SN models. List of length d of sxs arrays.
+    wgt_matrix: list of np arrays of weights. List of length n of sxs arrays.
+
+    Outputs:
+    images: 1D array of image data. Length n*s^2
+    err: 1D array of error data. Length n*s^2
+    sn_matrix: A 2D array of SN models, with the SN models placed in the
+                correct rows and columns, see comment below. Shape (n*s^2, n)
+    wgt_matrix: 1D array of weights. Length n*s^2
     '''
-    size = int(np.sqrt((images[0].size)))
+    size_sq = int((images[0].size))
     tot_num = len(images)
     det_num = len(sn_matrix)
 
@@ -1322,19 +1327,28 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     images = np.concatenate([arr.flatten() for arr in images])
     err = np.concatenate([arr.flatten() for arr in err])
 
+    # The final design matrix for our fit should have dimensions:
+    # (total number of pixels in all images, number of model components)
+    # Then, the first s^2 rows of the matrix correspond to the first image,
+    # the next s^2 rows to the second image, etc.,  where s is the size of the
+    # image. For the SN model, the flux in each image is ostensibly different.
+    # Therefore we need a unique flux for each image, and we don't want the
+    # flux of the supernova in one image to affect the flux in another image.
+    # Therefore, we need to place the supernova model in the correct image
+    # (i.e. the correct rows of the design matrix) and zero out all of the
+    # others. We'll do this by initializing a matrix of zeros, and then filling
+    # in the SN model in the correct place in the loop below:
+
     psf_zeros = np.zeros((np.size(images), tot_num))
-
     for i in range(det_num):
+        sn_index = tot_num - det_num + i # We only want to edit SN columns.
         psf_zeros[
-            (tot_num - det_num + i) * size * size:
-            (tot_num - det_num + i + 1) * size * size,
-            (tot_num - det_num) + i] = sn_matrix[i]
-    sn_matrix = psf_zeros
-    sn_matrix = np.array(sn_matrix)
-    sn_matrix = np.vstack(sn_matrix)
-
-
+            (sn_index) * size_sq:  # Fill in rows s^2 * image number...
+            (sn_index + 1) * size_sq, #... to s^2 * (image number + 1) ...
+            sn_index] = sn_matrix[i] # ...in the correct column.
+    sn_matrix = np.vstack(psf_zeros)
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
 
+    print(np.shape(images), np.shape(err), np.shape(sn_matrix), np.shape(wgt_matrix))
     return images, err, sn_matrix, wgt_matrix

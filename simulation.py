@@ -159,11 +159,8 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
                 sn_storage.append(supernova_image)
 
         cutout_wcs_list.append(cutoutgalwcs)
-        # No longer flattening
         imagelist.append(a)
 
-    #images = np.array(imagelist)
-    #images = np.hstack(images)
     images = imagelist
     Lager.debug(f'images shape: {images[0].shape}')
     Lager.debug(f'images length {len(images)}')
@@ -231,7 +228,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
 
     # Code below copied from galsim largely
     if not source_phot_ops:
-        result = profile.drawImage(roman_bandpasses[band], image=stamp,
+        result = sim_psf.drawImage(roman_bandpasses[band], image=stamp,
                                    wcs=stamp.wcs, method='no_pixel',
                                    center=galsim.PositionD(snx, sny),
                                    use_true_center=True)

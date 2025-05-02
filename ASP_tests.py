@@ -78,7 +78,7 @@ def test_simulate_images():
                         input_psf=airy, bg_gal_flux=9e5)
 
     compare_images = np.load('tests/testdata/images.npy')
-    assert compare_images.all() == images.all()
+    assert compare_images.all() == np.asarray(images).all()
 
 
 def test_simulate_wcs():

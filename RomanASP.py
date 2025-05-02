@@ -20,8 +20,6 @@ import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 import galsim
 import AllASPFuncs
-import importlib
-importlib.reload(AllASPFuncs)
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
