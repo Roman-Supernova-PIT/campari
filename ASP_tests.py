@@ -78,7 +78,7 @@ def test_simulate_images():
                         input_psf=airy, bg_gal_flux=9e5)
 
     compare_images = np.load('tests/testdata/images.npy')
-    assert compare_images.all() == images.all()
+    assert compare_images.all() == np.asarray(images).all()
 
 
 def test_simulate_wcs():
@@ -152,7 +152,18 @@ def test_savelightcurve():
 
 
 def test_run_on_star():
-    err_code = os.system('python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1')
+    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
+                               'config.yaml')
+    config = yaml.safe_load(open(config_path))
+    config['turn_grid_off'] = True
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
+            as temp_config:
+        yaml.dump(config, temp_config)
+        temp_config_path = temp_config.name
+
+    err_code = os.system(f'python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1\
+                          -o "tests/testdata" --config {temp_config_path}')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
@@ -188,3 +199,35 @@ def test_regression():
     for col in current.columns:
         assert np.array_equal(current[col], comparison[col]), "The lightcurves\
                                              do not match for column %s" % col
+
+
+def test_get_SED():
+    lam, flambda = get_SED(40973149150, 000, sn_path, obj_type='star')
+    assert np.array_equal(lam, np.load('./tests/testdata/star_lam_test.npy')),\
+        "The wavelengths do not match the star test example"
+    assert np.array_equal(flambda,
+                          np.load('./tests/testdata/star_flambda_test.npy')),\
+        "The fluxes do not match the star test example"
+
+    lam, flambda = get_SED(40120913, 62535.424, sn_path, obj_type='SN')
+    assert np.array_equal(lam, np.load('./tests/testdata/sn_lam_test.npy')), \
+        "The wavelengths do not match the SN test example"
+    assert np.array_equal(flambda,
+                          np.load('./tests/testdata/sn_flambda_test.npy')), \
+        "The fluxes do not match the SN test example"
+
+
+def test_get_SED_list():
+    exposures = {'date': [62535.424], 'DETECTED': [True]}
+    exposures = pd.DataFrame(exposures)
+    fetch_SED = True
+    object_type = 'SN'
+    ID = 40120913
+    sedlist = get_SED_list(ID, exposures, fetch_SED, object_type, sn_path)
+    assert len(sedlist) == 1, "The length of the SED list is not 1"
+    assert np.array_equal(sedlist[0]._spec.x,
+                          np.load('./tests/testdata/sn_lam_test.npy')), \
+        "The wavelengths do not match the SN test example"
+    assert np.array_equal(sedlist[0]._spec.f,
+                          np.load('./tests/testdata/sn_flambda_test.npy')), \
+        "The fluxes do not match the SN test example"

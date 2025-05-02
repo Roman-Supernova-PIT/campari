@@ -71,6 +71,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     Generates a local grid around a RA-Dec center, choosing step size and
     number of points
     '''
+    Lager.debug('image shape: {}'.format(np.shape(image)))
     # Build the basic grid
     subsize = 9  # Taking a smaller square inside the image to fit on
     difference = int((size - subsize)/2)
@@ -117,7 +118,7 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
                 else:
                     xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
                     yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
-                    X, Y = np.meshgrid(xx,yy)
+                    X, Y = np.meshgrid(xx, yy)
                     ys.extend(list(X.flatten()))
                     xes.extend(list(Y.flatten()))
 
@@ -159,7 +160,6 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
         dec_grid = result[1]
     else:
         Lager.warning('swapped x and y here')
-
         result = wcs.pixel_to_world(yy, xx)
         ra_grid = result.ra.deg
         dec_grid = result.dec.deg
@@ -422,6 +422,8 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
         return explist
 
 def find_parq(ID, path, obj_type = 'SN'):
+
+
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -437,6 +439,7 @@ def find_parq(ID, path, obj_type = 'SN'):
         #The issue is SN parquets store their IDs as ints and star parquets as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
+            Lager.debug(f'parq file: {pqfile}')
             return pqfile
 
 def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
@@ -635,13 +638,12 @@ def constructImages(exposures, ra, dec, size=7, background=False,
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
 
-        m.append(im.flatten())
-        err.append(err_cutout.flatten())
-        mask.append(np.zeros(size*size))
-        #w = (zero**2)*err_cutout.flatten()
+        m.append(im)
+        err.append(err_cutout)
+        mask.append(np.zeros((size, size)))
 
-    image = np.hstack(m)
-    err = np.hstack(err)
+    image = m
+
     return image, wcs_list, sca_wcs_list, err
 
 
@@ -793,15 +795,19 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         wgt /= error[i*size**2:(i+1)*size**2] # Define an inv variance TODO
         wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
         # What fraction of the flux is contained in the PSF? TODO
-
         wgt_matrix.append(wgt)
     return wgt_matrix
 
-def makeGrid(adaptive_grid, images,size,ra,dec,cutout_wcs_list, percentiles = [], single_grid_point=False, npoints = 7, make_exact = False, makecontourGrid = False):
+
+def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
+             percentiles=[], single_grid_point=False, npoints=7,
+             make_exact=False, makecontourGrid=False):
     if adaptive_grid:
-        a = images[:size**2].reshape(size,size)
-        ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], \
-                npoints, size = size,  spacing = 0.75, image = a, spline_grid = False, percentiles = percentiles, makecontourGrid = makecontourGrid)
+        ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
+                                       npoints, size=size,  spacing=0.75,
+                                       image=images[0], spline_grid=False,
+                                       percentiles=percentiles,
+                                       makecontourGrid=makecontourGrid)
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
@@ -1085,22 +1091,52 @@ def slice_plot(fileroot):
         plt.legend(loc = 'upper left')
 
 
+def get_galsim_SED(SNID, date, sn_path, fetch_SED, obj_type = 'SN'):
+    '''
+    Return the appropriate SED for the object on the day. Since SN's SEDs are
+    time dependent but stars are not, we need to handle them differently.
 
+    Inputs:
+    SNID: the ID of the object
+    date: the date of the observation
+    sn_path: the path to the supernova data
+    fetch_SED: If true, fetch true SED from the database, otherwise return a
+                flat SED.
+    obj_type: the type of object (SN or star)
 
+    Internal Variables:
+    lam: the wavelength of the SED in Angstrom
+    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
 
+    Returns:
+    sed: galsim.SED object
+    '''
+    if fetch_SED == True:
+        if obj_type == 'SN':
+            lam, flambda = get_SN_SED(SNID, date, sn_path)
+        if obj_type == 'star':
+            lam, flambda = get_star_SED(SNID, sn_path)
+    else:
+        lam, flambda = [1000, 26000], [1, 1]
 
-def get_SED(SNID, date, sn_path, obj_type = 'SN'):
-    #Is this an ok way to do this?
-    if obj_type == 'SN':
-        lam, flambda = get_SN_SED(SNID, date, sn_path)
-    if obj_type == 'star':
-        lam, flambda = get_star_SED(SNID, sn_path)
+    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant='linear'),
+                         wave_type='Angstrom', flux_type='fphotons')
 
-    return lam, flambda
-
+    return sed
 
 
 def get_star_SED(SNID, sn_path):
+    '''
+    Return the appropriate SED for the star.
+    Inputs:
+    SNID: the ID of the object
+    sn_path: the path to the supernova data
+
+    Returns:
+    lam: the wavelength of the SED in Angstrom (numpy  array of floats)
+    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+             (numpy array of floats)
+    '''
     filenum = find_parq(SNID, sn_path, obj_type = 'star')
     pqfile = open_parq(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
@@ -1114,6 +1150,18 @@ def get_star_SED(SNID, sn_path):
 
 
 def get_SN_SED(SNID, date, sn_path):
+    '''
+    Return the appropriate SED for the supernova on the given day.
+
+    Inputs:
+    SNID: the ID of the object
+    date: the date of the observation
+    sn_path: the path to the supernova data
+
+    Returns:
+    lam: the wavelength of the SED in Angstrom
+    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
+    '''
     filenum = find_parq(SNID, sn_path, obj_type = 'SN')
     file_name = 'snana' + '_' + str(filenum) + '.hdf5'
     fullpath = os.path.join(sn_path, file_name)
@@ -1127,11 +1175,10 @@ def get_SN_SED(SNID, date, sn_path):
     closest_days_away = np.min(np.abs(np.array(mjd) - date))
 
     if closest_days_away > max_days_cutoff:
-        Lager.warn(f'WARNING: No SED data within {max_days_cutoff} days of' +
+        Lager.warning(f'WARNING: No SED data within {max_days_cutoff} days of' +
                    'date. \n The closest SED is ' + closest_days_away +
                    ' days away.')
     return np.array(lam), np.array(flambda[bestindex])
-
 
 
 def contourGrid(image, numlevels = 5, subsize = 4):
@@ -1219,8 +1266,10 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                                              sim_sigma_flux, band)
     sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
                                          sim_sigma_flux, band)
-
-    df_object_row = df.loc[df.id == ID]
+    if object_type == 'SN':
+        df_object_row = df.loc[df.id == ID]
+    if object_type == 'star':
+        df_object_row = df.loc[df.id == str(ID)]
 
     if object_type == 'SN':
         meta_dict ={'confusion_metric': confusion_metric, \
@@ -1308,3 +1357,89 @@ def banner(text):
     length = len(text) + 8
     message = "\n" + "#" * length +'\n'+'#   ' + text + '   # \n'+ "#" * length
     Lager.debug(message)
+
+    
+def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
+    sedlist = []
+    '''
+    Return the appropriate SED for the object for each observation.
+    If you are getting truth SEDs, this function calls get_SED on each exposure
+    of the object. Then, get_SED calls get_SN_SED or get_star_SED depending on
+    the object type.
+    If you are not getting truth SEDs, this function returns a flat SED for
+    each exposure.
+
+    Inputs:
+    ID: the ID of the object
+    exposures: the exposure table returned by fetchImages.
+    fetch_SED: If true, get the SED from truth tables.
+               If false, return a flat SED for each expsoure.
+    object_type: the type of object (SN or star)
+    sn_path: the path to the supernova data
+
+    Returns:
+    sedlist: list of galsim SED objects, length equal to the number of
+             detection images.
+    '''
+    for date in exposures['date'][exposures['DETECTED']]:
+        sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type,
+                                 fetch_SED=fetch_SED)
+        sedlist.append(sed)
+
+    return sedlist
+  
+
+def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
+    '''
+    This function takes the data from the images and puts it into the form such
+    that we can analytically solve for the best fit using linear algebra.
+
+    n = total number of images
+    s = image size (so the image is s x s)
+    d = number of detection images
+
+    Inputs:
+    images: list of np arrays of image data. List of length n of sxs arrays.
+    err: list of np arrays of error data. List of length n of sxs arrays.
+    sn_matrix: list of np arrays of SN models. List of length d of sxs arrays.
+    wgt_matrix: list of np arrays of weights. List of length n of sxs arrays.
+
+    Outputs:
+    images: 1D array of image data. Length n*s^2
+    err: 1D array of error data. Length n*s^2
+    sn_matrix: A 2D array of SN models, with the SN models placed in the
+                correct rows and columns, see comment below. Shape (n*s^2, n)
+    wgt_matrix: 1D array of weights. Length n*s^2
+    '''
+    size_sq = int((images[0].size))
+    tot_num = len(images)
+    det_num = len(sn_matrix)
+
+    # Flatten into 1D arrays
+    images = np.concatenate([arr.flatten() for arr in images])
+    err = np.concatenate([arr.flatten() for arr in err])
+
+    # The final design matrix for our fit should have dimensions:
+    # (total number of pixels in all images, number of model components)
+    # Then, the first s^2 rows of the matrix correspond to the first image,
+    # the next s^2 rows to the second image, etc.,  where s is the size of the
+    # image. For the SN model, the flux in each image is ostensibly different.
+    # Therefore we need a unique flux for each image, and we don't want the
+    # flux of the supernova in one image to affect the flux in another image.
+    # Therefore, we need to place the supernova model in the correct image
+    # (i.e. the correct rows of the design matrix) and zero out all of the
+    # others. We'll do this by initializing a matrix of zeros, and then filling
+    # in the SN model in the correct place in the loop below:
+
+    psf_zeros = np.zeros((np.size(images), tot_num))
+    for i in range(det_num):
+        sn_index = tot_num - det_num + i # We only want to edit SN columns.
+        psf_zeros[
+            (sn_index) * size_sq:  # Fill in rows s^2 * image number...
+            (sn_index + 1) * size_sq, #... to s^2 * (image number + 1) ...
+            sn_index] = sn_matrix[i] # ...in the correct column.
+    sn_matrix = np.vstack(psf_zeros)
+    wgt_matrix = np.array(wgt_matrix)
+    wgt_matrix = np.hstack(wgt_matrix)
+
+    return images, err, sn_matrix, wgt_matrix
