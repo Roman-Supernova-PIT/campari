@@ -148,7 +148,7 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
             if i >= testnum - detim:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units='deg')
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
-
+                Lager.debug(f'sed: {sed}')
                 supernova_image = \
                     simulate_supernova(snx, sny, stamp,
                                        supernova[i - testnum + detim],
@@ -159,10 +159,11 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
                 sn_storage.append(supernova_image)
 
         cutout_wcs_list.append(cutoutgalwcs)
-        imagelist.append(a.flatten())
+        imagelist.append(a)
 
-    images = np.array(imagelist)
-    images = np.hstack(images)
+    images = imagelist
+    Lager.debug(f'images shape: {images[0].shape}')
+    Lager.debug(f'images length {len(images)}')
 
     return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage
 
