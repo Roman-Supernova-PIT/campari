@@ -8,7 +8,6 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 # End of lines that will go away once we do this right
 
-
 import numpy as np
 from astropy.io import fits
 import pandas as pd
@@ -19,7 +18,6 @@ from erfa import ErfaWarning
 import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 import galsim
-import AllASPFuncs
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \

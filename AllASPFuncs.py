@@ -1350,5 +1350,4 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
 
-    print(np.shape(images), np.shape(err), np.shape(sn_matrix), np.shape(wgt_matrix))
     return images, err, sn_matrix, wgt_matrix
