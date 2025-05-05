@@ -790,7 +790,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
         wgt /= (error[i].flatten())**2 # Define an inv variance TODO
-        #wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
         # What fraction of the flux is contained in the PSF? TODO
         wgt_matrix.append(wgt)
     return wgt_matrix
