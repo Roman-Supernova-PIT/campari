@@ -1,0 +1,16 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: MJD, unit: d, datatype: float64}
+# - {name: flux, datatype: float64}
+# - {name: flux_error, datatype: float64}
+# - {name: SIM_flux, datatype: float64}
+# meta: !!omap
+# - __serialized_columns__:
+#     MJD:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: d}
+#       value: !astropy.table.SerializedColumn {name: MJD}
+# schema: astropy-2.0
+MJD flux flux_error SIM_flux
+0.0 1399.9820269650581 129.50518535293878 927.5700159000776
