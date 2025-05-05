@@ -712,12 +712,12 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     end = end[0]
     exposures = findAllExposures(ID, ra,dec, peak,start,end, roman_path=roman_path, maxbg = testnum - detim, \
         maxdet = detim, return_list = True, band = band)
-    images, cutout_wcs_list, im_wcs_list, err = constructImages(exposures, ra, dec, size = size, \
-        background = fit_background, roman_path = roman_path)
+    images, cutout_wcs_list, im_wcs_list, err =\
+        constructImages(exposures, ra, dec, size=size,
+                        background=fit_background, roman_path=roman_path)
 
-    Lager.debug(f'images shape: {images.shape} error shape: {err.shape}')
-
-    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, exposures, object_type
+    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
+           exposures, object_type
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -789,8 +789,8 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
         if not isinstance(error, np.ndarray):
             error = np.ones_like(wgt)
-        wgt /= error[i*size**2:(i+1)*size**2] # Define an inv variance TODO
-        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        wgt /= (error[i].flatten())**2 # Define an inv variance TODO
+        #wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
         # What fraction of the flux is contained in the PSF? TODO
         wgt_matrix.append(wgt)
     return wgt_matrix

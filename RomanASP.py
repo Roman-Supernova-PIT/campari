@@ -24,7 +24,7 @@ from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         makeGrid, get_galsim_SED, getWeights, generateGuess, \
                         get_galsim_SED_list, prep_data_for_fit
 
-                        
+
 
 from simulation import simulate_images
 import yaml
@@ -174,8 +174,6 @@ def main():
         # This is a catch for when I'm doing my own simulated WCS's
         util_ref = None
         percentiles = []
-        cutout_wcs_list = []
-        im_wcs_list = []
 
         if use_real_images:
             # Find SN Info, find exposures containing it,
@@ -225,11 +223,6 @@ def main():
         else:
             ra_grid = np.array([])
             dec_grid = np.array([])
-        # Get the weights
-        Lager.warning('SURPRESSING ERROR CALCULATION UNTIL FIX PUSHED TO MAIN')
-        if weighting:
-            wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
-                                    error=err)
 
 
         # Using the images, hazard an initial guess.
@@ -256,13 +249,14 @@ def main():
 
         # Calculate the Confusion Metric
         if use_real_images and object_type == 'SN':
+            sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
             x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
             snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
             pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
             array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
                                          x_center=snx, y_center=sny, sed=sed)
             confusion_metric = np.dot(images[0].flatten(), array)
-            
+
             Lager.debug(f'Confusion Metric: {confusion_metric}')
         else:
             confusion_metric = 0
@@ -368,6 +362,7 @@ def main():
 
         # Get the weights
         if weighting:
+            Lager.debug
             wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
                                     error=err)
         else:
