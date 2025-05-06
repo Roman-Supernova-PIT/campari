@@ -5,7 +5,7 @@ On other systems 'conda' may be already in your path. Consult the documentation 
 ```
 module load conda
 ```
-### Create our conda environment.  
+### Create our conda environment.
 
 Will fill it with pip installable Python libraries below.
 ```
@@ -22,7 +22,7 @@ python -m ipykernel install --user --name multismp --display-name multismp
 ```
 
 ## Doing a simple run on DCC.
-The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml. 
+The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml.
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
 ```
@@ -57,10 +57,11 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 | fetch_SED              | bool   | If true, get the SN SED from the OpenUniverse parquet files. If false, use a flat SED. May not be perfectly functional yet. TODO: see if this is improvable. |
 | make_initial_guess     | bool   | If true, the algorithm uses an average of the pixel values at each model point to set an initial guess for each model point. Slight improvement in certain cases but not pivotal. |
 | source_phot_ops        | bool   | If true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.     |
+| flux_initial_guess | float | For making the initial guess, what flux should the SN be set to? This makes practically zero difference to the results, there just needs to be a choice made. |
 
 
 ### Simulating your own images.
-For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:  
+For testing the algorithm, it is often beneficial to simulate our own galaxy and SN rather than use Roman OpenUniverse images. On a normal run, the following options aren't used. If use_real_images is set to false, the following become necessary:
 
 | Parameter             | Type   | Description                                                                                                                           |
 |------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
@@ -74,6 +75,9 @@ For testing the algorithm, it is often beneficial to simulate our own galaxy and
 | turn_grid_off          | bool   | If true, don't generate a background model at all. Useful for testing just the PSF photometry of the SN if bg_gal_flux is set to zero. |
 | single_grid_point      | bool   | See below.                                                                                                                           |
 | deltafcn_profile       | bool   | If true, the galaxy is no longer a realistic galaxy profile and instead a Dirac delta function. Combined with single_grid_point, it is hypothetically possible for the algorithm to perfectly recover the background by fitting a Dirac delta to a Dirac delta at the exact same location. TODO: explain this better. |
+|sim_ra, sim_dec         | float  | RA and DEC for simulated SN in degrees. |
+|base_pointing, base_sca | int    | Pointing and SCA for base roman image to use for simulation. For instance, this image is used to set the
+initial WCS. |
 
 
 ### Experimental
@@ -90,19 +94,19 @@ method
 spline_grid
 avoid_non_linearity
 make_exact
-check_perfection   TODO: Ensure users can use the avoid non linearity and check perfection options. 
+check_perfection   TODO: Ensure users can use the avoid non linearity and check perfection options.
 
 ## Output
-All output is stored in the results directory. Two sub directories are created, **images** and **lightcurves**. 
+All output is stored in the results directory. Two sub directories are created, **images** and **lightcurves**.
 ### images
 3 Outputs are placed in this directory. \
 SNID_band_psftype_grid.npy --> ra and dec locations of model points used. \
 SNID_band_psftype_wcs.fits --> WCS objects for each image used. \
-SNID_band_psftype_images.npy --> pixel values for each image used. 
+SNID_band_psftype_images.npy --> pixel values for each image used.
 
-### lightcurves 
-#### SNID_band_psftype_lc.csv 
-csv file containing a measured lightcurve for the supernova.  
+### lightcurves
+#### SNID_band_psftype_lc.csv
+csv file containing a measured lightcurve for the supernova.
 
 | Parameter            | Type            | Description                                                                                                                                            |
 |-----------------------|-----------------|-------------------------------------------------------------------------------------------------------------------------------------------------------|

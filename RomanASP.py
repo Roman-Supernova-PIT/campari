@@ -112,11 +112,7 @@ def main():
     check_perfection = config['check_perfection']
     make_exact = config['make_exact']
     avoid_non_linearity = config['avoid_non_linearity']
-    deltafcn_profile = config['deltafcn_profile']
     single_grid_point = config['single_grid_point']
-    do_xshift = config['do_xshift']
-    do_rotation = config['do_rotation']
-    noise = config['noise']
     method = config['method']
     make_initial_guess = config['make_initial_guess']
     adaptive_grid = config['adaptive_grid']
@@ -126,11 +122,11 @@ def main():
     roman_path = config['roman_path']
     sn_path = config['sn_path']
     turn_grid_off = config['turn_grid_off']
-    bg_gal_flux = config['bg_gal_flux']
     source_phot_ops = config['source_phot_ops']
-    mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
     makecontourGrid = config['makecontourGrid']
+    initial_flux_guess = config['initial_flux_guess']
+    deltafcn_profile = config['deltafcn_profile']
 
     roman_bandpasses = galsim.roman.getBandpasses()
 
@@ -140,21 +136,11 @@ def main():
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36,
                                       aberrations=aberrations)
 
-    # TODO this should get moved to simulations.py
-    if detim == 0:
-        supernova = 0
-    else:
-        d = np.linspace(5, 20, detim)
-        mags = -5 * np.exp(-d/10) + 6
-        fluxes = 10**(mags)
-        supernova = list(fluxes)
     if make_exact:
         assert single_grid_point
     if avoid_non_linearity:
         assert deltafcn_profile
     assert detim <= testnum
-    if isinstance(supernova, list):
-        assert len(supernova) == detim
     ####
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
@@ -190,21 +176,11 @@ def main():
                     Found {len(exposures)} out of {testnum} requested')
                 continue
 
-        # This also goes to simulation.py TODO
         else:
             # Simulate the images of the SN and galaxy.
-            ra, dec = 7.541534306163982, -44.219205940734625
-            snra, sndec = ra, dec
-            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage, \
-                sim_lc = \
-                simulate_images(testnum, detim, ra, dec, do_xshift,
-                                do_rotation, supernova, noise=noise,
-                                use_roman=use_roman, roman_path=roman_path,
-                                size=size, band=band,
-                                deltafcn_profile=deltafcn_profile,
-                                input_psf=airy, bg_gal_flux=bg_gal_flux,
-                                source_phot_ops=source_phot_ops,
-                                mismatch_seds=mismatch_seds)
+            banner('Simulating Images')
+            images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
+                simulate_images(testnum, detim, ra, dec, config)
             object_type = 'SN'
             err = np.ones_like(images)
 
@@ -234,11 +210,9 @@ def main():
             if detim != 0:
                 x0test = generateGuess(images[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
-                # TODO: The initial flux value for sn points shoudln't be hard-
-                # coded.
-                x0test = np.concatenate([x0test, np.full(testnum, 3000)],
-                                        axis=0)
-                Lager.debug('setting initial guess to 3000')
+                x0_vals_for_sne = np.full(testnum, {initial_flux_guess})
+                x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
+                Lager.debug(f'setting initial guess to {initial_flux_guess}')
             else:
                 x0test = generateGuess(images, cutout_wcs_list, ra_grid,
                                        dec_grid)
@@ -284,10 +258,7 @@ def main():
                 util_ref = roman_utils(config_file='./temp_tds.yaml',
                                        visit=exposures['Pointing'][i],
                                        sca=exposures['SCA'][i])
-            # TODO: Don't hardcode the pointing and SCA and put this away
-            else:
-                util_ref = roman_utils(config_file='./temp_tds.yaml',
-                                       visit=662, sca=11)
+
             # TODO: better name for array
             # TODO: Why is band here twice?
             array, bgpsf = construct_psf_background(ra_grid, dec_grid,
