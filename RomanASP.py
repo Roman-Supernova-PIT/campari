@@ -248,6 +248,12 @@ def main():
         banner('Building Model')
 
         # Calculate the Confusion Metric
+
+        confusion_metric = 0
+        Lager.debug('Confusion Metric not calculated')
+
+        '''
+
         if use_real_images and object_type == 'SN':
             sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
             x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
@@ -261,6 +267,8 @@ def main():
         else:
             confusion_metric = 0
             Lager.debug('Confusion Metric not calculated')
+
+        '''
 
         # Build the backgrounds loop
 
@@ -370,6 +378,13 @@ def main():
 
         images, err, sn_matrix, wgt_matrix =\
             prep_data_for_fit(images, err, sn_matrix, wgt_matrix)
+
+        # Estimate amount of the PSF cut out by setting a distance cap
+        test_sn_matrix = np.copy(sn_matrix)
+        test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
+        Lager.debug(f'SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}')
+        Lager.debug(f'SN PSF Norms Post Distance Cut:{np.sum(test_sn_matrix, axis=0)}')
+
 
 
         # Combine the background model and the supernova model into one matrix.

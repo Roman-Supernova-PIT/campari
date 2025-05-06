@@ -505,7 +505,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
                 f' flux: {flux}')
 
     config_file = './temp_tds.yaml'
-    util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
+    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, 'You must provide an SED for the source'
 
@@ -515,7 +515,9 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         # run, I'd want to know.
         Lager.warning('NOT USING PHOTON OPS IN PSF SOURCE')
 
-    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
+    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
+                          y_center=y_center, sed=sed,
+                          include_photonOps=photOps, flux=flux).array
 
     return master.flatten()
 
@@ -764,8 +766,11 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
 def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
                gaussian_std=1000, cutoff=np.inf):
     wgt_matrix = []
+    Lager.debug(f'Error len {len(error)}')
     Lager.debug(f'Gaussian std in getWeights {gaussian_std}')
     for i, wcs in enumerate(cutout_wcs_list):
+        Lager.debug(f'Error shape in getWeights {error[i].shape}')
+        Lager.debug(f'error in getWeights {error[i][:5]}')
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
@@ -787,10 +792,12 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
         wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
-        if not isinstance(error, np.ndarray):
+        if error is None:
             error = np.ones_like(wgt)
+        Lager.debug(f'wgt before: {np.mean(wgt)}')
         wgt /= (error[i].flatten())**2 # Define an inv variance TODO
-        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        Lager.debug(f'wgt after: {np.mean(wgt)}')
+        # wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
         # What fraction of the flux is contained in the PSF? TODO
         wgt_matrix.append(wgt)
     return wgt_matrix
@@ -827,7 +834,7 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
 
 def plot_lc(fileroot):
 
-    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.csv')
+    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.ecsv')
     supernova = fluxdata['true_flux']
     measured_flux = fluxdata['measured_flux']
 

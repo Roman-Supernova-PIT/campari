@@ -193,12 +193,12 @@ def test_regression():
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv('tests/testdata/40120913_Y106_romanpsf_lc.ecsv',
-                          comment='#')
-    comparison = pd.read_csv('tests/testdata/test_lc.ecsv', comment='#')
+                          comment='#', delimiter=' ')
+    comparison = pd.read_csv('tests/testdata/test_lc.ecsv', comment='#',
+                              delimiter=' ')
 
     for col in current.columns:
-        assert np.array_equal(current[col], comparison[col]), "The lightcurves\
-                                             do not match for column %s" % col
+        assert np.array_equal(current[col], comparison[col]), "The lightcurves do not match for column %s" % col
 
 
 def test_get_galsim_SED():
