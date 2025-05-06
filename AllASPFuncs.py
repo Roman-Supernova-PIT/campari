@@ -310,10 +310,10 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     return psfs, bgpsf
 
 
-
-def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, \
-                        return_list = False, stampsize = 25, roman_path = None,\
-                    pointing_list = None, SCA_list = None, truth = 'simple_model'):
+def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
+                     maxdet=24, return_list=False, stampsize=25,
+                     roman_path=None, pointing_list=None, SCA_list=None,
+                     truth='simple_model', lc_start=-np.inf, lc_end=np.inf):
     '''
     This function finds all the exposures that contain a given supernova, and returns a list of them.
     Utilizes Rob's awesome database method to find the exposures. Humongous speed up thanks to this.
@@ -332,10 +332,9 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     SCA_list: If this is passed in, only consider these SCAs
     truth: If 'truth' use truth images, if 'simple_model' use simple model images.
     band: the band to consider
+    lc_start, lc_end: the start and end of the light curve window, in terms of
+                      time, in days, away from the peak.
     '''
-
-
-
     g = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23.fits')[1] #Am I still using this? XXX TODO
     g = g.data
     alldates = g['date']
@@ -354,26 +353,39 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
         raise RuntimeError( f"Got status code {result.status_code}\n{result.text}" )
 
     res = pd.DataFrame(result.json())[['filter','pointing','sca', 'mjd']]
-    res.rename(columns = {'mjd':'date', 'pointing': 'Pointing', 'sca': 'SCA'}, inplace = True)
+    res.rename(columns={'mjd': 'date', 'pointing': 'Pointing', 'sca': 'SCA'},
+               inplace=True)
 
     res = res.loc[res['filter'] == band]
     det = res.loc[(res['date'] >= start) & (res['date'] <= end)]
-    det['offpeak_time'] = np.abs(det['date'] - peak)
+    det['offpeak_time'] = det['date'] - peak
     det = det.sort_values('offpeak_time')
-    det = det.iloc[:maxdet]
+    if lc_start != -np.inf or lc_end != np.inf:
+        det = det.loc[(det['offpeak_time'] >= lc_start) &
+                      (det['offpeak_time'] <= lc_end)]
+    if isinstance(maxdet, int):
+        det = det.iloc[:maxdet]
     det['DETECTED'] = True
 
     if pointing_list is not None:
         det = det.loc[det['Pointing'].isin(pointing_list)]
 
     bg = res.loc[(res['date'] < start) | (res['date'] > end)]
-    bg['offpeak_time'] = np.abs(bg['date'] - peak)
-    bg = bg.iloc[:maxbg]
+    bg['offpeak_time'] = bg['date'] - peak
+    if lc_start != -np.inf or lc_end != np.inf:
+        bg = bg.loc[(bg['offpeak_time'] >= lc_start) &
+                    (bg['offpeak_time'] <= lc_end)]
+    if isinstance(maxbg, int):
+        bg = bg.iloc[:maxbg]
     bg['DETECTED'] = False
 
     #combine these two dataframes
     all_images = pd.concat([det, bg])
     all_images['zeropoint'] = np.nan
+
+    Lager.debug(all_images['offpeak_time'])
+    Lager.debug(lc_start)
+    Lager.debug(lc_end)
 
     #Now we need to loop through the images and get the information we need
     zpts = []
@@ -699,7 +711,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
-                roman_path):
+                roman_path, lc_start=-np.inf, lc_end=np.inf):
     if len(str(ID)) != 8:
         object_type = 'star'
     else:
@@ -712,8 +724,10 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     sndec = dec
     start = start[0]
     end = end[0]
-    exposures = findAllExposures(ID, ra,dec, peak,start,end, roman_path=roman_path, maxbg = testnum - detim, \
-        maxdet = detim, return_list = True, band = band)
+    exposures = findAllExposures(ID, ra, dec, peak, start, end,
+                                 roman_path=roman_path, maxbg=testnum - detim,
+                                 maxdet=detim, return_list=True, band=band,
+                                 lc_start=lc_start, lc_end=lc_end)
     images, cutout_wcs_list, im_wcs_list, err =\
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
@@ -766,11 +780,8 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
 def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
                gaussian_std=1000, cutoff=np.inf):
     wgt_matrix = []
-    Lager.debug(f'Error len {len(error)}')
     Lager.debug(f'Gaussian std in getWeights {gaussian_std}')
     for i, wcs in enumerate(cutout_wcs_list):
-        Lager.debug(f'Error shape in getWeights {error[i].shape}')
-        Lager.debug(f'error in getWeights {error[i][:5]}')
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
