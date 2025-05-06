@@ -156,18 +156,9 @@ def main():
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36,
                                       aberrations=aberrations)
 
-    Lager.warning('manually removing weird simulation leftovers for now')
-    supernova =1
-    # TODO this should get moved to simulations.py
-    '''
-    if detim == 0:
-        supernova = 0
-    else:
-        d = np.linspace(5, 20, detim)
-        mags = -5 * np.exp(-d/10) + 6
-        fluxes = 10**(mags)
-        supernova = list(fluxes)
-    '''
+    supernova = 1
+    # DELETE this once simulation fixes are merged in
+
     if make_exact:
         assert single_grid_point
     if avoid_non_linearity:
@@ -409,7 +400,7 @@ def main():
         images, err, sn_matrix, wgt_matrix =\
             prep_data_for_fit(images, err, sn_matrix, wgt_matrix)
 
-        # Estimate amount of the PSF cut out by setting a distance cap
+        # Calculate amount of the PSF cut out by setting a distance cap
         test_sn_matrix = np.copy(sn_matrix)
         test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
         Lager.debug(f'SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}')

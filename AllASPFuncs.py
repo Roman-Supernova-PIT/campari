@@ -379,15 +379,11 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         bg = bg.iloc[:maxbg]
     bg['DETECTED'] = False
 
-    #combine these two dataframes
+    # combine these two dataframes
     all_images = pd.concat([det, bg])
     all_images['zeropoint'] = np.nan
 
-    Lager.debug(all_images['offpeak_time'])
-    Lager.debug(lc_start)
-    Lager.debug(lc_end)
-
-    #Now we need to loop through the images and get the information we need
+    # Now we need to loop through the images and get the information we need
     zpts = []
     true_mags = []
     true_fluxes = []
@@ -843,57 +839,57 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
     return ra_grid, dec_grid
 
 
-def plot_lc(fileroot):
-
-    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.ecsv',
-                           comment = '#', delimiter = ' ')
-    print(fluxdata.columns)
+def plot_lc(filepath, return_data=False):
+    fluxdata = pd.read_csv(filepath, comment='#', delimiter=' ')
     truth_mags = fluxdata['SIM_true_mag']
     mag = fluxdata['mag']
     sigma_mag = fluxdata['mag_err']
 
-    plt.figure(figsize = (10,10))
-    plt.subplot(2,1,1)
+    plt.figure(figsize=(10, 10))
+    plt.subplot(2, 1, 1)
 
     dates = fluxdata['MJD']
 
-    plt.scatter(dates, truth_mags, color = 'k', label = 'Truth')
-    plt.errorbar(dates, mag, yerr = sigma_mag,  color = 'purple', label = 'Model', fmt = 'o')
+    plt.scatter(dates, truth_mags, color='k', label='Truth')
+    plt.errorbar(dates, mag, yerr=sigma_mag,  color='purple', label='Model',
+                 fmt='o')
 
     plt.ylim(np.max(truth_mags) + 0.2, np.min(truth_mags) - 0.2)
     plt.ylabel('Magnitude (Uncalibrated)')
 
-    bias = np.mean(mag - truth_mags)
+    residuals = mag - truth_mags
+    bias = np.mean(residuals)
     bias *= 1000
     bias = np.round(bias, 3)
-    scatter = np.std(mag - truth_mags)
+    scatter = np.std(residuals)
     scatter *= 1000
     scatter = np.round(scatter, 3)
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
     textstr = 'Overall Bias: ' + str(bias) + ' mmag \n' + \
         'Overall Scatter: ' + str(scatter) + ' mmag'
-    plt.text(np.percentile(dates,60), np.mean(truth_mags), textstr,  fontsize=14,
-            verticalalignment='top', bbox=props)
+    plt.text(np.percentile(dates, 60), np.mean(truth_mags), textstr,
+             fontsize=14, verticalalignment='top', bbox=props)
     plt.legend()
 
-
-    plt.subplot(2,1,2)
-
-    plt.errorbar(dates, mag - truth_mags, yerr = sigma_mag, fmt = 'o', color = 'k')
-    plt.axhline(0, ls = '--', color = 'k')
+    plt.subplot(2, 1, 2)
+    plt.errorbar(dates, residuals, yerr=sigma_mag, fmt='o', color='k')
+    plt.axhline(0, ls='--', color='k')
     plt.ylabel('Mag Residuals (Model - Truth)')
 
     plt.ylabel('Mag Residuals (Model - Truth)')
     plt.xlabel('MJD')
-    plt.ylim(np.min(mag - truth_mags) - 0.1, np.max(mag - truth_mags) + 0.1)
+    plt.ylim(np.min(residuals) - 0.1, np.max(residuals) + 0.1)
 
+    plt.axhline(0.005, color='r', ls='--')
+    plt.axhline(-0.005, color='r', ls='--', label='5 mmag photometry')
 
-    plt.axhline(0.005, color = 'r', ls = '--')
-    plt.axhline(-0.005, color = 'r', ls = '--', label = '5 mmag photometry')
-
-    plt.axhline(0.02, color = 'b', ls = '--')
-    plt.axhline(-0.02, color = 'b', ls = '--', label = '20 mmag photometry')
+    plt.axhline(0.02, color='b', ls='--')
+    plt.axhline(-0.02, color='b', ls='--', label='20 mmag photometry')
     plt.legend()
+
+    if return_data:
+        return mag.values, dates.values, \
+            sigma_mag.values, truth_mags.values, bias, scatter
 
 
 def plot_images(fileroot, size = 11):

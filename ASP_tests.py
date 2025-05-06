@@ -237,3 +237,14 @@ def test_get_galsim_SED_list():
     assert np.array_equal(sedlist[0]._spec.f,
                           np.load('./tests/testdata/sn_flambda_test.npy')), \
         "The fluxes do not match the SN test example"
+
+
+def test_plot_lc():
+    from AllASPFuncs import plot_lc
+    output = plot_lc('./tests/testdata/test_lc_plot.ecsv', return_data=True)
+    assert output[0][0] == 23.34624211038908
+    assert output[1][0] == 62535.424
+    assert output[2][0] == 0.3464661982648008
+    assert output[3][0] == 23.164154309471726
+    assert output[4] == 182.088
+    assert output[5] == 0.0
