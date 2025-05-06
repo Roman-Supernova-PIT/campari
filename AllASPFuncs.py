@@ -834,50 +834,47 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
 
 def plot_lc(fileroot):
 
-    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.ecsv')
-    supernova = fluxdata['true_flux']
-    measured_flux = fluxdata['measured_flux']
+    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.ecsv',
+                           comment = '#', delimiter = ' ')
+    print(fluxdata.columns)
+    truth_mags = fluxdata['SIM_true_mag']
+    mag = fluxdata['mag']
+    sigma_mag = fluxdata['mag_err']
 
     plt.figure(figsize = (10,10))
     plt.subplot(2,1,1)
 
     dates = fluxdata['MJD']
 
-    plt.scatter(dates, 14-2.5*np.log10(supernova), color = 'k', label = 'Truth')
-    plt.scatter(dates, 14-2.5*np.log10(measured_flux), color = 'purple', label = 'Model')
+    plt.scatter(dates, truth_mags, color = 'k', label = 'Truth')
+    plt.errorbar(dates, mag, yerr = sigma_mag,  color = 'purple', label = 'Model', fmt = 'o')
 
-    plt.ylim(14 - 2.5*np.log10(np.min(supernova)) + 0.2, 14 - 2.5*np.log10(np.max(supernova)) - 0.2)
+    plt.ylim(np.max(truth_mags) + 0.2, np.min(truth_mags) - 0.2)
     plt.ylabel('Magnitude (Uncalibrated)')
 
-    bias = np.mean(-2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova)))
+    bias = np.mean(mag - truth_mags)
     bias *= 1000
     bias = np.round(bias, 3)
-    scatter = np.std(-2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova)))
+    scatter = np.std(mag - truth_mags)
     scatter *= 1000
     scatter = np.round(scatter, 3)
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
     textstr = 'Overall Bias: ' + str(bias) + ' mmag \n' + \
         'Overall Scatter: ' + str(scatter) + ' mmag'
-    plt.text(np.percentile(dates,60), 14 - 2.5*np.log10(np.mean(supernova)), textstr,  fontsize=14,
+    plt.text(np.percentile(dates,60), np.mean(truth_mags), textstr,  fontsize=14,
             verticalalignment='top', bbox=props)
     plt.legend()
 
 
     plt.subplot(2,1,2)
-    flux_mode = False
-    if flux_mode:
-        plt.scatter(dates, X[-detim:] - supernova, color = 'k')
-        for i,dr in enumerate(zip(dates, X[-detim:] - supernova)):
-            d,r = dr
-            plt.text(d+1,r,i+testnum-detim, fontsize = 8)
-    else:
-        plt.scatter(dates, -2.5*np.log10(measured_flux)+2.5*np.log10(supernova), color = 'k')
-        plt.axhline(0, ls = '--', color = 'k')
-        plt.ylabel('Mag Residuals (Model - Truth)')
+
+    plt.errorbar(dates, mag - truth_mags, yerr = sigma_mag, fmt = 'o', color = 'k')
+    plt.axhline(0, ls = '--', color = 'k')
+    plt.ylabel('Mag Residuals (Model - Truth)')
 
     plt.ylabel('Mag Residuals (Model - Truth)')
     plt.xlabel('MJD')
-    plt.ylim(-0.1, 0.1)
+    plt.ylim(np.min(mag - truth_mags) - 0.1, np.max(mag - truth_mags) + 0.1)
 
 
     plt.axhline(0.005, color = 'r', ls = '--')
