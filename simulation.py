@@ -27,10 +27,10 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
+def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
                     noise, use_roman, band, deltafcn_profile, roman_path,
                     size=11, input_psf=None, constant_imgs=False,
-                    bg_gal_flux=None, source_phot_ops=True,
+                    bg_gal_flux=None, source_phot_ops=True, sim_lc = None,
                     mismatch_seds=False, base_pointing=662, base_sca=11):
     '''
     This function simulates images using galsim for testing purposes. It is not
@@ -61,6 +61,15 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
         input_psf = None
     galra = ra + 1.5e-5
     galdec = dec + 1.5e-5
+
+    if sim_lc is None:
+        if detim == 0:
+            sim_lc = 0
+        else:
+            d = np.linspace(5, 20, detim)
+            mags = -5 * np.exp(-d/10) + 6
+            fluxes = 10**(mags)
+            sim_lc = list(fluxes)
 
     snra = ra
     sndec = dec
@@ -144,14 +153,14 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
             a += np.random.normal(0, noise, size**2).reshape(size, size)
 
         # Inject a supernova! If using.
-        if supernova != 0:
+        if sim_lc != 0:
             if i >= testnum - detim:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units='deg')
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
                 Lager.debug(f'sed: {sed}')
                 supernova_image = \
                     simulate_supernova(snx, sny, stamp,
-                                       supernova[i - testnum + detim],
+                                       sim_lc[i - testnum + detim],
                                        sed, band, sim_psf, source_phot_ops,
                                        base_pointing, base_sca)
 
@@ -165,7 +174,8 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation, supernova,
     Lager.debug(f'images shape: {images[0].shape}')
     Lager.debug(f'images length {len(images)}')
 
-    return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage
+    return images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage, \
+        sim_lc
 
 
 def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,

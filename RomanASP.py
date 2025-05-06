@@ -195,7 +195,8 @@ def main():
             # Simulate the images of the SN and galaxy.
             ra, dec = 7.541534306163982, -44.219205940734625
             snra, sndec = ra, dec
-            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = \
+            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage, \
+                sim_lc = \
                 simulate_images(testnum, detim, ra, dec, do_xshift,
                                 do_rotation, supernova, noise=noise,
                                 use_roman=use_roman, roman_path=roman_path,
@@ -230,7 +231,7 @@ def main():
         # Otherwise, initializing the model guess does not make sense.
         # TODO: Are testnum and detim both ints? Then compare for equality.
         if make_initial_guess and testnum - detim != 0:
-            if supernova != 0:
+            if detim != 0:
                 x0test = generateGuess(images[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
                 # TODO: The initial flux value for sn points shoudln't be hard-
@@ -314,7 +315,7 @@ def main():
             psf_matrix.append(array)
 
             # TODO make this not bad
-            if supernova != 0 and i >= testnum - detim:
+            if detim != 0 and i >= testnum - detim:
                 snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
                 if use_roman:
                     if use_real_images:
@@ -433,7 +434,7 @@ def main():
                                   sigma_flux)
         else:
             identifier = 'simulated'
-            lc = build_lightcurve_sim(supernova, flux, sigma_flux)
+            lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
         if use_roman:
             psftype = 'romanpsf'
         else:
