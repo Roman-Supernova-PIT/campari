@@ -76,14 +76,16 @@ def load_config(config_path):
 def main():
     parser = argparse.ArgumentParser(description="Can overwrite config file")
 
-    parser.add_argument('-b', '--band', type=str, required=True, help='filter')
+    parser.add_argument('-f', '--filter', type=str, required=True,
+                        help='Roman filter')
     parser.add_argument('-s', '--SNID', type=int, required=True,
                         help='Supernova ID')
-    parser.add_argument('-t', '--testnum', type=int, required=True,
-                        help='Number of images to use')
+    parser.add_argument('-t', '--testnum', type=int, required=False,
+                        help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
-    parser.add_argument('-d', '--detim', type=int, required=True,
-                        help='Number of images to use with SN detections')
+    parser.add_argument('-d', '--detim', type=int, required=False,
+                        help='Number of images to use with SN detections',
+                        default=np.inf)
     # TODO:change all instances of this variable to det_images
     parser.add_argument('-o', '--output_path', type=str, required=False,
                         help='relative output path')
@@ -91,12 +93,26 @@ def main():
     parser.add_argument('-c', '--config', type=str, required=False,
                         help='relative config file path')
 
+    parser.add_argument('-b', '--beginning', type=int, required=False,
+                        help='start of desired lightcurve in days from peak.',
+                        default=-np.inf)
+
+    parser.add_argument('-e', '--end', type=int, required=False,
+                        help='end of desired light curve in days from peak.',
+                        default=np.inf)
+
     args = parser.parse_args()
-    band = args.band
+    band = args.filter
     SNID = args.SNID
     testnum = args.testnum
     detim = args.detim
     output_path = args.output_path
+    lc_start = args.beginning
+    lc_end = args.end
+
+
+
+
     if args.config is not None:
         config_path = args.config
     else:
@@ -140,14 +156,9 @@ def main():
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36,
                                       aberrations=aberrations)
 
-    # TODO this should get moved to simulations.py
-    if detim == 0:
-        supernova = 0
-    else:
-        d = np.linspace(5, 20, detim)
-        mags = -5 * np.exp(-d/10) + 6
-        fluxes = 10**(mags)
-        supernova = list(fluxes)
+    supernova = 1
+    # DELETE this once simulation fixes are merged in
+
     if make_exact:
         assert single_grid_point
     if avoid_non_linearity:
@@ -183,12 +194,22 @@ def main():
                 exposures, object_type = fetchImages(testnum, detim, ID,
                                                      sn_path, band, size,
                                                      fit_background,
-                                                     roman_path)
+                                                     roman_path,
+                                                     lc_start=lc_start,
+                                                     lc_end=lc_end)
+            if len(exposures[~exposures['DETECTED']]) == 0:
+                Lager.warning('No pre-detection images found in time range ' +
+                              'provided, skipping this object.')
+                continue
 
-            if len(exposures) != testnum:
+            if testnum != np.inf and len(exposures) != testnum:
                 Lager.warning(f'Not Enough Exposures. \
                     Found {len(exposures)} out of {testnum} requested')
                 continue
+
+            testnum = len(exposures)
+            detim = len(exposures[exposures['DETECTED']])
+            Lager.debug(f'Updating image numbers to {testnum} and {detim}')
 
         # This also goes to simulation.py TODO
         else:
@@ -248,6 +269,12 @@ def main():
         banner('Building Model')
 
         # Calculate the Confusion Metric
+
+        confusion_metric = 0
+        Lager.debug('Confusion Metric not calculated')
+
+        '''
+
         if use_real_images and object_type == 'SN':
             sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
             x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
@@ -261,6 +288,8 @@ def main():
         else:
             confusion_metric = 0
             Lager.debug('Confusion Metric not calculated')
+
+        '''
 
         # Build the backgrounds loop
 
@@ -370,6 +399,13 @@ def main():
 
         images, err, sn_matrix, wgt_matrix =\
             prep_data_for_fit(images, err, sn_matrix, wgt_matrix)
+
+        # Calculate amount of the PSF cut out by setting a distance cap
+        test_sn_matrix = np.copy(sn_matrix)
+        test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
+        Lager.debug(f'SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}')
+        Lager.debug(f'SN PSF Norms Post Distance Cut:{np.sum(test_sn_matrix, axis=0)}')
+
 
 
         # Combine the background model and the supernova model into one matrix.

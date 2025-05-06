@@ -16,7 +16,7 @@
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
 #       value: !astropy.table.SerializedColumn {name: MJD}
-#   confusion_metric: 42.97778334480972
+#   confusion_metric: 0
 #   host_dec: -44.919194
 #   host_mag_g: 25.508
 #   host_ra: 7.344728
@@ -25,4 +25,4 @@
 #   sn_ra: 7.344774044463684
 # schema: astropy-2.0
 MJD flux flux_error mag mag_err SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
-62535.424 5323.110196892974 227.10545742080097 23.346242111186598 0.04632190736232416 6361.0 6295.0702 23.152842264385384 23.164154309471726
+62535.424 5323.110200803003 1698.6425856800531 23.34624211038908 0.34646619826480085 6361.0 6295.0702 23.152842264385384 23.164154309471726
