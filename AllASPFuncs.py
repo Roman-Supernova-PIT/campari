@@ -310,10 +310,10 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     return psfs, bgpsf
 
 
-
-def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, \
-                        return_list = False, stampsize = 25, roman_path = None,\
-                    pointing_list = None, SCA_list = None, truth = 'simple_model'):
+def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
+                     maxdet=24, return_list=False, stampsize=25,
+                     roman_path=None, pointing_list=None, SCA_list=None,
+                     truth='simple_model', lc_start=-np.inf, lc_end=np.inf):
     '''
     This function finds all the exposures that contain a given supernova, and returns a list of them.
     Utilizes Rob's awesome database method to find the exposures. Humongous speed up thanks to this.
@@ -332,10 +332,9 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
     SCA_list: If this is passed in, only consider these SCAs
     truth: If 'truth' use truth images, if 'simple_model' use simple model images.
     band: the band to consider
+    lc_start, lc_end: the start and end of the light curve window, in terms of
+                      time, in days, away from the peak.
     '''
-
-
-
     g = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23.fits')[1] #Am I still using this? XXX TODO
     g = g.data
     alldates = g['date']
@@ -354,28 +353,37 @@ def findAllExposures(snid, ra,dec,peak,start,end,band, maxbg = 24, maxdet = 24, 
         raise RuntimeError( f"Got status code {result.status_code}\n{result.text}" )
 
     res = pd.DataFrame(result.json())[['filter','pointing','sca', 'mjd']]
-    res.rename(columns = {'mjd':'date', 'pointing': 'Pointing', 'sca': 'SCA'}, inplace = True)
+    res.rename(columns={'mjd': 'date', 'pointing': 'Pointing', 'sca': 'SCA'},
+               inplace=True)
 
     res = res.loc[res['filter'] == band]
     det = res.loc[(res['date'] >= start) & (res['date'] <= end)]
-    det['offpeak_time'] = np.abs(det['date'] - peak)
+    det['offpeak_time'] = det['date'] - peak
     det = det.sort_values('offpeak_time')
-    det = det.iloc[:maxdet]
+    if lc_start != -np.inf or lc_end != np.inf:
+        det = det.loc[(det['offpeak_time'] >= lc_start) &
+                      (det['offpeak_time'] <= lc_end)]
+    if isinstance(maxdet, int):
+        det = det.iloc[:maxdet]
     det['DETECTED'] = True
 
     if pointing_list is not None:
         det = det.loc[det['Pointing'].isin(pointing_list)]
 
     bg = res.loc[(res['date'] < start) | (res['date'] > end)]
-    bg['offpeak_time'] = np.abs(bg['date'] - peak)
-    bg = bg.iloc[:maxbg]
+    bg['offpeak_time'] = bg['date'] - peak
+    if lc_start != -np.inf or lc_end != np.inf:
+        bg = bg.loc[(bg['offpeak_time'] >= lc_start) &
+                    (bg['offpeak_time'] <= lc_end)]
+    if isinstance(maxbg, int):
+        bg = bg.iloc[:maxbg]
     bg['DETECTED'] = False
 
-    #combine these two dataframes
+    # combine these two dataframes
     all_images = pd.concat([det, bg])
     all_images['zeropoint'] = np.nan
 
-    #Now we need to loop through the images and get the information we need
+    # Now we need to loop through the images and get the information we need
     zpts = []
     true_mags = []
     true_fluxes = []
@@ -505,7 +513,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
                 f' flux: {flux}')
 
     config_file = './temp_tds.yaml'
-    util_ref = roman_utils(config_file=config_file, visit = pointing, sca=SCA)
+    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, 'You must provide an SED for the source'
 
@@ -515,7 +523,9 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         # run, I'd want to know.
         Lager.warning('NOT USING PHOTON OPS IN PSF SOURCE')
 
-    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center = x_center, y_center=y_center, sed = sed, include_photonOps=photOps, flux = flux).array
+    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
+                          y_center=y_center, sed=sed,
+                          include_photonOps=photOps, flux=flux).array
 
     return master.flatten()
 
@@ -697,7 +707,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
-                roman_path):
+                roman_path, lc_start=-np.inf, lc_end=np.inf):
     if len(str(ID)) != 8:
         object_type = 'star'
     else:
@@ -710,8 +720,10 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     sndec = dec
     start = start[0]
     end = end[0]
-    exposures = findAllExposures(ID, ra,dec, peak,start,end, roman_path=roman_path, maxbg = testnum - detim, \
-        maxdet = detim, return_list = True, band = band)
+    exposures = findAllExposures(ID, ra, dec, peak, start, end,
+                                 roman_path=roman_path, maxbg=testnum - detim,
+                                 maxdet=detim, return_list=True, band=band,
+                                 lc_start=lc_start, lc_end=lc_end)
     images, cutout_wcs_list, im_wcs_list, err =\
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
@@ -787,10 +799,12 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
         wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
-        if not isinstance(error, np.ndarray):
+        if error is None:
             error = np.ones_like(wgt)
+        Lager.debug(f'wgt before: {np.mean(wgt)}')
         wgt /= (error[i].flatten())**2 # Define an inv variance TODO
-        wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
+        Lager.debug(f'wgt after: {np.mean(wgt)}')
+        # wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
         # What fraction of the flux is contained in the PSF? TODO
         wgt_matrix.append(wgt)
     return wgt_matrix
@@ -825,60 +839,57 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
     return ra_grid, dec_grid
 
 
-def plot_lc(fileroot):
+def plot_lc(filepath, return_data=False):
+    fluxdata = pd.read_csv(filepath, comment='#', delimiter=' ')
+    truth_mags = fluxdata['SIM_true_mag']
+    mag = fluxdata['mag']
+    sigma_mag = fluxdata['mag_err']
 
-    fluxdata = pd.read_csv('./results/lightcurves/'+str(fileroot)+'_lc.csv')
-    supernova = fluxdata['true_flux']
-    measured_flux = fluxdata['measured_flux']
-
-    plt.figure(figsize = (10,10))
-    plt.subplot(2,1,1)
+    plt.figure(figsize=(10, 10))
+    plt.subplot(2, 1, 1)
 
     dates = fluxdata['MJD']
 
-    plt.scatter(dates, 14-2.5*np.log10(supernova), color = 'k', label = 'Truth')
-    plt.scatter(dates, 14-2.5*np.log10(measured_flux), color = 'purple', label = 'Model')
+    plt.scatter(dates, truth_mags, color='k', label='Truth')
+    plt.errorbar(dates, mag, yerr=sigma_mag,  color='purple', label='Model',
+                 fmt='o')
 
-    plt.ylim(14 - 2.5*np.log10(np.min(supernova)) + 0.2, 14 - 2.5*np.log10(np.max(supernova)) - 0.2)
+    plt.ylim(np.max(truth_mags) + 0.2, np.min(truth_mags) - 0.2)
     plt.ylabel('Magnitude (Uncalibrated)')
 
-    bias = np.mean(-2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova)))
+    residuals = mag - truth_mags
+    bias = np.mean(residuals)
     bias *= 1000
     bias = np.round(bias, 3)
-    scatter = np.std(-2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova)))
+    scatter = np.std(residuals)
     scatter *= 1000
     scatter = np.round(scatter, 3)
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
     textstr = 'Overall Bias: ' + str(bias) + ' mmag \n' + \
         'Overall Scatter: ' + str(scatter) + ' mmag'
-    plt.text(np.percentile(dates,60), 14 - 2.5*np.log10(np.mean(supernova)), textstr,  fontsize=14,
-            verticalalignment='top', bbox=props)
+    plt.text(np.percentile(dates, 60), np.mean(truth_mags), textstr,
+             fontsize=14, verticalalignment='top', bbox=props)
     plt.legend()
 
-
-    plt.subplot(2,1,2)
-    flux_mode = False
-    if flux_mode:
-        plt.scatter(dates, X[-detim:] - supernova, color = 'k')
-        for i,dr in enumerate(zip(dates, X[-detim:] - supernova)):
-            d,r = dr
-            plt.text(d+1,r,i+testnum-detim, fontsize = 8)
-    else:
-        plt.scatter(dates, -2.5*np.log10(measured_flux)+2.5*np.log10(supernova), color = 'k')
-        plt.axhline(0, ls = '--', color = 'k')
-        plt.ylabel('Mag Residuals (Model - Truth)')
+    plt.subplot(2, 1, 2)
+    plt.errorbar(dates, residuals, yerr=sigma_mag, fmt='o', color='k')
+    plt.axhline(0, ls='--', color='k')
+    plt.ylabel('Mag Residuals (Model - Truth)')
 
     plt.ylabel('Mag Residuals (Model - Truth)')
     plt.xlabel('MJD')
-    plt.ylim(-0.1, 0.1)
+    plt.ylim(np.min(residuals) - 0.1, np.max(residuals) + 0.1)
 
+    plt.axhline(0.005, color='r', ls='--')
+    plt.axhline(-0.005, color='r', ls='--', label='5 mmag photometry')
 
-    plt.axhline(0.005, color = 'r', ls = '--')
-    plt.axhline(-0.005, color = 'r', ls = '--', label = '5 mmag photometry')
-
-    plt.axhline(0.02, color = 'b', ls = '--')
-    plt.axhline(-0.02, color = 'b', ls = '--', label = '20 mmag photometry')
+    plt.axhline(0.02, color='b', ls='--')
+    plt.axhline(-0.02, color='b', ls='--', label='20 mmag photometry')
     plt.legend()
+
+    if return_data:
+        return mag.values, dates.values, \
+            sigma_mag.values, truth_mags.values, bias, scatter
 
 
 def plot_images(fileroot, size = 11):
