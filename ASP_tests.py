@@ -63,35 +63,19 @@ def test_findAllExposures():
 
 
 def test_simulate_images():
-
-    config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                               'config.yaml')
-    config = yaml.safe_load(open(config_path))
-    config['band'] = 'F184'
-    config['do_xshift'] = True
-    config['do_rotation'] = True
-    config['size'] = 11
-    config['noise'] = 0
-    config['use_roman'] = False
-    config['use_real_images'] = False
-    config['fetch_SED'] = False
-    config['roman_path'] = roman_path
-    config['bg_gal_flux'] = 9e5
-    config['deltafcn_profile'] = False
-    config['sim_ra'] = 7.541534306163982
-    config['sim_dec'] = -44.219205940734625
-    config['base_pointing'] = 662
-    config['base_sca'] = 11
-
     lam = 1293  # nm
+    band = 'F184'
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
-                                   getPSF(1, config['band'],
-                                          pupil_bin=1).aberrations)
+                                   getPSF(1, band, pupil_bin=1).aberrations)
     images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
-        simulate_images(testnum=10, detim=5, config=config,
-                        sim_lc=[10, 100, 1000, 10**4, 10**5],
-                        input_psf=airy)
+        simulate_images(testnum=10, detim=5, ra=7.541534306163982,
+                        dec=-44.219205940734625, do_xshift=True,
+                        do_rotation=True, sim_lc=[10, 100, 1000,
+                                                     10**4, 10**5],
+                        noise=0, use_roman=False, band='F184',
+                        deltafcn_profile=False, roman_path=roman_path, size=11,
+                        input_psf=airy, bg_gal_flux=9e5)
 
     compare_images = np.load('tests/testdata/images.npy')
     assert compare_images.all() == np.asarray(images).all()

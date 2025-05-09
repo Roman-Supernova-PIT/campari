@@ -27,7 +27,11 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(testnum, detim, config, sim_lc=None, input_psf=None):
+def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
+                    noise, use_roman, band, deltafcn_profile, roman_path,
+                    size=11, input_psf=None, constant_imgs=False,
+                    bg_gal_flux=None, source_phot_ops=True, sim_lc = None,
+                    mismatch_seds=False, base_pointing=662, base_sca=11):
     '''
     This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
@@ -50,20 +54,6 @@ def simulate_images(testnum, detim, config, sim_lc=None, input_psf=None):
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
     '''
-
-    # Unpack config
-    ra, dec = config['sim_ra'], config['sim_dec']
-    base_pointing, base_sca = config['base_pointing'], config['base_sca']
-    do_xshift, do_rotation = config['do_xshift'], config['do_rotation']
-    noise = config['noise']
-    use_roman = config['use_roman']
-    roman_path = config['roman_path']
-    size = config['size']
-    band = config['band']
-    deltafcn_profile = config['deltafcn_profile']
-    bg_gal_flux = config['bg_gal_flux']
-    source_phot_ops = config['source_phot_ops']
-    mismatch_seds = config['mismatch_seds']
 
     if not use_roman:
         assert input_psf is not None, 'you must provide an input psf if not \
@@ -188,7 +178,7 @@ def simulate_images(testnum, detim, config, sim_lc=None, input_psf=None):
     util_ref = roman_utils(config_file='./temp_tds.yaml',
                                        visit=base_pointing,
                                        sca=base_sca)
-                                       
+
     return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref
 
 

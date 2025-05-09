@@ -640,7 +640,7 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         #If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            im -= image.get_header()['SKY_MEAN']
+            im -= image._get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')

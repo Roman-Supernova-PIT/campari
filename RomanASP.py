@@ -128,7 +128,11 @@ def main():
     check_perfection = config['check_perfection']
     make_exact = config['make_exact']
     avoid_non_linearity = config['avoid_non_linearity']
+    deltafcn_profile = config['deltafcn_profile']
     single_grid_point = config['single_grid_point']
+    do_xshift = config['do_xshift']
+    do_rotation = config['do_rotation']
+    noise = config['noise']
     method = config['method']
     make_initial_guess = config['make_initial_guess']
     adaptive_grid = config['adaptive_grid']
@@ -138,7 +142,9 @@ def main():
     roman_path = config['roman_path']
     sn_path = config['sn_path']
     turn_grid_off = config['turn_grid_off']
+    bg_gal_flux = config['bg_gal_flux']
     source_phot_ops = config['source_phot_ops']
+    mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
     makecontourGrid = config['makecontourGrid']
     initial_flux_guess = config['initial_flux_guess']
@@ -205,7 +211,14 @@ def main():
             # Simulate the images of the SN and galaxy.
             banner('Simulating Images')
             images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
-                simulate_images(testnum, detim, ra, dec, config)
+                simulate_images(testnum, detim, ra, dec, do_xshift,
+                                do_rotation, noise=noise,
+                                use_roman=use_roman, roman_path=roman_path,
+                                size=size, band=band,
+                                deltafcn_profile=deltafcn_profile,
+                                input_psf=airy, bg_gal_flux=bg_gal_flux,
+                                source_phot_ops=source_phot_ops,
+                                mismatch_seds=mismatch_seds)
             object_type = 'SN'
             err = np.ones_like(images)
 
