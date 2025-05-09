@@ -162,7 +162,7 @@ def test_run_on_star():
         yaml.dump(config, temp_config)
         temp_config_path = temp_config.name
 
-    err_code = os.system(f'python RomanASP.py -s 40973149150 -b Y106 -t 1 -d 1\
+    err_code = os.system(f'python RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1\
                           -o "tests/testdata" --config {temp_config_path}')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -188,7 +188,7 @@ def test_regression():
             as temp_config:
         yaml.dump(config, temp_config)
         temp_config_path = temp_config.name
-    output = os.system(f'python RomanASP.py -s 40120913 -b Y106 -t 2 -d 1 -o \
+    output = os.system(f'python RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 -o \
               "tests/testdata" --config {temp_config_path}')
     assert output == 0, "The test run on a SN failed. Check the logs"
 
