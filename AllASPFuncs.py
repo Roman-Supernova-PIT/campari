@@ -706,7 +706,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     return result
 
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
+def fetchImages(num_total_imgs, num_detect_imgs, ID, sn_path, band, size, fit_background,
                 roman_path, lc_start=-np.inf, lc_end=np.inf):
     if len(str(ID)) != 8:
         object_type = 'star'
@@ -721,8 +721,8 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
-                                 roman_path=roman_path, maxbg=testnum - detim,
-                                 maxdet=detim, return_list=True, band=band,
+                                 roman_path=roman_path, maxbg=num_total_imgs - num_detect_imgs,
+                                 maxdet=num_detect_imgs, return_list=True, band=band,
                                  lc_start=lc_start, lc_end=lc_end)
     images, cutout_wcs_list, im_wcs_list, err =\
         constructImages(exposures, ra, dec, size=size,
@@ -895,7 +895,7 @@ def plot_lc(filepath, return_data=False):
 def plot_images(fileroot, size = 11):
 
     imgdata = np.load('./results/images/'+str(fileroot)+'_images.npy')
-    testnum = imgdata.shape[1]//size**2
+    num_total_imgs = imgdata.shape[1]//size**2
     images = imgdata[0]
     sumimages = imgdata[1]
     wgt_matrix = imgdata[2]
@@ -920,7 +920,7 @@ def plot_images(fileroot, size = 11):
 
     ra_grid, dec_grid, gridvals = np.load('./results/images/'+str(fileroot)+'_grid.npy')
 
-    fig = plt.figure(figsize = (15,3*testnum))
+    fig = plt.figure(figsize = (15,3*num_total_imgs))
 
     for i, wcs in enumerate(cutout_wcs_list):
 
@@ -1008,7 +1008,7 @@ def plot_images(fileroot, size = 11):
 
 def slice_plot(fileroot):
     biases = []
-    fig = plt.figure(figsize = (15,2*testnum))
+    fig = plt.figure(figsize = (15,2*num_total_imgs))
     images = imgdata[0]
     sumimages = imgdata[1]
     wgt_matrix = imgdata[2]
@@ -1041,12 +1041,12 @@ def slice_plot(fileroot):
         snx, sny = wcs.toImage(snra, sndec, units = 'deg')
 
         plt.subplot(len(cutout_wcs_list)//3 + 1,3,i+1)
-        if i >= testnum - detim:
-            plt.title('MagBias: ' + str(np.round(magresiduals[i - testnum + detim],4)) + ' mag')
+        if i >= num_total_imgs - num_detect_imgs:
+            plt.title('MagBias: ' + str(np.round(magresiduals[i - num_total_imgs + num_detect_imgs],4)) + ' mag')
 
 
         justbgX = np.copy(X)
-        justbgX[-testnum:] = 0
+        justbgX[-num_total_imgs:] = 0
 
         justbgpred = justbgX * psf_matrix
         justbgsumimages = np.sum(justbgpred, axis = 1)
@@ -1054,8 +1054,8 @@ def slice_plot(fileroot):
 
 
         #subtract off the real sn
-        #if i >= testnum - detim:
-            #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
+        #if i >= num_total_imgs - num_detect_imgs:
+            #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - num_total_imgs + num_detect_imgs]
 
 
 
@@ -1072,8 +1072,8 @@ def slice_plot(fileroot):
         plt.ylim(-250,250)
 
 
-        if i >= testnum - detim:
-            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
+        if i >= num_total_imgs - num_detect_imgs:
+            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - num_total_imgs + num_detect_imgs]
             plt.plot(snim[5], label = 'True SN', lw = 3)
             plt.fill_between(np.arange(0,11,1), trueimage[5] - snim[5] + 50, trueimage[5] - snim[5] - 50, label = 'Im-True SN', alpha = 0.4)
             plt.plot(np.arange(0,11,1), trueimage[5] - snim[5] , color = 'k', ls = '--')
@@ -1082,7 +1082,7 @@ def slice_plot(fileroot):
 
             #plt.plot(justbgres[5] - snim[5], label = 'SN Residuals', ls = '--')
             plt.ylim(-500,np.max(trueimage[5]))
-            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-detim:][i - testnum + detim]
+            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-num_detect_imgs:][i - num_total_imgs + num_detect_imgs]
 
         else:
             snim = np.zeros_like(justbgres)
@@ -1255,7 +1255,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     exposures (table): table of exposures used in the SMP algorithm
     sn_path (str): path to supernova data
     confusion_metric (float): the confusion metric derived in the SMP algorithm
-    detim (int): number of detection images in the lightcurve
+    num_detect_imgs (int): number of detection images in the lightcurve
     X (array): the output of the SMP algorithm
     use_roman (bool): whether or not the lightcurve was built using Roman PSF
     band (str): the bandpass of the images used
@@ -1312,7 +1312,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 
     Inputs
     supernova (array): the true lightcurve
-    detim (int): number of detection images in the lightcurve
+    num_detect_imgs (int): number of detection images in the lightcurve
     X (array): the output of the SMP algorithm
 
     Returns
@@ -1320,7 +1320,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    sim_MJD = np.arange(0, detim, 1)
+    sim_MJD = np.arange(0, num_detect_imgs, 1)
     data_dict = {'MJD': sim_MJD, 'flux': flux,
                  'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}

@@ -68,11 +68,11 @@ def test_simulate_images():
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
-    images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = \
-        simulate_images(testnum=10, detim=5, ra=7.541534306163982,
+    test_lightcurve =[10, 100, 1000, 10**4, 10**5]
+    images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
+        simulate_images(num_total_images=10, num_detect_images=5, ra=7.541534306163982,
                         dec=-44.219205940734625, do_xshift=True,
-                        do_rotation=True, supernova=[10, 100, 1000,
-                                                     10**4, 10**5],
+                        do_rotation=True, sim_lc=test_lightcurve,
                         noise=0, use_roman=False, band='F184',
                         deltafcn_profile=False, roman_path=roman_path, size=11,
                         input_psf=airy, bg_gal_flux=9e5)
