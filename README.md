@@ -57,7 +57,7 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 | fetch_SED              | bool   | If true, get the SN SED from the OpenUniverse parquet files. If false, use a flat SED. May not be perfectly functional yet. TODO: see if this is improvable. |
 | make_initial_guess     | bool   | If true, the algorithm uses an average of the pixel values at each model point to set an initial guess for each model point. Slight improvement in certain cases but not pivotal. |
 | source_phot_ops        | bool   | If true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.     |
-| flux_initial_guess | float | For making the initial guess, what flux should the SN be set to? This makes practically zero difference to the results, there just needs to be a choice made. |
+| flux_initial_guess | float | When we make the initial guess, every model component gets a starting value. This includes the supernova fluxes. Setting this value chooses the initial flux for the SN in each image before the algorithm solves for the true value. Changing this number has very very little effect on the results and can be safely left at 1. It is only a configuration variable because I thought it was not smart to hard code it. |
 
 
 ### Simulating your own images.
@@ -76,7 +76,7 @@ For testing the algorithm, it is often beneficial to simulate our own galaxy and
 | single_grid_point      | bool   | See below.                                                                                                                           |
 | deltafcn_profile       | bool   | If true, the galaxy is no longer a realistic galaxy profile and instead a Dirac delta function. Combined with single_grid_point, it is hypothetically possible for the algorithm to perfectly recover the background by fitting a Dirac delta to a Dirac delta at the exact same location. TODO: explain this better. |
 |sim_ra, sim_dec         | float  | RA and DEC for simulated SN in degrees. |
-|base_pointing, base_sca | int    | Pointing and SCA for base roman image to use for simulation. For instance, this image is used to set the
+|base_pointing, base_sca | int    | Pointing and SCA for base Roman image to use for simulation. For instance, this image is used to set the
 initial WCS. |
 
 
