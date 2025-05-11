@@ -163,7 +163,6 @@ def main():
     if avoid_non_linearity:
         assert deltafcn_profile
     assert num_detect_imgs <= num_total_imgs
-    ####
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
@@ -176,20 +175,22 @@ def main():
     for ID in SNID:
         # I apologize to everyone who taught me how to code. This will be clean one day.
         flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-            confusion_metric, object_type, X, cutout_wcs_list = \
+            confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
             run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
-                           sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                           fit_background, turn_grid_off, adaptive_grid, npoints,
-                           make_initial_guess, initial_flux_guess, weighting, method,
-                           make_contour_grid, single_grid_point, pixel, source_phot_ops,
-                           lc_start, lc_end, do_xshift, do_rotation, airy, mismatch_seds,
-                           deltafcn_profile, noise, check_perfection, avoid_non_linearity)
+                           sn_path, size, band, fetch_SED, use_real_images,
+                           use_roman, fit_background, turn_grid_off,
+                           adaptive_grid, npoints,
+                           make_initial_guess, initial_flux_guess,
+                           weighting, method, make_contour_grid,
+                           single_grid_point, pixel, source_phot_ops,
+                           lc_start, lc_end, do_xshift, bg_gal_flux,
+                           do_rotation, airy, mismatch_seds, deltafcn_profile,
+                           noise, check_perfection, avoid_non_linearity)
 
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save
         # the images.
 
-        # TODO: This can be returned by run_one_SN() and then saved.
         if use_real_images:
             identifier = str(ID)
             lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,

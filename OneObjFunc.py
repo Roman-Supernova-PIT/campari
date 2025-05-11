@@ -45,8 +45,9 @@ def run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
                    fit_background, turn_grid_off, adaptive_grid, npoints,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    make_contour_grid, single_grid_point, pixel, source_phot_ops,
-                   lc_start, lc_end, do_xshift, do_rotation, airy, mismatch_seds,
-                   deltafcn_profile, noise, check_perfection, avoid_non_linearity):
+                   lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
+                   mismatch_seds, deltafcn_profile, noise, check_perfection,
+                   avoid_non_linearity):
 
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
@@ -70,7 +71,7 @@ def run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
                                                  roman_path,
                                                  lc_start=lc_start,
                                                  lc_end=lc_end)
-        if len(exposures[~exposures['DETECTED']]) == 0:
+        if len(exposures[~exposures['DETECTED']]) == 0 and object_type == 'SN':
             Lager.warning('No pre-detection images found in time range ' +
                             'provided, skipping this object.')
             return None
@@ -89,8 +90,8 @@ def run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
         # Simulate the images of the SN and galaxy.
         banner('Simulating Images')
         images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
-            simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
-                            do_rotation, noise=noise,
+            simulate_images(num_total_imgs, num_detect_imgs, ra, dec,
+                            do_xshift, do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
                             size=size, band=band,
                             deltafcn_profile=deltafcn_profile,
@@ -121,8 +122,7 @@ def run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
     # The num_total_imgs - num_detect_imgs check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
-    # TODO: Are num_total_imgs and num_detect_imgs both ints? Then compare for equality.
-    if make_initial_guess and num_total_imgs - num_detect_imgs != 0:
+    if make_initial_guess and num_total_imgs != num_detect_imgs:
         if num_detect_imgs != 0:
             x0test = generateGuess(images[:-num_detect_imgs], cutout_wcs_list,
                                    ra_grid, dec_grid)
@@ -143,7 +143,6 @@ def run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
 
     confusion_metric = 0
     Lager.debug('Confusion Metric not calculated')
-
 
     if use_real_images and object_type == 'SN':
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
@@ -318,5 +317,11 @@ def run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
             X = np.zeros_like(X)
             X[106] = f
 
-    return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-        confusion_metric, object_type, X, cutout_wcs_list
+    if use_real_images:
+        # Eventually I might completely separate out simulated SNe, though I
+        # am hesitant to do that as I want them to be treated identically as
+        # possible. In the meantime, just return zeros for the simulated lc
+        # if we aren't simulating.
+        sim_lc = np.zeros(num_detect_imgs)
+    return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
+        wgt_matrix, confusion_metric, object_type, X, cutout_wcs_list, sim_lc
