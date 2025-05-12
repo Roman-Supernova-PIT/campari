@@ -1478,6 +1478,42 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
     return images, err, sn_matrix, wgt_matrix
 
+def get_SNe_from_parq(parquet_file, sn_path, output_path, mag_limits=None):
+    '''
+    Convenience function for getting a list of SNIDs that obey some conditions
+    from a parquet file. This is not used anywhere in the main algorithm.
+
+    Inputs:
+    parquet_file: the path to the parquet file
+    sn_path: the path to the supernova data
+    mag_limits: a tuple of (min_mag, max_mag) to filter the SNe by
+                peak magnitude. If None, no filtering is done.
+    '''
+
+    # Get the supernovae IDs from the parquet file
+    df = open_parq(parquet_file, sn_path, obj_type='SN')
+    # For now, this is only supported for SNe. TODO
+    if mag_limits is not None:
+        min_mag, max_mag = mag_limits
+        # This can't always be just g band I think. TODO
+        df = df[(df['peak_mag_g'] >= min_mag) & (df['peak_mag_g'] <= max_mag)]
+    SNID = df.id.values
+    SNID = SNID[np.log10(SNID) < 8]  # The 9 digit SNID SNe are weird for
+    # some reason. They only seem to have 1 or 2 images ever. TODO
+    SNID = np.array(SNID, dtype=int)
+    print(SNID[0])
+    if np.size(SNID) == 0:
+        raise ValueError('No supernovae found in the given range.')
+    Lager.info(f'Found {np.size(SNID)} supernovae in the given range.')
+    #Write a csv file with the SNIDs
+    pd.DataFrame(SNID).to_csv(os.path.join(output_path, 'SNIDs.csv'),
+                              index=False, header=False)
+    Lager.info(f'Saved to {os.path.join(output_path, "SNIDs.csv")}')
+
+
+
+
+
 
 def run_one_object(ID, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,

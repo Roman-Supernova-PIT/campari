@@ -92,6 +92,9 @@ def main():
     parser.add_argument('-c', '--config', type=str, required=False,
                         help='relative config file path')
 
+    parser.add_argument('--SNIDlist_file', type=str, required=False,
+                        help='Path to a csv file containing a list of SNIDs to run.')
+
     parser.add_argument('-b', '--beginning', type=int, required=False,
                         help='start of desired lightcurve in days from peak.',
                         default=-np.inf)
@@ -113,6 +116,7 @@ def main():
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
     output_path = args.output_path
+    SNID_file = args.SNIDlist_file
     lc_start = args.beginning
     lc_end = args.end
     object_type = args.object_type
@@ -122,6 +126,9 @@ def main():
     else:
         config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    'config.yaml')
+
+    if args.SNIDlist_file is not None:
+        SNID = pd.read_csv(args.SNIDlist_file, header=None).values.flatten().tolist()
 
     config = load_config(config_path)
 
@@ -170,23 +177,6 @@ def main():
     assert num_detect_images <= num_total_images
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
-
-    if parqet_file is not None:
-        banner('Fetching supernovae from parquet file')
-        # Get the supernovae IDs from the parquet file
-        df = open_parq(parqet_file, sn_path, obj_type='SN')
-        # For now, this is only supported for SNe. TODO
-        if mag_limits is not None:
-            min_mag, max_mag = mag_limits
-            # This can't always be just g band I think. TODO
-            df = df[(df['peak_mag_g'] >= min_mag) & (df['peak_mag_g'] <= max_mag)]
-        SNID = df.id.values
-        SNID = SNID[np.log10(SNID) < 8]  # The 9 digit SNID SNe are weird for
-        # some reason. They only seem to have 1 or 2 images ever. TODO
-        SNID = SNID.tolist()
-        if len(SNID) == 0:
-            raise ValueError('No supernovae found in the given range.')
-        Lager.info(f'Found {len(SNID)} supernovae in the given range.')
 
     if not isinstance(SNID, list):
         SNID = [SNID]
