@@ -1506,9 +1506,8 @@ def get_SNe_from_parq(parquet_file, sn_path, output_path, mag_limits=None):
         raise ValueError('No supernovae found in the given range.')
     Lager.info(f'Found {np.size(SNID)} supernovae in the given range.')
     #Write a csv file with the SNIDs
-    pd.DataFrame(SNID).to_csv(os.path.join(output_path, 'SNIDs.csv'),
-                              index=False, header=False)
-    Lager.info(f'Saved to {os.path.join(output_path, "SNIDs.csv")}')
+    pd.DataFrame(SNID).to_csv(output_path, index=False, header=False)
+    Lager.info(f'Saved to {output_path}')
 
 
 

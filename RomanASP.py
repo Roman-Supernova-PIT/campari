@@ -128,7 +128,7 @@ def main():
                                    'config.yaml')
 
     if args.SNIDlist_file is not None:
-        SNID = pd.read_csv(args.SNIDlist_file, header=None).values.flatten().tolist()
+        SNID = pd.read_csv(SNID_file, header=None).values.flatten().tolist()
 
     config = load_config(config_path)
 

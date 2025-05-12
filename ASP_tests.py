@@ -256,3 +256,11 @@ def test_plot_lc():
     assert output[3][0] == 23.164154309471726
     assert output[4] == 182.088
     assert output[5] == 0.0
+
+
+def test_get_SNe_from_parq():
+    output_path = os.path.join(str(pathlib.Path(__file__).parent/"tests/testdata/snids.csv"))
+    get_SNe_from_parq(10430, sn_path, output_path, mag_limits=[20, 21])
+    snids = pd.read_csv(output_path, header=None).values.flatten()
+    test_snids = pd.read_csv(str(pathlib.Path(__file__).parent/"tests/testdata/test_snids.csv"), header=None).values.flatten()
+    assert np.array_equal(snids, test_snids), "The SNIDs do not match the test example"
