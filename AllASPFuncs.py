@@ -434,9 +434,8 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     if return_list:
         return explist
 
-def find_parq(ID, path, obj_type = 'SN'):
 
-
+def find_parq(ID, path, obj_type='SN'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -448,12 +447,12 @@ def find_parq(ID, path, obj_type = 'SN'):
 
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
-        df = open_parq(pqfile, path, obj_type = obj_type)
-        #The issue is SN parquets store their IDs as ints and star parquets as strings.
+        df = open_parq(pqfile, path, obj_type=obj_type)
+        # The issue is SN parquets store their IDs as ints and star parquets as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
-            Lager.debug(f'parq file: {pqfile}')
             return pqfile
+
 
 def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
     '''
@@ -784,10 +783,9 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     start, end, peak: the start, end, and peak dates of the object
     '''
 
-    df = open_parq(parq, snpath, obj_type = obj_type)
+    df = open_parq(parq, snpath, obj_type=obj_type)
     if obj_type == 'star':
         ID = str(ID)
-
 
     df = df.loc[df.id == ID]
     ra, dec = df.ra.values[0], df.dec.values[0]

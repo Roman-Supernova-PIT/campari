@@ -77,9 +77,9 @@ def main():
 
     parser.add_argument('-f', '--filter', type=str, required=True,
                         help='Roman filter')
-    parser.add_argument('-s', '--SNID', type=int, required=True,
-                        help='Supernova ID')
-    parser.add_argument('-t', '--num_total_images', type=int, required=False,
+    parser.add_argument('-s', '--SNID', type=int, required=False,
+                        help='Supernova ID', nargs="*")
+    parser.add_argument('-t', '--num_total_imgs', type=int, required=False,
                         help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
     parser.add_argument('-d', '--num_detect_images', type=int, required=False,
@@ -171,26 +171,46 @@ def main():
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
-    banner('Finding and Preparing Images')
+    if parqet_file is not None:
+        banner('Fetching supernovae from parquet file')
+        # Get the supernovae IDs from the parquet file
+        df = open_parq(parqet_file, sn_path, obj_type='SN')
+        # For now, this is only supported for SNe. TODO
+        if mag_limits is not None:
+            min_mag, max_mag = mag_limits
+            # This can't always be just g band I think. TODO
+            df = df[(df['peak_mag_g'] >= min_mag) & (df['peak_mag_g'] <= max_mag)]
+        SNID = df.id.values
+        SNID = SNID[np.log10(SNID) < 8]  # The 9 digit SNID SNe are weird for
+        # some reason. They only seem to have 1 or 2 images ever. TODO
+        SNID = SNID.tolist()
+        if len(SNID) == 0:
+            raise ValueError('No supernovae found in the given range.')
+        Lager.info(f'Found {len(SNID)} supernovae in the given range.')
 
     if not isinstance(SNID, list):
         SNID = [SNID]
 
     # run one supernova function TODO
     for ID in SNID:
-        flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-            confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
-            run_one_object(ID, num_total_images, num_detect_images, roman_path,
-                           sn_path, size, band, fetch_SED, use_real_images,
-                           use_roman, fit_background, turn_grid_off,
-                           adaptive_grid, npoints,
-                           make_initial_guess, initial_flux_guess,
-                           weighting, method, make_contour_grid,
-                           single_grid_point, pixel, source_phot_ops,
-                           lc_start, lc_end, do_xshift, bg_gal_flux,
-                           do_rotation, airy, mismatch_seds, deltafcn_profile,
-                           noise, check_perfection, avoid_non_linearity,
-                           sim_gal_ra_offset, sim_gal_dec_offset)
+        banner(f'Running SN {ID}')
+        # I apologize to everyone who taught me how to code. This will be clean one day.
+        try:
+            flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
+                confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
+                run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
+                            sn_path, size, band, fetch_SED, use_real_images,
+                            use_roman, fit_background, turn_grid_off,
+                            adaptive_grid, npoints,
+                            make_initial_guess, initial_flux_guess,
+                            weighting, method, make_contour_grid,
+                            single_grid_point, pixel, source_phot_ops,
+                            lc_start, lc_end, do_xshift, bg_gal_flux,
+                            do_rotation, airy, mismatch_seds, deltafcn_profile,
+                            noise, check_perfection, avoid_non_linearity)
+        except ValueError as e:
+            Lager.info(f'ValueError: {e}')
+            continue
 
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save
