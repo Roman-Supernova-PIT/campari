@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 # TODO -- remove these next few lines!
 # This needs to be set up in an environment
 # where snappl is available.  This will happen "soon"
@@ -430,8 +431,6 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         return explist
 
 def find_parq(ID, path, obj_type = 'SN'):
-
-
     '''
     Find the parquet file that contains a given supernova ID.
     '''

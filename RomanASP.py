@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # TODO -- remove these next few lines!
 # This needs to be set up in an environment
 # where snappl is available.  This will happen "soon"
