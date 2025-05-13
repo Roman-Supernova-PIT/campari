@@ -198,7 +198,10 @@ def test_regression():
                               delimiter=' ')
 
     for col in current.columns:
-        assert np.array_equal(current[col], comparison[col]), "The lightcurves do not match for column %s" % col
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        msg = "The lightcurves do not match for column %s" % col
+        assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
 
 
 def test_get_galsim_SED():
