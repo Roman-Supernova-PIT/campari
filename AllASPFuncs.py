@@ -358,7 +358,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
 
     res = res.loc[res['filter'] == band]
     det = res.loc[(res['date'] >= start) & (res['date'] <= end)]
-    det['offpeak_time'] = det['date'] - peak
+    det['offpeak_time'] = np.abs(det['date'] - peak) # this needs to be deleted
     det = det.sort_values('offpeak_time')
     if lc_start != -np.inf or lc_end != np.inf:
         det = det.loc[(det['offpeak_time'] >= lc_start) &

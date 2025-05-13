@@ -63,15 +63,15 @@ def test_findAllExposures():
 
 
 def test_simulate_images():
-    band = 'F184'
     lam = 1293  # nm
+    band = 'F184'
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
-    images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = \
+    images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
         simulate_images(testnum=10, detim=5, ra=7.541534306163982,
                         dec=-44.219205940734625, do_xshift=True,
-                        do_rotation=True, supernova=[10, 100, 1000,
+                        do_rotation=True, sim_lc=[10, 100, 1000,
                                                      10**4, 10**5],
                         noise=0, use_roman=False, band='F184',
                         deltafcn_profile=False, roman_path=roman_path, size=11,

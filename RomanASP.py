@@ -147,6 +147,8 @@ def main():
     mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
     makecontourGrid = config['makecontourGrid']
+    initial_flux_guess = config['initial_flux_guess']
+    deltafcn_profile = config['deltafcn_profile']
 
     roman_bandpasses = galsim.roman.getBandpasses()
 
@@ -156,16 +158,11 @@ def main():
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36,
                                       aberrations=aberrations)
 
-    supernova = 1
-    # DELETE this once simulation fixes are merged in
-
     if make_exact:
         assert single_grid_point
     if avoid_non_linearity:
         assert deltafcn_profile
     assert detim <= testnum
-    if isinstance(supernova, list):
-        assert len(supernova) == detim
     ####
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
@@ -206,19 +203,16 @@ def main():
                 Lager.warning(f'Not Enough Exposures. \
                     Found {len(exposures)} out of {testnum} requested')
                 continue
-
             testnum = len(exposures)
             detim = len(exposures[exposures['DETECTED']])
             Lager.debug(f'Updating image numbers to {testnum} and {detim}')
 
-        # This also goes to simulation.py TODO
         else:
             # Simulate the images of the SN and galaxy.
-            ra, dec = 7.541534306163982, -44.219205940734625
-            snra, sndec = ra, dec
-            images, im_wcs_list, cutout_wcs_list, psf_storage, sn_storage = \
+            banner('Simulating Images')
+            images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
                 simulate_images(testnum, detim, ra, dec, do_xshift,
-                                do_rotation, supernova, noise=noise,
+                                do_rotation, noise=noise,
                                 use_roman=use_roman, roman_path=roman_path,
                                 size=size, band=band,
                                 deltafcn_profile=deltafcn_profile,
@@ -251,14 +245,13 @@ def main():
         # Otherwise, initializing the model guess does not make sense.
         # TODO: Are testnum and detim both ints? Then compare for equality.
         if make_initial_guess and testnum - detim != 0:
-            if supernova != 0:
+            if detim != 0:
                 x0test = generateGuess(images[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
-                # TODO: The initial flux value for sn points shoudln't be hard-
-                # coded.
-                x0test = np.concatenate([x0test, np.full(testnum, 3000)],
-                                        axis=0)
-                Lager.debug('setting initial guess to 3000')
+                x0_vals_for_sne = np.full(testnum, initial_flux_guess)
+                x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
+                Lager.debug(f'setting initial guess to {initial_flux_guess},'
+                            f'the shape is {x0test.shape}')
             else:
                 x0test = generateGuess(images, cutout_wcs_list, ra_grid,
                                        dec_grid)
@@ -312,10 +305,7 @@ def main():
                 util_ref = roman_utils(config_file='./temp_tds.yaml',
                                        visit=exposures['Pointing'][i],
                                        sca=exposures['SCA'][i])
-            # TODO: Don't hardcode the pointing and SCA and put this away
-            else:
-                util_ref = roman_utils(config_file='./temp_tds.yaml',
-                                       visit=662, sca=11)
+
             # TODO: better name for array
             # TODO: Why is band here twice?
             array, bgpsf = construct_psf_background(ra_grid, dec_grid,
@@ -343,7 +333,7 @@ def main():
             psf_matrix.append(array)
 
             # TODO make this not bad
-            if supernova != 0 and i >= testnum - detim:
+            if detim != 0 and i >= testnum - detim:
                 snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
                 if use_roman:
                     if use_real_images:
@@ -469,7 +459,7 @@ def main():
                                   sigma_flux)
         else:
             identifier = 'simulated'
-            lc = build_lightcurve_sim(supernova, flux, sigma_flux)
+            lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
         if use_roman:
             psftype = 'romanpsf'
         else:
