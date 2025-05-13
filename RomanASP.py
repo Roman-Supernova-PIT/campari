@@ -246,20 +246,12 @@ def main():
         # TODO: Are testnum and detim both ints? Then compare for equality.
         if make_initial_guess and testnum - detim != 0:
             if detim != 0:
-                # TODO: The initial flux value for sn points shoudln't be hard-
-                # coded.
-                #x0test = generateGuess(images[:-detim], cutout_wcs_list,
-                #                       ra_grid, dec_grid)
-                #x0test = np.concatenate([x0test, np.full(testnum, 3000)],
-                #                         axis=0)
-
-                #Lager.debug('setting initial guess to 3000')
                 x0test = generateGuess(images[:-detim], cutout_wcs_list,
                                        ra_grid, dec_grid)
                 x0_vals_for_sne = np.full(testnum, initial_flux_guess)
                 x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
-                print(x0test.shape)
-                Lager.debug(f'setting initial guess to {initial_flux_guess}')
+                Lager.debug(f'setting initial guess to {initial_flux_guess},'
+                            f'the shape is {x0test.shape}')
             else:
                 x0test = generateGuess(images, cutout_wcs_list, ra_grid,
                                        dec_grid)
