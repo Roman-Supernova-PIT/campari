@@ -102,8 +102,10 @@ def main():
                         default=np.inf)
 
     parser.add_argument('--object_type', type=str, required=False,
+                        choices=["star", "SN"],
                         help='If star, will run on stars. If SN, will run  ' +
-                             'on supernovae. If None, assumes supernova.',
+                             'on supernovae. If no argument is passed,' +
+                             'assumes supernova.',
                         default='SN')
 
     args = parser.parse_args()

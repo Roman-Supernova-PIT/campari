@@ -718,20 +718,22 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     ID: int, the ID of the object
     sn_path: str, the path to the supernova data
     band: str, the band to be used
-    size: int, the size of the cutout to be used
+    size: int, cutout will be of shape (size, size)
     fit_background: bool, whether to manually fit the background or not
     roman_path: str, the path to the Roman data
     obj_type: str, the type of object to be used (SN or star)
     lc_start, lc_end: ints, MJD bounds on where to fetch images.
 
     Returns:
-    images: array, the actual image data
+    images: array, the actual image data, shape (num_total_images, size, size)
     cutout_wcs_list: list of wcs objects for the cutouts
     im_wcs_list: list of wcs objects for the entire SCA
-    err: array, the error data
-    snra: float, the RA of the supernova
-    sndec: float, the DEC of the supernova
-    exposures: table of exposures used
+    err: array, the uncertainty in each pixel
+                of images, shape (num_total_images, size, size)
+    snra, sndec: floats, the RA and DEC of the supernova, a single float is
+                         used for both of these as we assume the object is
+                         not moving between exposures.
+    exposures: astropy.table.table.Table, table of exposures used
 
     '''
 
@@ -749,6 +751,10 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     images, cutout_wcs_list, im_wcs_list, err =\
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
+
+    Lager.debug(f'here {np.shape(images)}')
+    Lager.debug(f'here {np.shape(err)}')
+    Lager.debug(f'here {type(exposures)}')
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
            exposures
