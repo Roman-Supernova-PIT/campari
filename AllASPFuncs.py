@@ -707,17 +707,41 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
-                roman_path, lc_start=-np.inf, lc_end=np.inf):
-    if len(str(ID)) != 8:
-        object_type = 'star'
-    else:
-        object_type = 'SN'
+                roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
+    '''
+    This function gets the list of exposures to be used for the analysis.
 
-    pqfile = find_parq(ID, sn_path, obj_type = object_type)
+    Inputs:
+    num_total_images: total images used in analysis (detection + no detection)
+    num_detect_images: number of images used in the analysis that contain a
+                       detection.
+    ID: int, the ID of the object
+    sn_path: str, the path to the supernova data
+    band: str, the band to be used
+    size: int, cutout will be of shape (size, size)
+    fit_background: bool, whether to manually fit the background or not
+    roman_path: str, the path to the Roman data
+    obj_type: str, the type of object to be used (SN or star)
+    lc_start, lc_end: ints, MJD bounds on where to fetch images.
+
+    Returns:
+    images: array, the actual image data, shape (num_total_images, size, size)
+    cutout_wcs_list: list of wcs objects for the cutouts
+    im_wcs_list: list of wcs objects for the entire SCA
+    err: array, the uncertainty in each pixel
+                of images, shape (num_total_images, size, size)
+    snra, sndec: floats, the RA and DEC of the supernova, a single float is
+                         used for both of these as we assume the object is
+                         not moving between exposures.
+    exposures: astropy.table.table.Table, table of exposures used
+
+    '''
+
+    pqfile = find_parq(ID, sn_path, obj_type=object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
     snra = ra
-    sndec = dec
+    sndec = dec # Why is this here? TODO remove in a less urgent PR
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
@@ -728,8 +752,12 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
 
+    Lager.debug(f'here {np.shape(images)}')
+    Lager.debug(f'here {np.shape(err)}')
+    Lager.debug(f'here {type(exposures)}')
+
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-           exposures, object_type
+           exposures
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):

@@ -163,7 +163,8 @@ def test_run_on_star():
         temp_config_path = temp_config.name
 
     err_code = os.system(f'python RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1\
-                          -o "tests/testdata" --config {temp_config_path}')
+                          -o "tests/testdata" --config {temp_config_path}\
+                          --object_type star')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
