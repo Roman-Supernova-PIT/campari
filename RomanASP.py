@@ -101,6 +101,11 @@ def main():
                         help='end of desired light curve in days from peak.',
                         default=np.inf)
 
+    parser.add_argument('--object_type', type=str, required=False,
+                        help='If star, will run on stars. If SN, will run  ' +
+                             'on supernovae. If None, assumes supernova.',
+                        default='SN')
+
     args = parser.parse_args()
     band = args.filter
     SNID = args.SNID
@@ -109,9 +114,7 @@ def main():
     output_path = args.output_path
     lc_start = args.beginning
     lc_end = args.end
-
-
-
+    object_type = args.object_type
 
     if args.config is not None:
         config_path = args.config
@@ -188,12 +191,10 @@ def main():
             # and load those as images.
             # TODO: Calculate peak MJD outside of the function
             images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-                exposures, object_type = fetchImages(testnum, detim, ID,
-                                                     sn_path, band, size,
-                                                     fit_background,
-                                                     roman_path,
-                                                     lc_start=lc_start,
-                                                     lc_end=lc_end)
+                exposures = fetchImages(testnum, detim, ID, sn_path, band,
+                                        size, fit_background, roman_path,
+                                        object_type, lc_start=lc_start,
+                                        lc_end=lc_end)
             if len(exposures[~exposures['DETECTED']]) == 0:
                 Lager.warning('No pre-detection images found in time range ' +
                               'provided, skipping this object.')

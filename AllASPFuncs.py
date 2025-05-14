@@ -707,17 +707,39 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
 
 def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
-                roman_path, lc_start=-np.inf, lc_end=np.inf):
-    if len(str(ID)) != 8:
-        object_type = 'star'
-    else:
-        object_type = 'SN'
+                roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
+    '''
+    This function gets the list of exposures to be used for the analysis.
 
-    pqfile = find_parq(ID, sn_path, obj_type = object_type)
+    Inputs:
+    num_total_images: total images used in analysis (detection + no detection)
+    num_detect_images: number of images used in the analysis that contain a
+                       detection.
+    ID: int, the ID of the object
+    sn_path: str, the path to the supernova data
+    band: str, the band to be used
+    size: int, the size of the cutout to be used
+    fit_background: bool, whether to manually fit the background or not
+    roman_path: str, the path to the Roman data
+    obj_type: str, the type of object to be used (SN or star)
+    lc_start, lc_end: ints, MJD bounds on where to fetch images.
+
+    Returns:
+    images: array, the actual image data
+    cutout_wcs_list: list of wcs objects for the cutouts
+    im_wcs_list: list of wcs objects for the entire SCA
+    err: array, the error data
+    snra: float, the RA of the supernova
+    sndec: float, the DEC of the supernova
+    exposures: table of exposures used
+
+    '''
+
+    pqfile = find_parq(ID, sn_path, obj_type=object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
     snra = ra
-    sndec = dec
+    sndec = dec # Why is this here? TODO remove in a less urgent PR
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
@@ -729,7 +751,7 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
                         background=fit_background, roman_path=roman_path)
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-           exposures, object_type
+           exposures
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
