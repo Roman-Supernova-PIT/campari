@@ -22,35 +22,40 @@ from erfa import ErfaWarning
 from astropy.nddata import Cutout2D
 from snappl.logger import Lager
 
-pd.options.mode.chained_assignment = None  # default='warn'
-warnings.simplefilter('ignore', category=AstropyWarning)
+# This supresses a warning because the Open Universe Simulations dates are not
+# FITS compliant.
+warnings.simplefilter("ignore", category=AstropyWarning)
+# Because the Open Universe Sims have dates from the future, we supress a
+# warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
-                    noise, use_roman, band, deltafcn_profile, roman_path,
-                    size=11, input_psf=None, constant_imgs=False,
-                    bg_gal_flux=None, source_phot_ops=True, sim_lc = None,
+def simulate_images(num_total_images, num_detect_images, ra, dec,
+                    sim_gal_ra_offset, sim_gal_dec_offset, do_xshift,
+                    do_rotation, noise, use_roman, band, deltafcn_profile,
+                    roman_path, size=11, input_psf=None, constant_imgs=False,
+                    bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11):
     '''
     This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
-    testnum: the number of images to simulate
-    detim: the number of images to simulate with a supernova
-    ra, dec: the RA and DEC of the center of the images to simulate, and the RA
-     and DEC of the supernova.
-    do_xshift: whether to shift the images in the x direction (they will still
-    be centered on the same point, this is just to emulate Roman taking a
+    num_total_images: int, the number of images to simulate
+    num_detect_images: int, the number of images to simulate with a supernova
+    ra, dec: floats, the RA and DEC of the center of the images to simulate,
+        and the RA and DEC of the supernova.
+    do_xshift:, bool whether to shift the images in the x direction (they will
+    still be centered on the same point, this is just to emulate Roman taking a
     series of images at different locations.)
-    do_rotation: whether to rotate the images
-    supernova: the flux of the supernova to simulate, a list of flux values.
-    noise: the noise level to add to the images.
-    use_roman: whether to use the Roman PSF or a simple airy PSF.
-    size: the size of the images to simulate.
+    do_rotation: bool, whether to rotate the images
+    noise: float, the noise level to add to the images.
+    use_roman: bool, whether to use the Roman PSF or a simple airy PSF.
+    size: nt, the size of the images to simulate.
+    sim_lc: list, the light curve of the supernova to simulate. If None,
+        a default light curve will be generated.
 
     Returns:
-    images: a numpy array of the images, with shape (testnum*size*size)
+    images: a numpy array of the images, with shape (num_total_images, size, size)
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
     '''
@@ -60,14 +65,16 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
              using roman'
     else:
         input_psf = None
-    galra = ra + 1.5e-5
-    galdec = dec + 1.5e-5
+    galra = ra + sim_gal_ra_offset
+    galdec = dec + sim_gal_dec_offset
 
     if sim_lc is None:
-        if detim == 0:
+        # Here, if the user has not provided a light curve that they want
+        # simulated, we generate a default one.
+        if num_detect_images == 0:
             sim_lc = 0
         else:
-            d = np.linspace(5, 20, detim)
+            d = np.linspace(5, 20, num_detect_images)
             mags = -5 * np.exp(-d/10) + 6
             fluxes = 10**(mags)
             sim_lc = list(fluxes)
@@ -81,7 +88,7 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
     psf_storage = []
     sn_storage = []
 
-    for i in range(testnum):
+    for i in range(num_total_images):
 
         if do_xshift:
             x_shift = 1e-5/3 * i
@@ -155,13 +162,16 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
 
         # Inject a supernova! If using.
         if sim_lc != 0:
-            if i >= testnum - detim:
+            # Here we want to count which supernova image we are on. The
+            # following is zero on the first sn image and counts up:
+            sn_im_index = i - num_total_images + num_detect_images
+            if sn_im_index >= 0:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units='deg')
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
                 Lager.debug(f'sed: {sed}')
                 supernova_image = \
                     simulate_supernova(snx, sny, stamp,
-                                       sim_lc[i - testnum + detim],
+                                       sim_lc[sn_im_index],
                                        sed, band, sim_psf, source_phot_ops,
                                        base_pointing, base_sca)
 
@@ -174,10 +184,10 @@ def simulate_images(testnum, detim, ra, dec, do_xshift, do_rotation,
     images = imagelist
     Lager.debug(f'images shape: {images[0].shape}')
     Lager.debug(f'images length {len(images)}')
+    file_path = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    util_ref = roman_utils(config_file=file_path,
+                           visit=base_pointing, sca=base_sca)
 
-    util_ref = roman_utils(config_file='./temp_tds.yaml',
-                                       visit=base_pointing,
-                                       sca=base_sca)
 
     return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref
 

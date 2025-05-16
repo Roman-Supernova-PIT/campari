@@ -30,12 +30,17 @@ import os
 import time
 import galsim
 import h5py
+import scipy.sparse as sp
+from numpy.linalg import LinAlgError
 from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
 from snappl.logger import Lager
 
-pd.options.mode.chained_assignment = None  # default='warn'
+# This supresses a warning because the Open Universe Simulations dates are not
+# FITS compliant.
 warnings.simplefilter('ignore', category=AstropyWarning)
+# Because the Open Universe Sims have dates from the future, we supress a
+# warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 r'''
@@ -357,8 +362,8 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
                inplace=True)
 
     res = res.loc[res['filter'] == band]
-    det = res.loc[(res['date'] >= start) & (res['date'] <= end)]
-    det['offpeak_time'] = np.abs(det['date'] - peak) # this needs to be deleted
+    det = res.loc[(res['date'] >= start) & (res['date'] <= end)].copy()
+    det['offpeak_time'] = det['date'] - peak
     det = det.sort_values('offpeak_time')
     if lc_start != -np.inf or lc_end != np.inf:
         det = det.loc[(det['offpeak_time'] >= lc_start) &
@@ -370,7 +375,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     if pointing_list is not None:
         det = det.loc[det['Pointing'].isin(pointing_list)]
 
-    bg = res.loc[(res['date'] < start) | (res['date'] > end)]
+    bg = res.loc[(res['date'] < start) | (res['date'] > end)].copy()
     bg['offpeak_time'] = bg['date'] - peak
     if lc_start != -np.inf or lc_end != np.inf:
         bg = bg.loc[(bg['offpeak_time'] >= lc_start) &
@@ -745,8 +750,8 @@ def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
-                                 roman_path=roman_path, maxbg=testnum - detim,
-                                 maxdet=detim, return_list=True, band=band,
+                                 roman_path=roman_path, maxbg=num_total_images - num_detect_images,
+                                 maxdet=num_detect_images, return_list=True, band=band,
                                  lc_start=lc_start, lc_end=lc_end)
     images, cutout_wcs_list, im_wcs_list, err =\
         constructImages(exposures, ra, dec, size=size,
@@ -923,7 +928,7 @@ def plot_lc(filepath, return_data=False):
 def plot_images(fileroot, size = 11):
 
     imgdata = np.load('./results/images/'+str(fileroot)+'_images.npy')
-    testnum = imgdata.shape[1]//size**2
+    num_total_images = imgdata.shape[1]//size**2
     images = imgdata[0]
     sumimages = imgdata[1]
     wgt_matrix = imgdata[2]
@@ -948,7 +953,7 @@ def plot_images(fileroot, size = 11):
 
     ra_grid, dec_grid, gridvals = np.load('./results/images/'+str(fileroot)+'_grid.npy')
 
-    fig = plt.figure(figsize = (15,3*testnum))
+    fig = plt.figure(figsize = (15,3*num_total_images))
 
     for i, wcs in enumerate(cutout_wcs_list):
 
@@ -1026,17 +1031,12 @@ def plot_images(fileroot, size = 11):
         plt.colorbar(fraction=0.046, pad=0.14)
         #plt.scatter(galx,galy, c = 'r', s = 12, marker = '*', edgecolors='k')
 
-
-
-
-
-
     plt.subplots_adjust(wspace = 0.4, hspace = 0.3)
 
 
 def slice_plot(fileroot):
     biases = []
-    fig = plt.figure(figsize = (15,2*testnum))
+    fig = plt.figure(figsize = (15,2*num_total_images))
     images = imgdata[0]
     sumimages = imgdata[1]
     wgt_matrix = imgdata[2]
@@ -1069,12 +1069,12 @@ def slice_plot(fileroot):
         snx, sny = wcs.toImage(snra, sndec, units = 'deg')
 
         plt.subplot(len(cutout_wcs_list)//3 + 1,3,i+1)
-        if i >= testnum - detim:
-            plt.title('MagBias: ' + str(np.round(magresiduals[i - testnum + detim],4)) + ' mag')
+        if i >= num_total_images - num_detect_images:
+            plt.title('MagBias: ' + str(np.round(magresiduals[i - num_total_images + num_detect_images],4)) + ' mag')
 
 
         justbgX = np.copy(X)
-        justbgX[-testnum:] = 0
+        justbgX[-num_total_images:] = 0
 
         justbgpred = justbgX * psf_matrix
         justbgsumimages = np.sum(justbgpred, axis = 1)
@@ -1082,8 +1082,8 @@ def slice_plot(fileroot):
 
 
         #subtract off the real sn
-        #if i >= testnum - detim:
-            #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
+        #if i >= num_total_images - num_detect_images:
+            #justbgim -= sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - num_total_images + num_detect_images]
 
 
 
@@ -1100,8 +1100,8 @@ def slice_plot(fileroot):
         plt.ylim(-250,250)
 
 
-        if i >= testnum - detim:
-            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - testnum + detim]
+        if i >= num_total_images - num_detect_images:
+            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*supernova[i - num_total_images + num_detect_images]
             plt.plot(snim[5], label = 'True SN', lw = 3)
             plt.fill_between(np.arange(0,11,1), trueimage[5] - snim[5] + 50, trueimage[5] - snim[5] - 50, label = 'Im-True SN', alpha = 0.4)
             plt.plot(np.arange(0,11,1), trueimage[5] - snim[5] , color = 'k', ls = '--')
@@ -1110,7 +1110,7 @@ def slice_plot(fileroot):
 
             #plt.plot(justbgres[5] - snim[5], label = 'SN Residuals', ls = '--')
             plt.ylim(-500,np.max(trueimage[5]))
-            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-detim:][i - testnum + detim]
+            snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-num_detect_images:][i - num_total_images + num_detect_images]
 
         else:
             snim = np.zeros_like(justbgres)
@@ -1283,7 +1283,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     exposures (table): table of exposures used in the SMP algorithm
     sn_path (str): path to supernova data
     confusion_metric (float): the confusion metric derived in the SMP algorithm
-    detim (int): number of detection images in the lightcurve
+    num_detect_images (int): number of detection images in the lightcurve
     X (array): the output of the SMP algorithm
     use_roman (bool): whether or not the lightcurve was built using Roman PSF
     band (str): the bandpass of the images used
@@ -1340,7 +1340,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 
     Inputs
     supernova (array): the true lightcurve
-    detim (int): number of detection images in the lightcurve
+    num_detect_images (int): number of detection images in the lightcurve
     X (array): the output of the SMP algorithm
 
     Returns
@@ -1348,7 +1348,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     2.) Soon I will turn many of these inputs into environment variable and they
     should be deleted from function arguments and docstring.
     '''
-    sim_MJD = np.arange(0, detim, 1)
+    sim_MJD = np.arange(0, num_detect_images, 1)
     data_dict = {'MJD': sim_MJD, 'flux': flux,
                  'flux_error': sigma_flux, 'SIM_flux': supernova}
     meta_dict = {}
@@ -1479,3 +1479,296 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     wgt_matrix = np.hstack(wgt_matrix)
 
     return images, err, sn_matrix, wgt_matrix
+
+
+def run_one_object(ID, num_total_images, num_detect_images, roman_path,
+                   sn_path, size, band, fetch_SED, use_real_images, use_roman,
+                   fit_background, turn_grid_off, adaptive_grid, npoints,
+                   make_initial_guess, initial_flux_guess, weighting, method,
+                   make_contour_grid, single_grid_point, pixel, source_phot_ops,
+                   lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
+                   mismatch_seds, deltafcn_profile, noise, check_perfection,
+                   avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
+                   draw_method_for_non_roman_psf = 'no_pixel'):
+
+    Lager.debug(f'ID: {ID}')
+    psf_matrix = []
+    sn_matrix = []
+    cutout_wcs_list = []
+    im_wcs_list = []
+
+    # This is a catch for when I'm doing my own simulated WCSs
+    util_ref = None
+
+    percentiles = []
+    roman_bandpasses = galsim.roman.getBandpasses()
+
+    if use_real_images:
+        # Find SN Info, find exposures containing it,
+        # and load those as images.
+        # TODO: Calculate peak MJD outside of the function
+        images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
+            exposures, object_type = fetchImages(num_total_images,
+                                                 num_detect_images, ID,
+                                                 sn_path, band, size,
+                                                 fit_background,
+                                                 roman_path,
+                                                 lc_start=lc_start,
+                                                 lc_end=lc_end)
+        num_predetection_images = exposures[~exposures['DETECTED']]
+        if len(num_predetection_images) == 0 and object_type == 'SN':
+            Lager.warning('No pre-detection images found in time range ' +
+                            'provided, skipping this object.')
+            return None
+
+        if num_total_images != np.inf and len(exposures) != num_total_images:
+            Lager.warning(f'Not Enough Exposures. \
+                Found {len(exposures)} out of {num_total_images} requested')
+            return None
+
+        num_total_images = len(exposures)
+        num_detect_images = len(exposures[exposures['DETECTED']])
+        _ = f'Updating image numbers to {num_total_images} and {num_detect_images}'
+        Lager.debug(_)
+
+    else:
+        # Simulate the images of the SN and galaxy.
+        banner('Simulating Images')
+        images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
+            simulate_images(num_total_images, num_detect_images, ra, dec,
+                            sim_gal_ra_offset, sim_gal_dec_offset,
+                            do_xshift, do_rotation, noise=noise,
+                            use_roman=use_roman, roman_path=roman_path,
+                            size=size, band=band,
+                            deltafcn_profile=deltafcn_profile,
+                            input_psf=airy, bg_gal_flux=bg_gal_flux,
+                            source_phot_ops=source_phot_ops,
+                            mismatch_seds=mismatch_seds)
+        object_type = 'SN'
+        err = np.ones_like(images)
+
+    sedlist = get_galsim_SED_list(ID, exposures, fetch_SED, object_type,
+                                  sn_path)
+
+    # Build the background grid
+    if not turn_grid_off:
+        if object_type == 'star':
+            Lager.warning('For fitting stars, you probably dont want a grid.')
+        ra_grid, dec_grid = makeGrid(adaptive_grid, images, size, ra, dec,
+                                     cutout_wcs_list,
+                                     single_grid_point=single_grid_point,
+                                     percentiles=percentiles,
+                                     npoints=npoints,
+                                     makecontourGrid=make_contour_grid)
+    else:
+        ra_grid = np.array([])
+        dec_grid = np.array([])
+
+    # Using the images, hazard an initial guess.
+    # The num_total_images - num_detect_images check is to ensure we have
+    # pre-detection images. Otherwise, initializing the model guess does not
+    # make sense.
+    if make_initial_guess and num_total_images != num_detect_images:
+        if num_detect_images != 0:
+            x0test = generateGuess(images[:-num_detect_images], cutout_wcs_list,
+                                   ra_grid, dec_grid)
+            x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
+            x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
+            print(x0test.shape)
+            Lager.debug(f'setting initial guess to {initial_flux_guess}')
+        else:
+            x0test = generateGuess(images, cutout_wcs_list, ra_grid,
+                                   dec_grid)
+
+    else:
+        x0test = None
+
+    banner('Building Model')
+
+    # Calculate the Confusion Metric
+
+    confusion_metric = 0
+    Lager.debug('Confusion Metric not calculated')
+
+    if use_real_images and object_type == 'SN':
+        sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
+        x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
+        snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
+        pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
+        array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
+                                     x_center=snx, y_center=sny, sed=sed)
+        confusion_metric = np.dot(images[0].flatten(), array)
+
+        Lager.debug(f'Confusion Metric: {confusion_metric}')
+    else:
+        confusion_metric = 0
+        Lager.debug('Confusion Metric not calculated')
+
+    # Build the backgrounds loop
+    # TODO: Zip all the things you index [i] on directly and loop over
+    # them.
+    for i in range(num_total_images):
+        if use_roman:
+            sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
+                                          wcs=cutout_wcs_list[i])
+        else:
+            sim_psf = airy
+
+        x, y = im_wcs_list[i].toImage(ra, dec, units='deg')
+
+        # Build the model for the background using the correct psf and the
+        # grid we made in the previous section.
+
+        # TODO: Put this in snappl
+        if use_real_images:
+            util_ref = roman_utils(config_file='./temp_tds.yaml',
+                                   visit=exposures['Pointing'][i],
+                                   sca=exposures['SCA'][i])
+
+        # TODO: better name for array
+        # TODO: Why is band here twice?
+        array, bgpsf = construct_psf_background(ra_grid, dec_grid,
+                                                cutout_wcs_list[i], x, y,
+                                                size,
+                                                roman_bandpasses[band],
+                                                color=0.61, psf=sim_psf,
+                                                pixel=pixel,
+                                                include_photonOps=False,
+                                                util_ref=util_ref,
+                                                use_roman=use_roman,
+                                                band=band)
+        # TODO comment this
+
+        if fit_background:
+            for j in range(num_total_images):
+                if i == j:
+                    bg = np.ones(size**2).reshape(-1, 1)
+                else:
+                    bg = np.zeros(size**2).reshape(-1, 1)
+                array = np.concatenate([array, bg], axis=1)
+
+        # Add the array of the model points and the background (if using)
+        # to the matrix of all components of the model.
+        psf_matrix.append(array)
+
+        # TODO make this not bad
+        if num_detect_images != 0 and i >= num_total_images - num_detect_images:
+            snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
+            if use_roman:
+                if use_real_images:
+                    pointing = exposures['Pointing'][i]
+                    SCA = exposures['SCA'][i]
+                else:
+                    pointing = 662
+                    SCA = 11
+                # sedlist is the length of the number of supernova
+                # detection images. Therefore, when we iterate onto the
+                # first supernova image, we want to be on the first element
+                # of sedlist. Therefore, we subtract by the number of
+                # predetection images: num_total_images - num_detect_images.
+                sn_index = i - (num_total_images - num_detect_images)
+                Lager.debug(f'Using SED #{sn_index}')
+                sed = sedlist[sn_index]
+                Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
+                array = construct_psf_source(x, y, pointing, SCA,
+                                             stampsize=size, x_center=snx,
+                                             y_center=sny, sed=sed,
+                                             photOps=source_phot_ops)
+            else:
+                stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
+                profile = galsim.DeltaFunction()*sed
+                profile = profile.withFlux(1, roman_bandpasses[band])
+                convolved = galsim.Convolve(profile, sim_psf)
+                array =\
+                     convolved.drawImage(roman_bandpasses[band],
+                                        method=draw_method_for_non_roman_psf,
+                                        image=stamp,
+                                        wcs=cutout_wcs_list[i],
+                                        center=(snx, sny),
+                                        use_true_center=True,
+                                        add_to_image=False)
+                array = array.array.flatten()
+
+            sn_matrix.append(array)
+
+    banner('Lin Alg Section')
+    psf_matrix = np.vstack(np.array(psf_matrix))
+    Lager.debug(f'{psf_matrix.shape} psf matrix shape')
+
+    # Add in the supernova images to the matrix in the appropriate location
+    # so that it matches up with the image it represents.
+    # All others should be zero.
+
+    # Get the weights
+    if weighting:
+        wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
+                                error=err)
+    else:
+        wgt_matrix = np.ones(psf_matrix.shape[1])
+
+    images, err, sn_matrix, wgt_matrix =\
+        prep_data_for_fit(images, err, sn_matrix, wgt_matrix)
+
+    # Calculate amount of the PSF cut out by setting a distance cap
+    test_sn_matrix = np.copy(sn_matrix)
+    test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
+    Lager.debug(f'SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}')
+    Lager.debug(f'SN PSF Norms Post Distance Cut:{np.sum(test_sn_matrix, axis=0)}')
+
+    # Combine the background model and the supernova model into one matrix.
+
+    psf_matrix = np.hstack([psf_matrix, sn_matrix])
+
+    banner('Solving Photometry')
+    # These if statements can definitely be written more elegantly.
+    if not make_initial_guess:
+        x0test = np.zeros(psf_matrix.shape[1])
+
+    if fit_background:
+        x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
+
+    if method == 'lsqr':
+        lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
+                              images*wgt_matrix, x0=x0test, atol=1e-12,
+                              btol=1e-12, iter_lim=300000, conlim=1e10)
+        X, istop, itn, r1norm = lsqr[:4]
+        Lager.debug(f'Stop Condition {istop}, iterations: {itn},' +
+                    f'r1norm: {r1norm}')
+    flux = X[-num_detect_images:]
+    inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+    Lager.debug(f'inv_cov shape: {inv_cov.shape}')
+    Lager.debug(f'psf_matrix shape: {psf_matrix.shape}')
+    Lager.debug(f'wgt_matrix shape: {wgt_matrix.shape}')
+    try:
+        cov = np.linalg.inv(inv_cov)
+    except LinAlgError:
+        cov = np.linalg.pinv(inv_cov)
+
+    Lager.debug(f'cov diag: {np.diag(cov)[-num_detect_images:]}')
+    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:])
+    Lager.debug(f'sigma flux: {sigma_flux}')
+
+    # Using the values found in the fit, construct the model images.
+    pred = X*psf_matrix
+    sumimages = np.sum(pred, axis=1)
+
+    # TODO: Move this to a separate function
+    if check_perfection:
+        if avoid_non_linearity:
+            f = 1
+        else:
+            f = 5000
+        if single_grid_point:
+            X[0] = f
+        else:
+            X = np.zeros_like(X)
+            X[106] = f
+
+    if use_real_images:
+        # Eventually I might completely separate out simulated SNe, though I
+        # am hesitant to do that as I want them to be treated identically as
+        # possible. In the meantime, just return zeros for the simulated lc
+        # if we aren't simulating.
+        sim_lc = np.zeros(num_detect_images)
+    return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
+        wgt_matrix, confusion_metric, object_type, X, cutout_wcs_list, sim_lc
