@@ -710,7 +710,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     return result
 
 
-def fetchImages(testnum, detim, ID, sn_path, band, size, fit_background,
+def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fit_background,
                 roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
     '''
     This function gets the list of exposures to be used for the analysis.
@@ -1511,11 +1511,7 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     Lager.info(f'Saved to {output_path}')
 
 
-
-
-
-
-def run_one_object(ID, num_total_images, num_detect_images, roman_path,
+def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
                    fit_background, turn_grid_off, adaptive_grid, npoints,
                    make_initial_guess, initial_flux_guess, weighting, method,
@@ -1542,11 +1538,12 @@ def run_one_object(ID, num_total_images, num_detect_images, roman_path,
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
         images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-            exposures, object_type = fetchImages(num_total_images,
+            exposures = fetchImages(num_total_images,
                                                  num_detect_images, ID,
                                                  sn_path, band, size,
                                                  fit_background,
                                                  roman_path,
+                                                 object_type,
                                                  lc_start=lc_start,
                                                  lc_end=lc_end)
         num_predetection_images = exposures[~exposures['DETECTED']]
@@ -1805,4 +1802,4 @@ def run_one_object(ID, num_total_images, num_detect_images, roman_path,
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
-        wgt_matrix, confusion_metric, object_type, X, cutout_wcs_list, sim_lc
+        wgt_matrix, confusion_metric, X, cutout_wcs_list, sim_lc

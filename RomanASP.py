@@ -79,7 +79,7 @@ def main():
                         help='Roman filter')
     parser.add_argument('-s', '--SNID', type=int, required=False,
                         help='Supernova ID', nargs="*")
-    parser.add_argument('-t', '--num_total_imgs', type=int, required=False,
+    parser.add_argument('-t', '--num_total_images', type=int, required=False,
                         help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
     parser.add_argument('-d', '--num_detect_images', type=int, required=False,
@@ -163,7 +163,6 @@ def main():
     sim_gal_ra_offset = config['sim_gal_ra_offset']
     sim_gal_dec_offset = config['sim_gal_dec_offset']
 
-
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
     aberrations = galsim.roman.getPSF(1, band, pupil_bin=1).aberrations
@@ -187,8 +186,8 @@ def main():
         # I apologize to everyone who taught me how to code. This will be clean one day.
         try:
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-                confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
-                run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
+                confusion_metric, X, cutout_wcs_list, sim_lc = \
+                run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                             sn_path, size, band, fetch_SED, use_real_images,
                             use_roman, fit_background, turn_grid_off,
                             adaptive_grid, npoints,
@@ -197,7 +196,8 @@ def main():
                             single_grid_point, pixel, source_phot_ops,
                             lc_start, lc_end, do_xshift, bg_gal_flux,
                             do_rotation, airy, mismatch_seds, deltafcn_profile,
-                            noise, check_perfection, avoid_non_linearity)
+                            noise, check_perfection, avoid_non_linearity,
+                            sim_gal_ra_offset, sim_gal_dec_offset)
         except ValueError as e:
             Lager.info(f'ValueError: {e}')
             continue
