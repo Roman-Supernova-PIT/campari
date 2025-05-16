@@ -22,8 +22,8 @@ import tempfile
 import warnings
 import yaml
 
-#warnings.simplefilter('ignore', category=AstropyWarning)
-#warnings.filterwarnings("ignore", category=ErfaWarning)
+warnings.simplefilter('ignore', category=AstropyWarning)
+warnings.filterwarnings("ignore", category=ErfaWarning)
 roman_path = '/hpc/group/cosmology/OpenUniverse2024'
 sn_path =\
      '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'

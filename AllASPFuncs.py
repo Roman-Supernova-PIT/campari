@@ -37,7 +37,7 @@ from snappl.image import OpenUniverse2024FITSImage
 from snappl.logger import Lager
 
 # This supresses a warning because the Open Universe Simulations dates are not
-# FITS compliant (apparently).
+# FITS compliant.
 warnings.simplefilter('ignore', category=AstropyWarning)
 # Because the Open Universe Sims have dates from the future, we supress a
 # warning about using future dates.

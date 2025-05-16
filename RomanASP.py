@@ -32,7 +32,7 @@ import warnings
 import yaml
 
 # This supresses a warning because the Open Universe Simulations dates are not
-# FITS compliant (apparently).
+# FITS compliant.
 warnings.simplefilter('ignore', category=AstropyWarning)
 # Because the Open Universe Sims have dates from the future, we supress a
 # warning about using future dates.
@@ -79,10 +79,10 @@ def main():
                         help='Roman filter')
     parser.add_argument('-s', '--SNID', type=int, required=True,
                         help='Supernova ID')
-    parser.add_argument('-t', '--num_total_imgs', type=int, required=False,
+    parser.add_argument('-t', '--num_total_images', type=int, required=False,
                         help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
-    parser.add_argument('-d', '--num_detect_imgs', type=int, required=False,
+    parser.add_argument('-d', '--num_detect_images', type=int, required=False,
                         help='Number of images to use with SN detections',
                         default=np.inf)
     # TODO:change all instances of this variable to det_images
@@ -110,8 +110,8 @@ def main():
     args = parser.parse_args()
     band = args.filter
     SNID = args.SNID
-    num_total_imgs = args.num_total_imgs
-    num_detect_imgs = args.num_detect_imgs
+    num_total_images = args.num_total_images
+    num_detect_images = args.num_detect_images
     output_path = args.output_path
     lc_start = args.beginning
     lc_end = args.end
@@ -167,7 +167,7 @@ def main():
         assert single_grid_point
     if avoid_non_linearity:
         assert deltafcn_profile
-    assert num_detect_imgs <= num_total_imgs
+    assert num_detect_images <= num_total_images
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
@@ -180,7 +180,7 @@ def main():
     for ID in SNID:
         flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
             confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
-            run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
+            run_one_object(ID, num_total_images, num_detect_images, roman_path,
                            sn_path, size, band, fetch_SED, use_real_images,
                            use_roman, fit_background, turn_grid_off,
                            adaptive_grid, npoints,
