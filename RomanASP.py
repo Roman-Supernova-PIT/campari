@@ -103,6 +103,13 @@ def main():
                         help='end of desired light curve in days from peak.',
                         default=np.inf)
 
+    parser.add_argument('--object_type', type=str, required=False,
+                        choices=["star", "SN"],
+                        help='If star, will run on stars. If SN, will run  ' +
+                             'on supernovae. If no argument is passed,' +
+                             'assumes supernova.',
+                        default='SN')
+
     args = parser.parse_args()
     band = args.filter
     SNID = args.SNID
@@ -111,6 +118,7 @@ def main():
     output_path = args.output_path
     lc_start = args.beginning
     lc_end = args.end
+    object_type = args.object_type
 
     if args.config is not None:
         config_path = args.config
@@ -155,9 +163,6 @@ def main():
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36,
                                       aberrations=aberrations)
 
-    supernova = 1
-    # DELETE this once simulation fixes are merged in
-
     if make_exact:
         assert single_grid_point
     if avoid_non_linearity:
@@ -173,7 +178,6 @@ def main():
 
     # run one supernova function TODO
     for ID in SNID:
-        # I apologize to everyone who taught me how to code. This will be clean one day.
         flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
             confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
             run_one_object(ID, num_total_imgs, num_detect_imgs, roman_path,
@@ -198,7 +202,7 @@ def main():
                                   sigma_flux)
         else:
             identifier = 'simulated'
-            lc = build_lightcurve_sim(supernova, flux, sigma_flux)
+            lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
         if use_roman:
             psftype = 'romanpsf'
         else:

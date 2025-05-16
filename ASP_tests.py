@@ -63,8 +63,8 @@ def test_findAllExposures():
 
 
 def test_simulate_images():
-    band = 'F184'
     lam = 1293  # nm
+    band = 'F184'
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
@@ -73,6 +73,7 @@ def test_simulate_images():
         simulate_images(num_total_imgs=10, num_detect_imgs=5, ra=7.541534306163982,
                         dec=-44.219205940734625, do_xshift=True,
                         do_rotation=True, sim_lc=test_lightcurve,
+
                         noise=0, use_roman=False, band='F184',
                         deltafcn_profile=False, roman_path=roman_path, size=11,
                         input_psf=airy, bg_gal_flux=9e5)
@@ -163,7 +164,8 @@ def test_run_on_star():
         temp_config_path = temp_config.name
 
     err_code = os.system(f'python RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1\
-                          -o "tests/testdata" --config {temp_config_path}')
+                          -o "tests/testdata" --config {temp_config_path}\
+                          --object_type star')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
@@ -198,7 +200,10 @@ def test_regression():
                               delimiter=' ')
 
     for col in current.columns:
-        assert np.array_equal(current[col], comparison[col]), "The lightcurves do not match for column %s" % col
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        msg = "The lightcurves do not match for column %s" % col
+        assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
 
 
 def test_get_galsim_SED():

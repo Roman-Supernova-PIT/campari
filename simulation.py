@@ -55,6 +55,7 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
     '''
+
     if not use_roman:
         assert input_psf is not None, 'you must provide an input psf if not \
              using roman'
