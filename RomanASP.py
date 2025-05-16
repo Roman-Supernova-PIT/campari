@@ -179,8 +179,8 @@ def main():
     # run one supernova function TODO
     for ID in SNID:
         flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-            confusion_metric, object_type, X, cutout_wcs_list, sim_lc = \
-            run_one_object(ID, num_total_images, num_detect_images, roman_path,
+            confusion_metric, X, cutout_wcs_list, sim_lc = \
+            run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                            sn_path, size, band, fetch_SED, use_real_images,
                            use_roman, fit_background, turn_grid_off,
                            adaptive_grid, npoints,
