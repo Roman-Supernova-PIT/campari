@@ -22,8 +22,8 @@ import tempfile
 import warnings
 import yaml
 
-warnings.simplefilter('ignore', category=AstropyWarning)
-warnings.filterwarnings("ignore", category=ErfaWarning)
+#warnings.simplefilter('ignore', category=AstropyWarning)
+#warnings.filterwarnings("ignore", category=ErfaWarning)
 roman_path = '/hpc/group/cosmology/OpenUniverse2024'
 sn_path =\
      '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
@@ -68,10 +68,13 @@ def test_simulate_images():
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
-    test_lightcurve =[10, 100, 1000, 10**4, 10**5]
+    # Fluxes for the simulated supernova, days arbitrary.
+    test_lightcurve = [10, 100, 1000, 10**4, 10**5]
     images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
-        simulate_images(num_total_imgs=10, num_detect_imgs=5, ra=7.541534306163982,
-                        dec=-44.219205940734625, do_xshift=True,
+        simulate_images(num_total_images=10, num_detect_images=5, ra=7.541534306163982,
+                        dec=-44.219205940734625,
+                        sim_gal_ra_offset=1e-5,
+                        sim_gal_dec_offset=1e-5, do_xshift=True,
                         do_rotation=True, sim_lc=test_lightcurve,
 
                         noise=0, use_roman=False, band='F184',

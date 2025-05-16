@@ -22,12 +22,16 @@ from erfa import ErfaWarning
 from astropy.nddata import Cutout2D
 from snappl.logger import Lager
 
-pd.options.mode.chained_assignment = None  # default='warn'
-warnings.simplefilter('ignore', category=AstropyWarning)
+# This supresses a warning because the Open Universe Simulations dates are not
+# FITS compliant (apparently).
+warnings.simplefilter("ignore", category=AstropyWarning)
+# Because the Open Universe Sims have dates from the future, we supress a
+# warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
+def simulate_images(num_total_images, num_detect_images, ra, dec,
+                    sim_gal_ra_offset, sim_gal_dec_offset, do_xshift,
                     do_rotation, noise, use_roman, band, deltafcn_profile,
                     roman_path, size=11, input_psf=None, constant_imgs=False,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
@@ -36,8 +40,8 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
     This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
-    num_total_imgs: int, the number of images to simulate
-    num_detect_imgs: int, the number of images to simulate with a supernova
+    num_total_images: int, the number of images to simulate
+    num_detect_images: int, the number of images to simulate with a supernova
     ra, dec: floats, the RA and DEC of the center of the images to simulate,
         and the RA and DEC of the supernova.
     do_xshift:, bool whether to shift the images in the x direction (they will
@@ -51,7 +55,7 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
         a default light curve will be generated.
 
     Returns:
-    images: a numpy array of the images, with shape (num_total_imgs*size*size)
+    images: a numpy array of the images, with shape (num_total_images, size, size)
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
     '''
@@ -61,16 +65,16 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
              using roman'
     else:
         input_psf = None
-    galra = ra + 1.5e-5
-    galdec = dec + 1.5e-5
+    galra = ra + sim_gal_ra_offset
+    galdec = dec + sim_gal_dec_offset
 
     if sim_lc is None:
         # Here, if the user has not provided a light curve that they want
         # simulated, we generate a default one.
-        if num_detect_imgs == 0:
+        if num_detect_images == 0:
             sim_lc = 0
         else:
-            d = np.linspace(5, 20, num_detect_imgs)
+            d = np.linspace(5, 20, num_detect_images)
             mags = -5 * np.exp(-d/10) + 6
             fluxes = 10**(mags)
             sim_lc = list(fluxes)
@@ -84,7 +88,7 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
     psf_storage = []
     sn_storage = []
 
-    for i in range(num_total_imgs):
+    for i in range(num_total_images):
 
         if do_xshift:
             x_shift = 1e-5/3 * i
@@ -160,7 +164,7 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
         if sim_lc != 0:
             # Here we want to count which supernova image we are on. The
             # following is zero on the first sn image and counts up:
-            sn_im_index = i - num_total_imgs + num_detect_imgs
+            sn_im_index = i - num_total_images + num_detect_images
             if sn_im_index >= 0:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units='deg')
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
@@ -180,9 +184,10 @@ def simulate_images(num_total_imgs, num_detect_imgs, ra, dec, do_xshift,
     images = imagelist
     Lager.debug(f'images shape: {images[0].shape}')
     Lager.debug(f'images length {len(images)}')
-    file_path = str(pathlib.Path(__file__).parent/'temp_tds.yaml')
+    file_path = pathlib.Path(__file__).parent/'temp_tds.yaml'
     util_ref = roman_utils(config_file=file_path,
                            visit=base_pointing, sca=base_sca)
+
 
     return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref
 

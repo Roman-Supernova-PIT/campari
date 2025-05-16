@@ -8,37 +8,34 @@ import pathlib
 sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 # End of lines that will go away once we do this right
 
-import numpy as np
-from astropy.io import fits
-import pandas as pd
-from roman_imsim.utils import roman_utils
-import warnings
-from astropy.utils.exceptions import AstropyWarning
-from erfa import ErfaWarning
-import scipy.sparse as sp
-from numpy.linalg import LinAlgError
-import galsim
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
                         makeGrid, get_galsim_SED, getWeights, generateGuess, \
-                        get_galsim_SED_list, prep_data_for_fit
-
-
-
-from simulation import simulate_images
-import yaml
+                        get_galsim_SED_list, prep_data_for_fit, run_one_object
+from astropy.io import fits
+from astropy.utils.exceptions import AstropyWarning
 import argparse
+from erfa import ErfaWarning
+import galsim
+import numpy as np
+from numpy.linalg import LinAlgError
 import os
-
+import pandas as pd
+from roman_imsim.utils import roman_utils
+import scipy.sparse as sp
+from simulation import simulate_images
 from snappl.logger import Lager
 from snappl.config import Config
 from snappl.image import OpenUniverse2024FITSImage
+import warnings
+import yaml
 
-from OneObjFunc import run_one_object
-
-pd.options.mode.chained_assignment = None  # default='warn'
+# This supresses a warning because the Open Universe Simulations dates are not
+# FITS compliant (apparently).
 warnings.simplefilter('ignore', category=AstropyWarning)
+# Because the Open Universe Sims have dates from the future, we supress a
+# warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 r'''
@@ -156,6 +153,9 @@ def main():
     make_contour_grid = config['makecontourGrid']
     initial_flux_guess = config['initial_flux_guess']
     deltafcn_profile = config['deltafcn_profile']
+    sim_gal_ra_offset = config['sim_gal_ra_offset']
+    sim_gal_dec_offset = config['sim_gal_dec_offset']
+
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -189,7 +189,8 @@ def main():
                            single_grid_point, pixel, source_phot_ops,
                            lc_start, lc_end, do_xshift, bg_gal_flux,
                            do_rotation, airy, mismatch_seds, deltafcn_profile,
-                           noise, check_perfection, avoid_non_linearity)
+                           noise, check_perfection, avoid_non_linearity,
+                           sim_gal_ra_offset, sim_gal_dec_offset)
 
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save
