@@ -8,6 +8,5 @@ PSFPhotometryExample.ipynb
 *.swp
 __pycache__
 RomanPSFComparison.ipynb
-config.yaml
 
 
