@@ -1478,7 +1478,9 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
     return images, err, sn_matrix, wgt_matrix
 
-def get_SNe_from_parq(parquet_file, sn_path, output_path, mag_limits=None):
+def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
+                                                  output_path,
+                                                  mag_limits=None):
     '''
     Convenience function for getting a list of SNIDs that obey some conditions
     from a parquet file. This is not used anywhere in the main algorithm.
@@ -1501,7 +1503,6 @@ def get_SNe_from_parq(parquet_file, sn_path, output_path, mag_limits=None):
     SNID = SNID[np.log10(SNID) < 8]  # The 9 digit SNID SNe are weird for
     # some reason. They only seem to have 1 or 2 images ever. TODO
     SNID = np.array(SNID, dtype=int)
-    print(SNID[0])
     if np.size(SNID) == 0:
         raise ValueError('No supernovae found in the given range.')
     Lager.info(f'Found {np.size(SNID)} supernovae in the given range.')
