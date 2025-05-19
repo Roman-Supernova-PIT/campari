@@ -62,7 +62,7 @@ Adapted from code by Pedro Bernardinelli
 
 
                  _____  __     ___  __________
-                / __/ |/ /    / _ \/  _/_  __/
+                / __/ |/ /    / _ \/  _/_  __/image.
                _\ \/    /    / ___// /  / /
               /___/_/|_/    /_/  /___/ /_/
 
@@ -564,6 +564,9 @@ def constructImages(exposures, ra, dec, size=7, background=False,
     wcs_list = []
     truth = 'simple_model'
 
+    image_list = []
+    cutout_image_list = []
+
     Lager.debug(f'truth in construct images: {truth}')
 
     for indx, i in enumerate(exposures):
@@ -594,14 +597,19 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
 
-        imagedata, = image.get_data(which='data')
+        imagedata, errordata, flags = image.get_data(which='all')
         # Use this where you would have used image[...].data below
 
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size)
         result = Cutout2D(imagedata, pixel, size, mode='strict', wcs=wcs)
-        wcs_list.append(galsim.AstropyWCS(wcs = result.wcs)) # Made this into a galsim wcs
+        wcs_list.append(galsim.AstropyWCS(wcs=result.wcs)) # Made this into a galsim wcs
 
+        assert np.array_equal(result.data, image_cutout.data), 'data different'
         cutout = result.data
         if truth == 'truth':
+            raise RuntimeError("Truth is broken.")
+            # In the future, I'd like to manually insert an array of ones for
+            # the error, or something.
             img = Cutout2D(imagedata, pixel, size, mode='strict').data
             img += np.abs(np.min(img))
             img += 1
@@ -643,20 +651,26 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         bgflux.append(bg)
 
-        #If we are not fitting the background we manually subtract it here.
+        # If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            im -= image._get_header()['SKY_MEAN']
+            image_cutout._data[0] -= image_cutout._get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
-            im -= bg
+            image_cutout._data[0] -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
+
+
 
         m.append(im)
         err.append(err_cutout)
         mask.append(np.zeros((size, size)))
 
+        image_list.append(image)
+        cutout_image_list.append(image_cutout)
+
     image = m
 
     return image, wcs_list, sca_wcs_list, err
+    #return cutout_image_list, image_list
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -753,13 +767,31 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
                                  roman_path=roman_path, maxbg=num_total_images - num_detect_images,
                                  maxdet=num_detect_images, return_list=True, band=band,
                                  lc_start=lc_start, lc_end=lc_end)
+    #cutout_image_list, image_list =\
     images, cutout_wcs_list, im_wcs_list, err =\
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
 
+    # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
+    # Image objects. However, the rest of the code is not refactored yet. This
+    # returns the Image objects back into the numpy arrays that the rest of the
+    # code understands.
+    '''
+    images = []
+    cutout_wcs_list = []
+    im_wcs_list = []
+    err = []
+    for cutout, image in zip(cutout_image_list, image_list):
+        images.append(cutout._data)
+        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
+        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
+        err.append(cutout._noise)
+    '''
     Lager.debug(f'here {np.shape(images)}')
     Lager.debug(f'here {np.shape(err)}')
     Lager.debug(f'here {type(exposures)}')
+
+    ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
            exposures
