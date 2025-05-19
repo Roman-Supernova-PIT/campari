@@ -62,7 +62,7 @@ Adapted from code by Pedro Bernardinelli
 
 
                  _____  __     ___  __________
-                / __/ |/ /    / _ \/  _/_  __/image.
+                / __/ |/ /    / _ \/  _/_  __/
                _\ \/    /    / ___// /  / /
               /___/_/|_/    /_/  /___/ /_/
 
@@ -555,13 +555,8 @@ def constructImages(exposures, ra, dec, size=7, background=False,
     roman_path: the path to the Roman data
 
     '''
-    m = []
-    err = []
-    mask = []
-    wgt = []
+
     bgflux = []
-    sca_wcs_list = []
-    wcs_list = []
     truth = 'simple_model'
 
     image_list = []
@@ -581,47 +576,12 @@ def constructImages(exposures, ra, dec, size=7, background=False,
                                   f'/Roman_TDS_{truth}_{band}_{pointing}_'
                                   f'{SCA}.fits.gz')
         image = OpenUniverse2024FITSImage(imagepath, None, SCA)
-
-        if truth == 'truth':
-            raise RuntimeError("Truth is broken.")
-            # Before I needed to get a different wcs, unclear if that will be
-            # the case for the Image class, but I'll leave this if else here
-            # until that's clearer. # TODO
-            wcs = image.get_wcs()
-        else:
-            wcs = image.get_wcs()
-
-        sca_wcs_list.append(galsim.AstropyWCS(wcs=wcs))
-        # Note to self, once everything is in the snappl image object, this
-        # might be unnecessary if we have a list of Image objects. TODO
-
-        pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
-
         imagedata, errordata, flags = image.get_data(which='all')
-        # Use this where you would have used image[...].data below
-
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
-        result = Cutout2D(imagedata, pixel, size, mode='strict', wcs=wcs)
-        wcs_list.append(galsim.AstropyWCS(wcs=result.wcs)) # Made this into a galsim wcs
-
-        assert np.array_equal(result.data, image_cutout.data), 'data different'
-        cutout = result.data
         if truth == 'truth':
             raise RuntimeError("Truth is broken.")
             # In the future, I'd like to manually insert an array of ones for
             # the error, or something.
-            img = Cutout2D(imagedata, pixel, size, mode='strict').data
-            img += np.abs(np.min(img))
-            img += 1
-            img = np.sqrt(img)
-            err_cutout = 1 / img
-
-        else:
-            errordata, = image.get_data(which='noise')
-            err_cutout = Cutout2D(errordata, pixel, size, mode='strict').data
-
-
-        im = cutout
 
         '''
         try:
@@ -634,6 +594,8 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         im = cutout * zero
         '''
 
+        # Maybe repackage all of this stuff into a function? TODO
+        im = imagedata
         bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
                             im[0:size,size//4:size].flatten(),\
                                 im[size//4:size,0:size//4].flatten(),\
@@ -653,24 +615,15 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         # If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            image_cutout._data[0] -= image_cutout._get_header()['SKY_MEAN']
+            image_cutout._data -= image_cutout._get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
-            image_cutout._data[0] -= bg
+            image_cutout._data -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
-
-
-
-        m.append(im)
-        err.append(err_cutout)
-        mask.append(np.zeros((size, size)))
 
         image_list.append(image)
         cutout_image_list.append(image_cutout)
 
-    image = m
-
-    return image, wcs_list, sca_wcs_list, err
-    #return cutout_image_list, image_list
+    return cutout_image_list, image_list
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -767,8 +720,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
                                  roman_path=roman_path, maxbg=num_total_images - num_detect_images,
                                  maxdet=num_detect_images, return_list=True, band=band,
                                  lc_start=lc_start, lc_end=lc_end)
-    #cutout_image_list, image_list =\
-    images, cutout_wcs_list, im_wcs_list, err =\
+    cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
 
@@ -776,7 +728,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
     # Image objects. However, the rest of the code is not refactored yet. This
     # returns the Image objects back into the numpy arrays that the rest of the
     # code understands.
-    '''
+
     images = []
     cutout_wcs_list = []
     im_wcs_list = []
@@ -786,7 +738,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
         cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
         im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
         err.append(cutout._noise)
-    '''
+
     Lager.debug(f'here {np.shape(images)}')
     Lager.debug(f'here {np.shape(err)}')
     Lager.debug(f'here {type(exposures)}')
