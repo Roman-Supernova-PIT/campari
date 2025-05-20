@@ -200,7 +200,6 @@ def generateGuess(imlist, wcslist, ra_grid, dec_grid):
     return all_vals/len(wcslist)
 
 
-
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
                              use_roman, color=0.61, psf=None, pixel=False,
                              include_photonOps=False, util_ref=None,
@@ -542,7 +541,7 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def constructImages(exposures, ra, dec, size=7, background=False,
+def constructImages(exposures, ra, dec, size=7, fit_background=False,
                     roman_path=None, truth='simple_model'):
 
     '''
@@ -551,7 +550,8 @@ def constructImages(exposures, ra, dec, size=7, background=False,
     Inputs:
     exposures is a list of exposures from findAllExposures
     ra,dec: the RA and DEC of the SN
-    background: whether to subtract the background from the images
+    fit_background: If True, the background level is fit as a free parameter
+            in the forward modelling. Otherwise, we subtract it here.
     roman_path: the path to the Roman data
 
     Returns:
@@ -598,34 +598,20 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         '''
 
         # If we are not fitting the background we manually subtract it here.
-        if background:
-            # When background is true, we are including the background level as
+        if fit_background:
+            # When fit_background is true, we are including the background level as
             # a free parameter in our fit, so it should not be subtracted here.
             bg = 0
-        elif not background and not truth == 'truth':
+        elif not fit_background and not truth == 'truth':
             # However, if we are not fitting the background, we want to get
             # rid of it here, either by reading the SKY_MEAN value from the
             # image header...
             bg = image_cutout._get_header()['SKY_MEAN']
-        elif not background and truth == 'truth':
+        elif not fit_background and truth == 'truth':
             # ....or manually calculating it!
-            # Maybe repackage all of this stuff into a function? TODO
-            im = imagedata
-            bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
-                                im[0:size,size//4:size].flatten(),\
-                                    im[size//4:size,0:size//4].flatten(),\
-                                        im[size//4:size,size//4:size].flatten()))
-            bgarr = bgarr[bgarr != 0]
-            if len(bgarr) == 0:
-                med = 0
-                bg = 0
-            else:
-                pc = np.percentile(bgarr, 84)
-                med = np.median(bgarr)
-                bgarr = bgarr[bgarr < pc]
-                bg = np.median(bgarr)
+            bg = calculate_background_level(imagedata)
 
-        bgflux.append(bg) # This currently isn't returned, but might be a good
+        bgflux.append(bg)  # This currently isn't returned, but might be a good
         # thing to put in output? TODO
 
         image_cutout._data -= bg
@@ -637,6 +623,34 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         Lager.debug(type(image))
 
     return cutout_image_list, image_list
+
+
+def calculate_background_level(im):
+    '''
+    A function for naively estimating the background level from a given image.
+    This may be replaced by a more sophisticated function later.
+
+    Inputs:
+    im, numpy array of floats, the image to be used.
+
+    Returns:
+    bg, float, the estimated background level.
+
+    '''
+    size = im.shape[0]
+    bgarr = np.concatenate((im[0:size//4, 0:size//4].flatten(),
+                            im[0:size, size//4:size].flatten(),
+                            im[size//4:size, 0:size//4].flatten(),
+                            im[size//4:size, size//4:size].flatten()))
+    bgarr = bgarr[bgarr != 0]
+    if len(bgarr) == 0:
+        bg = 0
+    else:
+        pc = np.percentile(bgarr, 84)
+        bgarr = bgarr[bgarr < pc]
+        bg = np.median(bgarr)
+
+    return bg
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -735,7 +749,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
                                  lc_start=lc_start, lc_end=lc_end)
     cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
-                        background=fit_background, roman_path=roman_path)
+                        fit_background=fit_background, roman_path=roman_path)
 
     # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
     # Image objects. However, the rest of the code is not refactored yet. This
