@@ -70,7 +70,8 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = [], makecontourGrid = True):
+def local_grid(ra_center, dec_center, wcs, size=25, spacing=1.0,
+               image=None, percentiles=[], makecontourGrid=True):
 
     '''
     Generates a local grid around a RA-Dec center, choosing step size and
@@ -82,14 +83,15 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+    x = difference + np.arange(0, subsize, spacing)
+    y = difference + np.arange(0, subsize, spacing)
 
     if image is None:
         spacing = 0.5
     else:
         spacing = 1.0
+
     Lager.debug(f'GRID SPACE {spacing}')
-    x = np.arange(difference, subsize+difference, spacing)
-    y = np.arange(difference, subsize+difference, spacing)
 
     if image is not None and not makecontourGrid:
         # Bin the image in logspace and allocate grid points based on the
@@ -856,19 +858,43 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 
 def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
-             percentiles=[], single_grid_point=False, npoints=7,
+             percentiles=[], single_grid_point=False,
              make_exact=False, makecontourGrid=False):
+    '''
+    This is a function that returns the locations for the model grid points
+    used to model the background galaxy. There are several different methods
+    for building the grid, listed below, and this parent function calls the
+    correct function for which type of grid you wish to construct.
+
+    TODO: Each type of grid gets their own function.
+    TODO: is npoints even used any more
+    TODO: refactor
+
+
+    Inputs:
+    adaptive_grid: bool, whether to use the adaptive grid. Adaptive grids use
+        some information about the image to inform where the grid points are
+        placed. If false, a regular grid is used.
+
+
+    returns:
+    ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
+                    model grid points.
+
+
+    '''
     if adaptive_grid:
         ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
-                                       npoints, size=size,  spacing=0.75,
-                                       image=images[0], spline_grid=False,
+                                       size=size,  spacing=0.75,
+                                       image=images[0],
                                        percentiles=percentiles,
                                        makecontourGrid=makecontourGrid)
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
         else:
-            ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], npoints, size = size, spacing = 0.75, spline_grid = False)
+            ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
+                                           size=size, spacing=0.75)
 
         if make_exact:
             if single_grid_point:
@@ -877,7 +903,6 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
             else:
                 galra = ra_grid[106]
                 galdec = dec_grid[106]
-
 
         ra_grid = np.array(ra_grid)
         dec_grid = np.array(dec_grid)
@@ -1495,7 +1520,7 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                   subtract_background, turn_grid_off, adaptive_grid, npoints,
+                   subtract_background, turn_grid_off, adaptive_grid,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    make_contour_grid, single_grid_point, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
@@ -1571,7 +1596,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                      cutout_wcs_list,
                                      single_grid_point=single_grid_point,
                                      percentiles=percentiles,
-                                     npoints=npoints,
                                      makecontourGrid=make_contour_grid)
     else:
         ra_grid = np.array([])
