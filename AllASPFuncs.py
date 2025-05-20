@@ -543,7 +543,7 @@ def gaussian(x, A, mu, sigma):
 
 
 def constructImages(exposures, ra, dec, size=7, background=False,
-                    roman_path=None):
+                    roman_path=None, truth='simple_model'):
 
     '''
     Constructs the array of Roman images in the format required for the linear algebra operations
@@ -562,8 +562,6 @@ def constructImages(exposures, ra, dec, size=7, background=False,
     '''
 
     bgflux = []
-    truth = 'simple_model'
-
     image_list = []
     cutout_image_list = []
 
