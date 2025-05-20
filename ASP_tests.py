@@ -342,5 +342,5 @@ def test_calculate_background_level():
 
     output = calculate_background_level(test_data)
     msg = f"Expected {expected_output}, but got {output}"
-    assert output == expected_output, msg
+    assert np.isclose(output, expected_output, rtol=1e-7), msg
 

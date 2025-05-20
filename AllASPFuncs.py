@@ -83,8 +83,8 @@ def local_grid(ra_center, dec_center, wcs, size=25, spacing=1.0,
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
-    x = np.arange(difference, subsize+difference, spacing)
-    y = np.arange(difference, subsize+difference, spacing)
+    x = difference + np.arange(0, subsize, spacing)
+    y = difference + np.arange(0, subsize, spacing)
 
     if image is None:
         spacing = 0.5
