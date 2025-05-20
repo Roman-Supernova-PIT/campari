@@ -256,3 +256,19 @@ def test_plot_lc():
     assert output[3][0] == 23.164154309471726
     assert output[4] == 182.088
     assert output[5] == 0.0
+
+
+def test_regular_grid():
+    from AllASPFuncs import local_grid
+    from astropy.wcs import WCS
+    wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
+    wcs = dict(wcs)
+    ra_center = wcs['CRVAL1']
+    dec_center = wcs['CRVAL2']
+    for key in wcs.keys():
+        wcs[key] = wcs[key].item()
+    #wcs = WCS(wcs)
+    #wcs = galsim.AstropyWCS(wcs=wcs)
+    wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
+    local_grid(ra_center, dec_center, wcs, npoints=8, size=25, spacing=1.0,
+               image=None, spline_grid=False, percentiles=[], makecontourGrid=True)

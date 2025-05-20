@@ -70,7 +70,8 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = [], makecontourGrid = True):
+def local_grid(ra_center, dec_center, wcs, npoints, size=25, spacing=1.0,
+               image=None, spline_grid=True, percentiles=[], makecontourGrid=True):
 
     '''
     Generates a local grid around a RA-Dec center, choosing step size and
@@ -839,6 +840,29 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
              percentiles=[], single_grid_point=False, npoints=7,
              make_exact=False, makecontourGrid=False):
+    '''
+    This is a function that returns the locations for the model grid points
+    used to model the background galaxy. There are several different methods
+    for building the grid, listed below, and this parent function calls the
+    correct function for which type of grid you wish to construct.
+
+    TODO: Each type of grid gets their own function.
+    TODO: is npoints even used any more
+    TODO: refactor
+
+
+    Inputs:
+    adaptive_grid: bool, whether to use the adaptive grid. Adaptive grids use
+        some information about the image to inform where the grid points are
+        placed. If false, a regular grid is used.
+
+
+    returns:
+    ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
+                    model grid points.
+
+
+    '''
     if adaptive_grid:
         ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
                                        npoints, size=size,  spacing=0.75,
@@ -849,7 +873,9 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
         else:
-            ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], npoints, size = size, spacing = 0.75, spline_grid = False)
+            ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
+                                           npoints, size=size, spacing=0.75,
+                                           spline_grid=False)
 
         if make_exact:
             if single_grid_point:
@@ -858,7 +884,6 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
             else:
                 galra = ra_grid[106]
                 galdec = dec_grid[106]
-
 
         ra_grid = np.array(ra_grid)
         dec_grid = np.array(dec_grid)
