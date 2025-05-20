@@ -543,7 +543,7 @@ def gaussian(x, A, mu, sigma):
 
 
 def constructImages(exposures, ra, dec, size=7, background=False,
-                    roman_path=None):
+                    roman_path=None, truth='simple_model'):
 
     '''
     Constructs the array of Roman images in the format required for the linear algebra operations
@@ -554,15 +554,16 @@ def constructImages(exposures, ra, dec, size=7, background=False,
     background: whether to subtract the background from the images
     roman_path: the path to the Roman data
 
+    Returns:
+    cutout_image_list: list of snappl.image.Image objects, cutouts on the
+                       object location.
+    image_list: list of snappl.image.Image objects of the entire SCA.
+
     '''
-    m = []
-    err = []
-    mask = []
-    wgt = []
+
     bgflux = []
-    sca_wcs_list = []
-    wcs_list = []
-    truth = 'simple_model'
+    image_list = []
+    cutout_image_list = []
 
     Lager.debug(f'truth in construct images: {truth}')
 
@@ -578,42 +579,12 @@ def constructImages(exposures, ra, dec, size=7, background=False,
                                   f'/Roman_TDS_{truth}_{band}_{pointing}_'
                                   f'{SCA}.fits.gz')
         image = OpenUniverse2024FITSImage(imagepath, None, SCA)
-
+        imagedata, errordata, flags = image.get_data(which='all')
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size)
         if truth == 'truth':
             raise RuntimeError("Truth is broken.")
-            # Before I needed to get a different wcs, unclear if that will be
-            # the case for the Image class, but I'll leave this if else here
-            # until that's clearer. # TODO
-            wcs = image.get_wcs()
-        else:
-            wcs = image.get_wcs()
-
-        sca_wcs_list.append(galsim.AstropyWCS(wcs=wcs))
-        # Note to self, once everything is in the snappl image object, this
-        # might be unnecessary if we have a list of Image objects. TODO
-
-        pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
-
-        imagedata, = image.get_data(which='data')
-        # Use this where you would have used image[...].data below
-
-        result = Cutout2D(imagedata, pixel, size, mode='strict', wcs=wcs)
-        wcs_list.append(galsim.AstropyWCS(wcs = result.wcs)) # Made this into a galsim wcs
-
-        cutout = result.data
-        if truth == 'truth':
-            img = Cutout2D(imagedata, pixel, size, mode='strict').data
-            img += np.abs(np.min(img))
-            img += 1
-            img = np.sqrt(img)
-            err_cutout = 1 / img
-
-        else:
-            errordata, = image.get_data(which='noise')
-            err_cutout = Cutout2D(errordata, pixel, size, mode='strict').data
-
-
-        im = cutout
+            # In the future, I'd like to manually insert an array of ones for
+            # the error, or something.
 
         '''
         try:
@@ -626,37 +597,46 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         im = cutout * zero
         '''
 
-        bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
-                            im[0:size,size//4:size].flatten(),\
-                                im[size//4:size,0:size//4].flatten(),\
-                                    im[size//4:size,size//4:size].flatten()))
-        bgarr = bgarr[bgarr != 0]
-
-        if len(bgarr) == 0:
-            med = 0
+        # If we are not fitting the background we manually subtract it here.
+        if background:
+            # When background is true, we are including the background level as
+            # a free parameter in our fit, so it should not be subtracted here.
             bg = 0
-        else:
-            pc = np.percentile(bgarr, 84)
-            med = np.median(bgarr)
-            bgarr = bgarr[bgarr < pc]
-            bg = np.median(bgarr)
-
-        bgflux.append(bg)
-
-        #If we are not fitting the background we manually subtract it here.
-        if not background and not truth == 'truth':
-            im -= image.get_header()['SKY_MEAN']
+        elif not background and not truth == 'truth':
+            # However, if we are not fitting the background, we want to get
+            # rid of it here, either by reading the SKY_MEAN value from the
+            # image header...
+            bg = image_cutout._get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
-            im -= bg
-            Lager.debug(f'Subtracted a background level of {bg}')
+            # ....or manually calculating it!
+            # Maybe repackage all of this stuff into a function? TODO
+            im = imagedata
+            bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
+                                im[0:size,size//4:size].flatten(),\
+                                    im[size//4:size,0:size//4].flatten(),\
+                                        im[size//4:size,size//4:size].flatten()))
+            bgarr = bgarr[bgarr != 0]
+            if len(bgarr) == 0:
+                med = 0
+                bg = 0
+            else:
+                pc = np.percentile(bgarr, 84)
+                med = np.median(bgarr)
+                bgarr = bgarr[bgarr < pc]
+                bg = np.median(bgarr)
 
-        m.append(im)
-        err.append(err_cutout)
-        mask.append(np.zeros((size, size)))
+        bgflux.append(bg) # This currently isn't returned, but might be a good
+        # thing to put in output? TODO
 
-    image = m
+        image_cutout._data -= bg
+        Lager.debug(f'Subtracted a background level of {bg}')
 
-    return image, wcs_list, sca_wcs_list, err
+        image_list.append(image)
+        cutout_image_list.append(image_cutout)
+        Lager.debug('image type:')
+        Lager.debug(type(image))
+
+    return cutout_image_list, image_list
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -753,13 +733,26 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
                                  roman_path=roman_path, maxbg=num_total_images - num_detect_images,
                                  maxdet=num_detect_images, return_list=True, band=band,
                                  lc_start=lc_start, lc_end=lc_end)
-    images, cutout_wcs_list, im_wcs_list, err =\
+    cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
                         background=fit_background, roman_path=roman_path)
 
-    Lager.debug(f'here {np.shape(images)}')
-    Lager.debug(f'here {np.shape(err)}')
-    Lager.debug(f'here {type(exposures)}')
+    # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
+    # Image objects. However, the rest of the code is not refactored yet. This
+    # returns the Image objects back into the numpy arrays that the rest of the
+    # code understands.
+
+    images = []
+    cutout_wcs_list = []
+    im_wcs_list = []
+    err = []
+    for cutout, image in zip(cutout_image_list, image_list):
+        images.append(cutout._data)
+        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
+        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
+        err.append(cutout._noise)
+
+    ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
            exposures
