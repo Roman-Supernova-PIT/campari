@@ -554,6 +554,11 @@ def constructImages(exposures, ra, dec, size=7, background=False,
     background: whether to subtract the background from the images
     roman_path: the path to the Roman data
 
+    Returns:
+    cutout_image_list: list of snappl.image.Image objects, cutouts on the
+                       object location.
+    image_list: list of snappl.image.Image objects of the entire SCA.
+
     '''
 
     bgflux = []
@@ -594,34 +599,44 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         im = cutout * zero
         '''
 
-        # Maybe repackage all of this stuff into a function? TODO
-        im = imagedata
-        bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
-                            im[0:size,size//4:size].flatten(),\
-                                im[size//4:size,0:size//4].flatten(),\
-                                    im[size//4:size,size//4:size].flatten()))
-        bgarr = bgarr[bgarr != 0]
-
-        if len(bgarr) == 0:
-            med = 0
-            bg = 0
-        else:
-            pc = np.percentile(bgarr, 84)
-            med = np.median(bgarr)
-            bgarr = bgarr[bgarr < pc]
-            bg = np.median(bgarr)
-
-        bgflux.append(bg)
-
         # If we are not fitting the background we manually subtract it here.
-        if not background and not truth == 'truth':
-            image_cutout._data -= image_cutout._get_header()['SKY_MEAN']
+        if background:
+            # When background is true, we are including the background level as
+            # a free parameter in our fit, so it should not be subtracted here.
+            bg = 0
+        elif not background and not truth == 'truth':
+            # However, if we are not fitting the background, we want to get
+            # rid of it here, either by reading the SKY_MEAN value from the
+            # image header...
+            bg = image_cutout._get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
-            image_cutout._data -= bg
-            Lager.debug(f'Subtracted a background level of {bg}')
+            # ....or manually calculating it!
+            # Maybe repackage all of this stuff into a function? TODO
+            im = imagedata
+            bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
+                                im[0:size,size//4:size].flatten(),\
+                                    im[size//4:size,0:size//4].flatten(),\
+                                        im[size//4:size,size//4:size].flatten()))
+            bgarr = bgarr[bgarr != 0]
+            if len(bgarr) == 0:
+                med = 0
+                bg = 0
+            else:
+                pc = np.percentile(bgarr, 84)
+                med = np.median(bgarr)
+                bgarr = bgarr[bgarr < pc]
+                bg = np.median(bgarr)
+
+        bgflux.append(bg) # This currently isn't returned, but might be a good
+        # thing to put in output? TODO
+
+        image_cutout._data -= bg
+        Lager.debug(f'Subtracted a background level of {bg}')
 
         image_list.append(image)
         cutout_image_list.append(image_cutout)
+        Lager.debug('image type:')
+        Lager.debug(type(image))
 
     return cutout_image_list, image_list
 
@@ -738,10 +753,6 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
         cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
         im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
         err.append(cutout._noise)
-
-    Lager.debug(f'here {np.shape(images)}')
-    Lager.debug(f'here {np.shape(err)}')
-    Lager.debug(f'here {type(exposures)}')
 
     ########################### END TEMPORARY SECTION #########################
 
