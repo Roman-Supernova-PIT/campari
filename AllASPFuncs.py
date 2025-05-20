@@ -83,14 +83,15 @@ def local_grid(ra_center, dec_center, wcs, npoints, size=25, spacing=1.0,
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+    x = np.arange(difference, subsize+difference, spacing)
+    y = np.arange(difference, subsize+difference, spacing)
 
     if image is None:
         spacing = 0.5
     else:
         spacing = 1.0
+
     Lager.debug(f'GRID SPACE {spacing}')
-    x = np.arange(difference, subsize+difference, spacing)
-    y = np.arange(difference, subsize+difference, spacing)
 
     if image is not None and not makecontourGrid:
         # Bin the image in logspace and allocate grid points based on the
