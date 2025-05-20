@@ -183,7 +183,7 @@ def main():
             run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                            sn_path, size, band, fetch_SED, use_real_images,
                            use_roman, subtract_background, turn_grid_off,
-                           adaptive_grid, npoints,
+                           adaptive_grid,
                            make_initial_guess, initial_flux_guess,
                            weighting, method, make_contour_grid,
                            single_grid_point, pixel, source_phot_ops,

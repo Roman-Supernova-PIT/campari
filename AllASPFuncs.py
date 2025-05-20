@@ -70,8 +70,8 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-def local_grid(ra_center, dec_center, wcs, npoints, size=25, spacing=1.0,
-               image=None, spline_grid=True, percentiles=[], makecontourGrid=True):
+def local_grid(ra_center, dec_center, wcs, size=25, spacing=1.0,
+               image=None, percentiles=[], makecontourGrid=True):
 
     '''
     Generates a local grid around a RA-Dec center, choosing step size and
@@ -858,7 +858,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 
 def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
-             percentiles=[], single_grid_point=False, npoints=7,
+             percentiles=[], single_grid_point=False,
              make_exact=False, makecontourGrid=False):
     '''
     This is a function that returns the locations for the model grid points
@@ -885,8 +885,8 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
     '''
     if adaptive_grid:
         ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
-                                       npoints, size=size,  spacing=0.75,
-                                       image=images[0], spline_grid=False,
+                                       size=size,  spacing=0.75,
+                                       image=images[0],
                                        percentiles=percentiles,
                                        makecontourGrid=makecontourGrid)
     else:
@@ -894,8 +894,7 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
             ra_grid, dec_grid = [ra], [dec]
         else:
             ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
-                                           npoints, size=size, spacing=0.75,
-                                           spline_grid=False)
+                                           size=size, spacing=0.75)
 
         if make_exact:
             if single_grid_point:
@@ -1521,7 +1520,7 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                   subtract_background, turn_grid_off, adaptive_grid, npoints,
+                   subtract_background, turn_grid_off, adaptive_grid,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    make_contour_grid, single_grid_point, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
@@ -1597,7 +1596,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                      cutout_wcs_list,
                                      single_grid_point=single_grid_point,
                                      percentiles=percentiles,
-                                     npoints=npoints,
                                      makecontourGrid=make_contour_grid)
     else:
         ra_grid = np.array([])

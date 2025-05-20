@@ -268,9 +268,9 @@ def test_regular_grid():
     for key in wcs.keys():
         wcs[key] = wcs[key].item()
     wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
-    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs, npoints=8,
+    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs,
                                    size=25, spacing=3.0, image=None,
-                                   spline_grid=False, percentiles=[],
+                                   percentiles=[],
                                    makecontourGrid=False)
     test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
                         7.67366176, 7.67376548, 7.67348473, 7.67358845,
@@ -293,9 +293,9 @@ def test_adaptive_grid():
     wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
-    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs, npoints=8,
+    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs,
                                    size=11, spacing=3.0, image=image,
-                                   spline_grid=False, percentiles=[99],
+                                   percentiles=[99],
                                    makecontourGrid=False)
     test_ra = [7.67356034, 7.67366407, 7.67376779, 7.67348704, 7.67358874,
                7.67357896, 7.67360257, 7.67359279, 7.67369449, 7.67341373,
@@ -318,9 +318,8 @@ def test_contour_grid():
     wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
-    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs, npoints=8,
+    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs,
                                    size=11, spacing=3.0, image=image,
-                                   spline_grid=False,
                                    makecontourGrid=True)
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403]
@@ -328,8 +327,8 @@ def test_contour_grid():
     assert np.allclose(ra_grid[:4], test_ra, rtol=1e-7), msg
     msg = "Dec vals do not match"
     assert np.allclose(dec_grid[:4], test_dec, rtol=1e-7), msg
-    
-    
+
+
 def test_calculate_background_level():
     from AllASPFuncs import calculate_background_level
     test_data = np.ones((12, 12))
