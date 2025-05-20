@@ -185,6 +185,7 @@ def test_regression():
     config['turn_grid_off'] = False
     config['size'] = 19
     config['weighting'] = True
+    config['subtract_background'] = True
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
     config['source_phot_ops'] = False
@@ -256,3 +257,19 @@ def test_plot_lc():
     assert output[3][0] == 23.164154309471726
     assert output[4] == 182.088
     assert output[5] == 0.0
+
+
+def test_calculate_background_level():
+    from AllASPFuncs import calculate_background_level
+    test_data = np.ones((12, 12))
+    test_data[5:7, 5:7] = 1000
+    test_data[0:2, 0:12:2] = 10
+    test_data[-3:-1, 0:12:2] = 10
+    test_data[0:12:2, 0:2] = 10
+    test_data[0:12:2, -1:-3] = 10 # Adding some noise
+    # Expected output
+    expected_output = 1
+
+    output = calculate_background_level(test_data)
+    msg = f"Expected {expected_output}, but got {output}"
+    assert output == expected_output, msg
