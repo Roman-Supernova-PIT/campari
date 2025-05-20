@@ -183,7 +183,6 @@ def main():
     # run one supernova function TODO
     for ID in SNID:
         banner(f'Running SN {ID}')
-        # I apologize to everyone who taught me how to code. This will be clean one day.
         try:
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
@@ -201,6 +200,7 @@ def main():
         except ValueError as e:
             Lager.info(f'ValueError: {e}')
             continue
+
 
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save

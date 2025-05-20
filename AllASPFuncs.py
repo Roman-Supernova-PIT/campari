@@ -644,7 +644,7 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         #If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            im -= image._get_header()['SKY_MEAN']
+            im -= image.get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
@@ -1491,7 +1491,6 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     mag_limits: a tuple of (min_mag, max_mag) to filter the SNe by
                 peak magnitude. If None, no filtering is done.
     '''
-
     # Get the supernovae IDs from the parquet file
     df = open_parq(parquet_file, sn_path, obj_type='SN')
     # For now, this is only supported for SNe. TODO
