@@ -597,19 +597,19 @@ def constructImages(exposures, ra, dec, size=7, fit_background=False,
         im = cutout * zero
         '''
 
-        # If we are not fitting the background we manually subtract it here.
-        if fit_background:
-            # When fit_background is true, we are including the background level as
-            # a free parameter in our fit, so it should not be subtracted here.
-            bg = 0
-        elif not fit_background and not truth == 'truth':
-            # However, if we are not fitting the background, we want to get
-            # rid of it here, either by reading the SKY_MEAN value from the
-            # image header...
-            bg = image_cutout._get_header()['SKY_MEAN']
-        elif not fit_background and truth == 'truth':
-            # ....or manually calculating it!
-            bg = calculate_background_level(imagedata)
+        # If we are not fitting the background we subtract it here.
+        # When fit_background is true, we are including the background level as
+        # a free parameter in our fit, so it should not be subtracted here.
+        bg = 0
+        if not fit_background:
+            if not truth == 'truth':
+                # However, if we are not fitting the background, we want to get
+                # rid of it here, either by reading the SKY_MEAN value from the
+                # image header...
+                bg = image_cutout._get_header()['SKY_MEAN']
+            elif truth == 'truth':
+                # ....or manually calculating it!
+                bg = calculate_background_level(imagedata)
 
         bgflux.append(bg)  # This currently isn't returned, but might be a good
         # thing to put in output? TODO
@@ -629,6 +629,8 @@ def calculate_background_level(im):
     '''
     A function for naively estimating the background level from a given image.
     This may be replaced by a more sophisticated function later.
+    For now, we take the corners of the image, sigma clip, and then return
+    the median as the background level.
 
     Inputs:
     im, numpy array of floats, the image to be used.
@@ -639,10 +641,9 @@ def calculate_background_level(im):
     '''
     size = im.shape[0]
     bgarr = np.concatenate((im[0:size//4, 0:size//4].flatten(),
-                            im[0:size, size//4:size].flatten(),
-                            im[size//4:size, 0:size//4].flatten(),
-                            im[size//4:size, size//4:size].flatten()))
-    bgarr = bgarr[bgarr != 0]
+                            im[0:size, 3*(size//4):size].flatten(),
+                            im[3*(size//4):size, 0:size//4].flatten(),
+                            im[3*(size//4):size, 3*(size//4):size].flatten()))
     if len(bgarr) == 0:
         bg = 0
     else:
