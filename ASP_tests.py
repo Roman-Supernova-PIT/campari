@@ -185,6 +185,7 @@ def test_regression():
     config['turn_grid_off'] = False
     config['size'] = 19
     config['weighting'] = True
+    config['subtract_background'] = True
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
     config['source_phot_ops'] = False

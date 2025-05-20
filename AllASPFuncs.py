@@ -541,17 +541,18 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def constructImages(exposures, ra, dec, size=7, fit_background=False,
+def constructImages(exposures, ra, dec, size=7, subtract_background=True,
                     roman_path=None, truth='simple_model'):
 
     '''
-    Constructs the array of Roman images in the format required for the linear algebra operations
+    Constructs the array of Roman images in the format required for the linear
+    algebra operations
 
     Inputs:
     exposures is a list of exposures from findAllExposures
     ra,dec: the RA and DEC of the SN
-    fit_background: If True, the background level is fit as a free parameter
-            in the forward modelling. Otherwise, we subtract it here.
+    subtract_background: If False, the background level is fit as a free
+        parameter in the forward modelling. Otherwise, we subtract it here.
     roman_path: the path to the Roman data
 
     Returns:
@@ -598,12 +599,13 @@ def constructImages(exposures, ra, dec, size=7, fit_background=False,
         '''
 
         # If we are not fitting the background we subtract it here.
-        # When fit_background is true, we are including the background level as
-        # a free parameter in our fit, so it should not be subtracted here.
+        # When subtract_background is False, we are including the background
+        # level as a free parameter in our fit, so it should not be subtracted
+        # here.
         bg = 0
-        if not fit_background:
+        if subtract_background:
             if not truth == 'truth':
-                # However, if we are not fitting the background, we want to get
+                # However, if we are subtracting the background, we want to get
                 # rid of it here, either by reading the SKY_MEAN value from the
                 # image header...
                 bg = image_cutout._get_header()['SKY_MEAN']
@@ -706,7 +708,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     return result
 
 
-def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fit_background,
+def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, subtract_background,
                 roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
     '''
     This function gets the list of exposures to be used for the analysis.
@@ -719,7 +721,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
     sn_path: str, the path to the supernova data
     band: str, the band to be used
     size: int, cutout will be of shape (size, size)
-    fit_background: bool, whether to manually fit the background or not
+    subtract_background: If True, subtract sky bg from images. If false, leave
+            bg as a free parameter in the forward modelling.
     roman_path: str, the path to the Roman data
     obj_type: str, the type of object to be used (SN or star)
     lc_start, lc_end: ints, MJD bounds on where to fetch images.
@@ -750,7 +753,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
                                  lc_start=lc_start, lc_end=lc_end)
     cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
-                        fit_background=fit_background, roman_path=roman_path)
+                        subtract_background=subtract_background,
+                        roman_path=roman_path)
 
     # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
     # Image objects. However, the rest of the code is not refactored yet. This
@@ -1491,7 +1495,7 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                   fit_background, turn_grid_off, adaptive_grid, npoints,
+                   subtract_background, turn_grid_off, adaptive_grid, npoints,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    make_contour_grid, single_grid_point, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
@@ -1519,7 +1523,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
             exposures = fetchImages(num_total_images,
                                                  num_detect_images, ID,
                                                  sn_path, band, size,
-                                                 fit_background,
+                                                 subtract_background,
                                                  roman_path,
                                                  object_type,
                                                  lc_start=lc_start,
@@ -1648,7 +1652,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                                 band=band)
         # TODO comment this
 
-        if fit_background:
+        if not subtract_background:
             for j in range(num_total_images):
                 if i == j:
                     bg = np.ones(size**2).reshape(-1, 1)
@@ -1733,7 +1737,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not make_initial_guess:
         x0test = np.zeros(psf_matrix.shape[1])
 
-    if fit_background:
+    if not subtract_background:
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
     if method == 'lsqr':

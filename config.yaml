@@ -8,7 +8,7 @@ deltafcn_profile: false
 do_rotation: true
 do_xshift: true
 fetch_SED: true
-fit_background: false
+subtract_background: true
 initial_flux_guess: 3000
 make_exact: false
 make_initial_guess: true
