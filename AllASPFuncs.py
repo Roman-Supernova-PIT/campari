@@ -70,20 +70,26 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-def regular_grid(ra_center, dec_center, wcs, size, spacing=1.0):
+def regular_grid(ra_center, dec_center, wcs, size, spacing=1.0, subsize = 9):
     '''
     Generates a regular grid around a RA-Dec center, choosing step size.
 
     ra_center, dec_center: floats, coordinate center of the image
     wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
     spacing: int, spacing of grid points in pixels.
+    subsize: If you don't care as much about the edges of the image, you can
+             specify a maximum size in pixels for the grid to be. For instance
+             I could have an image that is 11x11 but a grid that is only 9x9.
+             This is useful and different from making a smaller image because
+             when the image rotates, model points near the corners of the image
+             may be rotated out. By taking a smaller grid, we can avoid this.
+             Int, width of the grid in pixels.
 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
 
 
     '''
-    subsize = 9  # Taking a smaller square inside the image to fit on
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
@@ -130,6 +136,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
              This is useful and different from making a smaller image because
              when the image rotates, model points near the corners of the image
              may be rotated out. By taking a smaller grid, we can avoid this.
+             Int, width of the grid in pixels.
 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
@@ -138,12 +145,6 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     Lager.debug('image shape: {}'.format(np.shape(image)))
     # Bin the image in logspace and allocate grid points based on the
     # brightness.
-
-    # I think from before I was spacing x and y points out by 1 pixel to initialize
-    # the adaptive grid. If I am right, then the adaptive grid as it is now
-    # will pass the test but the regression test would fail when this is implemented.
-    # before, 0.75 spacing was passed. If this fails regression test, change
-    # that to 1.0 and see if it fixes it.
 
     difference = int((size - subsize)/2)
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
@@ -1383,7 +1384,64 @@ def get_SN_SED(SNID, date, sn_path):
     return np.array(lam), np.array(flambda[bestindex])
 
 
-def contourGrid(image, wcs, numlevels = 5, subsize = 4):
+def contourGrid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
+                subsize = 4):
+    '''
+    Construct a "contour grid" which allocates model grid points to model
+    the background galaxy according to the brightness of the image. This is
+    an alternate version of make_adaptive_grid that results in a more
+    continuous model grid point layout than make_adaptive_grid.
+    While make_adaptive_grid visits each pixel and places a certain number of
+    points, this function creates a smooth interpolation of the image to choose
+    model point locations more densely in brighter regions.
+
+    It does this as follows:
+        1. Create a linear interoplation of the image.
+        Start a loop:
+        2. Create a grid of points that are evenly spaced in pixel space.
+        3. For each of these points, check which brightness bin they fall into,
+           using the linear interpolation.
+        4. If this point is in the correct brightness bin, add it to the grid.
+            If not, it does not get added.
+        5. Increase the point density, and move to the next higher brightness
+            bin.
+
+    Here's a schematic:
+    Our Image:  Binned by brightness:
+                          ───────          ·····              ·····
+            ░░░░░░        │     │          ·   ·              ·:::·
+            ░▒▒▒▒░        │ ┌─┐ │          ·   ·              ·:::·
+            ░▒██▒░        │ │ │ │          ·   ·              ·:::·
+            ░▒██▒░        │ └─┘ │          ·   ·              ·:::·
+            ░▒▒▒▒░        │     │          ·   ·              ·:::·
+            ░░░░░░        │     │          ·····              ·····
+                          ───────            ^                 ^
+                            Add sparse model points, then dense model points.
+
+
+    This model allows for the grid density to change smoothly across pixels,
+    and avoids the problem of awkward gaps between model points across pixels.
+
+    Inputs:
+    image: 2D numpy array of floats of shape (size x size), the image to build
+    the grid on.
+    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+
+    percentiles: list of floats, the percentiles to use to bin the image. The
+                more bins, the more possible grid points could be placed in
+                that pixel.
+
+    subsize: If you don't care as much about the edges of the image, you can
+             specify a maximum size in pixels for the grid to be. For instance
+             I could have an image that is 11x11 but a grid that is only 9x9.
+             This is useful and different from making a smaller image because
+             when the image rotates, model points near the corners of the image
+             may be rotated out. By taking a smaller grid, we can avoid this.
+             Int, width of the grid in pixels.
+
+    Returns:
+    ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
+    '''
     size = image.shape[0]
     x = np.arange(0,size,1.0)
     y = np.arange(0,size,1.0)
@@ -1391,8 +1449,11 @@ def contourGrid(image, wcs, numlevels = 5, subsize = 4):
     xg = xg.ravel()
     yg = yg.ravel()
 
-    levels = list(np.linspace(np.min(image), np.max(image), numlevels))
-    levels = list(np.percentile(image, [0,90, 98, 100]))
+    if numlevels is not None:
+        levels = list(np.linspace(np.min(image), np.max(image), numlevels))
+    else:
+        levels = list(np.percentile(image, percentiles))
+
     Lager.debug(f'Using levels: {levels} in contourGrid')
 
     interp = RegularGridInterpolator((x, y), image, method='linear',
