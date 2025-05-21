@@ -199,7 +199,9 @@ def main():
                             do_rotation, airy, mismatch_seds, deltafcn_profile,
                             noise, check_perfection, avoid_non_linearity,
                             sim_gal_ra_offset, sim_gal_dec_offset)
-        #
+        # I don't have a particular error in mind for this, but I think
+        # it's worth having a catch just in case that one supernova fails,
+        # this way the rest of the code doesn't halt.
         except ValueError as e:
             Lager.info(f'ValueError: {e}')
             continue
