@@ -190,7 +190,7 @@ def main():
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
                 run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                             sn_path, size, band, fetch_SED, use_real_images,
-                            use_roman, fit_background, turn_grid_off,
+                            use_roman, subtract_background, turn_grid_off,
                             adaptive_grid, npoints,
                             make_initial_guess, initial_flux_guess,
                             weighting, method, make_contour_grid,
