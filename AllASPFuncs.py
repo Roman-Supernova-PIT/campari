@@ -1562,7 +1562,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
                    draw_method_for_non_roman_psf = 'no_pixel'):
-
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
     sn_matrix = []
@@ -1579,6 +1578,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # Find SN Info, find exposures containing it,
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
+
         images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
             exposures = fetchImages(num_total_images,
                                                  num_detect_images, ID,
