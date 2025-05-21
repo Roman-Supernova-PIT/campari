@@ -29,13 +29,13 @@ sn_path =\
      '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
 
 
-def test_find_parq():
-    parq_file_ID = find_parq(50134575, sn_path)
+def test_find_parquet():
+    parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
 
 
 def test_radec2point():
-    p, s = radec2point(7.731890048839705, -44.4589649005717, 'Y106', path = roman_path)
+    p, s = radec2point(7.731890048839705, -44.4589649005717, 'Y106', path=roman_path)
     assert p == 10535
     assert s == 14
 
@@ -258,11 +258,11 @@ def test_plot_lc():
     assert output[5] == 0.0
 
 
-def test_get_SNe_from_parq():
+def test_extract_sn_from_parquet_file_and_write_to_csv():
     output_path = pathlib.Path(__file__).parent/"tests/testdata/snids.csv"
     extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path,
                                                   output_path,
                                                   mag_limits=[20, 21])
-    snids = pd.read_csv(output_path, header=None).values.flatten()
-    test_snids = pd.read_csv(pathlib.Path(__file__).parent/"tests/testdata/test_snids.csv", header=None).values.flatten()
-    assert np.array_equal(snids, test_snids), "The SNIDs do not match the test example"
+    sn_ids = pd.read_csv(output_path, header=None).values.flatten()
+    test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent/"tests/testdata/test_snids.csv", header=None).values.flatten()
+    assert np.array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"

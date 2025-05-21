@@ -92,8 +92,10 @@ def main():
     parser.add_argument('-c', '--config', type=str, required=False,
                         help='relative config file path')
 
-    parser.add_argument('--SNIDlist_file', type=str, required=False,
-                        help='Path to a csv file containing a list of SNIDs to run.')
+    parser.add_argument('--SNID_file', type=str, required=False,
+                        help='Path to a csv file containing a list of SNIDs to run.' +
+                        'If both a single SN ID are passed and a file, the file' +
+                         ' will be used preferentially.')
 
     parser.add_argument('-b', '--beginning', type=int, required=False,
                         help='start of desired lightcurve in days from peak.',
@@ -116,7 +118,7 @@ def main():
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
     output_path = args.output_path
-    SNID_file = args.SNIDlist_file
+    SNID_file = args.SNID_file
     lc_start = args.beginning
     lc_end = args.end
     object_type = args.object_type
@@ -127,7 +129,7 @@ def main():
         config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    'config.yaml')
 
-    if args.SNIDlist_file is not None:
+    if SNID_file is not None:
         SNID = pd.read_csv(SNID_file, header=None).values.flatten().tolist()
 
     config = load_config(config_path)
@@ -197,6 +199,7 @@ def main():
                             do_rotation, airy, mismatch_seds, deltafcn_profile,
                             noise, check_perfection, avoid_non_linearity,
                             sim_gal_ra_offset, sim_gal_dec_offset)
+        #
         except ValueError as e:
             Lager.info(f'ValueError: {e}')
             continue

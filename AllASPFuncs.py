@@ -435,7 +435,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         return explist
 
 
-def find_parq(ID, path, obj_type='SN'):
+def find_parquet(ID, path, obj_type='SN'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -447,14 +447,15 @@ def find_parq(ID, path, obj_type='SN'):
 
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
-        df = open_parq(pqfile, path, obj_type=obj_type)
-        # The issue is SN parquets store their IDs as ints and star parquets as strings.
+        df = open_parquet(pqfile, path, obj_type=obj_type)
+        # The issue is SN parquet files store their IDs as ints and star
+        # parquet files as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
             return pqfile
 
 
-def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
+def open_parquet(parq, path, obj_type = 'SN', engine="fastparquet"):
     '''
     Convenience function to open a parquet file given its number.
     '''
@@ -644,7 +645,7 @@ def constructImages(exposures, ra, dec, size=7, background=False,
 
         #If we are not fitting the background we manually subtract it here.
         if not background and not truth == 'truth':
-            im -= image.get_header()['SKY_MEAN']
+            im -= image._get_header()['SKY_MEAN']
         elif not background and truth == 'truth':
             im -= bg
             Lager.debug(f'Subtracted a background level of {bg}')
@@ -720,7 +721,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
     num_detect_images: number of images used in the analysis that contain a
                        detection.
     ID: int, the ID of the object
-    sn_path: str, the path to the supernova data
+    sn_path: str, the path to the directory of the supernova catalog parquet
+    files.
     band: str, the band to be used
     size: int, cutout will be of shape (size, size)
     fit_background: bool, whether to manually fit the background or not
@@ -741,7 +743,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
 
     '''
 
-    pqfile = find_parq(ID, sn_path, obj_type=object_type)
+    pqfile = find_parquet(ID, sn_path, obj_type=object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
     snra = ra
@@ -783,7 +785,7 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     start, end, peak: the start, end, and peak dates of the object
     '''
 
-    df = open_parq(parq, snpath, obj_type=obj_type)
+    df = open_parquet(parq, snpath, obj_type=obj_type)
     if obj_type == 'star':
         ID = str(ID)
 
@@ -1171,8 +1173,8 @@ def get_star_SED(SNID, sn_path):
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
              (numpy array of floats)
     '''
-    filenum = find_parq(SNID, sn_path, obj_type = 'star')
-    pqfile = open_parq(filenum, sn_path, obj_type = 'star')
+    filenum = find_parquet(SNID, sn_path, obj_type = 'star')
+    pqfile = open_parquet(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
     #THIS HARDCODE WILL NEED TO BE REMOVED
     #Make hardcodes keyword args until they are fixed
@@ -1196,7 +1198,7 @@ def get_SN_SED(SNID, date, sn_path):
     lam: the wavelength of the SED in Angstrom
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
     '''
-    filenum = find_parq(SNID, sn_path, obj_type = 'SN')
+    filenum = find_parquet(SNID, sn_path, obj_type = 'SN')
     file_name = 'snana' + '_' + str(filenum) + '.hdf5'
     fullpath = os.path.join(sn_path, file_name)
     sed_table = h5py.File(fullpath, 'r')
@@ -1291,8 +1293,8 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
-    parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
-    df = open_parq(parq_file, path = sn_path, obj_type = object_type)
+    parq_file = find_parquet(ID, path = sn_path, obj_type = object_type)
+    df = open_parquet(parq_file, path = sn_path, obj_type = object_type)
 
     mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
     sim_sigma_flux = 0 # These are truth values!
@@ -1482,7 +1484,7 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
                                                   output_path,
                                                   mag_limits=None):
     '''
-    Convenience function for getting a list of SNIDs that obey some conditions
+    Convenience function for getting a list of SN IDs that obey some conditions
     from a parquet file. This is not used anywhere in the main algorithm.
 
     Inputs:
@@ -1490,23 +1492,27 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     sn_path: the path to the supernova data
     mag_limits: a tuple of (min_mag, max_mag) to filter the SNe by
                 peak magnitude. If None, no filtering is done.
+
+    Output:
+    Saves a csv file of the SN_IDs of supernovae from the parquet file that
+    pass mag cuts. If none are found, raise a ValueError.
     '''
-    # Get the supernovae IDs from the parquet file
-    df = open_parq(parquet_file, sn_path, obj_type='SN')
+    # Get the supernova IDs from the parquet file
+    df = open_parquet(parquet_file, sn_path, obj_type='SN')
     # For now, this is only supported for SNe. TODO
     if mag_limits is not None:
         min_mag, max_mag = mag_limits
         # This can't always be just g band I think. TODO
         df = df[(df['peak_mag_g'] >= min_mag) & (df['peak_mag_g'] <= max_mag)]
-    SNID = df.id.values
-    SNID = SNID[np.log10(SNID) < 8]  # The 9 digit SNID SNe are weird for
+    SN_ID = df.id.values
+    SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
     # some reason. They only seem to have 1 or 2 images ever. TODO
-    SNID = np.array(SNID, dtype=int)
-    if np.size(SNID) == 0:
+    SN_ID = np.array(SN_ID, dtype=int)
+    Lager.info(f'Found {np.size(SN_ID)} supernovae in the given range.')
+    if np.size(SN_ID) == 0:
         raise ValueError('No supernovae found in the given range.')
-    Lager.info(f'Found {np.size(SNID)} supernovae in the given range.')
-    #Write a csv file with the SNIDs
-    pd.DataFrame(SNID).to_csv(output_path, index=False, header=False)
+
+    pd.DataFrame(SN_ID).to_csv(output_path, index=False, header=False)
     Lager.info(f'Saved to {output_path}')
 
 
