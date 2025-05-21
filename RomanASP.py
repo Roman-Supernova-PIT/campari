@@ -149,7 +149,7 @@ def main():
     method = config['method']
     make_initial_guess = config['make_initial_guess']
     adaptive_grid = config['adaptive_grid']
-    fit_background = config['fit_background']
+    subtract_background = config['subtract_background']
     weighting = config['weighting']
     pixel = config['pixel']
     roman_path = config['roman_path']
@@ -203,7 +203,6 @@ def main():
         except ValueError as e:
             Lager.info(f'ValueError: {e}')
             continue
-
 
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save

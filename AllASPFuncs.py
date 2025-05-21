@@ -70,7 +70,8 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, image = None, spline_grid = True, percentiles = [], makecontourGrid = True):
+def local_grid(ra_center, dec_center, wcs, size=25, spacing=1.0,
+               image=None, percentiles=[], makecontourGrid=True):
 
     '''
     Generates a local grid around a RA-Dec center, choosing step size and
@@ -82,14 +83,15 @@ def local_grid(ra_center, dec_center, wcs, npoints, size = 25, spacing = 1.0, im
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+    x = difference + np.arange(0, subsize, spacing)
+    y = difference + np.arange(0, subsize, spacing)
 
     if image is None:
         spacing = 0.5
     else:
         spacing = 1.0
+
     Lager.debug(f'GRID SPACE {spacing}')
-    x = np.arange(difference, subsize+difference, spacing)
-    y = np.arange(difference, subsize+difference, spacing)
 
     if image is not None and not makecontourGrid:
         # Bin the image in logspace and allocate grid points based on the
@@ -198,7 +200,6 @@ def generateGuess(imlist, wcslist, ra_grid, dec_grid):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
         all_vals += grid_point_vals
     return all_vals/len(wcslist)
-
 
 
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
@@ -542,27 +543,30 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def constructImages(exposures, ra, dec, size=7, background=False,
-                    roman_path=None):
+def constructImages(exposures, ra, dec, size=7, subtract_background=True,
+                    roman_path=None, truth='simple_model'):
 
     '''
-    Constructs the array of Roman images in the format required for the linear algebra operations
+    Constructs the array of Roman images in the format required for the linear
+    algebra operations
 
     Inputs:
     exposures is a list of exposures from findAllExposures
     ra,dec: the RA and DEC of the SN
-    background: whether to subtract the background from the images
+    subtract_background: If False, the background level is fit as a free
+        parameter in the forward modelling. Otherwise, we subtract it here.
     roman_path: the path to the Roman data
 
+    Returns:
+    cutout_image_list: list of snappl.image.Image objects, cutouts on the
+                       object location.
+    image_list: list of snappl.image.Image objects of the entire SCA.
+
     '''
-    m = []
-    err = []
-    mask = []
-    wgt = []
+
     bgflux = []
-    sca_wcs_list = []
-    wcs_list = []
-    truth = 'simple_model'
+    image_list = []
+    cutout_image_list = []
 
     Lager.debug(f'truth in construct images: {truth}')
 
@@ -578,42 +582,12 @@ def constructImages(exposures, ra, dec, size=7, background=False,
                                   f'/Roman_TDS_{truth}_{band}_{pointing}_'
                                   f'{SCA}.fits.gz')
         image = OpenUniverse2024FITSImage(imagepath, None, SCA)
-
+        imagedata, errordata, flags = image.get_data(which='all')
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size)
         if truth == 'truth':
             raise RuntimeError("Truth is broken.")
-            # Before I needed to get a different wcs, unclear if that will be
-            # the case for the Image class, but I'll leave this if else here
-            # until that's clearer. # TODO
-            wcs = image.get_wcs()
-        else:
-            wcs = image.get_wcs()
-
-        sca_wcs_list.append(galsim.AstropyWCS(wcs=wcs))
-        # Note to self, once everything is in the snappl image object, this
-        # might be unnecessary if we have a list of Image objects. TODO
-
-        pixel = wcs.world_to_pixel(SkyCoord(ra=ra*u.degree, dec=dec*u.degree))
-
-        imagedata, = image.get_data(which='data')
-        # Use this where you would have used image[...].data below
-
-        result = Cutout2D(imagedata, pixel, size, mode='strict', wcs=wcs)
-        wcs_list.append(galsim.AstropyWCS(wcs = result.wcs)) # Made this into a galsim wcs
-
-        cutout = result.data
-        if truth == 'truth':
-            img = Cutout2D(imagedata, pixel, size, mode='strict').data
-            img += np.abs(np.min(img))
-            img += 1
-            img = np.sqrt(img)
-            err_cutout = 1 / img
-
-        else:
-            errordata, = image.get_data(which='noise')
-            err_cutout = Cutout2D(errordata, pixel, size, mode='strict').data
-
-
-        im = cutout
+            # In the future, I'd like to manually insert an array of ones for
+            # the error, or something.
 
         '''
         try:
@@ -626,37 +600,62 @@ def constructImages(exposures, ra, dec, size=7, background=False,
         im = cutout * zero
         '''
 
-        bgarr = np.concatenate((im[0:size//4,0:size//4].flatten(),\
-                            im[0:size,size//4:size].flatten(),\
-                                im[size//4:size,0:size//4].flatten(),\
-                                    im[size//4:size,size//4:size].flatten()))
-        bgarr = bgarr[bgarr != 0]
+        # If we are not fitting the background we subtract it here.
+        # When subtract_background is False, we are including the background
+        # level as a free parameter in our fit, so it should not be subtracted
+        # here.
+        bg = 0
+        if subtract_background:
+            if not truth == 'truth':
+                # However, if we are subtracting the background, we want to get
+                # rid of it here, either by reading the SKY_MEAN value from the
+                # image header...
+                bg = image_cutout._get_header()['SKY_MEAN']
+            elif truth == 'truth':
+                # ....or manually calculating it!
+                bg = calculate_background_level(imagedata)
 
-        if len(bgarr) == 0:
-            med = 0
-            bg = 0
-        else:
-            pc = np.percentile(bgarr, 84)
-            med = np.median(bgarr)
-            bgarr = bgarr[bgarr < pc]
-            bg = np.median(bgarr)
+        bgflux.append(bg)  # This currently isn't returned, but might be a good
+        # thing to put in output? TODO
 
-        bgflux.append(bg)
+        image_cutout._data -= bg
+        Lager.debug(f'Subtracted a background level of {bg}')
 
-        #If we are not fitting the background we manually subtract it here.
-        if not background and not truth == 'truth':
-            im -= image._get_header()['SKY_MEAN']
-        elif not background and truth == 'truth':
-            im -= bg
-            Lager.debug(f'Subtracted a background level of {bg}')
+        image_list.append(image)
+        cutout_image_list.append(image_cutout)
+        Lager.debug('image type:')
+        Lager.debug(type(image))
 
-        m.append(im)
-        err.append(err_cutout)
-        mask.append(np.zeros((size, size)))
+    return cutout_image_list, image_list
 
-    image = m
 
-    return image, wcs_list, sca_wcs_list, err
+def calculate_background_level(im):
+    '''
+    A function for naively estimating the background level from a given image.
+    This may be replaced by a more sophisticated function later.
+    For now, we take the corners of the image, sigma clip, and then return
+    the median as the background level.
+
+    Inputs:
+    im, numpy array of floats, the image to be used.
+
+    Returns:
+    bg, float, the estimated background level.
+
+    '''
+    size = im.shape[0]
+    bgarr = np.concatenate((im[0:size//4, 0:size//4].flatten(),
+                            im[0:size, 3*(size//4):size].flatten(),
+                            im[3*(size//4):size, 0:size//4].flatten(),
+                            im[3*(size//4):size, 3*(size//4):size].flatten()))
+    if len(bgarr) == 0:
+        bg = 0
+    else:
+        pc = np.percentile(bgarr, 84)
+        bgarr = bgarr[bgarr < pc]
+        bg = np.median(bgarr)
+
+    return bg
 
 
 def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
@@ -711,7 +710,7 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     return result
 
 
-def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fit_background,
+def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, subtract_background,
                 roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
     '''
     This function gets the list of exposures to be used for the analysis.
@@ -725,7 +724,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
     files.
     band: str, the band to be used
     size: int, cutout will be of shape (size, size)
-    fit_background: bool, whether to manually fit the background or not
+    subtract_background: If True, subtract sky bg from images. If false, leave
+            bg as a free parameter in the forward modelling.
     roman_path: str, the path to the Roman data
     obj_type: str, the type of object to be used (SN or star)
     lc_start, lc_end: ints, MJD bounds on where to fetch images.
@@ -754,13 +754,27 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, fi
                                  roman_path=roman_path, maxbg=num_total_images - num_detect_images,
                                  maxdet=num_detect_images, return_list=True, band=band,
                                  lc_start=lc_start, lc_end=lc_end)
-    images, cutout_wcs_list, im_wcs_list, err =\
+    cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
-                        background=fit_background, roman_path=roman_path)
+                        subtract_background=subtract_background,
+                        roman_path=roman_path)
 
-    Lager.debug(f'here {np.shape(images)}')
-    Lager.debug(f'here {np.shape(err)}')
-    Lager.debug(f'here {type(exposures)}')
+    # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
+    # Image objects. However, the rest of the code is not refactored yet. This
+    # returns the Image objects back into the numpy arrays that the rest of the
+    # code understands.
+
+    images = []
+    cutout_wcs_list = []
+    im_wcs_list = []
+    err = []
+    for cutout, image in zip(cutout_image_list, image_list):
+        images.append(cutout._data)
+        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
+        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
+        err.append(cutout._noise)
+
+    ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
            exposures
@@ -844,19 +858,43 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 
 def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
-             percentiles=[], single_grid_point=False, npoints=7,
+             percentiles=[], single_grid_point=False,
              make_exact=False, makecontourGrid=False):
+    '''
+    This is a function that returns the locations for the model grid points
+    used to model the background galaxy. There are several different methods
+    for building the grid, listed below, and this parent function calls the
+    correct function for which type of grid you wish to construct.
+
+    TODO: Each type of grid gets their own function.
+    TODO: is npoints even used any more
+    TODO: refactor
+
+
+    Inputs:
+    adaptive_grid: bool, whether to use the adaptive grid. Adaptive grids use
+        some information about the image to inform where the grid points are
+        placed. If false, a regular grid is used.
+
+
+    returns:
+    ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
+                    model grid points.
+
+
+    '''
     if adaptive_grid:
         ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
-                                       npoints, size=size,  spacing=0.75,
-                                       image=images[0], spline_grid=False,
+                                       size=size,  spacing=0.75,
+                                       image=images[0],
                                        percentiles=percentiles,
                                        makecontourGrid=makecontourGrid)
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
         else:
-            ra_grid, dec_grid = local_grid(ra,dec, cutout_wcs_list[0], npoints, size = size, spacing = 0.75, spline_grid = False)
+            ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
+                                           size=size, spacing=0.75)
 
         if make_exact:
             if single_grid_point:
@@ -865,7 +903,6 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
             else:
                 galra = ra_grid[106]
                 galdec = dec_grid[106]
-
 
         ra_grid = np.array(ra_grid)
         dec_grid = np.array(dec_grid)
@@ -1518,7 +1555,7 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                   fit_background, turn_grid_off, adaptive_grid, npoints,
+                   subtract_background, turn_grid_off, adaptive_grid,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    make_contour_grid, single_grid_point, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
@@ -1546,7 +1583,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
             exposures = fetchImages(num_total_images,
                                                  num_detect_images, ID,
                                                  sn_path, band, size,
-                                                 fit_background,
+                                                 subtract_background,
                                                  roman_path,
                                                  object_type,
                                                  lc_start=lc_start,
@@ -1594,7 +1631,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                      cutout_wcs_list,
                                      single_grid_point=single_grid_point,
                                      percentiles=percentiles,
-                                     npoints=npoints,
                                      makecontourGrid=make_contour_grid)
     else:
         ra_grid = np.array([])
@@ -1675,7 +1711,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                                 band=band)
         # TODO comment this
 
-        if fit_background:
+        if not subtract_background:
             for j in range(num_total_images):
                 if i == j:
                     bg = np.ones(size**2).reshape(-1, 1)
@@ -1760,7 +1796,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not make_initial_guess:
         x0test = np.zeros(psf_matrix.shape[1])
 
-    if fit_background:
+    if not subtract_background:
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
     if method == 'lsqr':
