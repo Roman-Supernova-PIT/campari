@@ -182,13 +182,15 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                 pass
             elif num == 1:
                 xes.append(y)
-                ys.append(x)  #Why this? TODO
+                ys.append(x)  # I know I swap this because Astropy takes (y,x)
+                # order but I'd really like to iron out all the places I do
+                # this rather than doing it so off the cuff. TODO
             else:
                 xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
                 yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
                 ys.extend(list(X.flatten()))
-                xes.extend(list(Y.flatten())) #Why this? TODO
+                xes.extend(list(Y.flatten())) #...Like here. TODO
 
     xx = np.array(xes).flatten()
     yy = np.array(ys).flatten()
@@ -1385,8 +1387,8 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
         x_totalgrid.extend(xg)
         y_totalgrid.extend(yg)
 
-    xx, yy = y_totalgrid, x_totalgrid # This was flipped in local_grid. I need
-    # to figure out why, and if it's necessary. #TODO
+    xx, yy = y_totalgrid, x_totalgrid # Here is another place I need to flip
+    # x and y. I'd like this to be more rigorous or at least clear.
     xx = np.array(xx)
     yy = np.array(yy)
     xx = xx.flatten()
