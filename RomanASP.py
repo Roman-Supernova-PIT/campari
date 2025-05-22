@@ -150,7 +150,7 @@ def main():
     source_phot_ops = config['source_phot_ops']
     mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
-    make_contour_grid = config['makecontourGrid']
+    contour_grid = config['contour_grid']
     initial_flux_guess = config['initial_flux_guess']
     deltafcn_profile = config['deltafcn_profile']
     sim_gal_ra_offset = config['sim_gal_ra_offset']
@@ -185,7 +185,7 @@ def main():
                            use_roman, subtract_background, turn_grid_off,
                            adaptive_grid,
                            make_initial_guess, initial_flux_guess,
-                           weighting, method, make_contour_grid,
+                           weighting, method, contour_grid,
                            single_grid_point, pixel, source_phot_ops,
                            lc_start, lc_end, do_xshift, bg_gal_flux,
                            do_rotation, airy, mismatch_seds, deltafcn_profile,

@@ -885,7 +885,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
              percentiles=[], single_grid_point=False,
-             make_exact=False, make_contour_grid=False):
+             make_exact=False, contour_grid=False):
     '''
     This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -904,8 +904,8 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
                     model grid points.
     '''
     if adaptive_grid:
-        if make_contour_grid:
-            ra_grid, dec_grid = contourGrid(images[0], cutout_wcs_list[0])
+        if contour_grid:
+            ra_grid, dec_grid = make_contour_grid(images[0], cutout_wcs_list[0])
         else:
             ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
                                                    size=size, spacing=1,
@@ -917,7 +917,7 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
                                        size=size,  spacing=0.75,
                                        image=images[0],
                                        percentiles=percentiles,
-                                       makecontourGrid=makecontourGrid)
+                                       contour_grid=contour_grid)
         '''
     else:
         if single_grid_point:
@@ -1284,7 +1284,7 @@ def get_SN_SED(SNID, date, sn_path):
     return np.array(lam), np.array(flambda[bestindex])
 
 
-def contourGrid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
+def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
                 subsize = 4):
     '''
     Construct a "contour grid" which allocates model grid points to model
@@ -1354,7 +1354,7 @@ def contourGrid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
     else:
         levels = list(np.percentile(image, percentiles))
 
-    Lager.debug(f'Using levels: {levels} in contourGrid')
+    Lager.debug(f'Using levels: {levels} in make_contour_grid')
 
     interp = RegularGridInterpolator((x, y), image, method='linear',
                                  bounds_error=False, fill_value=None)
@@ -1626,7 +1626,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
                    subtract_background, turn_grid_off, adaptive_grid,
                    make_initial_guess, initial_flux_guess, weighting, method,
-                   make_contour_grid, single_grid_point, pixel, source_phot_ops,
+                   contour_grid, single_grid_point, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
@@ -1700,7 +1700,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                      cutout_wcs_list,
                                      single_grid_point=single_grid_point,
                                      percentiles=percentiles,
-                                     make_contour_grid=make_contour_grid)
+                                     contour_grid=contour_grid)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
