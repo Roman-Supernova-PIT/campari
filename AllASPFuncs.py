@@ -167,7 +167,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     '''
     size = np.shape(image)[0]
     if subsize > size:
-        Lager.warning('subsize is larger than the image size  +
+        Lager.warning('subsize is larger than the image size '  +
                       f'{size} > {subsize}. This would cause model points to' +
                       ' be placed outside the image. Reducing subsize to' +
                       ' match the image size.')
@@ -925,7 +925,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 
 def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
-             percentiles=[], single_grid_point=False,
+             percentiles=[],
              make_exact=False):
     '''
     This is a function that returns the locations for the model grid points
@@ -962,20 +962,22 @@ def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
         ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
                                               size=size, spacing=0.75)
 
-    else:
-        if single_grid_point:
-            ra_grid, dec_grid = [ra], [dec]
+    if grid_type == 'single':
+        ra_grid, dec_grid = [ra], [dec]
 
-        if make_exact:
-            if single_grid_point:
-                galra = ra_grid[0]
-                galdec = dec_grid[0]
-            else:
-                galra = ra_grid[106]
-                galdec = dec_grid[106]
+    if make_exact:
+        if grid_type == 'single':
+            galra = ra_grid[0]
+            galdec = dec_grid[0]
+        else:
+            raise NotImplementedError
+            # I need to figure out how to turn the single grid point test
+            # into a test function.
+            galra = ra_grid[106]
+            galdec = dec_grid[106]
 
-        ra_grid = np.array(ra_grid)
-        dec_grid = np.array(dec_grid)
+    ra_grid = np.array(ra_grid)
+    dec_grid = np.array(dec_grid)
     return ra_grid, dec_grid
 
 
@@ -1667,7 +1669,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
                    subtract_background, turn_grid_off,
                    make_initial_guess, initial_flux_guess, weighting, method,
-                   grid_type, single_grid_point, pixel, source_phot_ops,
+                   grid_type, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
@@ -1739,7 +1741,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
             Lager.warning('For fitting stars, you probably dont want a grid.')
         ra_grid, dec_grid = makeGrid(grid_type, images, size, ra, dec,
                                      cutout_wcs_list,
-                                     single_grid_point=single_grid_point,
                                      percentiles=percentiles)
     else:
         ra_grid = np.array([])
@@ -1939,7 +1940,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
             f = 1
         else:
             f = 5000
-        if single_grid_point:
+        if grid_type == 'single':
             X[0] = f
         else:
             X = np.zeros_like(X)

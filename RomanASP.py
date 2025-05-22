@@ -132,7 +132,6 @@ def main():
     make_exact = config['make_exact']
     avoid_non_linearity = config['avoid_non_linearity']
     deltafcn_profile = config['deltafcn_profile']
-    single_grid_point = config['single_grid_point']
     do_xshift = config['do_xshift']
     do_rotation = config['do_rotation']
     noise = config['noise']
@@ -154,7 +153,9 @@ def main():
     sim_gal_dec_offset = config['sim_gal_dec_offset']
 
     grid_type = config['grid_type']
-
+    er = f'{grid_type} is not a recognized grid type. Available options are '
+    er += 'regular, adaptive, contour, or single. Details in documentation.'
+    assert grid_type in ['regular', 'adaptive', 'contour', 'single'], er
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -163,7 +164,7 @@ def main():
                                       aberrations=aberrations)
 
     if make_exact:
-        assert single_grid_point
+        assert grid_type == 'single'
     if avoid_non_linearity:
         assert deltafcn_profile
     assert num_detect_images <= num_total_images
@@ -184,7 +185,7 @@ def main():
                            use_roman, subtract_background, turn_grid_off,
                            make_initial_guess, initial_flux_guess,
                            weighting, method, grid_type,
-                           single_grid_point, pixel, source_phot_ops,
+                           pixel, source_phot_ops,
                            lc_start, lc_end, do_xshift, bg_gal_flux,
                            do_rotation, airy, mismatch_seds, deltafcn_profile,
                            noise, check_perfection, avoid_non_linearity,
