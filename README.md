@@ -93,7 +93,7 @@ initial WCS. |
 | Parameter          | Type  | Description                                                                                                                                |
 |---------------------|-------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | pixel               | bool  | If true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.            |
-| subtract_background      | bool  | If False, add an extra parameter that fits for the mean sky background level. If true, subtract the SKYMEAN from the image header. |
+| fit_background      | bool  | If true, add an extra parameter that fits for the mean sky background level. Should be false since the exact number is in the image header. |
 
 
 ### Not currently used, to be removed.

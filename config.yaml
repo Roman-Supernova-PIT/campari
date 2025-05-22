@@ -23,7 +23,7 @@ size: 31
 sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
 source_phot_ops: true
 spline_grid: false
-subtract_background: true
+fit_background: false
 turn_grid_off: false
 use_real_images: true
 use_roman: true
