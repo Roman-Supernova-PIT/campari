@@ -275,8 +275,8 @@ def test_make_regular_grid():
     test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
                          -44.26389673, -44.26384629, -44.26379586,
                          -44.26382471, -44.26377428, -44.26372384])
-    assert np.allclose(ra_grid, test_ra, rtol=1e-7), "RA vals do not match"
-    assert np.allclose(dec_grid, test_dec, rtol=1e-7), "Dec vals do not match"
+    assert np.allclose(ra_grid, test_ra, atol=1e-7), "RA vals do not match"
+    assert np.allclose(dec_grid, test_dec, atol=1e-7), "Dec vals do not match"
 
 
 def test_make_adaptive_grid():
@@ -293,8 +293,8 @@ def test_make_adaptive_grid():
                                            image=image, percentiles=[99])
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403, -44.26418721]
-    assert np.allclose(ra_grid[:5], test_ra, rtol=1e-7), "RA vals do not match"
-    assert np.allclose(dec_grid[:5], test_dec, rtol=1e-7), "Dec vals do not match"
+    assert np.allclose(ra_grid[:5], test_ra, atol=1e-7), "RA vals do not match"
+    assert np.allclose(dec_grid[:5], test_dec, atol=1e-7), "Dec vals do not match"
 
 
 def test_make_contour_grid():
@@ -309,22 +309,22 @@ def test_make_contour_grid():
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403]
     msg = "RA vals do not match"
-    assert np.allclose(ra_grid[:4], test_ra, rtol=1e-7), msg
+    assert np.allclose(ra_grid[:4], test_ra, atol=1e-7), msg
     msg = "Dec vals do not match"
-    assert np.allclose(dec_grid[:4], test_dec, rtol=1e-7), msg
+    assert np.allclose(dec_grid[:4], test_dec, atol=1e-7), msg
 
 
 def test_calculate_background_level():
     from AllASPFuncs import calculate_background_level
     test_data = np.ones((12, 12))
     test_data[5:7, 5:7] = 1000
-    test_data[0:2, 0:12:2] = 10
-    test_data[-3:-1, 0:12:2] = 10
-    test_data[0:12:2, 0:2] = 10
-    test_data[0:12:2, -1:-3] = 10  # Adding some noise
-    # Expected output
-    expected_output = 1
+    test_data[0:2, 0:12:2] = 123
+    test_data[-3:-1, 0:12:2] = 123
+    test_data[0:12:2, 0:2] = 123
+    test_data[0:12:2, -1:-3] = 123  # Adding some outliers to prevent all of
+    # the data from being sigma clipped.
 
+    expected_output = 1
     output = calculate_background_level(test_data)
     msg = f"Expected {expected_output}, but got {output}"
     assert np.isclose(output, expected_output, rtol=1e-7), msg

@@ -71,34 +71,42 @@ Adapted from code by Pedro Bernardinelli
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
-                      subsize = 9):
+                      subsize=9):
     '''
-    Generates a regular grid around a RA-Dec center, choosing step size.
+    Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     ra_center, dec_center: floats, coordinate center of the image
     wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
     spacing: int, spacing of grid points in pixels.
-    subsize: If you don't care as much about the edges of the image, you can
-             specify a maximum size in pixels for the grid to be. For instance
-             I could have an image that is 11x11 but a grid that is only 9x9.
+    subsize: Int, width of the grid in pixels.
+             Specify the width of the grid, which can be smaller than the
+             image. For instance I could have an image that is 11x11 but a grid
+             that is only 9x9.
              This is useful and different from making a smaller image because
              when the image rotates, model points near the corners of the image
              may be rotated out. By taking a smaller grid, we can avoid this.
-             Int, width of the grid in pixels.
+
 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
 
 
     '''
-    Lager.debug('GRID TYPE: REGULARLY SPACED')
+    if subsize > size:
+        Lager.warning('subsize is larger than the image size. ' +
+                      f'{size} > {subsize}. This would cause model points to' +
+                      ' be placed outside the image. Reducing subsize to' +
+                      ' match the image size.')
+        subsize = size
+
+    Lager.debug('Grid type: regularly spaced')
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
-    Lager.debug(f'GRID SPACE {spacing}')
+    Lager.debug(f'Grid spacing: {spacing}')
 
     xx, yy = np.meshgrid(x+1, y+1)
     xx = xx.flatten()
@@ -110,7 +118,8 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
 
 
 def make_adaptive_grid(ra_center, dec_center, wcs,
-                       image, percentiles=[45, 90], subsize=9):
+                       image, percentiles=[45, 90], subsize=9,
+                       subpixel_grid_width=1.2):
     '''
     Construct an "adaptive grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image.
@@ -131,20 +140,41 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                 points. If you have more bins, you could go even higher to
                 4x4 and 5x5 etc. These points are evenly spaced within the
                 pixel.
-    subsize: If you don't care as much about the edges of the image, you can
-             specify a maximum size in pixels for the grid to be. For instance
-             I could have an image that is 11x11 but a grid that is only 9x9.
+    subsize: Int, width of the grid in pixels.
+             Specify the width of the grid, which can be smaller than the
+             image. For instance I could have an image that is 11x11 but a grid
+             that is only 9x9.
              This is useful and different from making a smaller image because
              when the image rotates, model points near the corners of the image
              may be rotated out. By taking a smaller grid, we can avoid this.
-             Int, width of the grid in pixels.
+    subpixel_grid_width: When we place the model points in a pixel, we place
+                        them on a small range of locations within the pixel.
+                        For instance, 0.25, 0.5, and 0.75 for x values. However
+                        I've found this leads to awkward gaps in grid points
+                        between pixels. For instance, the point at 0.25 would
+                        be half a pixel from the point located at 0.75 in the
+                        next lower pixel, and only 0.25 from the point at 0.5
+                        in the same pixel.
+                        Therefore, subpixel_grid_width can be
+                        set to something larger than 1 so that the evenly
+                        spaced points are spaced out more, reducing these gaps.
+                        For instance, if you set to 1.2, the x values of the
+                        pixels would be [0.2, 0.5, 0.8] instead, reducing
+                        inter-pixel gaps.
 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     '''
     size = np.shape(image)[0]
+    if subsize > size:
+        Lager.warning('subsize is larger than the image size  +
+                      f'{size} > {subsize}. This would cause model points to' +
+                      ' be placed outside the image. Reducing subsize to' +
+                      ' match the image size.')
+        subsize = size
+
     Lager.debug('image shape: {}'.format(np.shape(image)))
-    Lager.debug('GRID TYPE: ADAPTIVE')
+    Lager.debug('Grid type: adaptive')
     # Bin the image in logspace and allocate grid points based on the
     # brightness.
 
@@ -152,6 +182,11 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
     x = difference + np.arange(0, subsize, 1)
     y = difference + np.arange(0, subsize, 1)
+
+    if percentiles.sort() != percentiles:
+        Lager.warning('Percentiles not in ascending order. Sorting them.')
+        percentiles.sort()
+        Lager.warning(f'Percentiles: {percentiles}')
 
     imcopy = np.copy(image)
     # We need to make sure that the image is not zero, otherwise we get
@@ -166,7 +201,9 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     brightness_levels = np.digitize(imcopy, bins)
     xs = []
     ys = []
-
+    # Round y and x locations to the nearest pixel. This is necessary because
+    # we want to check the brightness for each pixel within the grid, and by
+    # rounding we can index the brightness_levels array.
     yvals = np.rint(y).astype(int)
     xvals = np.rint(x).astype(int)
     for xindex in xvals:
@@ -185,8 +222,10 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                 # order but I'd really like to iron out all the places I do
                 # this rather than doing it so off the cuff. TODO
             else:
-                xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
-                yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
+                xx = np.linspace(x - subpixel_grid_width/2,
+                                 x + subpixel_grid_width/2, num+2)[1:-1]
+                yy = np.linspace(y - subpixel_grid_width/2,
+                                 y + subpixel_grid_width/2, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
                 ys.extend(list(X.flatten()))
                 xs.extend(list(Y.flatten()))  #...Like here. TODO
@@ -917,18 +956,15 @@ def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
 
     elif grid_type == 'adaptive':
         ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
-                                                   image=images[0],
-                                                   percentiles=percentiles)
+                                               image=images[0],
+                                               percentiles=percentiles)
     elif grid_type == 'regular':
         ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
-                                             size=size, spacing=0.75)
-
+                                              size=size, spacing=0.75)
 
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
-        else:
-
 
         if make_exact:
             if single_grid_point:
@@ -1335,13 +1371,13 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
                 more bins, the more possible grid points could be placed in
                 that pixel.
 
-    subsize: If you don't care as much about the edges of the image, you can
-             specify a maximum size in pixels for the grid to be. For instance
-             I could have an image that is 11x11 but a grid that is only 9x9.
+    subsize: Int, width of the grid in pixels.
+             Specify the width of the grid, which can be smaller than the
+             image. For instance I could have an image that is 11x11 but a grid
+             that is only 9x9.
              This is useful and different from making a smaller image because
              when the image rotates, model points near the corners of the image
              may be rotated out. By taking a smaller grid, we can avoid this.
-             Int, width of the grid in pixels.
 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
@@ -1352,7 +1388,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     xg, yg = np.meshgrid(x, y, indexing='ij')
     xg = xg.ravel()
     yg = yg.ravel()
-    Lager.debug('GRID TYPE: CONTOUR')
+    Lager.debug('Grid type: contour')
 
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
