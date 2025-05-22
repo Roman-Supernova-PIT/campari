@@ -1632,9 +1632,11 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
         snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
         pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
-        array = construct_psf_source(x, y, pointing, SCA, stampsize=size,
-                                     x_center=snx, y_center=sny, sed=sed)
-        confusion_metric = np.dot(images[0].flatten(), array)
+        psf_source_array = construct_psf_source(x, y, pointing, SCA,
+                                                stampsize=size,
+                                                x_center=snx, y_center=sny,
+                                                sed=sed)
+        confusion_metric = np.dot(images[0].flatten(), psf_source_array)
 
         Lager.debug(f'Confusion Metric: {confusion_metric}')
     else:
@@ -1662,9 +1664,9 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                    visit=exposures['Pointing'][i],
                                    sca=exposures['SCA'][i])
 
-        # TODO: better name for array
         # TODO: Why is band here twice?
-        array, bgpsf = construct_psf_background(ra_grid, dec_grid,
+        background_model_array, bgpsf = construct_psf_background(ra_grid,
+                                                dec_grid,
                                                 cutout_wcs_list[i], x, y,
                                                 size,
                                                 roman_bandpasses[band],
@@ -1682,11 +1684,12 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                     bg = np.ones(size**2).reshape(-1, 1)
                 else:
                     bg = np.zeros(size**2).reshape(-1, 1)
-                array = np.concatenate([array, bg], axis=1)
+                background_model_array =\
+                     np.concatenate([background_model_array, bg], axis=1)
 
         # Add the array of the model points and the background (if using)
         # to the matrix of all components of the model.
-        psf_matrix.append(array)
+        psf_matrix.append(background_model_array)
 
         # TODO make this not bad
         if num_detect_images != 0 and i >= num_total_images - num_detect_images:
@@ -1707,7 +1710,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                 Lager.debug(f'Using SED #{sn_index}')
                 sed = sedlist[sn_index]
                 Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
-                array = construct_psf_source(x, y, pointing, SCA,
+                psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                              stampsize=size, x_center=snx,
                                              y_center=sny, sed=sed,
                                              photOps=source_phot_ops)
@@ -1716,7 +1719,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                 profile = galsim.DeltaFunction()*sed
                 profile = profile.withFlux(1, roman_bandpasses[band])
                 convolved = galsim.Convolve(profile, sim_psf)
-                array =\
+                psf_source_array =\
                      convolved.drawImage(roman_bandpasses[band],
                                         method=draw_method_for_non_roman_psf,
                                         image=stamp,
@@ -1724,9 +1727,9 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                         center=(snx, sny),
                                         use_true_center=True,
                                         add_to_image=False)
-                array = array.array.flatten()
+                psf_source_array = psf_source_array.array.flatten()
 
-            sn_matrix.append(array)
+            sn_matrix.append(psf_source_array)
 
     banner('Lin Alg Section')
     psf_matrix = np.vstack(np.array(psf_matrix))
