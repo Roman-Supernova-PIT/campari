@@ -12,7 +12,6 @@ fetch_SED: true
 initial_flux_guess: 3000
 make_exact: false
 make_initial_guess: true
-makecontourGrid: false
 method: lsqr
 mismatch_seds: false
 noise: 0
@@ -22,7 +21,7 @@ roman_path: /hpc/group/cosmology/OpenUniverse2024
 sim_gal_dec_offset: 1e-5
 sim_gal_ra_offset: 1e-5
 single_grid_point: false
-size: 11
+size: 31
 sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
 source_phot_ops: true
 spline_grid: false
