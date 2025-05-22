@@ -260,7 +260,6 @@ def test_plot_lc():
 
 
 def test_regular_grid():
-    from AllASPFuncs import local_grid
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
     wcs = dict(wcs)
     ra_center = wcs['CRVAL1']
@@ -281,7 +280,6 @@ def test_regular_grid():
 
 
 def test_adaptive_grid():
-    from AllASPFuncs import local_grid
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
     wcs = dict(wcs)
     ra_center = wcs['CRVAL1']
@@ -300,7 +298,6 @@ def test_adaptive_grid():
 
 
 def test_contour_grid():
-    from AllASPFuncs import local_grid
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
     wcs = dict(wcs)
     for key in wcs.keys():

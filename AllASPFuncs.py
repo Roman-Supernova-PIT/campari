@@ -152,152 +152,49 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     y = difference + np.arange(0, subsize, 1)
 
     imcopy = np.copy(image)
+    # We need to make sure that the image is not zero, otherwise we get
+    # infinities in the log space.
     imcopy[imcopy <= 0] = 1e-10
-    bins = [-np.inf]
-    bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), percentiles))
-    bins.append(np.inf)
+    imcopy = np.log(imcopy)
+    bins = [0]
+    bins.extend(np.nanpercentile(imcopy, percentiles))
+    bins.append(100)
+    Lager.debug(f'BINS: {bins}')
 
-    a = np.digitize(np.log(np.copy(imcopy)),bins)
+    a = np.digitize(imcopy, bins)
     xes = []
     ys = []
 
-    xvals = x
-    yvals = y
-    yvals = np.rint(yvals).astype(int)
-    xvals = np.rint(xvals).astype(int)
+    yvals = np.rint(y).astype(int)
+    xvals = np.rint(x).astype(int)
     for xindex in xvals:
         x = xindex + 1
         for yindex in yvals:
             y = yindex + 1
-            num = int(a[x][y])
+            # xindex and yindex are the indices within the numpy array, while
+            # x and y are the actual locations in pixel space.
+            # This used to be x and y in here:
+            num = int(a[xindex][yindex])
             if num == 0:
                 pass
             elif num == 1:
                 xes.append(y)
-                ys.append(x)
+                ys.append(x)  #Why this? TODO
             else:
                 xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
                 yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
                 ys.extend(list(X.flatten()))
-                xes.extend(list(Y.flatten()))
+                xes.extend(list(Y.flatten())) #Why this? TODO
 
-    xx = np.array(xes)
-    yy = np.array(ys)
+    xx = np.array(xes).flatten()
+    yy = np.array(ys).flatten()
 
-    xx = xx.flatten()
-    yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
     result = wcs.toWorld(xx, yy, units='deg')
     ra_grid = result[0]
     dec_grid = result[1]
-    return ra_grid, dec_grid
-
-
-def local_grid(ra_center, dec_center, wcs, size=25, spacing=1.0,
-               image=None, percentiles=[], makecontourGrid=True):
-
-    '''
-    Generates a local grid around a RA-Dec center, choosing step size and
-    number of points
-    '''
-    Lager.debug('image shape: {}'.format(np.shape(image)))
-    # Build the basic grid
-    subsize = 9  # Taking a smaller square inside the image to fit on
-    difference = int((size - subsize)/2)
-
-    x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
-    # this got moved up above if image is None #TODO find a commit before this got moved.
-    x = difference + np.arange(0, subsize, spacing)
-    y = difference + np.arange(0, subsize, spacing)
-
-    if image is None:
-        spacing = 0.5
-    else:
-        spacing = 1.0
-
-
-    Lager.debug(f'GRID SPACE {spacing}')
-
-    if image is not None and not makecontourGrid:
-        # Bin the image in logspace and allocate grid points based on the
-        # brightness.
-        imcopy = np.copy(image)
-        imcopy[imcopy <= 0] = 1e-10
-        bins = [-np.inf]
-        if len(percentiles) == 0:
-            percentiles = [45, 90]
-        bins.extend(np.nanpercentile(np.log(imcopy[np.where(np.log10(imcopy)>-10)]), percentiles))
-        bins.append(np.inf)
-
-        a = np.digitize(np.log(np.copy(imcopy)),bins)
-        xes = []
-        ys = []
-
-        xvals = x
-        yvals = y
-        yvals = np.rint(yvals).astype(int)
-        xvals = np.rint(xvals).astype(int)
-        for xindex in xvals:
-            x = xindex + 1
-            for yindex in yvals:
-                y = yindex + 1
-                num = int(a[x][y])
-                if num == 0:
-                    pass
-                elif num == 1:
-                    xes.append(y)
-                    ys.append(x)
-                else:
-                    xx = np.linspace(x - 0.6, x + 0.6, num+2)[1:-1]
-                    yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
-                    X, Y = np.meshgrid(xx, yy)
-                    ys.extend(list(X.flatten()))
-                    xes.extend(list(Y.flatten()))
-
-        xx = np.array(xes)
-        yy = np.array(ys)
-
-    elif image is not None and makecontourGrid:
-        Lager.debug('USING CONTOUR GRID')
-        xx, yy = contourGrid(image)
-        xx = np.array(xx)
-        yy = np.array(yy)
-
-    else:
-        xx, yy = np.meshgrid(x+1, y+1)
-    '''
-        subsize = 8 #Taking a smaller square inside the image to fit on
-        difference = int((size - subsize)/2)
-
-        spacing = 1.0
-        x = np.arange(difference, subsize+difference, spacing)
-        y = np.arange(difference, subsize+difference, spacing)
-
-        x -= np.mean(x)
-        x+= x_center
-
-        y -= np.mean(y)
-        y+= y_center
-
-        xx, yy = np.meshgrid(x, y)
-    '''
-
-    xx = xx.flatten()
-    yy = yy.flatten()
-    Lager.debug(f'Built a grid with {np.size(xx)} points')
-
-    if type(wcs)==galsim.fitswcs.AstropyWCS:
-        result = wcs.toWorld(xx, yy, units='deg')
-        ra_grid = result[0]
-        dec_grid = result[1]
-    else:
-        Lager.warning('swapped x and y here')
-        result = wcs.pixel_to_world(yy, xx)
-        ra_grid = result.ra.deg
-        dec_grid = result.dec.deg
-
     return ra_grid, dec_grid
 
 
@@ -397,6 +294,9 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
 
     newwcs = wcs
     #Loop over the grid points, draw the PSF at each one, and append to a list.
+
+    #How different are these two methods? TODO XXX
+
     #roman_psf =  util_ref.getPSF(x_loc,y_loc,pupil_bin)
     roman_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = newwcs)
 
@@ -1465,9 +1365,11 @@ def contourGrid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
     y_totalgrid = []
 
     for i in range(len(levels) - 1):
-
         zmin = levels[i]
         zmax = levels[i+1]
+        # Generate a grid that gets finer each iteration of the loop. For
+        # instance, in brightness bin 1, 1 point per pixel, in brightness bin
+        # 2, 4 points per pixel (2 in each direction), etc.
         x = np.arange(0,size,1/(i+1))
         y = np.arange(0,size,1/(i+1))
         if i == 0:
@@ -2011,3 +1913,10 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         sim_lc = np.zeros(num_detect_images)
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, cutout_wcs_list, sim_lc
+
+
+def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
+    Lager.debug(f'WCS: {type(wcs)}')
+    fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
+    plt.imshow(image, origin='lower', cmap='gray')
+    plt.scatter(ra_grid, dec_grid)
