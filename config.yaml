@@ -4,6 +4,7 @@ background_level: 0
 band: Y106
 bg_gal_flux: 100000.0
 check_perfection: false
+contour_grid: false
 deltafcn_profile: false
 do_rotation: true
 do_xshift: true
@@ -11,7 +12,7 @@ fetch_SED: true
 initial_flux_guess: 3000
 make_exact: false
 make_initial_guess: true
-contour_grid: false
+makecontourGrid: false
 method: lsqr
 mismatch_seds: false
 noise: 0

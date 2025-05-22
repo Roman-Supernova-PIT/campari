@@ -70,7 +70,8 @@ Adapted from code by Pedro Bernardinelli
 '''
 
 
-def regular_grid(ra_center, dec_center, wcs, size, spacing=1.0, subsize = 9):
+def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
+                      subsize = 9):
     '''
     Generates a regular grid around a RA-Dec center, choosing step size.
 
@@ -90,6 +91,7 @@ def regular_grid(ra_center, dec_center, wcs, size, spacing=1.0, subsize = 9):
 
 
     '''
+    Lager.debug('GRID TYPE: REGULARLY SPACED')
     difference = int((size - subsize)/2)
 
     x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
@@ -143,6 +145,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     '''
     size = np.shape(image)[0]
     Lager.debug('image shape: {}'.format(np.shape(image)))
+    Lager.debug('GRID TYPE: ADAPTIVE')
     # Bin the image in logspace and allocate grid points based on the
     # brightness.
 
@@ -908,7 +911,6 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
             ra_grid, dec_grid = make_contour_grid(images[0], cutout_wcs_list[0])
         else:
             ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
-                                                   size=size, spacing=1,
                                                    image=images[0],
                                                    percentiles=percentiles)
 
@@ -923,7 +925,7 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
         else:
-            ra_grid, dec_grid = regular_grid(ra, dec, cutout_wcs_list[0],
+            ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
                                              size=size, spacing=0.75)
 
         if make_exact:
@@ -1348,6 +1350,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     xg, yg = np.meshgrid(x, y, indexing='ij')
     xg = xg.ravel()
     yg = yg.ravel()
+    Lager.debug('GRID TYPE: CONTOUR')
 
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
