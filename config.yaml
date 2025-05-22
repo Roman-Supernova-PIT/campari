@@ -1,10 +1,8 @@
-adaptive_grid: true
 avoid_non_linearity: false
 background_level: 0
 band: Y106
 bg_gal_flux: 100000.0
 check_perfection: false
-contour_grid: false
 deltafcn_profile: false
 do_rotation: true
 do_xshift: true
@@ -30,3 +28,4 @@ turn_grid_off: false
 use_real_images: true
 use_roman: true
 weighting: true
+grid_type: contour

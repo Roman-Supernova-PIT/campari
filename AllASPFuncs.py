@@ -105,9 +105,7 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    result = wcs.toWorld(xx, yy, units='deg')
-    ra_grid = result[0]
-    dec_grid = result[1]
+    ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
     return ra_grid, dec_grid
 
 
@@ -121,7 +119,8 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     ra_center, dec_center: floats, coordinate center of the image
     wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
     image: 2D numpy array of floats of shape (size x size), the image to build
-    the grid on.
+    the grid on. This is used to determine the size of the grid, and once we
+                switch to snappl Image objects, will also determine the wcs.
     percentiles: list of floats, the percentiles to use to bin the image. The
                 more bins, the more possible grid points could be placed in
                 that pixel. For instance, say if you had bins [45, 90],
@@ -130,7 +129,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                 for brightness would get a 2x2 grid of points.
                 A pixel above the 90th percentile would get a 3x3 grid of
                 points. If you have more bins, you could go even higher to
-                4x4 and 5x5 etc. These points are evenly paced within the
+                4x4 and 5x5 etc. These points are evenly spaced within the
                 pixel.
     subsize: If you don't care as much about the edges of the image, you can
              specify a maximum size in pixels for the grid to be. For instance
@@ -164,8 +163,8 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     bins.append(100)
     Lager.debug(f'BINS: {bins}')
 
-    a = np.digitize(imcopy, bins)
-    xes = []
+    brightness_levels = np.digitize(imcopy, bins)
+    xs = []
     ys = []
 
     yvals = np.rint(y).astype(int)
@@ -177,11 +176,11 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
             # xindex and yindex are the indices within the numpy array, while
             # x and y are the actual locations in pixel space.
             # This used to be x and y in here:
-            num = int(a[xindex][yindex])
+            num = int(brightness_levels[xindex][yindex])
             if num == 0:
                 pass
             elif num == 1:
-                xes.append(y)
+                xs.append(y)
                 ys.append(x)  # I know I swap this because Astropy takes (y,x)
                 # order but I'd really like to iron out all the places I do
                 # this rather than doing it so off the cuff. TODO
@@ -190,16 +189,14 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                 yy = np.linspace(y - 0.6, y + 0.6, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
                 ys.extend(list(X.flatten()))
-                xes.extend(list(Y.flatten())) #...Like here. TODO
+                xs.extend(list(Y.flatten()))  #...Like here. TODO
 
-    xx = np.array(xes).flatten()
+    xx = np.array(xs).flatten()
     yy = np.array(ys).flatten()
 
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    result = wcs.toWorld(xx, yy, units='deg')
-    ra_grid = result[0]
-    dec_grid = result[1]
+    ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
     return ra_grid, dec_grid
 
 
@@ -888,9 +885,9 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
     return wgt_matrix
 
 
-def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
+def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
              percentiles=[], single_grid_point=False,
-             make_exact=False, contour_grid=False):
+             make_exact=False):
     '''
     This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -900,35 +897,38 @@ def makeGrid(adaptive_grid, images, size, ra, dec, cutout_wcs_list,
     TODO: refactor
 
     Inputs:
-    adaptive_grid: bool, whether to use the adaptive grid. Adaptive grids use
-        some information about the image to inform where the grid points are
-        placed. If false, a regular grid is used.
+    grid_type: str, type of grid method to use.
+              regular: A regularly spaced grid.
+              adaptive: Points are placed in the image based on the brightness
+                        in each pixel.
+              contour: Points are placed by placing finer and finer regularly
+                        spaced grids in different contour levels of a linear
+                        interpolation of the image. See make_contour_grid for
+                        a more detailed explanation.
+              single: Place a single grid point. This is for sanity checking
+                      that the algroithm is drawing points where expected.
 
     Returns:
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     '''
-    if adaptive_grid:
-        if contour_grid:
-            ra_grid, dec_grid = make_contour_grid(images[0], cutout_wcs_list[0])
-        else:
-            ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
+    if grid_type == 'contour':
+        ra_grid, dec_grid = make_contour_grid(images[0], cutout_wcs_list[0])
+
+    elif grid_type == 'adaptive':
+        ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
                                                    image=images[0],
                                                    percentiles=percentiles)
+    elif grid_type == 'regular':
+        ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
+                                             size=size, spacing=0.75)
 
-        '''
-        ra_grid, dec_grid = local_grid(ra, dec, cutout_wcs_list[0],
-                                       size=size,  spacing=0.75,
-                                       image=images[0],
-                                       percentiles=percentiles,
-                                       contour_grid=contour_grid)
-        '''
+
     else:
         if single_grid_point:
             ra_grid, dec_grid = [ra], [dec]
         else:
-            ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
-                                             size=size, spacing=0.75)
+
 
         if make_exact:
             if single_grid_point:
@@ -1629,9 +1629,9 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                   subtract_background, turn_grid_off, adaptive_grid,
+                   subtract_background, turn_grid_off,
                    make_initial_guess, initial_flux_guess, weighting, method,
-                   contour_grid, single_grid_point, pixel, source_phot_ops,
+                   grid_type, single_grid_point, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
@@ -1701,11 +1701,10 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not turn_grid_off:
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
-        ra_grid, dec_grid = makeGrid(adaptive_grid, images, size, ra, dec,
+        ra_grid, dec_grid = makeGrid(grid_type, images, size, ra, dec,
                                      cutout_wcs_list,
                                      single_grid_point=single_grid_point,
-                                     percentiles=percentiles,
-                                     contour_grid=contour_grid)
+                                     percentiles=percentiles)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])

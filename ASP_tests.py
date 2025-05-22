@@ -179,7 +179,7 @@ def test_regression():
     config['use_roman'] = True
     config['use_real_images'] = True
     config['fetch_SED'] = False
-    config['contour_grid'] = True
+    config['grid_type'] = 'contour'
     config['band'] = 'Y106'
     config['adaptive_grid'] = True
     config['turn_grid_off'] = False

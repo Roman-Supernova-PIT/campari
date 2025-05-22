@@ -125,7 +125,6 @@ def main():
 
     config = load_config(config_path)
 
-    npoints = config['npoints']
     size = config['size']
     use_real_images = config['use_real_images']
     use_roman = config['use_roman']
@@ -139,7 +138,6 @@ def main():
     noise = config['noise']
     method = config['method']
     make_initial_guess = config['make_initial_guess']
-    adaptive_grid = config['adaptive_grid']
     subtract_background = config['subtract_background']
     weighting = config['weighting']
     pixel = config['pixel']
@@ -150,11 +148,12 @@ def main():
     source_phot_ops = config['source_phot_ops']
     mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
-    contour_grid = config['contour_grid']
     initial_flux_guess = config['initial_flux_guess']
     deltafcn_profile = config['deltafcn_profile']
     sim_gal_ra_offset = config['sim_gal_ra_offset']
     sim_gal_dec_offset = config['sim_gal_dec_offset']
+
+    grid_type = config['grid_type']
 
 
     # PSF for when not using the Roman PSF:
@@ -183,9 +182,8 @@ def main():
             run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                            sn_path, size, band, fetch_SED, use_real_images,
                            use_roman, subtract_background, turn_grid_off,
-                           adaptive_grid,
                            make_initial_guess, initial_flux_guess,
-                           weighting, method, contour_grid,
+                           weighting, method, grid_type,
                            single_grid_point, pixel, source_phot_ops,
                            lc_start, lc_end, do_xshift, bg_gal_flux,
                            do_rotation, airy, mismatch_seds, deltafcn_profile,

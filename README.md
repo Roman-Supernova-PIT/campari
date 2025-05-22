@@ -45,7 +45,15 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 | Parameter             | Type  | Description                                                                                                                           |
 |------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
 | SNID                   | int    | ID of the supernova you want to fit.                                                                                            |
-| adaptive_grid          | bool   | If true, use the adaptive grid method. If false, use a standard (rectilinear) grid.                                                        |
+| grid_type        |  str  | regular: A regularly spaced grid.
+              adaptive: Points are placed in the image based on the brightness
+                        in each pixel.
+              contour: Points are placed by placing finer and finer regularly
+                        spaced grids in different contour levels of a linear
+                        interpolation of the image. See make_contour_grid for
+                        a more detailed explanation.
+              single: Place a single grid point. This is for sanity checking
+                      that the algroithm is drawing points where expected.                                              |
 | band                   | str    | Which Roman passband to use.                                                                                                   |
 | testnum                | int    | Total number of images to utilize in the SMP algorithm.                                                                        |
 | detim                  | int    | Number of images with a SN detection in them. Rule of thumb, this should be 1/2 or less of testnum.                           |
@@ -85,7 +93,6 @@ initial WCS. |
 | Parameter          | Type  | Description                                                                                                                                |
 |---------------------|-------|-------------------------------------------------------------------------------------------------------------------------------------------|
 | pixel               | bool  | If true, use a pixel (tophat) function rather than a delta function to be convolved with the PSF in order to build the model.            |
-| contour_grid     | bool  | A new method being developed to generate the adaptive grid. Seems to be better! TODO: Consider replacing the default method.             |
 | subtract_background      | bool  | If False, add an extra parameter that fits for the mean sky background level. If true, subtract the SKYMEAN from the image header. |
 
 
