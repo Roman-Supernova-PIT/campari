@@ -1667,7 +1667,7 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
-                   subtract_background, turn_grid_off,
+                   subtract_background,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    grid_type, pixel, source_phot_ops,
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
@@ -1736,7 +1736,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                   sn_path)
 
     # Build the background grid
-    if not turn_grid_off:
+    if not grid_type == 'none':
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
         ra_grid, dec_grid = makeGrid(grid_type, images, size, ra, dec,

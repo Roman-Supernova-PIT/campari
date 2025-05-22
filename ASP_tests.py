@@ -159,7 +159,7 @@ def test_run_on_star():
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'config.yaml')
     config = yaml.safe_load(open(config_path))
-    config['turn_grid_off'] = True
+    config['grid_type'] = 'none'
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
             as temp_config:
@@ -181,8 +181,6 @@ def test_regression():
     config['fetch_SED'] = False
     config['grid_type'] = 'contour'
     config['band'] = 'Y106'
-    config['adaptive_grid'] = True
-    config['turn_grid_off'] = False
     config['size'] = 19
     config['weighting'] = True
     config['subtract_background'] = True

@@ -53,7 +53,10 @@ To actually have the code serve your specific needs, you can modify the yaml fil
                         interpolation of the image. See make_contour_grid for
                         a more detailed explanation.
               single: Place a single grid point. This is for sanity checking
-                      that the algroithm is drawing points where expected.                                              |
+                      that the algroithm is drawing points where expected.
+              none: Don't generate a background model at all. Useful for
+              testing just the PSF photometry of the SN if
+              running on a star, for instance. |                                              |
 | band                   | str    | Which Roman passband to use.                                                                                                   |
 | testnum                | int    | Total number of images to utilize in the SMP algorithm.                                                                        |
 | detim                  | int    | Number of images with a SN detection in them. Rule of thumb, this should be 1/2 or less of testnum.                           |
@@ -81,7 +84,6 @@ For testing the algorithm, it is often beneficial to simulate our own galaxy and
 | do_xshift              | bool   | If true, successive images have their centers offset (as they will be for real Roman images).                                     |
 | use_roman              | bool   | If true, use a Galsim-generated Roman PSF to create images. If false, use an analytic Airy PSF.                                   |
 | mismatch_seds          | bool   | If true, intentionally use a different SED to generate the SN than to fit it later. Useful for testing how much the SED affects the fit. |
-| turn_grid_off          | bool   | If true, don't generate a background model at all. Useful for testing just the PSF photometry of the SN if bg_gal_flux is set to zero. |
 | single_grid_point      | bool   | See below.                                                                                                                           |
 | deltafcn_profile       | bool   | If true, the galaxy is no longer a realistic galaxy profile and instead a Dirac delta function. Combined with single_grid_point, it is hypothetically possible for the algorithm to perfectly recover the background by fitting a Dirac delta to a Dirac delta at the exact same location. TODO: explain this better. |
 |sim_ra, sim_dec         | float  | RA and DEC for simulated SN in degrees. |

@@ -142,7 +142,6 @@ def main():
     pixel = config['pixel']
     roman_path = config['roman_path']
     sn_path = config['sn_path']
-    turn_grid_off = config['turn_grid_off']
     bg_gal_flux = config['bg_gal_flux']
     source_phot_ops = config['source_phot_ops']
     mismatch_seds = config['mismatch_seds']
@@ -155,7 +154,8 @@ def main():
     grid_type = config['grid_type']
     er = f'{grid_type} is not a recognized grid type. Available options are '
     er += 'regular, adaptive, contour, or single. Details in documentation.'
-    assert grid_type in ['regular', 'adaptive', 'contour', 'single'], er
+    assert grid_type in ['regular', 'adaptive', 'contour',
+                         'single', 'none'], er
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -182,7 +182,7 @@ def main():
             confusion_metric, X, cutout_wcs_list, sim_lc = \
             run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                            sn_path, size, band, fetch_SED, use_real_images,
-                           use_roman, subtract_background, turn_grid_off,
+                           use_roman, subtract_background,
                            make_initial_guess, initial_flux_guess,
                            weighting, method, grid_type,
                            pixel, source_phot_ops,
