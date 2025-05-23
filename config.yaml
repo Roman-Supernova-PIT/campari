@@ -1,4 +1,3 @@
-adaptive_grid: true
 avoid_non_linearity: false
 background_level: 0
 band: Y106
@@ -8,11 +7,9 @@ deltafcn_profile: false
 do_rotation: true
 do_xshift: true
 fetch_SED: true
-subtract_background: true
 initial_flux_guess: 3000
 make_exact: false
 make_initial_guess: true
-makecontourGrid: true
 method: lsqr
 mismatch_seds: false
 noise: 0
@@ -26,7 +23,9 @@ size: 31
 sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
 source_phot_ops: true
 spline_grid: false
+fit_background: false
 turn_grid_off: false
 use_real_images: true
 use_roman: true
 weighting: true
+grid_type: contour

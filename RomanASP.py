@@ -134,7 +134,6 @@ def main():
 
     config = load_config(config_path)
 
-    npoints = config['npoints']
     size = config['size']
     use_real_images = config['use_real_images']
     use_roman = config['use_roman']
@@ -142,28 +141,30 @@ def main():
     make_exact = config['make_exact']
     avoid_non_linearity = config['avoid_non_linearity']
     deltafcn_profile = config['deltafcn_profile']
-    single_grid_point = config['single_grid_point']
     do_xshift = config['do_xshift']
     do_rotation = config['do_rotation']
     noise = config['noise']
     method = config['method']
     make_initial_guess = config['make_initial_guess']
-    adaptive_grid = config['adaptive_grid']
     subtract_background = config['subtract_background']
     weighting = config['weighting']
     pixel = config['pixel']
     roman_path = config['roman_path']
     sn_path = config['sn_path']
-    turn_grid_off = config['turn_grid_off']
     bg_gal_flux = config['bg_gal_flux']
     source_phot_ops = config['source_phot_ops']
     mismatch_seds = config['mismatch_seds']
     fetch_SED = config['fetch_SED']
-    make_contour_grid = config['makecontourGrid']
     initial_flux_guess = config['initial_flux_guess']
     deltafcn_profile = config['deltafcn_profile']
     sim_gal_ra_offset = config['sim_gal_ra_offset']
     sim_gal_dec_offset = config['sim_gal_dec_offset']
+
+    grid_type = config['grid_type']
+    er = f'{grid_type} is not a recognized grid type. Available options are '
+    er += 'regular, adaptive, contour, or single. Details in documentation.'
+    assert grid_type in ['regular', 'adaptive', 'contour',
+                         'single', 'none'], er
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -172,7 +173,7 @@ def main():
                                       aberrations=aberrations)
 
     if make_exact:
-        assert single_grid_point
+        assert grid_type == 'single'
     if avoid_non_linearity:
         assert deltafcn_profile
     assert num_detect_images <= num_total_images

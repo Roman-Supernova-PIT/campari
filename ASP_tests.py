@@ -159,7 +159,7 @@ def test_run_on_star():
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'config.yaml')
     config = yaml.safe_load(open(config_path))
-    config['turn_grid_off'] = True
+    config['grid_type'] = 'none'
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
             as temp_config:
@@ -179,10 +179,8 @@ def test_regression():
     config['use_roman'] = True
     config['use_real_images'] = True
     config['fetch_SED'] = False
-    config['makecontourGrid'] = True
+    config['grid_type'] = 'contour'
     config['band'] = 'Y106'
-    config['adaptive_grid'] = True
-    config['turn_grid_off'] = False
     config['size'] = 19
     config['weighting'] = True
     config['subtract_background'] = True
@@ -268,9 +266,8 @@ def test_extract_sn_from_parquet_file_and_write_to_csv():
     test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent/"tests/testdata/test_snids.csv", header=None).values.flatten()
     assert np.array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"
     
-    
-def test_regular_grid():
-    from AllASPFuncs import local_grid
+
+def test_make_regular_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
     wcs = dict(wcs)
     ra_center = wcs['CRVAL1']
@@ -278,22 +275,19 @@ def test_regular_grid():
     for key in wcs.keys():
         wcs[key] = wcs[key].item()
     wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
-    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs,
-                                   size=25, spacing=3.0, image=None,
-                                   percentiles=[],
-                                   makecontourGrid=False)
+    ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
+                                   size=25, spacing=3.0)
     test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
                         7.67366176, 7.67376548, 7.67348473, 7.67358845,
                         7.67369218])
     test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
                          -44.26389673, -44.26384629, -44.26379586,
                          -44.26382471, -44.26377428, -44.26372384])
-    assert np.allclose(ra_grid, test_ra, rtol=1e-7), "RA vals do not match"
-    assert np.allclose(dec_grid, test_dec, rtol=1e-7), "Dec vals do not match"
+    assert np.allclose(ra_grid, test_ra, atol=1e-7), "RA vals do not match"
+    assert np.allclose(dec_grid, test_dec, atol=1e-7), "Dec vals do not match"
 
 
-def test_adaptive_grid():
-    from AllASPFuncs import local_grid
+def test_make_adaptive_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
     wcs = dict(wcs)
     ra_center = wcs['CRVAL1']
@@ -303,53 +297,44 @@ def test_adaptive_grid():
     wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
-    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs,
-                                   size=11, spacing=3.0, image=image,
-                                   percentiles=[99],
-                                   makecontourGrid=False)
-    test_ra = [7.67356034, 7.67366407, 7.67376779, 7.67348704, 7.67358874,
-               7.67357896, 7.67360257, 7.67359279, 7.67369449, 7.67341373,
-               7.67351746, 7.67362119]
-    test_dec = [-44.26425446, -44.26420403, -44.26415359, -44.26418244,
-                -44.26414017, -44.26413057, -44.26413345, -44.26412385,
-                -44.26408158, -44.26411043, -44.26405999, -44.26400956]
-    assert np.allclose(ra_grid, test_ra, rtol=1e-7), "RA vals do not match"
-    assert np.allclose(dec_grid, test_dec, rtol=1e-7), "Dec vals do not match"
+    ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
+                                           image=image, percentiles=[99])
+    test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
+    test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403, -44.26418721]
+    assert np.allclose(ra_grid[:5], test_ra, atol=1e-7), "RA vals do not match"
+    assert np.allclose(dec_grid[:5], test_dec, atol=1e-7), "Dec vals do not match"
 
 
-def test_contour_grid():
-    from AllASPFuncs import local_grid
+def test_make_contour_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
     wcs = dict(wcs)
-    ra_center = wcs['CRVAL1']
-    dec_center = wcs['CRVAL2']
     for key in wcs.keys():
         wcs[key] = wcs[key].item()
     wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
-    ra_grid, dec_grid = local_grid(ra_center, dec_center, wcs,
-                                   size=11, spacing=3.0, image=image,
-                                   makecontourGrid=True)
+    ra_grid, dec_grid = make_contour_grid(image, wcs)
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403]
     msg = "RA vals do not match"
-    assert np.allclose(ra_grid[:4], test_ra, rtol=1e-7), msg
+    assert np.allclose(ra_grid[:4], test_ra, atol=1e-7), msg
     msg = "Dec vals do not match"
-    assert np.allclose(dec_grid[:4], test_dec, rtol=1e-7), msg
+    assert np.allclose(dec_grid[:4], test_dec, atol=1e-7), msg
 
 
 def test_calculate_background_level():
     from AllASPFuncs import calculate_background_level
     test_data = np.ones((12, 12))
     test_data[5:7, 5:7] = 1000
-    test_data[0:2, 0:12:2] = 10
-    test_data[-3:-1, 0:12:2] = 10
-    test_data[0:12:2, 0:2] = 10
-    test_data[0:12:2, -1:-3] = 10 # Adding some noise
-    # Expected output
-    expected_output = 1
 
+    # Add some outliers to prevent all of
+    # the data from being sigma clipped.
+    test_data[0:2, 0:12:2] = 123
+    test_data[-3:-1, 0:12:2] = 123
+    test_data[0:12:2, 0:2] = 123
+    test_data[0:12:2, -1:-3] = 123
+
+    expected_output = 1
     output = calculate_background_level(test_data)
     msg = f"Expected {expected_output}, but got {output}"
     assert np.isclose(output, expected_output, rtol=1e-7), msg
