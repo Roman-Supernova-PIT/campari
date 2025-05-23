@@ -78,7 +78,7 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     ra_center, dec_center: floats, coordinate center of the image
     wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
     spacing: int, spacing of grid points in pixels.
-    subsize: Int, width of the grid in pixels.
+    subsize: int, width of the grid in pixels.
              Specify the width of the grid, which can be smaller than the
              image. For instance I could have an image that is 11x11 but a grid
              that is only 9x9.
@@ -140,7 +140,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                 points. If you have more bins, you could go even higher to
                 4x4 and 5x5 etc. These points are evenly spaced within the
                 pixel.
-    subsize: Int, width of the grid in pixels.
+    subsize: int, width of the grid in pixels.
              Specify the width of the grid, which can be smaller than the
              image. For instance I could have an image that is 11x11 but a grid
              that is only 9x9.
@@ -1373,7 +1373,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
                 more bins, the more possible grid points could be placed in
                 that pixel.
 
-    subsize: Int, width of the grid in pixels.
+    subsize: int, width of the grid in pixels.
              Specify the width of the grid, which can be smaller than the
              image. For instance I could have an image that is 11x11 but a grid
              that is only 9x9.

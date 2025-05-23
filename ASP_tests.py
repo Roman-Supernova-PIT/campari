@@ -316,11 +316,13 @@ def test_calculate_background_level():
     from AllASPFuncs import calculate_background_level
     test_data = np.ones((12, 12))
     test_data[5:7, 5:7] = 1000
+
+    # Add some outliers to prevent all of
+    # the data from being sigma clipped.
     test_data[0:2, 0:12:2] = 123
     test_data[-3:-1, 0:12:2] = 123
     test_data[0:12:2, 0:2] = 123
-    test_data[0:12:2, -1:-3] = 123  # Adding some outliers to prevent all of
-    # the data from being sigma clipped.
+    test_data[0:12:2, -1:-3] = 123
 
     expected_output = 1
     output = calculate_background_level(test_data)
