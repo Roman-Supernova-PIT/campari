@@ -1449,6 +1449,9 @@ def calc_mags_and_err(flux, sigma_flux, band, zp = None):
             'Y106': 302.275,
             'Z087': 101.7}
 
+    flux = np.atleast_1d(flux)
+    sigma_flux = np.atleast_1d(sigma_flux)
+
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
     positive = (flux > 0)
@@ -1489,7 +1492,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
 
     mags, magerr, zp = calc_mags_and_err(flux, sigma_flux, band)
     sim_sigma_flux = 0 # These are truth values!
-    sim_realized_mags, _ = calc_mags_and_err(detections['realized flux'],
+    sim_realized_mags, _, _ = calc_mags_and_err(detections['realized flux'],
                                              sim_sigma_flux, band)
     sim_true_mags, _, _ = calc_mags_and_err(detections['true flux'],
                                          sim_sigma_flux, band)
@@ -1513,7 +1516,8 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     data_dict = {'MJD': detections['date'], 'flux': flux,
                  'flux_error': sigma_flux, 'mag': mags,
                  'mag_err': magerr,
-                 'band': np.full(band, np.size(mags)),
+                 'band': np.full(np.size(mags), band),
+                 'zeropoint': np.full(np.size(mags), zp),
                  'SIM_realized_flux': detections['realized flux'],
                  'SIM_true_flux': detections['true flux'],
                  'SIM_realized_mag': sim_realized_mags,

@@ -11,7 +11,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
-from astropy.wcs import WCS
 from erfa import ErfaWarning
 from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
@@ -301,8 +300,7 @@ def test_make_contour_grid():
     wcs = dict(wcs)
     for key in wcs.keys():
         wcs[key] = wcs[key].item()
-    #wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
-    wcs = WCS(wcs)
+    wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
     ra_grid, dec_grid = make_contour_grid(image, wcs)
