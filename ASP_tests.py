@@ -11,6 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
+from astropy.wcs import WCS
 from erfa import ErfaWarning
 from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
@@ -300,7 +301,8 @@ def test_make_contour_grid():
     wcs = dict(wcs)
     for key in wcs.keys():
         wcs[key] = wcs[key].item()
-    wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
+    #wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
+    wcs = WCS(wcs)
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
     ra_grid, dec_grid = make_contour_grid(image, wcs)
@@ -329,3 +331,20 @@ def test_calculate_background_level():
     msg = f"Expected {expected_output}, but got {output}"
     assert np.isclose(output, expected_output, rtol=1e-7), msg
 
+
+def test_calc_mags_and_err():
+    flux = np.array([-1e2, 1e2, 1e3, 1e4])
+    sigma_flux = np.array([10, 10, 10, 10])
+    band = 'Y106'
+    mags, magerr, zp = calc_mags_and_err(flux, sigma_flux, band)
+
+    test_mags = np.array([666., 27.66165575,  25.16165575,  22.66165575])
+    test_magerr = np.array([6.6600000e+02, 1.0857362e-01,
+                            1.0857362e-02, 1.0857362e-03])
+    test_zp = 15.023547191066587
+
+    assert np.allclose(mags, test_mags, rtol=1e-7), \
+         "The magnitudes do not match"
+    assert np.allclose(magerr, test_magerr, rtol=1e-7), \
+         "The magnitude errors do not match"
+    assert np.allclose(zp, test_zp, rtol=1e-7), "The zeropoint does not match"

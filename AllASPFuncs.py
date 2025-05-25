@@ -1451,9 +1451,16 @@ def calc_mags_and_err(flux, sigma_flux, band, zp = None):
 
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
-    mags = -2.5*np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) + zp
-    magerr = 2.5 * sigma_flux / (flux * np.log(10))
-    return mags, magerr
+    positive = (flux > 0)
+    mags = np.zeros_like(flux)
+    magerr = np.zeros_like(flux)
+    mags[positive] = -2.5*np.log10(flux[positive]) + \
+    2.5*np.log10(exptime[band]*area_eff) + zp
+    magerr[positive] = 2.5 * sigma_flux[positive] / \
+        (flux[positive] * np.log(10))
+    mags[~positive] = 666
+    magerr[~positive] = 666 # 666 Matches SNANA convention
+    return mags, magerr, zp
 
 
 def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
@@ -1480,11 +1487,11 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
-    mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
+    mags, magerr, zp = calc_mags_and_err(flux, sigma_flux, band)
     sim_sigma_flux = 0 # These are truth values!
     sim_realized_mags, _ = calc_mags_and_err(detections['realized flux'],
                                              sim_sigma_flux, band)
-    sim_true_mags, _ = calc_mags_and_err(detections['true flux'],
+    sim_true_mags, _, _ = calc_mags_and_err(detections['true flux'],
                                          sim_sigma_flux, band)
     if object_type == 'SN':
         df_object_row = df.loc[df.id == ID]
@@ -1495,8 +1502,8 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
         meta_dict ={'confusion_metric': confusion_metric, \
         'host_sep': df_object_row['host_sn_sep'].values[0],\
         'host_mag_g': df_object_row[f'host_mag_g'].values[0],\
-        'sn_ra': df_object_row['ra'].values[0], \
-        'sn_dec': df_object_row['dec'].values[0], \
+        'obj_ra': df_object_row['ra'].values[0], \
+        'obj_dec': df_object_row['dec'].values[0], \
         'host_ra': df_object_row['host_ra'].values[0],\
         'host_dec': df_object_row['host_dec'].values[0]}
     else:
@@ -1506,6 +1513,7 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     data_dict = {'MJD': detections['date'], 'flux': flux,
                  'flux_error': sigma_flux, 'mag': mags,
                  'mag_err': magerr,
+                 'band': np.full(band, np.size(mags)),
                  'SIM_realized_flux': detections['realized flux'],
                  'SIM_true_flux': detections['true flux'],
                  'SIM_realized_mag': sim_realized_mags,
