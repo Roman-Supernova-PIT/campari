@@ -9,6 +9,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 # End of lines that will go away once we do this right
 
 import numpy as np
+import astropy
 from astropy.io import fits
 from astropy.wcs import WCS
 from astropy import units as u
@@ -843,7 +844,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-           exposures
+           exposures, cutout_image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -926,7 +927,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
              percentiles=[],
-             make_exact=False):
+             make_exact=False, snappl_images=None):
     '''
     This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -951,8 +952,12 @@ def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     '''
+    snapplwcs = snappl_images[0]._wcs
+    #astropywcs = WCS(snappl_images[0]._get_header())
     if grid_type == 'contour':
-        ra_grid, dec_grid = make_contour_grid(images[0], cutout_wcs_list[0])
+        ra_grid, dec_grid = make_contour_grid(images[0], snapplwcs)
+        ra_grid2, dec_grid2, = make_contour_grid(images[0],  cutout_wcs_list[0])
+        Lager.debug(f"RA vals disagree at {np.max(np.abs(ra_grid - ra_grid2)):.3e} level")
 
     elif grid_type == 'adaptive':
         ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
@@ -1432,8 +1437,18 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
+    Lager.debug(f'Grid points: {xx[:5]}, {yy[:5]}')
 
-    result = wcs.toWorld(xx, yy, units='deg')
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        # Astropy / snappl wcs
+        result = wcs.wcs_pix2world(xx, yy, 1)
+        Lager.debug('Astropy / snappl wcs detected')
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        # Galsim wcs
+        result = wcs.toWorld(xx, yy, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
     ra_grid = result[0]
     dec_grid = result[1]
 
@@ -1692,7 +1707,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
         images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-            exposures = fetchImages(num_total_images,
+            exposures, cutout_image_list = fetchImages(num_total_images,
                                                  num_detect_images, ID,
                                                  sn_path, band, size,
                                                  subtract_background,
@@ -1741,7 +1756,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
             Lager.warning('For fitting stars, you probably dont want a grid.')
         ra_grid, dec_grid = makeGrid(grid_type, images, size, ra, dec,
                                      cutout_wcs_list,
-                                     percentiles=percentiles)
+                                     percentiles=percentiles, snappl_images = cutout_image_list)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])

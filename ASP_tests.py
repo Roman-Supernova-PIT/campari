@@ -11,6 +11,7 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
+from astropy.wcs import WCS
 from erfa import ErfaWarning
 from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
@@ -205,6 +206,9 @@ def test_regression():
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = "The lightcurves do not match for column %s" % col
+        percent = 100 * np.max((current[col] - comparison[col]) / comparison[col])
+        msg2 = f"difference is {percent} %"
+        msg = msg+msg2
         assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
 
 
@@ -297,19 +301,36 @@ def test_make_adaptive_grid():
 
 def test_make_contour_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    wcs = dict(wcs)
-    for key in wcs.keys():
-        wcs[key] = wcs[key].item()
-    wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
+    wcs_dict = dict(wcs)
+    for key in wcs_dict.keys():
+        wcs_dict[key] = wcs_dict[key].item()
+    #Galsim WCS
+    wcs = galsim.wcs.readFromFitsHeader(wcs_dict)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
     ra_grid, dec_grid = make_contour_grid(image, wcs)
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403]
-    msg = "RA vals do not match"
-    assert np.allclose(ra_grid[:4], test_ra, atol=1e-7), msg
-    msg = "Dec vals do not match"
-    assert np.allclose(dec_grid[:4], test_dec, atol=1e-7), msg
+    Lager.debug('ra_grid: %s', ra_grid[:10])
+    Lager.debug(ra_grid[:4] - test_ra)
+    msg = "RA vals do not match to 1e-9"
+    assert np.allclose(ra_grid[:4], test_ra, atol=1e-9, rtol=1e-9), msg
+    msg = "Dec vals do not match to 1e-9"
+    assert np.allclose(dec_grid[:4], test_dec, atol=1e-9, rtol=1e-9), msg
+    Lager.debug('ra_grid: %s', ra_grid[:10])
+
+    #Astropy / Snappl WCS
+    wcs = WCS(wcs_dict)
+    ra_grid2, dec_grid2 = make_contour_grid(image, wcs)
+    Lager.debug('ra_grid: %s', ra_grid2[:10])
+
+    msg = f"RA vals disagree at {np.max(np.abs(ra_grid2[:4] - test_ra)):.3e} level"
+    assert np.allclose(ra_grid2[:4], test_ra, atol=1e-9, rtol=1e-9), msg
+    msg = "Dec vals do not match to 1e-9"
+    assert np.allclose(dec_grid2[:4], test_dec, atol=1e-9, rtol=1e-9), msg
+
+    Lager.debug(np.mean(np.abs(ra_grid2 - ra_grid)))
+
 
 
 def test_calculate_background_level():
