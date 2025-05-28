@@ -20,8 +20,8 @@ from roman_imsim.utils import roman_utils
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from astropy.nddata import Cutout2D
-from snappl.logger import Lager
-
+from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.config import Config
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
 warnings.simplefilter("ignore", category=AstropyWarning)

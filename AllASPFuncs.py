@@ -34,7 +34,8 @@ import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
-from snappl.logger import Lager
+from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.config import Config
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -1459,10 +1460,10 @@ def calc_mags_and_err(flux, sigma_flux, band, zp = None):
     magerr = np.zeros_like(flux)
     mags[positive] = -2.5*np.log10(flux[positive]) + \
     2.5*np.log10(exptime[band]*area_eff) + zp
-    magerr[positive] = 2.5 * sigma_flux[positive] / \
-        (flux[positive] * np.log(10))
-    mags[~positive] = 666
-    magerr[~positive] = 666 # 666 Matches SNANA convention
+    magerr[positive] = (2.5 / np.log(10) * \
+        (sigma_flux[positive] / flux[positive]))
+    mags[~positive] = np.nan
+    magerr[~positive] = np.nan
     return mags, magerr, zp
 
 

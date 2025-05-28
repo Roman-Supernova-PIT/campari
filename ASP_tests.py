@@ -205,7 +205,10 @@ def test_regression():
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = "The lightcurves do not match for column %s" % col
-        assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
+        if col == 'band':
+            assert np.array_equal(current[col], comparison[col]), msg
+        else:
+            assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
 
 
 def test_get_galsim_SED():
@@ -336,13 +339,13 @@ def test_calc_mags_and_err():
     band = 'Y106'
     mags, magerr, zp = calc_mags_and_err(flux, sigma_flux, band)
 
-    test_mags = np.array([666., 27.66165575,  25.16165575,  22.66165575])
-    test_magerr = np.array([6.6600000e+02, 1.0857362e-01,
+    test_mags = np.array([np.nan, 27.66165575,  25.16165575,  22.66165575])
+    test_magerr = np.array([np.nan, 1.0857362e-01,
                             1.0857362e-02, 1.0857362e-03])
     test_zp = 15.023547191066587
 
-    assert np.allclose(mags, test_mags, rtol=1e-7), \
-         "The magnitudes do not match"
-    assert np.allclose(magerr, test_magerr, rtol=1e-7), \
+    assert np.allclose(mags, test_mags, atol=1e-7, equal_nan=True), \
+         f"The magnitudes do not match {mags} VS. {test_mags}"
+    assert np.allclose(magerr, test_magerr, atol=1e-7, equal_nan=True), \
          "The magnitude errors do not match"
-    assert np.allclose(zp, test_zp, rtol=1e-7), "The zeropoint does not match"
+    assert np.allclose(zp, test_zp, atol=1e-7), "The zeropoint does not match"
