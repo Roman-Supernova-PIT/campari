@@ -263,12 +263,12 @@ def test_plot_lc():
 
 def test_make_regular_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    wcs = dict(wcs)
-    ra_center = wcs['CRVAL1']
-    dec_center = wcs['CRVAL2']
-    for key in wcs.keys():
-        wcs[key] = wcs[key].item()
-    wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
+    wcs_dict = dict(wcs)
+    ra_center = wcs_dict['CRVAL1']
+    dec_center = wcs_dict['CRVAL2']
+    for key in wcs_dict.keys():
+        wcs_dict[key] = wcs_dict[key].item()
+    wcs = galsim.wcs.readFromFitsHeader(wcs_dict)[0]
     ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
                                    size=25, spacing=3.0)
     test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
@@ -277,26 +277,40 @@ def test_make_regular_grid():
     test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
                          -44.26389673, -44.26384629, -44.26379586,
                          -44.26382471, -44.26377428, -44.26372384])
-    assert np.allclose(ra_grid, test_ra, atol=1e-7), "RA vals do not match"
-    assert np.allclose(dec_grid, test_dec, atol=1e-7), "Dec vals do not match"
+    assert np.allclose(ra_grid, test_ra, atol=1e-9), "RA vals do not match for Galsim WCS"
+    assert np.allclose(dec_grid, test_dec, atol=1e-9), "Dec vals do not match for Galsim WCS"
+
+    wcs = WCS(wcs_dict)
+    ra_grid2, dec_grid2 = make_regular_grid(ra_center, dec_center, wcs,
+                                      size=25, spacing=3.0)
+    assert np.allclose(ra_grid2, test_ra, atol=1e-9), "RA vals do not match for Snappl WCS"
+    assert np.allclose(dec_grid2, test_dec, atol=1e-9), "Dec vals do not match for Snappl WCS"
+
 
 
 def test_make_adaptive_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    wcs = dict(wcs)
-    ra_center = wcs['CRVAL1']
-    dec_center = wcs['CRVAL2']
+    wcs_dict = dict(wcs)
+    ra_center = wcs_dict['CRVAL1']
+    dec_center = wcs_dict['CRVAL2']
     for key in wcs.keys():
-        wcs[key] = wcs[key].item()
-    wcs = galsim.wcs.readFromFitsHeader(wcs)[0]
+        wcs_dict[key] = wcs_dict[key].item()
+    wcs = galsim.wcs.readFromFitsHeader(wcs_dict)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
     ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                            image=image, percentiles=[99])
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403, -44.26418721]
-    assert np.allclose(ra_grid[:5], test_ra, atol=1e-7), "RA vals do not match"
-    assert np.allclose(dec_grid[:5], test_dec, atol=1e-7), "Dec vals do not match"
+    assert np.allclose(ra_grid[:5], test_ra, atol=1e-9), "RA vals do not match using Galsim WCS"
+    assert np.allclose(dec_grid[:5], test_dec, atol=1e-9), "Dec vals do not match using Galsim WCS"
+
+    # Astropy / Snappl WCS
+    wcs = WCS(wcs_dict)
+    ra_grid2, dec_grid2 = make_adaptive_grid(ra_center, dec_center, wcs,
+                                             image=image, percentiles=[99])
+    assert np.allclose(ra_grid2[:5], test_ra, atol=1e-9), "RA vals do not match using snappl wcs"
+    assert np.allclose(dec_grid2[:5], test_dec, atol=1e-9), "Dec vals do not match using snappl wcs"
 
 
 def test_make_contour_grid():
@@ -304,7 +318,8 @@ def test_make_contour_grid():
     wcs_dict = dict(wcs)
     for key in wcs_dict.keys():
         wcs_dict[key] = wcs_dict[key].item()
-    #Galsim WCS
+
+    # Galsim WCS
     wcs = galsim.wcs.readFromFitsHeader(wcs_dict)[0]
     compare_images = np.load('tests/testdata/images.npy')
     image = compare_images[:11**2].reshape(11, 11)
@@ -319,18 +334,13 @@ def test_make_contour_grid():
     assert np.allclose(dec_grid[:4], test_dec, atol=1e-9, rtol=1e-9), msg
     Lager.debug('ra_grid: %s', ra_grid[:10])
 
-    #Astropy / Snappl WCS
+    # Astropy / Snappl WCS
     wcs = WCS(wcs_dict)
     ra_grid2, dec_grid2 = make_contour_grid(image, wcs)
-    Lager.debug('ra_grid: %s', ra_grid2[:10])
-
     msg = f"RA vals disagree at {np.max(np.abs(ra_grid2[:4] - test_ra)):.3e} level"
     assert np.allclose(ra_grid2[:4], test_ra, atol=1e-9, rtol=1e-9), msg
     msg = "Dec vals do not match to 1e-9"
     assert np.allclose(dec_grid2[:4], test_dec, atol=1e-9, rtol=1e-9), msg
-
-    Lager.debug(np.mean(np.abs(ra_grid2 - ra_grid)))
-
 
 
 def test_calculate_background_level():

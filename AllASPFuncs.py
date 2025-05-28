@@ -35,7 +35,10 @@ import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
-from snappl.logger import Lager
+#from snappl.logger import Lager
+from snpit_utils.logger import SNLogger as Lager
+#from snappl.config import Config
+from snpit_utils.config import Config
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -103,7 +106,18 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Lager.debug('Grid type: regularly spaced')
     difference = int((size - subsize)/2)
 
-    x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        # Astropy / snappl wcs
+        Lager.debug('Astropy / snappl wcs detected')
+        x_center, y_center = wcs.world_to_pixel(SkyCoord(ra_center, dec_center, unit='deg'))
+        x_center += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
+        y_center += 1
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        # Galsim wcs
+        x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
@@ -114,7 +128,19 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        # Astropy / snappl wcs
+        result = wcs.pixel_to_world(xx-1, yy-1)
+        Lager.debug('Astropy / snappl wcs detected')
+        ra_grid = result.ra.value
+        dec_grid = result.dec.value
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        # Galsim wcs
+        ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
     return ra_grid, dec_grid
 
 
@@ -180,7 +206,20 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     # brightness.
 
     difference = int((size - subsize)/2)
-    x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        # Astropy / snappl wcs
+        Lager.debug('Astropy / snappl wcs detected')
+        x_center, y_center = wcs.world_to_pixel(SkyCoord(ra_center, dec_center, unit='deg'))
+        x_center += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
+        y_center += 1
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        # Galsim wcs
+        x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+
     x = difference + np.arange(0, subsize, 1)
     y = difference + np.arange(0, subsize, 1)
 
@@ -236,7 +275,18 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        # Astropy / snappl wcs
+        result = wcs.pixel_to_world(xx-1, yy-1)
+        Lager.debug('Astropy / snappl wcs detected')
+        ra_grid = result.ra.value
+        dec_grid = result.dec.value
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        # Galsim wcs
+        ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
     return ra_grid, dec_grid
 
 
@@ -925,16 +975,13 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
     return wgt_matrix
 
 
-def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
-             percentiles=[],
-             make_exact=False, snappl_images=None):
+def makeGrid(grid_type, images, ra, dec, percentiles=[],
+             make_exact=False):
     '''
     This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
     correct function for which type of grid you wish to construct.
-
-    TODO: refactor
 
     Inputs:
     grid_type: str, type of grid method to use.
@@ -952,16 +999,15 @@ def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     '''
-    snapplwcs = snappl_images[0]._wcs
-    #astropywcs = WCS(snappl_images[0]._get_header())
+    size = images[0].image_shape[0]
+    snappl_wcs = images[0].get_wcs()
+    image_data = images[0].data
     if grid_type == 'contour':
-        ra_grid, dec_grid = make_contour_grid(images[0], snapplwcs)
-        ra_grid2, dec_grid2, = make_contour_grid(images[0],  cutout_wcs_list[0])
-        Lager.debug(f"RA vals disagree at {np.max(np.abs(ra_grid - ra_grid2)):.3e} level")
+        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
 
     elif grid_type == 'adaptive':
-        ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
-                                               image=images[0],
+        ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs,
+                                               image=image_data,
                                                percentiles=percentiles)
     elif grid_type == 'regular':
         ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
@@ -1441,16 +1487,18 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
 
     if isinstance(wcs, astropy.wcs.wcs.WCS):
         # Astropy / snappl wcs
-        result = wcs.wcs_pix2world(xx, yy, 1)
+        result = wcs.pixel_to_world(xx-1, yy-1)
         Lager.debug('Astropy / snappl wcs detected')
+        ra_grid = result.ra.value
+        dec_grid = result.dec.value
     elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
         # Galsim wcs
         result = wcs.toWorld(xx, yy, units='deg')
+        ra_grid = result[0]
+        dec_grid = result[1]
         Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
     else:
         raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
-    ra_grid = result[0]
-    dec_grid = result[1]
 
     return ra_grid, dec_grid
 
@@ -1754,9 +1802,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not grid_type == 'none':
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
-        ra_grid, dec_grid = makeGrid(grid_type, images, size, ra, dec,
-                                     cutout_wcs_list,
-                                     percentiles=percentiles, snappl_images = cutout_image_list)
+        ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
+                                     percentiles=percentiles)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
