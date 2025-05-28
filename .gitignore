@@ -3,7 +3,6 @@ results
 OldCode.py
 PSFPhotometryExample.ipynb
 *.fits
-*.csv
 *core.dcc*
 *.swp
 __pycache__

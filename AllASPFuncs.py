@@ -502,9 +502,8 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     if return_list:
         return explist
 
-def find_parq(ID, path, obj_type = 'SN'):
 
-
+def find_parquet(ID, path, obj_type='SN'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
@@ -516,14 +515,15 @@ def find_parq(ID, path, obj_type = 'SN'):
 
     for f in files:
         pqfile = int(f.split('_')[1].split('.')[0])
-        df = open_parq(pqfile, path, obj_type = obj_type)
-        #The issue is SN parquets store their IDs as ints and star parquets as strings.
+        df = open_parquet(pqfile, path, obj_type=obj_type)
+        # The issue is SN parquet files store their IDs as ints and star
+        # parquet files as strings.
         # Should I convert the entire array or is there a smarter way to do this?
         if ID in df.id.values or str(ID) in df.id.values:
-            Lager.debug(f'parq file: {pqfile}')
             return pqfile
 
-def open_parq(parq, path, obj_type = 'SN', engine="fastparquet"):
+
+def open_parquet(parq, path, obj_type = 'SN', engine="fastparquet"):
     '''
     Convenience function to open a parquet file given its number.
     '''
@@ -787,7 +787,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     num_detect_images: number of images used in the analysis that contain a
                        detection.
     ID: int, the ID of the object
-    sn_path: str, the path to the supernova data
+    sn_path: str, the path to the directory of the supernova catalog parquet
+    files.
     band: str, the band to be used
     size: int, cutout will be of shape (size, size)
     subtract_background: If True, subtract sky bg from images. If false, leave
@@ -809,7 +810,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
 
     '''
 
-    pqfile = find_parq(ID, sn_path, obj_type=object_type)
+    pqfile = find_parquet(ID, sn_path, obj_type=object_type)
     ra, dec, p, s, start, end, peak = \
             get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
     snra = ra
@@ -865,10 +866,9 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     start, end, peak: the start, end, and peak dates of the object
     '''
 
-    df = open_parq(parq, snpath, obj_type = obj_type)
+    df = open_parquet(parq, snpath, obj_type=obj_type)
     if obj_type == 'star':
         ID = str(ID)
-
 
     df = df.loc[df.id == ID]
     ra, dec = df.ra.values[0], df.dec.values[0]
@@ -1282,8 +1282,8 @@ def get_star_SED(SNID, sn_path):
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
              (numpy array of floats)
     '''
-    filenum = find_parq(SNID, sn_path, obj_type = 'star')
-    pqfile = open_parq(filenum, sn_path, obj_type = 'star')
+    filenum = find_parquet(SNID, sn_path, obj_type = 'star')
+    pqfile = open_parquet(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
     #THIS HARDCODE WILL NEED TO BE REMOVED
     #Make hardcodes keyword args until they are fixed
@@ -1307,7 +1307,7 @@ def get_SN_SED(SNID, date, sn_path):
     lam: the wavelength of the SED in Angstrom
     flambda: the flux of the SED units in erg/s/cm^2/Angstrom
     '''
-    filenum = find_parq(SNID, sn_path, obj_type = 'SN')
+    filenum = find_parquet(SNID, sn_path, obj_type = 'SN')
     file_name = 'snana' + '_' + str(filenum) + '.hdf5'
     fullpath = os.path.join(sn_path, file_name)
     sed_table = h5py.File(fullpath, 'r')
@@ -1477,8 +1477,8 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
-    parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
-    df = open_parq(parq_file, path = sn_path, obj_type = object_type)
+    parq_file = find_parquet(ID, path = sn_path, obj_type = object_type)
+    df = open_parquet(parq_file, path = sn_path, obj_type = object_type)
 
     mags, magerr = calc_mags_and_err(flux, sigma_flux, band)
     sim_sigma_flux = 0 # These are truth values!
@@ -1664,6 +1664,41 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
     return images, err, sn_matrix, wgt_matrix
 
+def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
+                                                  output_path,
+                                                  mag_limits=None):
+    '''
+    Convenience function for getting a list of SN IDs that obey some conditions
+    from a parquet file. This is not used anywhere in the main algorithm.
+
+    Inputs:
+    parquet_file: the path to the parquet file
+    sn_path: the path to the supernova data
+    mag_limits: a tuple of (min_mag, max_mag) to filter the SNe by
+                peak magnitude. If None, no filtering is done.
+
+    Output:
+    Saves a csv file of the SN_IDs of supernovae from the parquet file that
+    pass mag cuts. If none are found, raise a ValueError.
+    '''
+    # Get the supernova IDs from the parquet file
+    df = open_parquet(parquet_file, sn_path, obj_type='SN')
+    # For now, this is only supported for SNe. TODO
+    if mag_limits is not None:
+        min_mag, max_mag = mag_limits
+        # This can't always be just g band I think. TODO
+        df = df[(df['peak_mag_g'] >= min_mag) & (df['peak_mag_g'] <= max_mag)]
+    SN_ID = df.id.values
+    SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
+    # some reason. They only seem to have 1 or 2 images ever. TODO
+    SN_ID = np.array(SN_ID, dtype=int)
+    Lager.info(f'Found {np.size(SN_ID)} supernovae in the given range.')
+    if np.size(SN_ID) == 0:
+        raise ValueError('No supernovae found in the given range.')
+
+    pd.DataFrame(SN_ID).to_csv(output_path, index=False, header=False)
+    Lager.info(f'Saved to {output_path}')
+
 
 def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                    sn_path, size, band, fetch_SED, use_real_images, use_roman,
@@ -1674,7 +1709,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
                    draw_method_for_non_roman_psf = 'no_pixel'):
-
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
     sn_matrix = []
@@ -1691,6 +1725,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # Find SN Info, find exposures containing it,
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
+
         images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
             exposures = fetchImages(num_total_images,
                                                  num_detect_images, ID,
