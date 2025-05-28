@@ -6,6 +6,8 @@
 # - {name: flux_error, datatype: float64}
 # - {name: mag, datatype: float64}
 # - {name: mag_err, datatype: float64}
+# - {name: band, datatype: string}
+# - {name: zeropoint, datatype: float64}
 # - {name: SIM_realized_flux, datatype: float64}
 # - {name: SIM_true_flux, datatype: float64}
 # - {name: SIM_realized_mag, datatype: float64}
@@ -16,13 +18,13 @@
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
 #       value: !astropy.table.SerializedColumn {name: MJD}
-#   confusion_metric: 0
+#   confusion_metric: 43.1067924445415
 #   host_dec: -44.919194
 #   host_mag_g: 25.508
 #   host_ra: 7.344728
 #   host_sep: 0.17470838
-#   sn_dec: -44.91922993380131
-#   sn_ra: 7.344774044463684
+#   obj_dec: -44.91922993380131
+#   obj_ra: 7.344774044463684
 # schema: astropy-2.0
-MJD flux flux_error mag mag_err SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
-62495.605 3508.658347664076 2958.387902730361 23.798803050192063 0.9154578575173229 2348.0 2458.98456 24.234910521887773 24.18476624881202
+MJD flux flux_error mag mag_err band zeropoint SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
+62495.605 3508.658347664076 2958.387902730361 23.798803050192063 0.9154578575173229 Y106 15.023547191066587 2348.0 2458.98456 24.234910521887773 24.18476624881202

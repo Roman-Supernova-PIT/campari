@@ -25,8 +25,8 @@ import pandas as pd
 from roman_imsim.utils import roman_utils
 import scipy.sparse as sp
 from simulation import simulate_images
-from snappl.logger import Lager
-from snappl.config import Config
+from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.config import Config
 from snappl.image import OpenUniverse2024FITSImage
 import warnings
 import yaml
