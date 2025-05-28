@@ -1467,9 +1467,6 @@ def calc_mag_and_err(flux, sigma_flux, band, zp = None):
 
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
-    positive = (flux > 0)
-    mag = np.zeros_like(flux)
-    magerr = np.zeros_like(flux)
     mag = -2.5 * np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) + zp
     magerr = (2.5 / np.log(10) * (sigma_flux / flux))
     magerr[flux < 0] = np.nan
