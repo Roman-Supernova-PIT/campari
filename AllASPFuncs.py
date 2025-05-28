@@ -459,7 +459,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
 
     # Now we need to loop through the images and get the information we need
     zpts = []
-    true_mags = []
+    true_mag = []
     true_fluxes = []
     realized_fluxes = []
     for index, row in all_images.iterrows():
@@ -474,24 +474,24 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
 
         if row.DETECTED:
             try:
-                true_mags.append(cat.loc[cat['object_id'] == snid].mag.values[0])
+                true_mag.append(cat.loc[cat['object_id'] == snid].mag.values[0])
                 true_fluxes.append(cat.loc[cat['object_id'] == snid].flux.values[0])
                 realized_fluxes.append(cat.loc[cat['object_id'] == snid].realized_flux.values[0])
 
             except:
                 Lager.error(f'No truth file found for \
                              {row.Pointing, row.SCA}')
-                true_mags.append(np.nan)
+                true_mag.append(np.nan)
                 true_fluxes.append(np.nan)
                 realized_fluxes.append(np.nan)
                 continue
 
         else:
-            true_mags.append(np.nan)
+            true_mag.append(np.nan)
             true_fluxes.append(np.nan)
             realized_fluxes.append(np.nan)
     all_images['zeropoint'] = zpts
-    all_images['true mag'] = true_mags
+    all_images['true mag'] = true_mag
     all_images['true flux'] = true_fluxes
     all_images['realized flux'] = realized_fluxes
     all_images['BAND'] = band
@@ -984,7 +984,7 @@ def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
 
 def plot_lc(filepath, return_data=False):
     fluxdata = pd.read_csv(filepath, comment='#', delimiter=' ')
-    truth_mags = fluxdata['SIM_true_mag']
+    truth_mag = fluxdata['SIM_true_mag']
     mag = fluxdata['mag']
     sigma_mag = fluxdata['mag_err']
 
@@ -993,14 +993,14 @@ def plot_lc(filepath, return_data=False):
 
     dates = fluxdata['MJD']
 
-    plt.scatter(dates, truth_mags, color='k', label='Truth')
+    plt.scatter(dates, truth_mag, color='k', label='Truth')
     plt.errorbar(dates, mag, yerr=sigma_mag,  color='purple', label='Model',
                  fmt='o')
 
-    plt.ylim(np.max(truth_mags) + 0.2, np.min(truth_mags) - 0.2)
+    plt.ylim(np.max(truth_mag) + 0.2, np.min(truth_mag) - 0.2)
     plt.ylabel('Magnitude (Uncalibrated)')
 
-    residuals = mag - truth_mags
+    residuals = mag - truth_mag
     bias = np.mean(residuals)
     bias *= 1000
     bias = np.round(bias, 3)
@@ -1010,7 +1010,7 @@ def plot_lc(filepath, return_data=False):
     props = dict(boxstyle='round', facecolor='wheat', alpha=0.8)
     textstr = 'Overall Bias: ' + str(bias) + ' mmag \n' + \
         'Overall Scatter: ' + str(scatter) + ' mmag'
-    plt.text(np.percentile(dates, 60), np.mean(truth_mags), textstr,
+    plt.text(np.percentile(dates, 60), np.mean(truth_mag), textstr,
              fontsize=14, verticalalignment='top', bbox=props)
     plt.legend()
 
@@ -1032,7 +1032,7 @@ def plot_lc(filepath, return_data=False):
 
     if return_data:
         return mag.values, dates.values, \
-            sigma_mag.values, truth_mags.values, bias, scatter
+            sigma_mag.values, truth_mag.values, bias, scatter
 
 
 def plot_images(fileroot, size = 11):
@@ -1441,7 +1441,22 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     return ra_grid, dec_grid
 
 
-def calc_mags_and_err(flux, sigma_flux, band, zp = None):
+def calc_mag_and_err(flux, sigma_flux, band, zp = None):
+    '''
+    This function calculates the magnitude and magnitude error from the flux.
+
+    flux: float or array of floats, the flux
+    sigma_flux: float or array of floats, the flux error
+    band: str, the bandpass of the images used
+    zp: float, the zeropoint of the bandpass. If None, use the galsim-
+                calculated value.
+
+    Returns:
+    mag: float or array of floats, the AB magnitude
+    magerr: float or array of floats, the magnitude error
+    zp: float, the zeropoint of the bandpass
+    '''
+
     exptime = {'F184': 901.175,
             'J129': 302.275,
             'H158': 302.275,
@@ -1450,21 +1465,15 @@ def calc_mags_and_err(flux, sigma_flux, band, zp = None):
             'Y106': 302.275,
             'Z087': 101.7}
 
-    flux = np.atleast_1d(flux)
-    sigma_flux = np.atleast_1d(sigma_flux)
-
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
     positive = (flux > 0)
-    mags = np.zeros_like(flux)
+    mag = np.zeros_like(flux)
     magerr = np.zeros_like(flux)
-    mags[positive] = -2.5*np.log10(flux[positive]) + \
-    2.5*np.log10(exptime[band]*area_eff) + zp
-    magerr[positive] = (2.5 / np.log(10) * \
-        (sigma_flux[positive] / flux[positive]))
-    mags[~positive] = np.nan
-    magerr[~positive] = np.nan
-    return mags, magerr, zp
+    mag = -2.5 * np.log10(flux) + 2.5*np.log10(exptime[band]*area_eff) + zp
+    magerr = (2.5 / np.log(10) * (sigma_flux / flux))
+    magerr[flux < 0] = np.nan
+    return mag, magerr, zp
 
 
 def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
@@ -1491,11 +1500,11 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     parq_file = find_parq(ID, path = sn_path, obj_type = object_type)
     df = open_parq(parq_file, path = sn_path, obj_type = object_type)
 
-    mags, magerr, zp = calc_mags_and_err(flux, sigma_flux, band)
+    mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     sim_sigma_flux = 0 # These are truth values!
-    sim_realized_mags, _, _ = calc_mags_and_err(detections['realized flux'],
+    sim_realized_mag, _, _ = calc_mag_and_err(detections['realized flux'],
                                              sim_sigma_flux, band)
-    sim_true_mags, _, _ = calc_mags_and_err(detections['true flux'],
+    sim_true_mag, _, _ = calc_mag_and_err(detections['true flux'],
                                          sim_sigma_flux, band)
     if object_type == 'SN':
         df_object_row = df.loc[df.id == ID]
@@ -1515,14 +1524,14 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                      'dec': df_object_row['dec'].values[0]}
 
     data_dict = {'MJD': detections['date'], 'flux': flux,
-                 'flux_error': sigma_flux, 'mag': mags,
+                 'flux_error': sigma_flux, 'mag': mag,
                  'mag_err': magerr,
-                 'band': np.full(np.size(mags), band),
-                 'zeropoint': np.full(np.size(mags), zp),
+                 'band': np.full(np.size(mag), band),
+                 'zeropoint': np.full(np.size(mag), zp),
                  'SIM_realized_flux': detections['realized flux'],
                  'SIM_true_flux': detections['true flux'],
-                 'SIM_realized_mag': sim_realized_mags,
-                 'SIM_true_mag': sim_true_mags,}
+                 'SIM_realized_mag': sim_realized_mag,
+                 'SIM_true_mag': sim_true_mag,}
     units = {'MJD':u.d, 'SIM_realized_flux': '',  'flux': '',
              'flux_error': '', 'SIM_realized_mag': '',
               'SIM_true_flux': '', 'SIM_true_mag': ''}
