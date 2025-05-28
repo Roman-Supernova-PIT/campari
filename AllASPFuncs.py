@@ -35,9 +35,7 @@ import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
-#from snappl.logger import Lager
 from snpit_utils.logger import SNLogger as Lager
-#from snappl.config import Config
 from snpit_utils.config import Config
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -80,7 +78,8 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+    wcs: the WCS of the image, astropy.wcs.wcs.WCS object, typically loaded
+             from a snappl Image object.
     spacing: int, spacing of grid points in pixels.
     subsize: int, width of the grid in pixels.
              Specify the width of the grid, which can be smaller than the
@@ -153,7 +152,8 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     Inputs:
     ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+    wcs: the WCS of the image, astropy.wcs.wcs.WCS object, typically loaded
+             from a snappl Image object.
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on. This is used to determine the size of the grid, and once we
                 switch to snappl Image objects, will also determine the wcs.
@@ -994,6 +994,15 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                         a more detailed explanation.
               single: Place a single grid point. This is for sanity checking
                       that the algroithm is drawing points where expected.
+    images: list of snappl.image.Image objects, the images to be used for the
+            grid. The first image in the list is used to get the WCS and
+            design the grid.
+    ra, dec: floats, the RA and DEC of the supernova. As of now, this is only
+                    used if grid_type is 'single', TODO remove this?
+    percentiles: list of floats, the percentiles to use for the adaptive grid.
+    make_exact: Currently not implemented, but will construct the grid in such
+                a way on a simulated image that the recovered model is accurate
+                to machine precision. TODO
 
     Returns:
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
@@ -1418,7 +1427,8 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Inputs:
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on.
-    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+    wcs: the WCS of the image, astropy.wcs.wcs.WCS object, typically loaded
+             from a snappl Image object.
 
     percentiles: list of floats, the percentiles to use to bin the image. The
                 more bins, the more possible grid points could be placed in
