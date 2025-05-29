@@ -7,7 +7,6 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
-import pickle
 from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
 import snappl
@@ -278,15 +277,17 @@ def test_make_regular_grid():
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
-                                    size=25, spacing=3.0)
+                                              size=25, spacing=3.0)
         test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
                             7.67366176, 7.67376548, 7.67348473, 7.67358845,
                             7.67369218])
         test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
                             -44.26389673, -44.26384629, -44.26379586,
                             -44.26382471, -44.26377428, -44.26372384])
-        np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), "RA vals do not match"
-        np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), "Dec vals do not match"
+        np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
+            "RA vals do not match"
+        np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \
+            "Dec vals do not match"
 
 
 def test_make_adaptive_grid():
@@ -301,9 +302,12 @@ def test_make_adaptive_grid():
     ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                            image=image, percentiles=[99])
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
-    test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403, -44.26418721]
-    np.testing.assert_allclose(ra_grid[:5], test_ra, atol=1e-9), "RA vals do not match using Galsim WCS"
-    np.testing.assert_allclose(dec_grid[:5], test_dec, atol=1e-9), "Dec vals do not match using Galsim WCS"
+    test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
+                -44.26418721]
+    np.testing.assert_allclose(ra_grid[:5], test_ra, atol=1e-9), \
+        "RA vals do not match using Galsim WCS"
+    np.testing.assert_allclose(dec_grid[:5], test_dec, atol=1e-9), \
+        "Dec vals do not match using Galsim WCS"
 
 
 def test_make_contour_grid():

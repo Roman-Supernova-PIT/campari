@@ -10,7 +10,6 @@ import astropy.table as tb
 import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-from astropy.nddata import Cutout2D
 from coord import *
 import requests
 from astropy.table import Table
@@ -158,7 +157,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     '''
     size = np.shape(image)[0]
     if subsize > size:
-        Lager.warning('subsize is larger than the image size '  +
+        Lager.warning('subsize is larger than the image size ' +
                       f'{size} > {subsize}. This would cause model points to' +
                       ' be placed outside the image. Reducing subsize to' +
                       ' match the image size.')
@@ -219,7 +218,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                                  y + subpixel_grid_width/2, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
                 ys.extend(list(X.flatten()))
-                xs.extend(list(Y.flatten()))  #...Like here. TODO
+                xs.extend(list(Y.flatten()))  # ...Like here. TODO
 
     xx = np.array(xs).flatten()
     yy = np.array(ys).flatten()
@@ -776,8 +775,9 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
     return result
 
 
-def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, subtract_background,
-                roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
+def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
+                subtract_background, roman_path, object_type,
+                lc_start=-np.inf, lc_end=np.inf):
     '''
     This function gets the list of exposures to be used for the analysis.
 
@@ -811,15 +811,17 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
 
     pqfile = find_parquet(ID, sn_path, obj_type=object_type)
     ra, dec, p, s, start, end, peak = \
-            get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
+        get_object_info(ID, pqfile, band=band, snpath=sn_path,
+                        roman_path=roman_path, obj_type=object_type)
     snra = ra
-    sndec = dec # Why is this here? TODO remove in a less urgent PR
+    sndec = dec  # Why is this here? TODO remove in a less urgent PR
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
-                                 roman_path=roman_path, maxbg=num_total_images - num_detect_images,
-                                 maxdet=num_detect_images, return_list=True, band=band,
-                                 lc_start=lc_start, lc_end=lc_end)
+                                 roman_path=roman_path,
+                                 maxbg=num_total_images - num_detect_images,
+                                 maxdet=num_detect_images, return_list=True,
+                                 band=band, lc_start=lc_start, lc_end=lc_end)
     cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
                         subtract_background=subtract_background,
@@ -846,7 +848,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-           exposures, cutout_image_list
+        exposures, cutout_image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -973,7 +975,7 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                                                image=image_data,
                                                percentiles=percentiles)
     elif grid_type == 'regular':
-        ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
+        ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
                                               size=size, spacing=0.75)
 
     if grid_type == 'single':
@@ -1309,8 +1311,8 @@ def get_SN_SED(SNID, date, sn_path):
     return np.array(lam), np.array(flambda[bestindex])
 
 
-def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
-                subsize = 4):
+def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
+                      subsize=4):
     '''
     Construct a "contour grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image. This is
@@ -1368,8 +1370,8 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     '''
     size = image.shape[0]
-    x = np.arange(0,size,1.0)
-    y = np.arange(0,size,1.0)
+    x = np.arange(0, size, 1.0)
+    y = np.arange(0, size, 1.0)
     xg, yg = np.meshgrid(x, y, indexing='ij')
     xg = xg.ravel()
     yg = yg.ravel()
@@ -1383,9 +1385,9 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Lager.debug(f'Using levels: {levels} in make_contour_grid')
 
     interp = RegularGridInterpolator((x, y), image, method='linear',
-                                 bounds_error=False, fill_value=None)
+                                     bounds_error=False, fill_value=None)
 
-    aa = interp((xg,yg))
+    aa = interp((xg, yg))
 
     x_totalgrid = []
     y_totalgrid = []
@@ -1396,19 +1398,19 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
         # Generate a grid that gets finer each iteration of the loop. For
         # instance, in brightness bin 1, 1 point per pixel, in brightness bin
         # 2, 4 points per pixel (2 in each direction), etc.
-        x = np.arange(0,size,1/(i+1))
-        y = np.arange(0,size,1/(i+1))
+        x = np.arange(0, size, 1/(i+1))
+        y = np.arange(0, size, 1/(i+1))
         if i == 0:
             x = x[np.where(np.abs(x - size/2) < subsize)]
             y = y[np.where(np.abs(y - size/2) < subsize)]
         xg, yg = np.meshgrid(x, y, indexing='ij')
-        aa = interp((xg,yg))
+        aa = interp((xg, yg))
         xg = xg[np.where((aa > zmin) & (aa <= zmax))]
         yg = yg[np.where((aa > zmin) & (aa <= zmax))]
         x_totalgrid.extend(xg)
         y_totalgrid.extend(yg)
 
-    xx, yy = y_totalgrid, x_totalgrid # Here is another place I need to flip
+    xx, yy = y_totalgrid, x_totalgrid  # Here is another place I need to flip
     # x and y. I'd like this to be more rigorous or at least clear.
     xx = np.array(xx)
     yy = np.array(yy)
