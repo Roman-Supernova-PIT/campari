@@ -104,18 +104,7 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Lager.debug('Grid type: regularly spaced')
     difference = int((size - subsize)/2)
 
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
-        # Astropy / snappl wcs
-        Lager.debug('Astropy / snappl wcs detected')
-        x_center, y_center = wcs.world_to_pixel(SkyCoord(ra_center, dec_center, unit='deg'))
-        x_center += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
-        y_center += 1
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        # Galsim wcs
-        x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+    x_center, y_center = convert_sky_to_pixel(ra_center, dec_center, wcs)
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
@@ -126,19 +115,8 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
-        # Astropy / snappl wcs
-        result = wcs.pixel_to_world(xx-1, yy-1)
-        Lager.debug('Astropy / snappl wcs detected')
-        ra_grid = result.ra.value
-        dec_grid = result.dec.value
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        # Galsim wcs
-        ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+    ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
 
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
     return ra_grid, dec_grid
 
 
@@ -2048,7 +2026,7 @@ def convert_sky_to_pixel(ra, dec, wcs):
     x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
         1-indexed pixel coordinate system, as galsim uses.
     '''
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
+    if isinstance(wcs, astropy.wcs.WCS):
         Lager.debug('Astropy / snappl wcs detected')
         x, y = wcs.world_to_pixel(SkyCoord(ra, dec, unit='deg'))
         x += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
@@ -2076,7 +2054,7 @@ def convert_pixel_to_sky(x, y, wcs):
     Returns:
     ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
     '''
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
+    if isinstance(wcs, astropy.wcs.WCS):
         result = wcs.pixel_to_world(x-1, y-1)
         Lager.debug('Astropy / snappl wcs detected')
         ra = result.ra.value

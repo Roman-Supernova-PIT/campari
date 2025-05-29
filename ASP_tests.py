@@ -334,18 +334,19 @@ def test_make_contour_grid():
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403]
     Lager.debug(ra_grid[:4] - test_ra)
-    msg = "RA vals do not match to 1e-9"
-    assert np.allclose(ra_grid[:4], test_ra, atol=1e-9, rtol=1e-9), msg
-    msg = "Dec vals do not match to 1e-9"
-    assert np.allclose(dec_grid[:4], test_dec, atol=1e-9, rtol=1e-9), msg
+    atol = 1e-9
+    msg = f"RA vals do not match to {atol:.1e} using galsim wcs."
+    assert np.allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
+    msg = f"Dec vals do not match to {atol:.1e} using galsim wcs."
+    assert np.allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
     # Astropy / Snappl WCS
     wcs = astropy.wcs.WCS(wcs_dict)
     ra_grid2, dec_grid2 = make_contour_grid(image, wcs)
-    msg = f"RA vals disagree at {np.max(np.abs(ra_grid2[:4] - test_ra)):.3e} level"
-    assert np.allclose(ra_grid2[:4], test_ra, atol=1e-9, rtol=1e-9), msg
-    msg = "Dec vals do not match to 1e-9"
-    assert np.allclose(dec_grid2[:4], test_dec, atol=1e-9, rtol=1e-9), msg
+    msg = f"RA vals do not match to {atol:.1e} using snappl wcs."
+    assert np.allclose(ra_grid2[:4], test_ra, atol=atol, rtol=1e-9), msg
+    msg = f"Dec vals do not match to {atol:.1e} using snappl wcs."
+    assert np.allclose(dec_grid2[:4], test_dec, atol=atol, rtol=1e-9), msg
 
 
 def test_calculate_background_level():
