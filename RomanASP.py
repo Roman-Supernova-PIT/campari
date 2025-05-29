@@ -26,9 +26,7 @@ from roman_imsim.utils import roman_utils
 import scipy.sparse as sp
 from simulation import simulate_images
 import snappl
-#from snappl.logger import Lager
 from snpit_utils.logger import SNLogger as Lager
-#from snappl.config import Config
 from snpit_utils.config import Config
 from snappl.image import OpenUniverse2024FITSImage
 import warnings
@@ -178,11 +176,10 @@ def main():
 
     if not isinstance(SNID, list):
         SNID = [SNID]
-
+    Lager.debug('Snappl version:')
+    Lager.debug(snappl.__version__)
     # run one supernova function TODO
     for ID in SNID:
-        Lager.debug('Snappl version:')
-        Lager.debug(snappl.__version__)
         flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
             confusion_metric, X, cutout_wcs_list, sim_lc = \
             run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,

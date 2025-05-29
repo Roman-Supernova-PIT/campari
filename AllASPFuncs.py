@@ -11,7 +11,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 import numpy as np
 import astropy
 from astropy.io import fits
-from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import pandas as pd
@@ -2033,3 +2032,60 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin='lower', cmap='gray')
     plt.scatter(ra_grid, dec_grid)
+
+def convert_sky_to_pixel(ra, dec, wcs):
+    '''
+    This helper function converts RA and Dec coordinates to pixel coordinates
+    taking into account differences between galsim and astropy WCS objects to
+    ensure a consistent result is given.
+
+    Inputs:
+    ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
+    wcs: galsim.fitswcs.AstropyWCS or astropy.wcs.wcs.WCS object,
+        the WCS of the image.
+
+    Returns:
+    x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
+        1-indexed pixel coordinate system, as galsim uses.
+    '''
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        Lager.debug('Astropy / snappl wcs detected')
+        x, y = wcs.world_to_pixel(SkyCoord(ra, dec, unit='deg'))
+        x += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
+        y += 1
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        x, y = wcs.toImage(ra, dec, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+
+    return x, y
+
+def convert_pixel_to_sky(x, y, wcs):
+    '''
+    This helper function converts pixel coordinates to RA and Dec coordinates
+    taking into account differences between galsim and astropy WCS objects to
+    ensure a consistent result is given.
+
+    Inputs:
+    x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
+        1-indexed pixel coordinate system, as galsim uses.
+    wcs: galsim.fitswcs.AstropyWCS or astropy.wcs.wcs.WCS object,
+        the WCS of the image.
+
+    Returns:
+    ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
+    '''
+    if isinstance(wcs, astropy.wcs.wcs.WCS):
+        result = wcs.pixel_to_world(x-1, y-1)
+        Lager.debug('Astropy / snappl wcs detected')
+        ra = result.ra.value
+        dec = result.dec.value
+    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+        ra, dec = wcs.toWorld(x, y, units='deg')
+        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+
+    else:
+        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+
+    return ra, dec
