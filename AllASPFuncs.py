@@ -1069,7 +1069,6 @@ def plot_images(fileroot, size = 11):
     for i,savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        #newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
         newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
@@ -1118,14 +1117,6 @@ def plot_images(fileroot, size = 11):
         plt.imshow(im1, extent = extent, origin = 'lower', vmin = vmin, vmax = vmax)
         plt.colorbar(fraction=0.046, pad=0.04)
 
-
-        #plt.scatter(galx,galy, c = 'r', s = 8, marker = '*')
-        #plt.scatter(snx, sny, c = 'k', s = 8, marker = '*')
-
-        #plt.xlim(-1,size)
-        #plt.ylim(-1,size)
-
-
         ############################################
         plt.subplot(len(cutout_wcs_list),4,4*i+3)
         plt.title('Residuals')
@@ -1136,17 +1127,11 @@ def plot_images(fileroot, size = 11):
 
         current_res= res[i*size**2:(i+1)*size**2].reshape(size,size)
 
-        #if i == 0:
         norm = 3*np.std(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)])
 
-        #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) == 0)] = 0
-        #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)] = \
-            #np.log10(np.abs(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)]))
-
         plt.imshow(current_res, extent = extent, origin = 'lower', cmap = 'seismic', vmin = -100, vmax = 100)
-        #plt.imshow(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size), extent = extent, origin = 'lower')
         plt.colorbar(fraction=0.046, pad=0.14)
-        #plt.scatter(galx,galy, c = 'r', s = 12, marker = '*', edgecolors='k')
+
 
     plt.subplots_adjust(wspace = 0.4, hspace = 0.3)
 
@@ -1168,13 +1153,10 @@ def slice_plot(fileroot):
     for i,savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        #newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
         newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
-
     magresiduals = -2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova))
-
 
     galxes = []
     stds = []
@@ -1208,12 +1190,7 @@ def slice_plot(fileroot):
 
         justbgres = trueimage - justbgim
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
-
-
-        #plt.plot(trueimage[5], label = 'Image')
-
         plt.axhline(0, ls = '--', color = 'k')
-        #plt.plot(im1[5], label = 'Model', lw = 3)
         plt.plot(trueimage[5] - im1[5], label = 'Im-Model', alpha = 0.4)
         plt.ylim(-250,250)
 
@@ -1226,7 +1203,6 @@ def slice_plot(fileroot):
             plt.plot(justbgim[5], label = 'BGModel')
             plt.plot(justbgres[5], label = 'Im-BGModel')
 
-            #plt.plot(justbgres[5] - snim[5], label = 'SN Residuals', ls = '--')
             plt.ylim(-500,np.max(trueimage[5]))
             snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-num_detect_images:][i - num_total_images + num_detect_images]
 
@@ -1237,7 +1213,7 @@ def slice_plot(fileroot):
         plt.axvline(snx-4, ls = '--', color = 'k')
         plt.axvline(snx, ls = '--', color = 'r')
 
-        plt.xlim(snx-3.8, snx+3.8)
+        plt.xlim(snx-size/2, snx+size/2)
 
 
         plt.legend(loc = 'upper left')
