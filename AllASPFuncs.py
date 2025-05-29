@@ -643,6 +643,7 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, SCA)
         imagedata, errordata, flags = image.get_data(which='all')
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+
         if truth == 'truth':
             raise RuntimeError("Truth is broken.")
             # In the future, I'd like to manually insert an array of ones for
