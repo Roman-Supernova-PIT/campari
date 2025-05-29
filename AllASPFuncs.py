@@ -316,7 +316,11 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
                                  not using roman.'
     else:
         psf = None
+    Lager.debug('x and y going into cosntruct psf bg')
+    Lager.debug(f'ra, dec: {ra, dec}')
 
+    Lager.debug('wcs type')
+    Lager.debug(type(wcs))
     if type(wcs) == galsim.fitswcs.AstropyWCS:
         x, y = wcs.toImage(ra,dec,units='deg')
     else:
@@ -347,8 +351,11 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     #roman_psf =  util_ref.getPSF(x_loc,y_loc,pupil_bin)
     roman_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = newwcs)
 
+    Lager.debug('starting to draw PSFs at grid points')
+
     for a,ij in enumerate(zip(x.flatten(),y.flatten())):
         i,j = ij
+        Lager.debug((a, i, j))
         stamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
 
         if not include_photonOps:
@@ -846,8 +853,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     for cutout, image in zip(cutout_image_list, image_list):
         images.append(cutout._data)
         # These next two lines are bad stuff these will be removed
-        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout.get_wcs()._wcs))
-        im_wcs_list.append(galsim.AstropyWCS(wcs=image.get_wcs()._wcs))
+        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs._wcs))
+        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs._wcs))
         err.append(cutout._noise)
 
     ########################### END TEMPORARY SECTION #########################
