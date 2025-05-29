@@ -978,6 +978,8 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
     image_data = images[0].data
     if grid_type == 'contour':
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
+        Lager.debug('ra and dec out of contour')
+        Lager.debug(f'ra_grid: {ra_grid}, dec_grid: {dec_grid}')
 
     elif grid_type == 'adaptive':
         ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs,
@@ -1455,7 +1457,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     #ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
     # If this below has minus ones in it, it agrees with the above
     ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
-
+    
     return ra_grid, dec_grid
 
 
