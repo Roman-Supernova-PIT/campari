@@ -774,12 +774,18 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
     if not include_photonOps:
         psf = galsim.Convolve(point, self.getPSF(x,y,pupil_bin))
-        return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',center = galsim.PositionD(x_center, y_center),use_true_center = True)
+        return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',
+                            center = galsim.PositionD(x_center, y_center),
+                            use_true_center = True)
 
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
     Lager.debug(f'Using {n_phot:e} photons in getPSF_Image')
-    result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
-        n_photons=int(n_phot),maxN=int(n_phot),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
+    result = point.drawImage(self.bpass,wcs=wcs, method='phot',
+                            photon_ops=photon_ops, rng=self.rng, \
+                            n_photons=int(n_phot),maxN=int(n_phot),
+                            poisson_flux=False,
+                            center = galsim.PositionD(x_center, y_center),
+                            use_true_center = True, image=stamp)
     return result
 
 
@@ -967,8 +973,8 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                     model grid points.
     '''
     size = images[0].image_shape[0]
-    #snappl_wcs = images[0].get_wcs(wcsclass= "GalsimWCS")
-    snappl_wcs = images[0]._wcs._wcs
+    snappl_wcs = images[0].get_wcs()
+
     image_data = images[0].data
     if grid_type == 'contour':
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
@@ -1450,12 +1456,8 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
 
     #ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
     # If this below has minus ones in it, it agrees with the above
-    Lager.debug(wcs.pixel_to_world(xx, yy))
-    #ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
-    result = wcs.pixel_to_world(xx, yy)
-    ra_grid = result.ra.degree
-    dec_grid = result.dec.degree
-    Lager.debug('FIX AND REMOVE THIS BEFORE PUSHING')
+
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
     return ra_grid, dec_grid
 
@@ -1812,6 +1814,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not grid_type == 'none':
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
+        import pdb; pdb.set_trace()
         ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
                                      percentiles=percentiles)
     else:
@@ -1910,7 +1913,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
         # TODO make this not bad
         if num_detect_images != 0 and i >= num_total_images - num_detect_images:
-            snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
             if use_roman:
                 if use_real_images:
                     pointing = exposures['Pointing'][i]
