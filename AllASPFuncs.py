@@ -1814,7 +1814,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not grid_type == 'none':
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
-        import pdb; pdb.set_trace()
         ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
                                      percentiles=percentiles)
     else:
@@ -1913,6 +1912,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
         # TODO make this not bad
         if num_detect_images != 0 and i >= num_total_images - num_detect_images:
+            snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
             if use_roman:
                 if use_real_images:
                     pointing = exposures['Pointing'][i]
