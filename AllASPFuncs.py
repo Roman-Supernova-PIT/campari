@@ -104,18 +104,16 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Lager.debug('Grid type: regularly spaced')
     difference = int((size - subsize)/2)
 
-    x_center, y_center = convert_sky_to_pixel(ra_center, dec_center, wcs)
-
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
     Lager.debug(f'Grid spacing: {spacing}')
 
-    xx, yy = np.meshgrid(x+1, y+1)
+    xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
     return ra_grid, dec_grid
 
@@ -184,7 +182,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     difference = int((size - subsize)/2)
 
-    x_center, y_center = convert_sky_to_pixel(ra_center, dec_center, wcs)
+    #x_center, y_center = convert_sky_to_pixel(ra_center, dec_center, wcs)
 
     x = difference + np.arange(0, subsize, 1)
     y = difference + np.arange(0, subsize, 1)
@@ -213,9 +211,9 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     yvals = np.rint(y).astype(int)
     xvals = np.rint(x).astype(int)
     for xindex in xvals:
-        x = xindex + 1
+        x = xindex
         for yindex in yvals:
-            y = yindex + 1
+            y = yindex
             # xindex and yindex are the indices within the numpy array, while
             # x and y are the actual locations in pixel space.
             # This used to be x and y in here:
@@ -241,7 +239,8 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
+    #ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
     return ra_grid, dec_grid
 
@@ -833,6 +832,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
                         subtract_background=subtract_background,
                         roman_path=roman_path)
 
+
+
     # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
     # Image objects. However, the rest of the code is not refactored yet. This
     # returns the Image objects back into the numpy arrays that the rest of the
@@ -844,8 +845,9 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     err = []
     for cutout, image in zip(cutout_image_list, image_list):
         images.append(cutout._data)
-        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
-        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
+        # These next two lines are bad stuff these will be removed
+        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout.get_wcs()._wcs))
+        im_wcs_list.append(galsim.AstropyWCS(wcs=image.get_wcs()._wcs))
         err.append(cutout._noise)
 
     ########################### END TEMPORARY SECTION #########################
@@ -965,7 +967,7 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                     model grid points.
     '''
     size = images[0].image_shape[0]
-    snappl_wcs = images[0].get_wcs()
+    snappl_wcs = images[0].get_wcs(wcsclass= "GalsimWCS")
     image_data = images[0].data
     if grid_type == 'contour':
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
@@ -1071,7 +1073,8 @@ def plot_images(fileroot, size = 11):
     for i,savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        #newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
     biases = []
@@ -1083,17 +1086,17 @@ def plot_images(fileroot, size = 11):
     for i, wcs in enumerate(cutout_wcs_list):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
-        xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
-        galx, galy = wcs.toImage(galra, galdec, units = 'deg')
+        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
+        snx, sny = wcs.world_to_pixel(snra, sndec)
+        galx, galy = wcs.world_to_pixel(galra, galdec)
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
         vmin = np.mean(gridvals) - np.std(gridvals)
         vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx-1, yy-1, s = 1, c= 'k', vmin = vmin, vmax = vmax)
+        plt.scatter(xx, yy, s = 1, c= 'k', vmin = vmin, vmax = vmax)
         plt.title('True Image')
-        plt.scatter(snx-1, sny-1, c = 'r', s = 8, marker = '*')
-        plt.scatter(galx-1,galy-1, c = 'b', s = 8, marker = '*')
+        plt.scatter(snx, sny, c = 'r', s = 8, marker = '*')
+        plt.scatter(galx,galy, c = 'b', s = 8, marker = '*')
         imshow = plt.imshow(images[i*size**2:(i+1)*size**2].reshape(size,size), origin = 'lower', extent = extent)
         plt.colorbar(fraction=0.046, pad=0.04)
         trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
@@ -1105,12 +1108,7 @@ def plot_images(fileroot, size = 11):
         plt.title('Model')
 
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
-        xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
-
-
-        xx -= 1
-        yy -= 1
-
+        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
 
         vmin = np.min(images[i*size**2:(i+1)*size**2].reshape(size,size))
         vmax = np.max(images[i*size**2:(i+1)*size**2].reshape(size,size))
@@ -1125,8 +1123,8 @@ def plot_images(fileroot, size = 11):
         plt.colorbar(fraction=0.046, pad=0.04)
 
 
-        #plt.scatter(galx-1,galy-1, c = 'r', s = 8, marker = '*')
-        #plt.scatter(snx-1, sny-1, c = 'k', s = 8, marker = '*')
+        #plt.scatter(galx,galy, c = 'r', s = 8, marker = '*')
+        #plt.scatter(snx, sny, c = 'k', s = 8, marker = '*')
 
         #plt.xlim(-1,size)
         #plt.ylim(-1,size)
@@ -1139,8 +1137,6 @@ def plot_images(fileroot, size = 11):
         vmax = np.mean(gridvals) + np.std(gridvals)
         plt.scatter(xx,yy, s = 1, c= gridvals,  vmin = vmin, vmax = vmax)
         res = images - sumimages
-
-
 
         current_res= res[i*size**2:(i+1)*size**2].reshape(size,size)
 
@@ -1176,7 +1172,8 @@ def slice_plot(fileroot):
     for i,savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        #newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
 
@@ -1191,7 +1188,7 @@ def slice_plot(fileroot):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
         trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.world_to_pixel(snra, sndec)
 
         plt.subplot(len(cutout_wcs_list)//3 + 1,3,i+1)
         if i >= num_total_images - num_detect_images:
@@ -1240,13 +1237,11 @@ def slice_plot(fileroot):
         else:
             snim = np.zeros_like(justbgres)
 
+        plt.axvline(snx+4, ls = '--', color = 'k')
+        plt.axvline(snx-4, ls = '--', color = 'k')
+        plt.axvline(snx, ls = '--', color = 'r')
 
-
-        plt.axvline(snx-1+4, ls = '--', color = 'k')
-        plt.axvline(snx-1-4, ls = '--', color = 'k')
-        plt.axvline(snx-1, ls = '--', color = 'r')
-
-        plt.xlim(snx-1-3.8, snx-1+3.8)
+        plt.xlim(snx-3.8, snx+3.8)
 
 
         plt.legend(loc = 'upper left')
@@ -1383,8 +1378,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Inputs:
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on.
-    wcs: the WCS of the image, astropy.wcs.wcs.WCS object, typically loaded
-             from a snappl Image object.
+    wcs: snappl.BaseWCS object
 
     percentiles: list of floats, the percentiles to use to bin the image. The
                 more bins, the more possible grid points could be placed in
@@ -1451,7 +1445,9 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Lager.debug(f'Built a grid with {np.size(xx)} points')
     Lager.debug(f'Grid points: {xx[:5]}, {yy[:5]}')
 
-    ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
+    #ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
+    # If this below has minus ones in it, it agrees with the above
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
     return ra_grid, dec_grid
 
@@ -2033,59 +2029,59 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     plt.imshow(image, origin='lower', cmap='gray')
     plt.scatter(ra_grid, dec_grid)
 
-def convert_sky_to_pixel(ra, dec, wcs):
-    '''
-    This helper function converts RA and Dec coordinates to pixel coordinates
-    taking into account differences between galsim and astropy WCS objects to
-    ensure a consistent result is given.
+# def convert_sky_to_pixel(ra, dec, wcs):
+#     '''
+#     This helper function converts RA and Dec coordinates to pixel coordinates
+#     taking into account differences between galsim and astropy WCS objects to
+#     ensure a consistent result is given.
 
-    Inputs:
-    ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
-    wcs: galsim.fitswcs.AstropyWCS or astropy.wcs.wcs.WCS object,
-        the WCS of the image.
+#     Inputs:
+#     ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
+#     wcs: galsim.fitswcs.AstropyWCS or astropy.wcs.wcs.WCS object,
+#         the WCS of the image.
 
-    Returns:
-    x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
-        1-indexed pixel coordinate system, as galsim uses.
-    '''
-    if isinstance(wcs, astropy.wcs.WCS):
-        Lager.debug('Astropy / snappl wcs detected')
-        x, y = wcs.world_to_pixel(SkyCoord(ra, dec, unit='deg'))
-        x += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
-        y += 1
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        x, y = wcs.toImage(ra, dec, units='deg')
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+#     Returns:
+#     x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
+#         1-indexed pixel coordinate system, as galsim uses.
+#     '''
+#     if isinstance(wcs, astropy.wcs.WCS):
+#         Lager.debug('Astropy / snappl wcs detected')
+#         x, y = wcs.world_to_pixel(SkyCoord(ra, dec, unit='deg'))
+#         x += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
+#         y += 1
+#     elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+#         x, y = wcs.toImage(ra, dec, units='deg')
+#         Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+#     else:
+#         raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
 
-    return x, y
+#     return x, y
 
-def convert_pixel_to_sky(x, y, wcs):
-    '''
-    This helper function converts pixel coordinates to RA and Dec coordinates
-    taking into account differences between galsim and astropy WCS objects to
-    ensure a consistent result is given.
+# def convert_pixel_to_sky(x, y, wcs):
+#     '''
+#     This helper function converts pixel coordinates to RA and Dec coordinates
+#     taking into account differences between galsim and astropy WCS objects to
+#     ensure a consistent result is given.
 
-    Inputs:
-    x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
-        1-indexed pixel coordinate system, as galsim uses.
-    wcs: galsim.fitswcs.AstropyWCS or astropy.wcs.wcs.WCS object,
-        the WCS of the image.
+#     Inputs:
+#     x, y: floats, the pixel coordinates corresponding to the RA and Dec, in a
+#         1-indexed pixel coordinate system, as galsim uses.
+#     wcs: galsim.fitswcs.AstropyWCS or astropy.wcs.wcs.WCS object,
+#         the WCS of the image.
 
-    Returns:
-    ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
-    '''
-    if isinstance(wcs, astropy.wcs.WCS):
-        result = wcs.pixel_to_world(x-1, y-1)
-        Lager.debug('Astropy / snappl wcs detected')
-        ra = result.ra.value
-        dec = result.dec.value
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        ra, dec = wcs.toWorld(x, y, units='deg')
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
+#     Returns:
+#     ra, dec: float or array of floats, the RA and Dec coordinates in degrees.
+#     '''
+#     if isinstance(wcs, astropy.wcs.WCS):
+#         result = wcs.pixel_to_world(x-1, y-1)
+#         Lager.debug('Astropy / snappl wcs detected')
+#         ra = result.ra.value
+#         dec = result.dec.value
+#     elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
+#         ra, dec = wcs.toWorld(x, y, units='deg')
+#         Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
 
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+#     else:
+#         raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
 
-    return ra, dec
+#     return ra, dec
