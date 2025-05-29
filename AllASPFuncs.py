@@ -1434,10 +1434,15 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
+    Lager.debug(f'Grid points: {xx[:5]}, {yy[:5]}')
 
     result = wcs.toWorld(xx, yy, units='deg')
     ra_grid = result[0]
     dec_grid = result[1]
+
+    Lager.debug('ra and dec out of contour')
+    Lager.debug(f'ra_grid: {ra_grid[:5]}')
+    Lager.debug(f'dec_grid: {dec_grid[:5]}')
 
     return ra_grid, dec_grid
 
