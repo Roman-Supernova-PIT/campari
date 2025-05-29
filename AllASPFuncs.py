@@ -652,6 +652,7 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, SCA)
         imagedata, errordata, flags = image.get_data(which='all')
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+
         if truth == 'truth':
             raise RuntimeError("Truth is broken.")
             # In the future, I'd like to manually insert an array of ones for
@@ -838,8 +839,8 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     err = []
     for cutout, image in zip(cutout_image_list, image_list):
         images.append(cutout._data)
-        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs))
-        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs))
+        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs._wcs))
+        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs._wcs))
         err.append(cutout._noise)
 
     ########################### END TEMPORARY SECTION #########################
