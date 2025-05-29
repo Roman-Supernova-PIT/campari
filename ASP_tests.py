@@ -29,13 +29,13 @@ sn_path =\
      '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
 
 
-def test_find_parq():
-    parq_file_ID = find_parq(50134575, sn_path)
+def test_find_parquet():
+    parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
 
 
 def test_radec2point():
-    p, s = radec2point(7.731890048839705, -44.4589649005717, 'Y106', path = roman_path)
+    p, s = radec2point(7.731890048839705, -44.4589649005717, 'Y106', path=roman_path)
     assert p == 10535
     assert s == 14
 
@@ -206,10 +206,15 @@ def test_regression():
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = "The lightcurves do not match for column %s" % col
-        percent = 100 * np.max((current[col] - comparison[col]) / comparison[col])
-        msg2 = f"difference is {percent} %"
-        msg = msg+msg2
-        assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
+        if col == 'band':
+            # band is the only string column, so we check it with array_equal
+            assert np.array_equal(current[col], comparison[col]), msg
+        else:
+            percent = 100 * np.max((current[col] - comparison[col]) / comparison[col])
+            msg2 = f"difference is {percent} %"
+            msg = msg+msg2
+            assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
+
 
 
 def test_get_galsim_SED():
@@ -260,6 +265,16 @@ def test_plot_lc():
     assert output[4] == 182.088
     assert output[5] == 0.0
 
+
+def test_extract_sn_from_parquet_file_and_write_to_csv():
+    output_path = pathlib.Path(__file__).parent/"tests/testdata/snids.csv"
+    extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path,
+                                                  output_path,
+                                                  mag_limits=[20, 21])
+    sn_ids = pd.read_csv(output_path, header=None).values.flatten()
+    test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent/"tests/testdata/test_snids.csv", header=None).values.flatten()
+    assert np.array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"
+    
 
 def test_make_regular_grid():
     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
@@ -426,4 +441,22 @@ def test_convert_sky_to_pixel():
     assert np.allclose(x, test_x, atol=1e-5), msg
     msg = "Y values do not match for Astropy WCS"
     assert np.allclose(y, test_y, atol=1e-5), msg
+
+    
+def test_calc_mag_and_err():
+    flux = np.array([-1e2, 1e2, 1e3, 1e4])
+    sigma_flux = np.array([10, 10, 10, 10])
+    band = 'Y106'
+    mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
+
+    test_mag = np.array([np.nan, 27.66165575,  25.16165575,  22.66165575])
+    test_magerr = np.array([np.nan, 1.0857362e-01,
+                            1.0857362e-02, 1.0857362e-03])
+    test_zp = 15.023547191066587
+
+    assert np.allclose(mag, test_mag, atol=1e-7, equal_nan=True), \
+         f"The magnitudes do not match {mag} VS. {test_mag}"
+    assert np.allclose(magerr, test_magerr, atol=1e-7, equal_nan=True), \
+         "The magnitude errors do not match"
+    assert np.allclose(zp, test_zp, atol=1e-7), "The zeropoint does not match"
 

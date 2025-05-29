@@ -78,8 +78,8 @@ def main():
 
     parser.add_argument('-f', '--filter', type=str, required=True,
                         help='Roman filter')
-    parser.add_argument('-s', '--SNID', type=int, required=True,
-                        help='Supernova ID')
+    parser.add_argument('-s', '--SNID', type=int, required=False,
+                        help='Supernova ID', nargs="*")
     parser.add_argument('-t', '--num_total_images', type=int, required=False,
                         help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
@@ -92,6 +92,11 @@ def main():
 
     parser.add_argument('-c', '--config', type=str, required=False,
                         help='relative config file path')
+
+    parser.add_argument('--SNID_file', type=str, required=False,
+                        help='Path to a csv file containing a list of SNIDs to run.' +
+                        'If both --SNID and --SNID_file are passed, the file' +
+                         ' will be used preferentially.')
 
     parser.add_argument('-b', '--beginning', type=int, required=False,
                         help='start of desired lightcurve in days from peak.',
@@ -114,6 +119,7 @@ def main():
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
     output_path = args.output_path
+    SNID_file = args.SNID_file
     lc_start = args.beginning
     lc_end = args.end
     object_type = args.object_type
@@ -123,6 +129,9 @@ def main():
     else:
         config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                    'config.yaml')
+
+    if SNID_file is not None:
+        SNID = pd.read_csv(SNID_file, header=None).values.flatten().tolist()
 
     config = load_config(config_path)
 
@@ -172,26 +181,33 @@ def main():
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
-    banner('Finding and Preparing Images')
-
     if not isinstance(SNID, list):
         SNID = [SNID]
     Lager.debug('Snappl version:')
     Lager.debug(snappl.__version__)
     # run one supernova function TODO
     for ID in SNID:
-        flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-            confusion_metric, X, cutout_wcs_list, sim_lc = \
-            run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
-                           sn_path, size, band, fetch_SED, use_real_images,
-                           use_roman, subtract_background,
-                           make_initial_guess, initial_flux_guess,
-                           weighting, method, grid_type,
-                           pixel, source_phot_ops,
-                           lc_start, lc_end, do_xshift, bg_gal_flux,
-                           do_rotation, airy, mismatch_seds, deltafcn_profile,
-                           noise, check_perfection, avoid_non_linearity,
-                           sim_gal_ra_offset, sim_gal_dec_offset)
+        banner(f'Running SN {ID}')
+        try:
+            flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
+                confusion_metric, X, cutout_wcs_list, sim_lc = \
+                run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
+                            sn_path, size, band, fetch_SED, use_real_images,
+                            use_roman, subtract_background, turn_grid_off,
+                            adaptive_grid,
+                            make_initial_guess, initial_flux_guess,
+                            weighting, method, make_contour_grid,
+                            single_grid_point, pixel, source_phot_ops,
+                            lc_start, lc_end, do_xshift, bg_gal_flux,
+                            do_rotation, airy, mismatch_seds, deltafcn_profile,
+                            noise, check_perfection, avoid_non_linearity,
+                            sim_gal_ra_offset, sim_gal_dec_offset)
+        # I don't have a particular error in mind for this, but I think
+        # it's worth having a catch just in case that one supernova fails,
+        # this way the rest of the code doesn't halt.
+        except ValueError as e:
+            Lager.info(f'ValueError: {e}')
+            continue
 
         # Saving the output. The output needs two sections, one where we
         # create a lightcurve compared to true values, and one where we save
