@@ -9,7 +9,6 @@ sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
 # End of lines that will go away once we do this right
 
 import numpy as np
-import astropy
 from astropy.io import fits
 from astropy import units as u
 from astropy.coordinates import SkyCoord
@@ -846,7 +845,9 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     err = []
     for cutout, image in zip(cutout_image_list, image_list):
         images.append(cutout._data)
-        # These next two lines are bad stuff these will be removed
+        # These next two lines are bad stuff these will be removed.
+        # Bad because they use ._wcs (with an underscore) and because
+        # they are not snappl objects. This is all to be removed.
         cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs._wcs))
         im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs._wcs))
         err.append(cutout._noise)

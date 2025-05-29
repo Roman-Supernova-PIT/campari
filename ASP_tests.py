@@ -175,9 +175,8 @@ def test_run_on_star():
 
 
 def test_regression():
-
-
-
+    # Regression lightcurve was changed on 5.29.2025 to fix an off by one err.
+    # The old lc is saved as test_lc_old_offbyone.ecsv
     config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                'config.yaml')
     config = yaml.safe_load(open(config_path))
