@@ -316,11 +316,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
                                  not using roman.'
     else:
         psf = None
-    Lager.debug('x and y going into cosntruct psf bg')
-    Lager.debug(f'ra, dec: {ra, dec}')
 
-    Lager.debug('wcs type')
-    Lager.debug(type(wcs))
     if type(wcs) == galsim.fitswcs.AstropyWCS:
         x, y = wcs.toImage(ra,dec,units='deg')
     else:
@@ -351,11 +347,8 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     #roman_psf =  util_ref.getPSF(x_loc,y_loc,pupil_bin)
     roman_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = newwcs)
 
-    Lager.debug('starting to draw PSFs at grid points')
-
     for a,ij in enumerate(zip(x.flatten(),y.flatten())):
         i,j = ij
-        Lager.debug((a, i, j))
         stamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
 
         if not include_photonOps:
@@ -974,7 +967,8 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                     model grid points.
     '''
     size = images[0].image_shape[0]
-    snappl_wcs = images[0].get_wcs(wcsclass= "GalsimWCS")
+    #snappl_wcs = images[0].get_wcs(wcsclass= "GalsimWCS")
+    snappl_wcs = images[0]._wcs._wcs
     image_data = images[0].data
     if grid_type == 'contour':
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
@@ -1456,8 +1450,13 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
 
     #ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
     # If this below has minus ones in it, it agrees with the above
-    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
-    
+    Lager.debug(wcs.pixel_to_world(xx, yy))
+    #ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
+    result = wcs.pixel_to_world(xx, yy)
+    ra_grid = result.ra.degree
+    dec_grid = result.dec.degree
+    Lager.debug('FIX AND REMOVE THIS BEFORE PUSHING')
+
     return ra_grid, dec_grid
 
 
