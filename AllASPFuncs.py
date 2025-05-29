@@ -184,18 +184,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     difference = int((size - subsize)/2)
 
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
-        # Astropy / snappl wcs
-        Lager.debug('Astropy / snappl wcs detected')
-        x_center, y_center = wcs.world_to_pixel(SkyCoord(ra_center, dec_center, unit='deg'))
-        x_center += 1  # Astropy WCS is 0-indexed, so we add 1 to match galsim
-        y_center += 1
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        # Galsim wcs
-        x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+    x_center, y_center = convert_sky_to_pixel(ra_center, dec_center, wcs)
 
     x = difference + np.arange(0, subsize, 1)
     y = difference + np.arange(0, subsize, 1)
@@ -252,18 +241,8 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
-        # Astropy / snappl wcs
-        result = wcs.pixel_to_world(xx-1, yy-1)
-        Lager.debug('Astropy / snappl wcs detected')
-        ra_grid = result.ra.value
-        dec_grid = result.dec.value
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        # Galsim wcs
-        ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+    ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
+
     return ra_grid, dec_grid
 
 
@@ -1472,20 +1451,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Lager.debug(f'Built a grid with {np.size(xx)} points')
     Lager.debug(f'Grid points: {xx[:5]}, {yy[:5]}')
 
-    if isinstance(wcs, astropy.wcs.wcs.WCS):
-        # Astropy / snappl wcs
-        result = wcs.pixel_to_world(xx-1, yy-1)
-        Lager.debug('Astropy / snappl wcs detected')
-        ra_grid = result.ra.value
-        dec_grid = result.dec.value
-    elif isinstance(wcs, galsim.fitswcs.AstropyWCS):
-        # Galsim wcs
-        result = wcs.toWorld(xx, yy, units='deg')
-        ra_grid = result[0]
-        dec_grid = result[1]
-        Lager.warning('Galsim WCS detected, soon this will no longer be supported.')
-    else:
-        raise TypeError('WCS type not recognized. Please use Astropy WCS or Galsim WCS.')
+    ra_grid, dec_grid = convert_pixel_to_sky(xx, yy, wcs)
 
     return ra_grid, dec_grid
 
