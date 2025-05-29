@@ -1,13 +1,3 @@
-# TODO -- remove these next few lines!
-# This needs to be set up in an environment
-# where snappl is available.  This will happen "soon"
-# Get Rob to fix all of this.  For now, this is a hack
-# so you can work short term.
-import sys
-import pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
-# End of lines that will go away once we do this right
-
 import numpy as np
 from astropy.io import fits
 from astropy import units as u

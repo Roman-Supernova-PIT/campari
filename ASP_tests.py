@@ -1,13 +1,3 @@
-# TODO -- remove these next few lines!
-# This needs to be set up in an environment
-# where snappl is available.  This will happen "soon"
-# Get Rob to fix all of this.  For now, this is a hack
-# so you can work short term.
-import sys
-import pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
-# End of lines that will go away once we do this right
-
 from AllASPFuncs import *
 from astropy.io import ascii
 from astropy.utils.exceptions import AstropyWarning
@@ -19,6 +9,7 @@ import galsim
 import numpy as np
 import os
 import pandas as pd
+import pathlib
 import tempfile
 import warnings
 import yaml
@@ -211,13 +202,12 @@ def test_regression():
         msg = "The lightcurves do not match for column %s" % col
         if col == 'band':
             # band is the only string column, so we check it with array_equal
-            assert np.array_equal(current[col], comparison[col]), msg
+            np.testing.assert_array_equal(current[col], comparison[col]), msg
         else:
             percent = 100 * np.max((current[col] - comparison[col]) / comparison[col])
             msg2 = f"difference is {percent} %"
             msg = msg+msg2
-            assert np.allclose(current[col], comparison[col], rtol=1e-7), msg
-
+            np.testing.assert_allclose(current[col], comparison[col], rtol=1e-7), msg
 
 
 def test_get_galsim_SED():
@@ -301,10 +291,8 @@ def test_make_regular_grid():
     test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
                          -44.26389673, -44.26384629, -44.26379586,
                          -44.26382471, -44.26377428, -44.26372384])
-    assert np.allclose(ra_grid, test_ra, atol=1e-9), "RA vals do not match"
-    assert np.allclose(dec_grid, test_dec, atol=1e-9), "Dec vals do not match"
-
-
+    np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), "RA vals do not match"
+    np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), "Dec vals do not match"
 
 
 def test_make_adaptive_grid():
@@ -324,15 +312,8 @@ def test_make_adaptive_grid():
                                            image=image, percentiles=[99])
     test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
     test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403, -44.26418721]
-    assert np.allclose(ra_grid[:5], test_ra, atol=1e-9), "RA vals do not match using Galsim WCS"
-    assert np.allclose(dec_grid[:5], test_dec, atol=1e-9), "Dec vals do not match using Galsim WCS"
-
-    # # Astropy / Snappl WCS
-    # wcs = astropy.wcs.WCS(wcs_dict)
-    # ra_grid2, dec_grid2 = make_adaptive_grid(ra_center, dec_center, wcs,
-    #                                          image=image, percentiles=[99])
-    # assert np.allclose(ra_grid2[:5], test_ra, atol=1e-9), "RA vals do not match using snappl wcs"
-    # assert np.allclose(dec_grid2[:5], test_dec, atol=1e-9), "Dec vals do not match using snappl wcs"
+    np.testing.assert_allclose(ra_grid[:5], test_ra, atol=1e-9), "RA vals do not match using Galsim WCS"
+    np.testing.assert_allclose(dec_grid[:5], test_dec, atol=1e-9), "Dec vals do not match using Galsim WCS"
 
 
 def test_make_contour_grid():
@@ -354,26 +335,13 @@ def test_make_contour_grid():
         compare_images = np.load('tests/testdata/images.npy')
         image = compare_images[:11**2].reshape(11, 11)
         ra_grid, dec_grid = make_contour_grid(image, wcs)
-        #test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407]
         test_ra = [7.67357048, 7.67360506, 7.67363963, 7.67367421]
-        #test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403]
         test_dec = [-44.26421364, -44.26419683, -44.26418002, -44.26416321]
-        Lager.debug(ra_grid[:4] - test_ra)
         atol = 1e-9
         msg = f"RA vals do not match to {atol:.1e} using galsim wcs."
-        assert np.allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
+        np.testing.assert_allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
         msg = f"Dec vals do not match to {atol:.1e} using galsim wcs."
-        assert np.allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
-
-    '''
-    # Astropy / Snappl WCS
-    wcs = astropy.wcs.WCS(wcs_dict)
-    ra_grid2, dec_grid2 = make_contour_grid(image, wcs)
-    msg = f"RA vals do not match to {atol:.1e} using snappl wcs."
-    assert np.allclose(ra_grid2[:4], test_ra, atol=atol, rtol=1e-9), msg
-    msg = f"Dec vals do not match to {atol:.1e} using snappl wcs."
-    assert np.allclose(dec_grid2[:4], test_dec, atol=atol, rtol=1e-9), msg
-    '''
+        np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
 
 def test_calculate_background_level():
@@ -394,67 +362,6 @@ def test_calculate_background_level():
     assert np.isclose(output, expected_output, rtol=1e-7), msg
 
 
-# def test_convert_pixel_to_sky():
-#     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-#     # Loading the data in this way, the data is packaged in an array,
-#     # this extracts just the value so that we can build the WCS.
-#     wcs_dict = dict(wcs)
-#     Lager.debug(wcs_dict)
-#     for key in wcs_dict.keys():
-#         wcs_dict[key] = wcs_dict[key].item()
-#     test_ra = np.array([7.6735502,  7.67356034, 7.67357048])
-#     test_dec = np.array([-44.26429528, -44.26425446, -44.26421364])
-#     # Galsim WCS
-#     wcs = galsim.wcs.readFromFitsHeader(wcs_dict)[0]
-#     xvals = np.array([1, 2, 3])
-#     yvals = np.array([1, 2, 3])
-#     ra, dec = convert_pixel_to_sky(xvals, yvals, wcs)
-#     msg = "RA values do not match for Galsim WCS"
-#     assert np.allclose(ra, test_ra, atol=1e-9), msg
-#     msg = "Dec values do not match for Galsim WCS"
-#     assert np.allclose(dec, test_dec, atol=1e-9), msg
-
-#     # Astropy WCS
-#     wcs = astropy.wcs.WCS(wcs_dict)
-#     ra, dec = convert_pixel_to_sky(xvals, yvals, wcs)
-#     msg = "RA values do not match for Astropy WCS"
-#     assert np.allclose(ra, test_ra, atol=1e-9), msg
-#     msg = "Dec values do not match for Astropy WCS"
-#     assert np.allclose(dec, test_dec, atol=1e-9)
-
-
-# def test_convert_sky_to_pixel():
-#     wcs = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-#     # Loading the data in this way, the data is packaged in an array,
-#     # this extracts just the value so that we can build the WCS.
-#     wcs_dict = dict(wcs)
-#     Lager.debug(wcs_dict)
-#     for key in wcs_dict.keys():
-#         wcs_dict[key] = wcs_dict[key].item()
-#     test_x = np.array([1.00001712, 2.0000453,  3.00007373])
-#     test_y = np.array([0.99985876, 1.99997563, 3.00009229])
-
-#     # Galsim WCS
-#     wcs = galsim.wcs.readFromFitsHeader(wcs_dict)[0]
-#     ra_vals = np.array([7.6735502,  7.67356034, 7.67357048])
-#     dec_vals = np.array([-44.26429528, -44.26425446, -44.26421364])
-#     x, y = convert_sky_to_pixel(ra_vals, dec_vals, wcs)
-#     Lager.debug(x)
-#     Lager.debug(y)
-#     msg = "X values do not match for Galsim WCS"
-#     assert np.allclose(x, test_x, atol=1e-5), msg
-#     msg = "Y values do not match for Galsim WCS"
-#     assert np.allclose(y, test_y, atol=1e-5), msg
-
-#     # Astropy WCS
-#     wcs = astropy.wcs.WCS(wcs_dict)
-#     x, y = convert_sky_to_pixel(ra_vals, dec_vals, wcs)
-#     msg = "X values do not match for Astropy WCS"
-#     assert np.allclose(x, test_x, atol=1e-5), msg
-#     msg = "Y values do not match for Astropy WCS"
-#     assert np.allclose(y, test_y, atol=1e-5), msg
-
-
 def test_calc_mag_and_err():
     flux = np.array([-1e2, 1e2, 1e3, 1e4])
     sigma_flux = np.array([10, 10, 10, 10])
@@ -466,9 +373,9 @@ def test_calc_mag_and_err():
                             1.0857362e-02, 1.0857362e-03])
     test_zp = 15.023547191066587
 
-    assert np.allclose(mag, test_mag, atol=1e-7, equal_nan=True), \
+    np.testing.assert_allclose(mag, test_mag, atol=1e-7, equal_nan=True), \
          f"The magnitudes do not match {mag} VS. {test_mag}"
-    assert np.allclose(magerr, test_magerr, atol=1e-7, equal_nan=True), \
+    np.testing.assert_allclose(magerr, test_magerr, atol=1e-7, equal_nan=True), \
          "The magnitude errors do not match"
-    assert np.allclose(zp, test_zp, atol=1e-7), "The zeropoint does not match"
+    np.testing.assert_allclose(zp, test_zp, atol=1e-7), "The zeropoint does not match"
 
