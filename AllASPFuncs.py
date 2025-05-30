@@ -823,19 +823,17 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
     num_predetection_images = exposures[~exposures['DETECTED']]
     num_detection_images = exposures[exposures['DETECTED']]
     if len(num_predetection_images) == 0 and object_type == 'SN':
-        Lager.warning('No pre-detection images found in time range ' +
-                            'provided, skipping this object.')
-        return None
+        raise ValueError('No pre-detection images found in time range ' +
+        'provided, skipping this object.')
 
     if len(num_predetection_images) == 0:
-        Lager.warning('No detection images found in time range ' +
+        raise ValueError('No detection images found in time range ' +
                             'provided, skipping this object.')
-        return None
 
     if num_total_images != np.inf and len(exposures) != num_total_images:
-        Lager.warning(f'Not Enough Exposures. \
+        raise ValueError(f'Not Enough Exposures. \
             Found {len(exposures)} out of {num_total_images} requested')
-        return None
+
     cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
                         subtract_background=subtract_background,
