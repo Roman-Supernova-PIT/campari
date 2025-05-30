@@ -106,7 +106,8 @@ def test_simulate_galaxy():
 
 def test_simulate_supernova():
     wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    # Loading just data, not types, into an array
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
 
     wcs, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
@@ -267,20 +268,22 @@ def test_extract_sn_from_parquet_file_and_write_to_csv():
 
 def test_make_regular_grid():
     wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    # Loading just data, not types, into an array
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
     ra_center = wcs_dict['CRVAL1']
     dec_center = wcs_dict['CRVAL2']
+
+    test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
+                        7.67366176, 7.67376548, 7.67348473, 7.67358845,
+                        7.67369218])
+    test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
+                        -44.26389673, -44.26384629, -44.26379586,
+                        -44.26382471, -44.26377428, -44.26372384])
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
                                               size=25, spacing=3.0)
-        test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
-                            7.67366176, 7.67376548, 7.67348473, 7.67358845,
-                            7.67369218])
-        test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
-                            -44.26389673, -44.26384629, -44.26379586,
-                            -44.26382471, -44.26377428, -44.26372384])
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
             "RA vals do not match"
         np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \
@@ -289,37 +292,40 @@ def test_make_regular_grid():
 
 def test_make_adaptive_grid():
     wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    # Loading just data, not types, into an array
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
     ra_center = wcs_dict['CRVAL1']
     dec_center = wcs_dict['CRVAL2']
-    wcs = snappl.wcs.GalsimWCS.from_header(wcs_dict)
-    compare_images = np.load('tests/testdata/images.npy')
-    image = compare_images[:11**2].reshape(11, 11)
-    ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
-                                           image=image, percentiles=[99])
-    test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
-    test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
-                -44.26418721]
-    np.testing.assert_allclose(ra_grid[:5], test_ra, atol=1e-9), \
-        "RA vals do not match using Galsim WCS"
-    np.testing.assert_allclose(dec_grid[:5], test_dec, atol=1e-9), \
-        "Dec vals do not match using Galsim WCS"
+    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
+                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+        compare_images = np.load('tests/testdata/images.npy')
+        image = compare_images[:11**2].reshape(11, 11)
+        ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
+                                               image=image, percentiles=[99])
+        test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
+        test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
+                    -44.26418721]
+        # Only testing the first 5 to save memory.
+        np.testing.assert_allclose(ra_grid[:5], test_ra, atol=1e-9), \
+            "RA vals do not match"
+        np.testing.assert_allclose(dec_grid[:5], test_dec, atol=1e-9), \
+            "Dec vals do not match"
 
 
 def test_make_contour_grid():
     wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    # Loading just data, not types, into an array
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-
+    test_ra = [7.67357048, 7.67360506, 7.67363963, 7.67367421]
+    test_dec = [-44.26421364, -44.26419683, -44.26418002, -44.26416321]
+    atol = 1e-9
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load('tests/testdata/images.npy')
         image = compare_images[:11**2].reshape(11, 11)
         ra_grid, dec_grid = make_contour_grid(image, wcs)
-        test_ra = [7.67357048, 7.67360506, 7.67363963, 7.67367421]
-        test_dec = [-44.26421364, -44.26419683, -44.26418002, -44.26416321]
-        atol = 1e-9
         msg = f"RA vals do not match to {atol:.1e} using galsim wcs."
         np.testing.assert_allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
         msg = f"Dec vals do not match to {atol:.1e} using galsim wcs."

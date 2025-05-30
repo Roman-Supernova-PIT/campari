@@ -970,6 +970,8 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
         Lager.debug('ra and dec out of contour')
         Lager.debug(f'ra_grid: {ra_grid}, dec_grid: {dec_grid}')
 
+    # TODO: de-hardcode spacing and percentiles. These should be passable
+    # options.
     elif grid_type == 'adaptive':
         ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs,
                                                image=image_data,
@@ -1417,7 +1419,8 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
-    Lager.debug(f'Grid points: {xx[:5]}, {yy[:5]}')
+    first_n = 5
+    Lager.debug(f'First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}')
 
     ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
