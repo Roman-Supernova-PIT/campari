@@ -7,35 +7,91 @@ module load conda
 ```
 ### Create our conda environment.
 
-Will fill it with pip installable Python libraries below.
+This code uses the sn_pit_dev environment shared by multiple codes from the SN PIT team. See, e.g. phrosty or SFFT.
+To install:
+
 ```
-conda create -n multismp ipykernel python=3.11
+git clone https://github.com/Roman-Supernova-PIT/environment.git
+cd environment/
+bash env_setup.sh
 ```
+If you get an error when running the last command referring to `jdavis`, go into the `sn_pit_dev.yaml` file in `environment` and comment out the `- jdavis` line.
+
+Then once that finishes, copy and paste the location it places the environment. For instance, for me, it's `/global/u1/c/cmeldorf/environment/envs/sn-pit-dev` :
 ```
-conda activate multismp
-conda install -c conda-forge fitsio
-pip install -r requirements.txt
+# To activate this environment, use
+#
+#     $ conda activate /global/u1/c/cmeldorf/environment/envs/sn-pit-dev
+#
+# To deactivate an active environment, use
+#
+#     $ conda deactivate
 ```
-#### Create a Jupyter kernel with this environment
+and then run:
 ```
-python -m ipykernel install --user --name multismp --display-name multismp
+conda rename -p YOUR_PATH_HERE sn_pit_dev
+```
+and finally:
+```
+conda activate sn_pit_dev
 ```
 
-## Doing a simple run on DCC.
-The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml.
+## Doing a simple run.
+The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml. Because of different file paths on different
+systems, the steps are slightly different for each machine. Here's how to get a basic run going dpeending on which computer you find yourself using:
+### DCC:
+
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
 ```
 srun -n 1 -N 1 -t 4:00:00 --mem 20000 -p cosmology --account=cosmology --pty bash
-conda activate multismp
+conda activate sn_pit_dev
+```
+cd into your directory where the code is stored.
+Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
+
+```
+roman_path: /hpc/group/cosmology/OpenUniverse2024
+sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
+```
+
+Next, in the `temp_tds.yaml` file, make sure `file_name` is:
+```
+file_name: /hpc/group/cosmology/OpenUniverse2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits
 ```
 
 and then run:
 
 ```
-python RomanASP.py -s 40120913 -b Y106 -t 10 -d 5
+python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 ```
 This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
+
+### NERSC 
+To do a simple test run to ensure everything is installed correctly, you can request a node:
+
+```
+salloc --nodes 1 --qos interactive --time 01:00:00 --constraint cpu --account m4385
+conda activate sn_pit_dev
+```
+cd into your directory where the code is stored.
+Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
+```
+roman_path: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
+sn_path: /global/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
+```
+
+Next, in the `temp_tds.yaml` file, make sure `file_name` is:
+```
+file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/Roman_TDS_obseq_11_6_23.fits
+```
+and then run:
+
+```
+python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
+```
+This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
+
 
 ## Modifying the yaml file.
 To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
