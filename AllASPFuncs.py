@@ -65,8 +65,7 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, astropy.wcs.wcs.WCS object, typically loaded
-             from a snappl Image object.
+    wcs: the WCS of the image, snappl.wcs.BaseWCS object
     spacing: int, spacing of grid points in pixels.
     subsize: int, width of the grid in pixels.
              Specify the width of the grid, which can be smaller than the
@@ -115,8 +114,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     Inputs:
     ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, astropy.wcs.wcs.WCS object, typically loaded
-             from a snappl Image object.
+    wcs: the WCS of the image, snappl.wcs.BaseWCS
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on. This is used to determine the size of the grid, and once we
                 switch to snappl Image objects, will also determine the wcs.
@@ -269,7 +267,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     Inputs:
     ra, dec: arrays of RA and DEC values for the grid
     wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs
-    of the CUTOUT
+    of the cutout. A snappl.wcs.BaseWCS object.
     x_loc, y_loc: the pixel location of the image in the FULL image, i.e. x y
     location in the SCA.
     stampsize: the size of the stamp being used
