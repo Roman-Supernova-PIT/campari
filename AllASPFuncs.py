@@ -1561,8 +1561,8 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None,
     '''
 
     if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
-            Lager.info('Making a results directory for output at ',
-                       os.getcwd(), '/results')
+            Lager.info('Making a results directory for output at ' +
+                       os.getcwd() + '/results')
             os.makedirs(os.path.join(os.getcwd(), 'results/'))
             os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
             os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
