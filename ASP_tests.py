@@ -105,12 +105,9 @@ def test_simulate_galaxy():
 
 
 def test_simulate_supernova():
-    wcs_dict = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
-    # Loading the data in this way, the data is packaged in an array,
-    # this extracts just the value so that we can build the WCS.
-    wcs_dict = dict(wcs_dict)
-    for key in wcs_dict.keys():
-        wcs_dict[key] = wcs_dict[key].item()
+    wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
+    # Loading just data, not types, into an array
+    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
 
     wcs, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
 
