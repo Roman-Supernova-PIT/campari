@@ -1,13 +1,3 @@
-# TODO -- remove these next few lines!
-# This needs to be set up in an environment
-# where snappl is available.  This will happen "soon"
-# Get Rob to fix all of this.  For now, this is a hack
-# so you can work short term.
-import sys
-import pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
-# End of lines that will go away once we do this right
-
 from AllASPFuncs import banner, fetchImages, save_lightcurve, \
                         build_lightcurve, build_lightcurve_sim, \
                         construct_psf_background, construct_psf_source, \
@@ -25,6 +15,7 @@ import pandas as pd
 from roman_imsim.utils import roman_utils
 import scipy.sparse as sp
 from simulation import simulate_images
+import snappl
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
 from snappl.image import OpenUniverse2024FITSImage
@@ -182,7 +173,8 @@ def main():
 
     if not isinstance(SNID, list):
         SNID = [SNID]
-
+    Lager.debug('Snappl version:')
+    Lager.debug(snappl.__version__)
     # run one supernova function TODO
     for ID in SNID:
         banner(f'Running SN {ID}')
