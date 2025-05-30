@@ -1354,7 +1354,7 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     Inputs:
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on.
-    wcs: snappl.BaseWCS object
+    wcs: snappl.wcs.BaseWCS object
 
     percentiles: list of floats, the percentiles to use to bin the image. The
                 more bins, the more possible grid points could be placed in
