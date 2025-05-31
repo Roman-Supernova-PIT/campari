@@ -1896,8 +1896,10 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                    visit=exposures['Pointing'][i],
                                    sca=exposures['SCA'][i])
 
-        # If 
-        background_model_array = np.array([])
+        # If no grid, we still need something that can be concatenated in the
+        # linear algebra steps, so we initialize an empty array by default.
+        background_model_array = np.empty((size**2, 0))
+        
         if grid_type != 'none':
             background_model_array = \
                 construct_psf_background(ra_grid, dec_grid,
