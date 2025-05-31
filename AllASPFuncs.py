@@ -292,6 +292,9 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     assert util_ref is not None or band is not None, 'you must provide at \
         least util_ref or band'
 
+    Lager.debug('ra/dec right before conversion')
+    Lager.debug(ra[:5])
+    Lager.debug(dec[:5])
     x, y = wcs.world_to_pixel(ra, dec)
     x += 1
     y += 1
