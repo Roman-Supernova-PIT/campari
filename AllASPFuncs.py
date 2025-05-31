@@ -293,9 +293,9 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         least util_ref or band'
 
     x, y = wcs.world_to_pixel(ra, dec)
-    #x += 1
-    #y += 1
-    #Lager.debug('ADDING ONE TO SEE IF OLD VALS ARE RECOVERED')
+    x += 1
+    y += 1
+    Lager.debug('ADDING ONE TO SEE IF OLD VALS ARE RECOVERED')
     Lager.debug(f'x {x[:5]}')
     Lager.debug(f'y {y[:5]}')
     galsim_wcs = wcs.get_galsim_wcs()  # This is the WCS galsim uses to
@@ -1898,6 +1898,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
+        Lager.debug(f'ra_grid {ra_grid[:5]}')
+        Lager.debug(f'dec_grid {dec_grid[:5]}')
         Lager.debug('Constructing background model array for image ' + str(i))
         if grid_type != 'none':
             background_model_array = \
