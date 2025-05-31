@@ -1847,8 +1847,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                    sca=exposures['SCA'][i])
 
         # TODO: Why is band here twice?
-        Lager.debug(f'ra_grid {ra_grid[:5]}')
-        Lager.debug(f'dec_grid {dec_grid[:5]}')
         background_model_array, bgpsf = construct_psf_background(ra_grid,
                                                 dec_grid,
                                                 cutout_wcs_list[i], x, y,
