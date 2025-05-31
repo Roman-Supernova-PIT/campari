@@ -31,7 +31,7 @@ def load_config(config_path):
     return config
 
 
-config_path = pathlib.Path(__file__).parent/'.config.yaml'
+config_path = pathlib.Path(__file__).parent/'config.yaml'
 config = load_config(config_path)
 roman_path = config['roman_path']
 sn_path = config['sn_path']
@@ -152,7 +152,6 @@ def test_simulate_supernova():
                                          sim_psf=sim_psf, source_phot_ops=True,
                                          base_pointing=662, base_sca=11,
                                          random_seed=12345)
-
     test_sn = np.load(pathlib.Path(__file__).parent
                       / 'tests/testdata/supernova_image.npy')
     np.testing.assert_allclose(supernova_image, test_sn, rtol=1e-7)
