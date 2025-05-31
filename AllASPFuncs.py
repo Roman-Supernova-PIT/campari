@@ -305,9 +305,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     else:
         x, y = wcs.world_to_pixel(SkyCoord(ra = np.array(ra)*u.degree, dec = np.array(dec)*u.degree))
 
-    Lager.debug(f'x {x[:5]}')
-    Lager.debug(f'y {y[:5]}')
-
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
     k = 0
