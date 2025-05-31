@@ -441,6 +441,36 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
+def test_construct_psf_background():
+    wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
+    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
+
+    ra_grid = np.array([7.67357048, 7.67360506, 7.67363963, 7.67367421])
+    dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
+                         -44.26416321])
+
+    config_file = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    pointing = 43623  # These numbers are arbitrary for this test.
+    SCA = 7
+
+    size = 9
+    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
+
+    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
+                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+
+        psf_background = construct_psf_background(ra_grid, dec_grid, wcs,
+                                                  x_loc=2044, y_loc=2044,
+                                                  stampsize=size, band='Y106',
+                                                  util_ref=util_ref)
+
+        test_psf_background = np.load(pathlib.Path(__file__).parent
+                                      / 'tests/testdata/test_psf_bg.npy')
+        np.testing.assert_allclose(psf_background, test_psf_background,
+                                   atol=1e-7)
+
 def test_get_weights():
     wcs_data = np.load(pathlib.Path(__file__).parent
                        / 'tests/testdata/wcs_dict.npz', allow_pickle=True)

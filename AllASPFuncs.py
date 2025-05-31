@@ -257,33 +257,30 @@ def generateGuess(imlist, wcslist, ra_grid, dec_grid):
     return all_vals/len(wcslist)
 
 
-def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
-                             use_roman, color=0.61, psf=None, pixel=False,
-                             include_photonOps=False, util_ref=None,
-                             band=None):
+def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
+                             psf=None, pixel=False,
+                             util_ref=None, band=None):
 
     '''
     Constructs the background model around a certain image (x,y) location and
     a given array of RA and DECs.
     Inputs:
-    ra, dec: arrays of RA and DEC values for the grid
+    ra, dec: arrays of floats, RA and DEC values for the grid
     wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs
-    of the cutout. A snappl.wcs.BaseWCS object.
-    x_loc, y_loc: the pixel location of the image in the FULL image, i.e. x y
-    location in the SCA.
-    stampsize: the size of the stamp being used
-    bpass: the bandpass being used
-    flatten: whether to flatten the output array (REMOVED XXXXXX)
-    color: the color of the star being used (currently not used)
+        of the cutout. A snappl.wcs.BaseWCS object.
+    x_loc, y_loc: floats,the pixel location of the image in the FULL image,
+        i.e. x y location in the SCA.
+    stampsize: int, the size of the stamp being used
+    band: str, the bandpass being used
     psf: Here you can provide a PSF to use, if you don't provide one, you must
-    provide a util_ref, which will calculate the Roman PSF instead.
-    pixel: If True, use a pixel tophat function to convolve the PSF with,
-    otherwise use a delta function. Does not seem to hugely affect results.
-    include_photonOps: If True, use photon ops in the background model.
-    This is not recommended for general use, as it is very slow.
-    util_ref: A reference to the util object, which is used to calculate the
-            PSF. If you provide this, you don't need to provide a PSF. Note
-            that this needs to be for the correct SCA/Pointing combination.
+        provide a util_ref, and this function will calculate the Roman PSF
+        instead.
+    pixel: bool, If True, use a pixel tophat function to convolve the PSF with,
+        otherwise use a delta function. Does not seem to hugely affect results.
+    util_ref: A roman_imsim.utils.roman_utils object, which is used to
+        calculate the PSF. If you provide this, you don't need to provide a PSF
+        and the Roman PSF will be calculated. Note
+        that this needs to be for the correct SCA/Pointing combination.
 
     Returns:
     A numpy array of the PSFs at each grid point, with the shape
@@ -295,82 +292,45 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     assert util_ref is not None or band is not None, 'you must provide at \
         least util_ref or band'
 
-    if not use_roman:
-        assert psf is not None, 'you must provide an input psf if \
-                                 not using roman.'
-    else:
-        psf = None
+    x, y = wcs.world_to_pixel(ra, dec)
+    galsim_wcs = wcs.get_galsim_wcs()  # This is the WCS galsim uses to
+    # draw the PSF.
 
-    if type(wcs) == galsim.fitswcs.AstropyWCS:
-        x, y = wcs.toImage(ra,dec,units='deg')
-    else:
-        x, y = wcs.world_to_pixel(SkyCoord(ra = np.array(ra)*u.degree, dec = np.array(dec)*u.degree))
+    if psf is None:
+        # How different are these two methods? TODO XXX
+        pupil_bin = 8
+        psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
+        #psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
 
-    psfs = np.zeros((stampsize * stampsize,np.size(x)))
+    Lager.debug((x, y))
+    bpass = roman.getBandpasses()[band]
 
-    k = 0
+    psfs = np.zeros((stampsize * stampsize, np.size(x)))
 
-    sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
-                            wave_type='nm', flux_type='fphotons')
-    point = None
+    sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
+                     interpolant='linear'),
+                     wave_type='nm', flux_type='fphotons')
+
     if pixel:
         point = galsim.Pixel(0.1)*sed
     else:
         point = galsim.DeltaFunction()
         point *= sed
 
-    point = point.withFlux(1,bpass)
+    point = point.withFlux(1, bpass)
     oversampling_factor = 1
-    pupil_bin = 8
+    convolvedpsf = galsim.Convolve(point, psf)
+    stamp = galsim.Image(stampsize*oversampling_factor,
+                         stampsize*oversampling_factor, wcs=galsim_wcs)
+    # Loop over the grid points, draw a PSF at each one, and append to a list.
+    for a, ij in enumerate(zip(x.flatten(), y.flatten())):
+        i, j = ij
+        psfs[:, a] = convolvedpsf.drawImage(bpass, method='no_pixel',
+                                            center=galsim.PositionD(i, j),
+                                            use_true_center=True, image=stamp,
+                                            wcs=galsim_wcs).array.flatten()
 
-    newwcs = wcs
-    #Loop over the grid points, draw the PSF at each one, and append to a list.
-
-    #How different are these two methods? TODO XXX
-
-    #roman_psf =  util_ref.getPSF(x_loc,y_loc,pupil_bin)
-    roman_psf = galsim.roman.getPSF(1,band, pupil_bin=8, wcs = newwcs)
-
-    for a,ij in enumerate(zip(x.flatten(),y.flatten())):
-        i,j = ij
-        stamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
-
-        if not include_photonOps:
-            if use_roman:
-                convolvedpsf = galsim.Convolve(point, roman_psf)
-            else:
-                convolvedpsf = galsim.Convolve(point, psf)
-            result = convolvedpsf.drawImage(bpass, method='no_pixel',\
-                center = galsim.PositionD(i, j),use_true_center = True, image = stamp, wcs = newwcs)
-
-        else:
-            photon_ops = [util_ref.getPSF(i,j,8)] + util_ref.photon_ops
-            result = point.drawImage(bpass,wcs=newwcs, method='phot', photon_ops=photon_ops, rng=util_ref.rng, \
-                n_photons=int(1e6),maxN=int(1e6),poisson_flux=False, center = galsim.PositionD(i+1, j+1),\
-                    use_true_center = True, image=stamp)
-
-        '''
-        plt.figure(figsize = (5,5))
-        plt.title('PSF inside CBg')
-        plt.imshow(result.array)
-        plt.colorbar()
-        plt.show()
-        '''
-
-        psfs[:,k] = result.array.flatten()
-        k += 1
-
-    newstamp = galsim.Image(stampsize*oversampling_factor,stampsize*oversampling_factor,wcs=newwcs)
-    #roman_bandpasses[band]
-    '''
-    if not psf:
-        bgpsf = (util_ref.getPSF(2048,2048,pupil_bin)*sed).drawImage(bpass, wcs = newwcs, center = (5, 5), use_true_center = True, image = newstamp)
-    else:
-        bgpsf = (psf*sed).drawImage(bpass, wcs = newwcs, center = (5, 5), use_true_center = True, image = newstamp)
-    bgpsf = bgpsf.array
-    '''
-    bgpsf = None
-    return psfs, bgpsf
+    return psfs
 
 
 def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
@@ -1919,8 +1879,9 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # them.
     for i in range(num_total_images):
         if use_roman:
-            sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
-                                          wcs=cutout_wcs_list[i])
+            #sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
+            #                              wcs=cutout_wcs_list[i])
+            sim_psf = None
         else:
             sim_psf = airy
 
@@ -1935,18 +1896,16 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                    visit=exposures['Pointing'][i],
                                    sca=exposures['SCA'][i])
 
-        # TODO: Why is band here twice?
-        background_model_array, bgpsf = construct_psf_background(ra_grid,
-                                                dec_grid,
-                                                cutout_wcs_list[i], x, y,
-                                                size,
-                                                roman_bandpasses[band],
-                                                color=0.61, psf=sim_psf,
-                                                pixel=pixel,
-                                                include_photonOps=False,
-                                                util_ref=util_ref,
-                                                use_roman=use_roman,
-                                                band=band)
+        # If 
+        background_model_array = np.array([])
+        if grid_type != 'none':
+            background_model_array = \
+                construct_psf_background(ra_grid, dec_grid,
+                                         cutout_image_list[i].get_wcs(),
+                                         x, y, size, psf=sim_psf, pixel=pixel,
+                                         util_ref=util_ref, band=band)
+
+
         # TODO comment this
 
         if not subtract_background:
