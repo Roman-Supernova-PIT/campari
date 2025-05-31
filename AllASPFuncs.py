@@ -293,16 +293,20 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         least util_ref or band'
 
     x, y = wcs.world_to_pixel(ra, dec)
+    #x += 1
+    #y += 1
+    #Lager.debug('ADDING ONE TO SEE IF OLD VALS ARE RECOVERED')
+    Lager.debug(f'x {x[:5]}')
+    Lager.debug(f'y {y[:5]}')
     galsim_wcs = wcs.get_galsim_wcs()  # This is the WCS galsim uses to
     # draw the PSF.
 
     if psf is None:
         # How different are these two methods? TODO XXX
         pupil_bin = 8
-        psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
-        #psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
+        #psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
+        psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
 
-    Lager.debug((x, y))
     bpass = roman.getBandpasses()[band]
 
     psfs = np.zeros((stampsize * stampsize, np.size(x)))
@@ -324,6 +328,8 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
                          stampsize*oversampling_factor, wcs=galsim_wcs)
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, ij in enumerate(zip(x.flatten(), y.flatten())):
+        if a % 50 == 0:
+            Lager.debug(f'Drawing PSF {a} of {np.size(x)}')
         i, j = ij
         psfs[:, a] = convolvedpsf.drawImage(bpass, method='no_pixel',
                                             center=galsim.PositionD(i, j),
@@ -641,8 +647,6 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
 
         image_list.append(image)
         cutout_image_list.append(image_cutout)
-        Lager.debug('image type:')
-        Lager.debug(type(image))
 
     return cutout_image_list, image_list
 
@@ -971,8 +975,6 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
     image_data = images[0].data
     if grid_type == 'contour':
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
-        Lager.debug('ra and dec out of contour')
-        Lager.debug(f'ra_grid: {ra_grid}, dec_grid: {dec_grid}')
 
     # TODO: de-hardcode spacing and percentiles. These should be passable
     # options.
@@ -1855,9 +1857,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
     # Calculate the Confusion Metric
 
-    confusion_metric = 0
-    Lager.debug('Confusion Metric not calculated')
-
     if use_real_images and object_type == 'SN' and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
@@ -1899,7 +1898,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
-        
+        Lager.debug('Constructing background model array for image ' + str(i))
         if grid_type != 'none':
             background_model_array = \
                 construct_psf_background(ra_grid, dec_grid,

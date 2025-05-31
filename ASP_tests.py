@@ -465,7 +465,6 @@ def test_construct_psf_background():
                                                   x_loc=2044, y_loc=2044,
                                                   stampsize=size, band='Y106',
                                                   util_ref=util_ref)
-
         test_psf_background = np.load(pathlib.Path(__file__).parent
                                       / 'tests/testdata/test_psf_bg.npy')
         np.testing.assert_allclose(psf_background, test_psf_background,
