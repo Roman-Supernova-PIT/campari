@@ -300,6 +300,10 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     else:
         psf = None
 
+    Lager.debug('ra and dec')
+    Lager.debug(ra[:5])
+    Lager.debug(dec[:5])
+
     if type(wcs) == galsim.fitswcs.AstropyWCS:
         x, y = wcs.toImage(ra,dec,units='deg')
     else:
