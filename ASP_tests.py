@@ -455,7 +455,7 @@ def test_get_weights():
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         wgt_matrix = get_weights([wcs], size, test_snra, test_sndec,
-                                 error=None, gaussian_std=1000, cutoff=np.inf)
+                                 error=None, gaussian_std=1000, cutoff=4)
         test_wgt_matrix = np.load(pathlib.Path(__file__).parent
                                 / 'tests/testdata/test_wgt_matrix.npy')
         np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)

@@ -905,25 +905,49 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
 
 
 def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
-                gaussian_std=1000, cutoff=np.inf):
+                gaussian_var=1000, cutoff=4):
     '''
-    TODO: Add docstring
+    This function calculates the weights for each pixel in the cutout images.
+
+    Inputs:
+    cutout_wcs_list: list of snappl.wcs.BaseWCS objects, the WCS for each
+                     cutout
+    size: int, the size of the cutout image (size x size)
+    snra, sndec: floats, the RA and DEC of the supernova
+    error: numpy array of floats, the error in each pixel of the cutout images.
+           If None, a uniform error of 1 is assumed.
+    gaussian_var: float, the standard deviation of the Gaussian used to weight
+                  the pixels. This is in pixels.
+    cutoff: float, the cutoff distance in pixels. Pixels further than this
+                    distance from the supernova are given a weight of 0.
+
+    Outputs:
+    wgt_matrix: list of numpy arrays of floats, each array is the weights for
+                the pixels in each cutout. Each array is size: (size x size)
+
     '''
     wgt_matrix = []
-    Lager.debug(f'Gaussian std in get_weights {gaussian_std}')
+    Lager.debug(f'Gaussian std in get_weights {gaussian_var}')
     for i, wcs in enumerate(cutout_wcs_list):
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
 
-        #snx, sny = wcs.toImage(snra, sndec, units='deg')
-        Lager.debug(f'WCS type: {type(wcs)}')
         snx, sny = wcs.world_to_pixel(snra, sndec)
-        Lager.debug(f'snx, sny: {snx, sny}')
         dist = np.sqrt((xx - snx)**2 + (yy - sny)**2)
 
         wgt = np.ones(size**2)
-        wgt = 5*np.exp(-dist**2/gaussian_std)
+        wgt = 5*np.exp(-dist**2/gaussian_var)
+        # NOTE: This 5 is here because when I made this function I was
+        # checking my work by plotting and the *5 made it easier to see. I
+        # thought the overall normalization
+        # of the weights did not matter. I was half right, they don't matter
+        # for the flux but they do matter for the size of the errors. Therefore
+        # there is some way that these weights are normalized, but I don't
+        # know exactly how that should be yet. Online sources speaking about
+        # weighted linear regression never seem to address normalization. TODO
+
+
         # Here, we throw out pixels that are more than 4 pixels away from the
         # SN. The reason we do this is because by choosing an image size one
         # has set a square top hat function centered on the SN. When that image
@@ -932,7 +956,7 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
         # course this is not a perfect solution, because the pixellation of the
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
-        wgt[np.where(dist > 4)] = 0
+        wgt[np.where(dist > cutoff)] = 0
         if error is None:
             error = np.ones_like(wgt)
         Lager.debug(f'wgt before: {np.mean(wgt)}')
@@ -1981,12 +2005,9 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # All others should be zero.
 
     # Get the weights
-
-    snappl_cutout_wcs_list = [im.get_wcs() for im in cutout_image_list]
-
     if weighting:
-        wgt_matrix = get_weights(snappl_cutout_wcs_list, size, snra, sndec,
-                                error=err)
+        wgt_matrix = get_weights([im.get_wcs() for im in cutout_image_list],
+                                 size, snra, sndec, error=err)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[1])
 
