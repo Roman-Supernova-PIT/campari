@@ -301,10 +301,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     else:
         psf = None
 
-    Lager.debug('ra and dec')
-    Lager.debug(ra[:5])
-    Lager.debug(dec[:5])
-
     if type(wcs) == galsim.fitswcs.AstropyWCS:
         x, y = wcs.toImage(ra,dec,units='deg')
     else:
@@ -908,10 +904,13 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
+def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
                gaussian_std=1000, cutoff=np.inf):
+    '''
+    TODO: Add docstring
+    '''
     wgt_matrix = []
-    Lager.debug(f'Gaussian std in getWeights {gaussian_std}')
+    Lager.debug(f'Gaussian std in get_weights {gaussian_std}')
     for i, wcs in enumerate(cutout_wcs_list):
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
@@ -933,11 +932,11 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         # course this is not a perfect solution, because the pixellation of the
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
-        wgt[np.where(dist > 4)] = 0 # Correction here for flux missed ??? TODO
+        wgt[np.where(dist > 4)] = 0  # Correction here for flux missed ??? TODO
         if error is None:
             error = np.ones_like(wgt)
         Lager.debug(f'wgt before: {np.mean(wgt)}')
-        wgt /= (error[i].flatten())**2 # Define an inv variance TODO
+        wgt /= (error[i].flatten())**2  # Define an inv variance TODO
         Lager.debug(f'wgt after: {np.mean(wgt)}')
         # wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
         # What fraction of the flux is contained in the PSF? TODO
@@ -1871,7 +1870,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     confusion_metric = 0
     Lager.debug('Confusion Metric not calculated')
 
-    if use_real_images and object_type == 'SN':
+    if use_real_images and object_type == 'SN' and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
         snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
@@ -1985,7 +1984,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
     # Get the weights
     if weighting:
-        wgt_matrix = getWeights(cutout_wcs_list, size, snra, sndec,
+        wgt_matrix = get_weights(cutout_wcs_list, size, snra, sndec,
                                 error=err)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[1])

@@ -439,3 +439,20 @@ def test_calc_mag_and_err():
         "The magnitude errors do not match"
     np.testing.assert_allclose(zp, test_zp, atol=1e-7), \
         "The zeropoint does not match"
+
+
+def test_get_weights():
+    wcs_data = np.load(pathlib.Path(__file__).parent
+                       / 'tests/testdata/wcs_dict.npz', allow_pickle=True)
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
+    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
+    wcs = galsim.fitswcs.AstropyWCS(wcs=astropy.wcs.WCS(wcs_dict))
+    test_snra = np.array([7.67367421])
+    test_sndec = np.array([-44.26416321])
+    size = 7
+    wgt_matrix = get_weights([wcs], size, test_snra, test_sndec, error=None,
+                             gaussian_std=1000, cutoff=np.inf)
+    test_wgt_matrix = np.load(pathlib.Path(__file__).parent
+                              / 'tests/testdata/test_wgt_matrix.npy')
+    np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
