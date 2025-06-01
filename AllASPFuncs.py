@@ -909,6 +909,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
         snx, sny = wcs.toImage(snra, sndec, units='deg')
+        Lager.debug(f'snx, sny in getWeights {snx+1, sny+1}')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
