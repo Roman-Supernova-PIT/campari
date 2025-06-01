@@ -293,26 +293,19 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     assert util_ref is not None or band is not None, 'you must provide at \
         least util_ref or band'
 
-    Lager.debug('ra/dec right before conversion')
-    Lager.debug(ra[:5])
-    Lager.debug(dec[:5])
-    # This is the WCS galsim uses to
-    # draw the PSF.
+    # This is the WCS galsim uses to draw the PSF.
     galsim_wcs = wcs.get_galsim_wcs()
-    wcs = snappl.wcs.GalsimWCS(gsimwcs = galsim_wcs)
+    wcs = snappl.wcs.GalsimWCS(gsimwcs=galsim_wcs)
     # Until Issue # 21 is resolved in snappl this is the only way to obtain
     # results that are consistent. I know it cannot stay!
 
     x, y = wcs.world_to_pixel(ra, dec)
-    #With plus ones here I recover the values pre-refactor!
-    Lager.debug('ADDING ONE TO SEE IF OLD VALS ARE RECOVERED')
-    Lager.debug(f'x {x[:5]}')
-    Lager.debug(f'y {y[:5]}')
+    # With plus ones here I recover the values pre-refactor!
 
     if psf is None:
         # How different are these two methods? TODO XXX
         pupil_bin = 8
-        #psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
+        # psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
         psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
 
     bpass = roman.getBandpasses()[band]
@@ -1886,12 +1879,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # TODO: Zip all the things you index [i] on directly and loop over
     # them.
     for i in range(num_total_images):
-        if use_roman:
-            #sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
-            #                              wcs=cutout_wcs_list[i])
-            sim_psf = None
-        else:
-            sim_psf = airy
+        # Passing in None for the PSF means we use the Roman PSF.
+        drawing_psf = None if use_roman else airy
 
         whole_sca_wcs = image_list[i].get_wcs()
         whole_sca_wcs = snappl.wcs.GalsimWCS(gsimwcs=whole_sca_wcs.get_galsim_wcs())
@@ -1919,7 +1908,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
             background_model_array = \
                 construct_psf_background(ra_grid, dec_grid,
                                          cutout_image_list[i].get_wcs(),
-                                         x, y, size, psf=sim_psf, pixel=pixel,
+                                         x, y, size, psf=drawing_psf, pixel=pixel,
                                          util_ref=util_ref, band=band)
 
 
@@ -1965,7 +1954,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
                 profile = profile.withFlux(1, roman_bandpasses[band])
-                convolved = galsim.Convolve(profile, sim_psf)
+                convolved = galsim.Convolve(profile, drawing_psf)
                 psf_source_array =\
                      convolved.drawImage(roman_bandpasses[band],
                                         method=draw_method_for_non_roman_psf,
