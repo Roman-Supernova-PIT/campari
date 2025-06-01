@@ -22,6 +22,7 @@ import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
+import snappl.wcs # Will be removed when issue #21 is resolved in snappl
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
 import yaml
@@ -295,14 +296,24 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     Lager.debug('ra/dec right before conversion')
     Lager.debug(ra[:5])
     Lager.debug(dec[:5])
+    # This is the WCS galsim uses to
+    # draw the PSF.
+    galsim_wcs = wcs.get_galsim_wcs()
+    wcs = snappl.wcs.GalsimWCS(gsimwcs = galsim_wcs)
+    # Until Issue # 21 is resolved in snappl this is the only way to obtain
+    # results that are consistent. I know it cannot stay!
+
     x, y = wcs.world_to_pixel(ra, dec)
+    #With plus ones I recover the values pre-refactor!
     x += 1
     y += 1
     Lager.debug('ADDING ONE TO SEE IF OLD VALS ARE RECOVERED')
     Lager.debug(f'x {x[:5]}')
     Lager.debug(f'y {y[:5]}')
-    galsim_wcs = wcs.get_galsim_wcs()  # This is the WCS galsim uses to
-    # draw the PSF.
+
+
+    Lager.debug(galsim_wcs.toWorld(x[:5], y[:5], units = 'deg'))
+    Lager.debug(galsim_wcs.toImage(ra[:5], dec[:5], units = 'deg'))
 
     if psf is None:
         # How different are these two methods? TODO XXX
