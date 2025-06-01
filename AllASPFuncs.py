@@ -927,7 +927,7 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
 
     '''
     wgt_matrix = []
-    Lager.debug(f'Gaussian std in get_weights {gaussian_var}')
+    Lager.debug(f'Gaussian Variance in get_weights {gaussian_var}')
     for i, wcs in enumerate(cutout_wcs_list):
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
