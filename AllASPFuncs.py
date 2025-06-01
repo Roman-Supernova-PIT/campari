@@ -916,11 +916,11 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
         xx = xx.flatten()
         yy = yy.flatten()
 
-        #rara, decdec = wcs.toWorld(xx, yy, units='deg')
-        #dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
-
-        snx, sny = wcs.toImage(snra, sndec, units='deg')
-        dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
+        #snx, sny = wcs.toImage(snra, sndec, units='deg')
+        Lager.debug(f'WCS type: {type(wcs)}')
+        snx, sny = wcs.world_to_pixel(snra, sndec)
+        Lager.debug(f'snx, sny: {snx, sny}')
+        dist = np.sqrt((xx - snx)**2 + (yy - sny)**2)
 
         wgt = np.ones(size**2)
         wgt = 5*np.exp(-dist**2/gaussian_std)
@@ -1981,8 +1981,11 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # All others should be zero.
 
     # Get the weights
+
+    snappl_cutout_wcs_list = [im.get_wcs() for im in cutout_image_list]
+
     if weighting:
-        wgt_matrix = get_weights(cutout_wcs_list, size, snra, sndec,
+        wgt_matrix = get_weights(snappl_cutout_wcs_list, size, snra, sndec,
                                 error=err)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[1])
