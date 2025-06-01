@@ -905,7 +905,7 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
 
 
 def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
-               gaussian_std=1000, cutoff=np.inf):
+                gaussian_std=1000, cutoff=np.inf):
     '''
     TODO: Add docstring
     '''
@@ -916,8 +916,8 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
         xx = xx.flatten()
         yy = yy.flatten()
 
-        rara, decdec = wcs.toWorld(xx, yy, units='deg')
-        dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
+        #rara, decdec = wcs.toWorld(xx, yy, units='deg')
+        #dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
         snx, sny = wcs.toImage(snra, sndec, units='deg')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
@@ -932,14 +932,12 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
         # course this is not a perfect solution, because the pixellation of the
         # circle means that still some pixels will enter and leave, but it
         # seems to minimize the problem.
-        wgt[np.where(dist > 4)] = 0  # Correction here for flux missed ??? TODO
+        wgt[np.where(dist > 4)] = 0
         if error is None:
             error = np.ones_like(wgt)
         Lager.debug(f'wgt before: {np.mean(wgt)}')
         wgt /= (error[i].flatten())**2  # Define an inv variance TODO
         Lager.debug(f'wgt after: {np.mean(wgt)}')
-        # wgt = wgt / np.sum(wgt) # Normalize outside out of the loop TODO
-        # What fraction of the flux is contained in the PSF? TODO
         wgt_matrix.append(wgt)
     return wgt_matrix
 
