@@ -304,16 +304,10 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     # results that are consistent. I know it cannot stay!
 
     x, y = wcs.world_to_pixel(ra, dec)
-    #With plus ones I recover the values pre-refactor!
-    x += 1
-    y += 1
+    #With plus ones here I recover the values pre-refactor!
     Lager.debug('ADDING ONE TO SEE IF OLD VALS ARE RECOVERED')
     Lager.debug(f'x {x[:5]}')
     Lager.debug(f'y {y[:5]}')
-
-
-    Lager.debug(galsim_wcs.toWorld(x[:5], y[:5], units = 'deg'))
-    Lager.debug(galsim_wcs.toImage(ra[:5], dec[:5], units = 'deg'))
 
     if psf is None:
         # How different are these two methods? TODO XXX
@@ -839,7 +833,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
     ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-        exposures, cutout_image_list
+        exposures, cutout_image_list, image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -1805,7 +1799,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # TODO: Calculate peak MJD outside of the function
 
         images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-            exposures, cutout_image_list = fetchImages(num_total_images,
+            exposures, cutout_image_list, image_list = \
+                                     fetchImages(num_total_images,
                                                  num_detect_images, ID,
                                                  sn_path, band, size,
                                                  subtract_background,
@@ -1898,7 +1893,12 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         else:
             sim_psf = airy
 
-        x, y = im_wcs_list[i].toImage(ra, dec, units='deg')
+        whole_sca_wcs = image_list[i].get_wcs()
+        whole_sca_wcs = snappl.wcs.GalsimWCS(gsimwcs=whole_sca_wcs.get_galsim_wcs())
+        # See other place I do this in construct_psf_bg. I know this is temporary.
+        # See issue #21 in snappl.
+        # With +1s here I recover previous values!
+        x, y = whole_sca_wcs.world_to_pixel(ra, dec)
 
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
