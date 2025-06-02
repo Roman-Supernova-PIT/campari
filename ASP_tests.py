@@ -227,8 +227,11 @@ def test_regression():
                                    / comparison[col])
             msg2 = f"difference is {percent} %"
             msg = msg+msg2
-            np.testing.assert_allclose(current[col], comparison[col],
-                                       rtol=1e-7), msg
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
 def test_get_galsim_SED():

@@ -22,7 +22,6 @@ import scipy.sparse as sp
 from numpy.linalg import LinAlgError
 from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
-import snappl.wcs # Will be removed when issue #21 is resolved in snappl
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
 import yaml
@@ -295,11 +294,10 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
 
     # This is the WCS galsim uses to draw the PSF.
     galsim_wcs = wcs.get_galsim_wcs()
-    wcs = snappl.wcs.GalsimWCS(gsimwcs=galsim_wcs)
-    # Until Issue # 21 is resolved in snappl this is the only way to obtain
-    # results that are consistent. I know it cannot stay!
-
     x, y = wcs.world_to_pixel(ra, dec)
+    # NOTE: This only works if using my PR #23 to snappl, otherwise a frame issue
+    # will cause regression to fail.
+
     # With plus ones here I recover the values pre-refactor!
 
     if psf is None:
@@ -1883,9 +1881,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         drawing_psf = None if use_roman else airy
 
         whole_sca_wcs = image_list[i].get_wcs()
-        whole_sca_wcs = snappl.wcs.GalsimWCS(gsimwcs=whole_sca_wcs.get_galsim_wcs())
-        # See other place I do this in construct_psf_bg. I know this is temporary.
-        # See issue #21 in snappl.
+        # NOTE: This only works if using my PR #23 to snappl, otherwise a frame issue
+        # will cause regression to fail.
         # With +1s here I recover previous values!
         x, y = whole_sca_wcs.world_to_pixel(ra, dec)
 
