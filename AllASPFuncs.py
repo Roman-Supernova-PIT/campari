@@ -1434,7 +1434,6 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
-    Lager.debug(f'Grid points: {xx[:5]}, {yy[:5]}')
 
     result = wcs.toWorld(xx, yy, units='deg')
     ra_grid = result[0]
@@ -1722,37 +1721,44 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
 
 def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
                                                   output_path,
-                                                  ra_range=None,
-                                                  dec_range=None):
+                                                  central_ra=None,
+                                                  central_dec=None,
+                                                  radius=None):
     '''
-    Convenience function for getting a list of star IDs that obey some conditions
-    from a parquet file. This is not used anywhere in the main algorithm.
+    Convenience function for getting a list of star IDs
+    from a parquet file. The stars can be cone-searched for by passing a
+    central coordinate and a radius.
+    This is not used anywhere in the main algorithm.
 
     Inputs:
-    parquet_file: str,  the path to the parquet file
+    parquet_file: int,  the number label of the parquet file to use.
     sn_path: str, the path to the supernova data
-    ra_range: a tuple of floats, (min_ra, max_ra), to filter the stars by
-                RA coordinate. If None, no filtering is done.
-    dec_range: a tuple of floats, (min_dec, max_dec), to filter the stars by
-                Dec coordinate. If None, no filtering is done.
+    central_ra: float, the central RA of the region to search in
+    central_dec: float, the central Dec of the region to search in
+    radius: float, the radius over which cone search is performed. Can have
+                    any astropy.unit attached to it, assumes degrees if
+                    no unit is included.
+    If no central_ra, central_dec, and radius are passed, no cone search
+    is performed and the IDs of the entire parquet file are returned.
 
     Output:
-    Saves a csv file of the IDs of stars from the parquet file that
-    pass mag cuts. If none are found, raise a ValueError.
+    Saves a csv file to output_path of the IDs of stars from the parquet
+    file that pass location cuts. If none are found, raise a ValueError.
     '''
-    # Get the star IDs from the parquet file
+    if not hasattr(radius, 'unit'):
+        Lager.warning('extract_star_from_parquet_file_and_write_to_csv ' +
+                      'a radius argument with no units. Assuming degrees.')
+        radius *= u.deg
+
     df = open_parquet(parquet_file, sn_path, obj_type='star')
     df = df[df['object_type'] == 'star']
-    if ra_range is not None:
-        min_ra, max_ra = ra_range
-        if max_ra < min_ra:
-            raise ValueError('max_ra must be greater than min_ra')
-        df = df[(df['ra'] >= min_ra) & (df['ra'] <= max_ra)]
-    if dec_range is not None:
-        min_dec, max_dec = dec_range
-        if max_dec < min_dec:
-            raise ValueError('max_dec must be greater than min_dec')
-        df = df[(df['dec'] >= min_dec) & (df['dec'] <= max_dec)]
+
+    center_coord = SkyCoord(central_ra*u.deg, central_dec*u.deg)
+    df_coords = SkyCoord(ra=df['ra'].values*u.deg,
+                                 dec=df['dec'].values*u.deg)
+    sep = center_coord.separation(df_coords)
+    df = df[sep < radius]
+
     star_ID = df.id.values
     star_ID = np.array(star_ID, dtype=int)
     Lager.info(f'Found {np.size(star_ID)} stars in the given range.')
