@@ -150,8 +150,6 @@ def main():
     deltafcn_profile = config['deltafcn_profile']
     sim_gal_ra_offset = config['sim_gal_ra_offset']
     sim_gal_dec_offset = config['sim_gal_dec_offset']
-    spacing = config['spacing']
-    percentiles = config['percentiles']
 
     grid_type = config['grid_type']
     er = f'{grid_type} is not a recognized grid type. Available options are '
@@ -183,18 +181,16 @@ def main():
         try:
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
-                run_one_object(ID, object_type, num_total_images,
-                               num_detect_images, roman_path,
-                               sn_path, size, band, fetch_SED, use_real_images,
-                               use_roman, subtract_background,
-                               make_initial_guess, initial_flux_guess,
-                               weighting, method, grid_type,
-                               pixel, source_phot_ops,
-                               lc_start, lc_end, do_xshift, bg_gal_flux,
-                               do_rotation, airy, mismatch_seds, deltafcn_profile,
-                               noise, check_perfection, avoid_non_linearity,
-                               sim_gal_ra_offset, sim_gal_dec_offset,
-                               spacing, percentiles)
+                run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
+                            sn_path, size, band, fetch_SED, use_real_images,
+                            use_roman, subtract_background,
+                            make_initial_guess, initial_flux_guess,
+                            weighting, method, grid_type,
+                            pixel, source_phot_ops,
+                            lc_start, lc_end, do_xshift, bg_gal_flux,
+                            do_rotation, airy, mismatch_seds, deltafcn_profile,
+                            noise, check_perfection, avoid_non_linearity,
+                            sim_gal_ra_offset, sim_gal_dec_offset)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.

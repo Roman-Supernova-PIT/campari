@@ -934,7 +934,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
 
 
 def makeGrid(grid_type, images, ra, dec, percentiles=[],
-             make_exact=False, spacing=None):
+             make_exact=False):
     '''
     This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -971,16 +971,19 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
 
     image_data = images[0].data
     if grid_type == 'contour':
-        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs,
-                                              percentiles=percentiles)
+        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
+        Lager.debug('ra and dec out of contour')
+        Lager.debug(f'ra_grid: {ra_grid}, dec_grid: {dec_grid}')
 
+    # TODO: de-hardcode spacing and percentiles. These should be passable
+    # options.
     elif grid_type == 'adaptive':
         ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs,
                                                image=image_data,
                                                percentiles=percentiles)
     elif grid_type == 'regular':
         ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
-                                              size=size, spacing=spacing)
+                                              size=size, spacing=0.75)
 
     if grid_type == 'single':
         ra_grid, dec_grid = [ra], [dec]
@@ -1715,7 +1718,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
-                   spacing, percentiles,
                    draw_method_for_non_roman_psf = 'no_pixel'):
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
@@ -1726,6 +1728,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # This is a catch for when I'm doing my own simulated WCSs
     util_ref = None
 
+    percentiles = []
     roman_bandpasses = galsim.roman.getBandpasses()
 
     if use_real_images:
@@ -1782,8 +1785,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
         ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
-                                     percentiles=percentiles,
-                                     spacing=spacing)
+                                     percentiles=percentiles)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])

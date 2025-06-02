@@ -44,8 +44,8 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 
 | Parameter             | Type  | Description                                                                                                                           |
 |------------------------|--------|--------------------------------------------------------------------------------------------------------------------------------------|
-| SNID                   | int    | ID of the supernova you want to fit.
-| grid_type        |  str  | The type of grid to be used. See options below.
+| SNID                   | int    | ID of the supernova you want to fit.                                                                                            
+| grid_type        |  str  | The type of grid to be used. See options below.                                       
 | band                   | str    | Which Roman passband to use.                                                                                                   |
 | testnum                | int    | Total number of images to utilize in the SMP algorithm.                                                                        |
 | detim                  | int    | Number of images with a SN detection in them. Rule of thumb, this should be 1/2 or less of testnum.                           |
@@ -59,18 +59,17 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 | source_phot_ops        | bool   | If true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.     |
 | flux_initial_guess | float | When we make the initial guess, every model component gets a starting value. This includes the supernova fluxes. Setting this value chooses the initial flux for the SN in each image before the algorithm solves for the true value. Changing this number has very very little effect on the results and can be safely left at 1. It is only a configuration variable because I thought it was not smart to hard code it. |
 |object_type| str | What kind of object are we fitting? 'SN' for supernova, 'star' for star. This difference is important, as a star won't have predetection images, while a transient will. |
-|spacing| float |If using grid_type = 'regular', the spacing, in pixels, between grid points. |
-|percentiles| list of floats | The percentiles of brightness used to bin the image for the 'adaptive' and 'contour' grid methods. |
+
 #### Grid Options
 
 
 | Grid Type   |  Description                                                                                                                           |
 |------------------------|----------------------------------------------------------------------------------------------------------------------------------------------|
-|regular | A regularly spaced grid.|
-|adaptive| Points are placed in the image based on the brightness in each pixel. |
+|regular | A regularly spaced grid.|                                                                                      
+|adaptive| Points are placed in the image based on the brightness in each pixel. |                                      
 | contour | Points are placed by placing finer and finer regularly spaced grids in different contour levels of a linear interpolation of the image. See make_contour_grid docstring for a more detailed explanation.|                                                                                                |
 |single | Place a single grid point. This is for sanity checking that the algroithm is drawing points where expected.|
-| none | Don't generate a background model at all. Useful for testing just the PSF photometry of the SN if running on a star, for instance.|
+| none | Don't generate a background model at all. Useful for testing just the PSF photometry of the SN if running on a star, for instance.|        
 
 
 ### Simulating your own images.
