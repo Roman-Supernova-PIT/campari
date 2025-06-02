@@ -1712,8 +1712,8 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
 
 def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
                                                   output_path,
-                                                  central_ra=None,
-                                                  central_dec=None,
+                                                  ra=None,
+                                                  dec=None,
                                                   radius=None):
     '''
     Convenience function for getting a list of star IDs
@@ -1724,19 +1724,22 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     Inputs:
     parquet_file: int,  the number label of the parquet file to use.
     sn_path: str, the path to the supernova data
-    central_ra: float, the central RA of the region to search in
-    central_dec: float, the central Dec of the region to search in
+    ra: float, the central RA of the region to search in
+    dec: float, the central Dec of the region to search in
     radius: float, the radius over which cone search is performed. Can have
-                    any astropy.unit attached to it, assumes degrees if
-                    no unit is included.
-    If no central_ra, central_dec, and radius are passed, no cone search
+                    any angular astropy.unit attached to it. If no unit is
+                    included, the function will produce a warning and then
+                    automatically assume you meant degrees.
+    If no ra, dec, and radius are passed, no cone search
     is performed and the IDs of the entire parquet file are returned.
+    If one or two of the above arguments is passed but not all three, the
+    cone search is not performed.
 
     Output:
     Saves a csv file to output_path of the IDs of stars from the parquet
     file that pass location cuts. If none are found, raise a ValueError.
     '''
-    if not hasattr(radius, 'unit'):
+    if not hasattr(radius, 'unit') and radius is not None:
         Lager.warning('extract_star_from_parquet_file_and_write_to_csv ' +
                       'a radius argument with no units. Assuming degrees.')
         radius *= u.deg
@@ -1744,11 +1747,12 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     df = open_parquet(parquet_file, sn_path, obj_type='star')
     df = df[df['object_type'] == 'star']
 
-    center_coord = SkyCoord(central_ra*u.deg, central_dec*u.deg)
-    df_coords = SkyCoord(ra=df['ra'].values*u.deg,
-                                 dec=df['dec'].values*u.deg)
-    sep = center_coord.separation(df_coords)
-    df = df[sep < radius]
+    if radius is not None and (ra is not None and dec is not None):
+        center_coord = SkyCoord(ra*u.deg, dec*u.deg)
+        df_coords = SkyCoord(ra=df['ra'].values*u.deg,
+                                    dec=df['dec'].values*u.deg)
+        sep = center_coord.separation(df_coords)
+        df = df[sep < radius]
 
     star_ID = df.id.values
     star_ID = np.array(star_ID, dtype=int)

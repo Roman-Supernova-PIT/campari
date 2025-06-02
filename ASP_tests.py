@@ -275,8 +275,8 @@ def test_extract_star_from_parquet_file_and_write_to_csv():
         output_path = temp_file.name
         extract_star_from_parquet_file_and_write_to_csv(10430, sn_path,
                                                         output_path,
-                                                        central_ra=7.1,
-                                                        central_dec=-44.1,
+                                                        ra=7.1,
+                                                        dec=-44.1,
                                                         radius=0.25)
         star_ids = pd.read_csv(output_path, header=None).values.flatten()
         test_star_ids = pd.read_csv(pathlib.Path(__file__).parent
@@ -284,6 +284,18 @@ def test_extract_star_from_parquet_file_and_write_to_csv():
                                     header=None).values.flatten()
     np.testing.assert_array_equal(star_ids, test_star_ids), \
         "The star IDs do not match the test example"
+
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)\
+            as temp_file:
+        output_path = temp_file.name
+        extract_star_from_parquet_file_and_write_to_csv(10430, sn_path,
+                                                        output_path)
+        star_ids = pd.read_csv(output_path, header=None).values.flatten()
+        parq = open_parquet(10430, sn_path, obj_type='star')
+        assert len(star_ids) == parq['id'].size, \
+            'extract_star_from_parquet_file_and_write_to_csv did not return' +\
+            'all stars when no radius was passed'
+
 
 
 def test_make_regular_grid():
