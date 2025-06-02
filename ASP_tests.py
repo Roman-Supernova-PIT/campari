@@ -1,12 +1,14 @@
-from AllASPFuncs import radec2point, get_object_info, find_parquet, \
-    findAllExposures, save_lightcurve, get_galsim_SED, get_galsim_SED_list, \
-    calc_mag_and_err, extract_sn_from_parquet_file_and_write_to_csv, \
-    make_regular_grid, make_adaptive_grid, make_contour_grid, \
-    calculate_background_level
+from AllASPFuncs import calc_mag_and_err, calculate_background_level, \
+                        extract_sn_from_parquet_file_and_write_to_csv, \
+                        findAllExposures, find_parquet, get_galsim_SED, \
+                        get_galsim_SED_list, \
+                        get_object_info, load_config, make_adaptive_grid, \
+                        make_contour_grid, make_regular_grid, \
+                        radec2point, save_lightcurve
 from astropy.io import ascii
-from astropy.utils.exceptions import AstropyWarning
-from astropy import units as u
 from astropy.table import QTable
+import astropy.units as u
+from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
 import numpy as np
@@ -24,14 +26,7 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def load_config(config_path):
-    """Load parameters from a YAML configuration file."""
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config
-
-
-config_path = pathlib.Path(__file__).parent/'config.yaml'
+config_path = pathlib.Path(__file__).parent / 'config.yaml'
 config = load_config(config_path)
 roman_path = config['roman_path']
 sn_path = config['sn_path']
@@ -105,7 +100,7 @@ def test_simulate_wcs():
     wcs_dict = simulate_wcs(angle=np.pi/4, x_shift=0.1, y_shift=0,
                             roman_path=roman_path, base_sca=11,
                             base_pointing=662, band='F184')
-    b = np.load(pathlib.Path(__file__).parent/'tests/testdata/wcs_dict.npz',
+    b = np.load(pathlib.Path(__file__).parent / 'tests/testdata/wcs_dict.npz',
                 allow_pickle=True)
     assert wcs_dict == b, 'WCS simulation does not match test example'
 
@@ -125,7 +120,8 @@ def test_simulate_galaxy():
 
     a = convolved.drawImage(roman_bandpasses[band], method='no_pixel',
                             use_true_center=True)
-    b = np.load(pathlib.Path(__file__).parent/'tests/testdata/test_galaxy.npy')
+    b = np.load(pathlib.Path(__file__).parent
+                / 'tests/testdata/test_galaxy.npy')
     assert (a.array - b).all() == 0, "The two galaxy images are not the same!"
 
 
@@ -165,9 +161,9 @@ def test_savelightcurve():
     lc = QTable(data=data_dict, meta=meta_dict, units=units)
     save_lightcurve(lc, 'test', 'test', 'test')
 
-    output_path = pathlib.Path(__file__).parent/'results/lightcurves/'
+    output_path = pathlib.Path(__file__).parent / 'results/lightcurves/'
     lc_file = os.path.join(output_path, 'test_test_test_lc.ecsv')
-    assert os.path.exists(lc_file) is True
+    assert os.path.exists(lc_file)
 
 
 def test_run_on_star():
@@ -294,7 +290,7 @@ def test_plot_lc():
 
 
 def test_extract_sn_from_parquet_file_and_write_to_csv():
-    output_path = pathlib.Path(__file__).parent/"tests/testdata/snids.csv"
+    output_path = pathlib.Path(__file__).parent / "tests/testdata/snids.csv"
     extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path,
                                                   output_path,
                                                   mag_limits=[20, 21])
@@ -408,7 +404,7 @@ def test_calc_mag_and_err():
     test_zp = 15.023547191066587
 
     np.testing.assert_allclose(mag, test_mag, atol=1e-7, equal_nan=True), \
-        f"The magnitudes do not match {mag} VS. {test_mag}"
+        f"The magnitudes do not match {mag} vs. {test_mag}"
     np.testing.assert_allclose(magerr, test_magerr,
                                atol=1e-7, equal_nan=True), \
         "The magnitude errors do not match"
