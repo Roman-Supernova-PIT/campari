@@ -59,7 +59,7 @@ To actually have the code serve your specific needs, you can modify the yaml fil
 | source_phot_ops        | bool   | If true, use photon shooting to generate the PSF for fitting the SN. This seemingly needs to be true for a quality fit.     |
 | flux_initial_guess | float | When we make the initial guess, every model component gets a starting value. This includes the supernova fluxes. Setting this value chooses the initial flux for the SN in each image before the algorithm solves for the true value. Changing this number has very very little effect on the results and can be safely left at 1. It is only a configuration variable because I thought it was not smart to hard code it. |
 |object_type| str | What kind of object are we fitting? 'SN' for supernova, 'star' for star. This difference is important, as a star won't have predetection images, while a transient will. |
-|spacing| float |If using grid_type = 'regular', the spacing, in pixels, between grid points. |
+|spacing| float | If using grid_type = 'regular', the spacing, in pixels, between grid points. |
 |percentiles| list of floats | The percentiles of brightness used to bin the image for the 'adaptive' and 'contour' grid methods. |
 #### Grid Options
 
