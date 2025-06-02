@@ -24,6 +24,7 @@ from scipy.interpolate import RegularGridInterpolator
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
+import yaml
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -308,9 +309,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
         x, y = wcs.toImage(ra,dec,units='deg')
     else:
         x, y = wcs.world_to_pixel(SkyCoord(ra = np.array(ra)*u.degree, dec = np.array(dec)*u.degree))
-
-    Lager.debug(f'x {x[:5]}')
-    Lager.debug(f'y {y[:5]}')
 
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
@@ -909,7 +907,6 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
         snx, sny = wcs.toImage(snra, sndec, units='deg')
-        Lager.debug(f'snx, sny in getWeights {snx+1, sny+1}')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
@@ -1907,8 +1904,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                    sca=exposures['SCA'][i])
 
         # TODO: Why is band here twice?
-        Lager.debug(f'ra_grid {ra_grid[:5]}')
-        Lager.debug(f'dec_grid {dec_grid[:5]}')
         background_model_array, bgpsf = construct_psf_background(ra_grid,
                                                 dec_grid,
                                                 cutout_wcs_list[i], x, y,
@@ -2063,3 +2058,10 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin='lower', cmap='gray')
     plt.scatter(ra_grid, dec_grid)
+
+
+def load_config(config_path):
+    """Load parameters from a YAML configuration file."""
+    with open(config_path, 'r') as file:
+        config = yaml.safe_load(file)
+    return config
