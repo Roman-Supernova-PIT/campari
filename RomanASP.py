@@ -150,6 +150,8 @@ def main():
     deltafcn_profile = config['deltafcn_profile']
     sim_gal_ra_offset = config['sim_gal_ra_offset']
     sim_gal_dec_offset = config['sim_gal_dec_offset']
+    spacing = config['spacing']
+    percentiles = config['percentiles']
 
     grid_type = config['grid_type']
     er = f'{grid_type} is not a recognized grid type. Available options are '
@@ -190,7 +192,8 @@ def main():
                             lc_start, lc_end, do_xshift, bg_gal_flux,
                             do_rotation, airy, mismatch_seds, deltafcn_profile,
                             noise, check_perfection, avoid_non_linearity,
-                            sim_gal_ra_offset, sim_gal_dec_offset)
+                            sim_gal_ra_offset, sim_gal_dec_offset,
+                            spacing, percentiles)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
