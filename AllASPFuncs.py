@@ -1,16 +1,5 @@
-# TODO -- remove these next few lines!
-# This needs to be set up in an environment
-# where snappl is available.  This will happen "soon"
-# Get Rob to fix all of this.  For now, this is a hack
-# so you can work short term.
-import sys
-import pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
-# End of lines that will go away once we do this right
-
 import numpy as np
 from astropy.io import fits
-from astropy.wcs import WCS
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 import pandas as pd
@@ -21,7 +10,6 @@ import astropy.table as tb
 import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-from astropy.nddata import Cutout2D
 from coord import *
 import requests
 from astropy.table import Table
@@ -77,7 +65,7 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+    wcs: the WCS of the image, snappl.wcs.BaseWCS object
     spacing: int, spacing of grid points in pixels.
     subsize: int, width of the grid in pixels.
              Specify the width of the grid, which can be smaller than the
@@ -103,18 +91,17 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Lager.debug('Grid type: regularly spaced')
     difference = int((size - subsize)/2)
 
-    x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
-
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
     Lager.debug(f'Grid spacing: {spacing}')
 
-    xx, yy = np.meshgrid(x+1, y+1)
+    xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
+
     return ra_grid, dec_grid
 
 
@@ -127,7 +114,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
 
     Inputs:
     ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+    wcs: the WCS of the image, snappl.wcs.BaseWCS
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on. This is used to determine the size of the grid, and once we
                 switch to snappl Image objects, will also determine the wcs.
@@ -168,7 +155,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     '''
     size = np.shape(image)[0]
     if subsize > size:
-        Lager.warning('subsize is larger than the image size '  +
+        Lager.warning('subsize is larger than the image size ' +
                       f'{size} > {subsize}. This would cause model points to' +
                       ' be placed outside the image. Reducing subsize to' +
                       ' match the image size.')
@@ -180,7 +167,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     # brightness.
 
     difference = int((size - subsize)/2)
-    x_center, y_center = wcs.toImage(ra_center, dec_center, units='deg')
+
     x = difference + np.arange(0, subsize, 1)
     y = difference + np.arange(0, subsize, 1)
 
@@ -208,9 +195,9 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     yvals = np.rint(y).astype(int)
     xvals = np.rint(x).astype(int)
     for xindex in xvals:
-        x = xindex + 1
+        x = xindex
         for yindex in yvals:
-            y = yindex + 1
+            y = yindex
             # xindex and yindex are the indices within the numpy array, while
             # x and y are the actual locations in pixel space.
             # This used to be x and y in here:
@@ -229,14 +216,15 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
                                  y + subpixel_grid_width/2, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
                 ys.extend(list(X.flatten()))
-                xs.extend(list(Y.flatten()))  #...Like here. TODO
+                xs.extend(list(Y.flatten()))  # ...Like here. TODO
 
     xx = np.array(xs).flatten()
     yy = np.array(ys).flatten()
 
     Lager.debug(f'Built a grid with {np.size(xx)} points')
 
-    ra_grid, dec_grid = wcs.toWorld(xx, yy, units='deg')
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
+
     return ra_grid, dec_grid
 
 
@@ -279,7 +267,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     Inputs:
     ra, dec: arrays of RA and DEC values for the grid
     wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs
-    of the CUTOUT
+    of the cutout. A snappl.wcs.BaseWCS object.
     x_loc, y_loc: the pixel location of the image in the FULL image, i.e. x y
     location in the SCA.
     stampsize: the size of the stamp being used
@@ -312,10 +300,17 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize, bpass,
     else:
         psf = None
 
+    Lager.debug('ra and dec')
+    Lager.debug(ra[:5])
+    Lager.debug(dec[:5])
+
     if type(wcs) == galsim.fitswcs.AstropyWCS:
         x, y = wcs.toImage(ra,dec,units='deg')
     else:
         x, y = wcs.world_to_pixel(SkyCoord(ra = np.array(ra)*u.degree, dec = np.array(dec)*u.degree))
+
+    Lager.debug(f'x {x[:5]}')
+    Lager.debug(f'y {y[:5]}')
 
     psfs = np.zeros((stampsize * stampsize,np.size(x)))
 
@@ -770,17 +765,24 @@ def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None,
 
     if not include_photonOps:
         psf = galsim.Convolve(point, self.getPSF(x,y,pupil_bin))
-        return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',center = galsim.PositionD(x_center, y_center),use_true_center = True)
+        return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',
+                            center = galsim.PositionD(x_center, y_center),
+                            use_true_center = True)
 
     photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
     Lager.debug(f'Using {n_phot:e} photons in getPSF_Image')
-    result = point.drawImage(self.bpass,wcs=wcs, method='phot', photon_ops=photon_ops, rng=self.rng, \
-        n_photons=int(n_phot),maxN=int(n_phot),poisson_flux=False, center = galsim.PositionD(x_center, y_center),use_true_center = True, image=stamp)
+    result = point.drawImage(self.bpass,wcs=wcs, method='phot',
+                            photon_ops=photon_ops, rng=self.rng, \
+                            n_photons=int(n_phot),maxN=int(n_phot),
+                            poisson_flux=False,
+                            center = galsim.PositionD(x_center, y_center),
+                            use_true_center = True, image=stamp)
     return result
 
 
-def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, subtract_background,
-                roman_path, object_type, lc_start=-np.inf, lc_end=np.inf):
+def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
+                subtract_background, roman_path, object_type,
+                lc_start=-np.inf, lc_end=np.inf):
     '''
     This function gets the list of exposures to be used for the analysis.
 
@@ -814,15 +816,17 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
 
     pqfile = find_parquet(ID, sn_path, obj_type=object_type)
     ra, dec, p, s, start, end, peak = \
-            get_object_info(ID, pqfile, band = band, snpath = sn_path, roman_path = roman_path, obj_type = object_type)
+        get_object_info(ID, pqfile, band=band, snpath=sn_path,
+                        roman_path=roman_path, obj_type=object_type)
     snra = ra
-    sndec = dec # Why is this here? TODO remove in a less urgent PR
+    sndec = dec  # Why is this here? TODO remove in a less urgent PR
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
-                                 roman_path=roman_path, maxbg=num_total_images - num_detect_images,
-                                 maxdet=num_detect_images, return_list=True, band=band,
-                                 lc_start=lc_start, lc_end=lc_end)
+                                 roman_path=roman_path,
+                                 maxbg=num_total_images - num_detect_images,
+                                 maxdet=num_detect_images, return_list=True,
+                                 band=band, lc_start=lc_start, lc_end=lc_end)
     cutout_image_list, image_list =\
         constructImages(exposures, ra, dec, size=size,
                         subtract_background=subtract_background,
@@ -839,6 +843,9 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     err = []
     for cutout, image in zip(cutout_image_list, image_list):
         images.append(cutout._data)
+        # These next two lines are bad stuff these will be removed.
+        # Bad because they use ._wcs (with an underscore) and because
+        # they are not snappl objects. This is all to be removed.
         cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs._wcs))
         im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs._wcs))
         err.append(cutout._noise)
@@ -846,7 +853,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size, su
     ########################### END TEMPORARY SECTION #########################
 
     return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-           exposures
+        exposures, cutout_image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -902,6 +909,7 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
         dist = np.sqrt((rara - snra)**2 + (decdec - sndec)**2)
 
         snx, sny = wcs.toImage(snra, sndec, units='deg')
+        Lager.debug(f'snx, sny in getWeights {snx+1, sny+1}')
         dist = np.sqrt((xx - snx + 1)**2 + (yy - sny + 1)**2)
 
         wgt = np.ones(size**2)
@@ -926,16 +934,13 @@ def getWeights(cutout_wcs_list, size, snra, sndec, error=None,
     return wgt_matrix
 
 
-def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
-             percentiles=[],
+def makeGrid(grid_type, images, ra, dec, percentiles=[],
              make_exact=False):
     '''
     This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
     correct function for which type of grid you wish to construct.
-
-    TODO: refactor
 
     Inputs:
     grid_type: str, type of grid method to use.
@@ -948,20 +953,37 @@ def makeGrid(grid_type, images, size, ra, dec, cutout_wcs_list,
                         a more detailed explanation.
               single: Place a single grid point. This is for sanity checking
                       that the algroithm is drawing points where expected.
+    images: list of snappl.image.Image objects, the images to be used for the
+            grid. The first image in the list is used to get the WCS and
+            design the grid.
+    ra, dec: floats, the RA and DEC of the supernova. As of now, this is only
+                    used if grid_type is 'single', TODO remove this?
+    percentiles: list of floats, the percentiles to use for the adaptive grid.
+    make_exact: Currently not implemented, but will construct the grid in such
+                a way on a simulated image that the recovered model is accurate
+                to machine precision. TODO
 
     Returns:
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     '''
-    if grid_type == 'contour':
-        ra_grid, dec_grid = make_contour_grid(images[0], cutout_wcs_list[0])
+    size = images[0].image_shape[0]
+    snappl_wcs = images[0].get_wcs()
 
+    image_data = images[0].data
+    if grid_type == 'contour':
+        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
+        Lager.debug('ra and dec out of contour')
+        Lager.debug(f'ra_grid: {ra_grid}, dec_grid: {dec_grid}')
+
+    # TODO: de-hardcode spacing and percentiles. These should be passable
+    # options.
     elif grid_type == 'adaptive':
-        ra_grid, dec_grid = make_adaptive_grid(ra, dec, cutout_wcs_list[0],
-                                               image=images[0],
+        ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs,
+                                               image=image_data,
                                                percentiles=percentiles)
     elif grid_type == 'regular':
-        ra_grid, dec_grid = make_regular_grid(ra, dec, cutout_wcs_list[0],
+        ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
                                               size=size, spacing=0.75)
 
     if grid_type == 'single':
@@ -1057,7 +1079,7 @@ def plot_images(fileroot, size = 11):
     for i,savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
     biases = []
@@ -1069,17 +1091,17 @@ def plot_images(fileroot, size = 11):
     for i, wcs in enumerate(cutout_wcs_list):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
-        xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
-        galx, galy = wcs.toImage(galra, galdec, units = 'deg')
+        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
+        snx, sny = wcs.world_to_pixel(snra, sndec)
+        galx, galy = wcs.world_to_pixel(galra, galdec)
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
         vmin = np.mean(gridvals) - np.std(gridvals)
         vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx-1, yy-1, s = 1, c= 'k', vmin = vmin, vmax = vmax)
+        plt.scatter(xx, yy, s = 1, c= 'k', vmin = vmin, vmax = vmax)
         plt.title('True Image')
-        plt.scatter(snx-1, sny-1, c = 'r', s = 8, marker = '*')
-        plt.scatter(galx-1,galy-1, c = 'b', s = 8, marker = '*')
+        plt.scatter(snx, sny, c = 'r', s = 8, marker = '*')
+        plt.scatter(galx,galy, c = 'b', s = 8, marker = '*')
         imshow = plt.imshow(images[i*size**2:(i+1)*size**2].reshape(size,size), origin = 'lower', extent = extent)
         plt.colorbar(fraction=0.046, pad=0.04)
         trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
@@ -1091,12 +1113,7 @@ def plot_images(fileroot, size = 11):
         plt.title('Model')
 
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
-        xx, yy = cutout_wcs_list[i].toImage(ra_grid, dec_grid, units = 'deg')
-
-
-        xx -= 1
-        yy -= 1
-
+        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
 
         vmin = np.min(images[i*size**2:(i+1)*size**2].reshape(size,size))
         vmax = np.max(images[i*size**2:(i+1)*size**2].reshape(size,size))
@@ -1110,14 +1127,6 @@ def plot_images(fileroot, size = 11):
         plt.imshow(im1, extent = extent, origin = 'lower', vmin = vmin, vmax = vmax)
         plt.colorbar(fraction=0.046, pad=0.04)
 
-
-        #plt.scatter(galx-1,galy-1, c = 'r', s = 8, marker = '*')
-        #plt.scatter(snx-1, sny-1, c = 'k', s = 8, marker = '*')
-
-        #plt.xlim(-1,size)
-        #plt.ylim(-1,size)
-
-
         ############################################
         plt.subplot(len(cutout_wcs_list),4,4*i+3)
         plt.title('Residuals')
@@ -1126,21 +1135,13 @@ def plot_images(fileroot, size = 11):
         plt.scatter(xx,yy, s = 1, c= gridvals,  vmin = vmin, vmax = vmax)
         res = images - sumimages
 
-
-
         current_res= res[i*size**2:(i+1)*size**2].reshape(size,size)
 
-        #if i == 0:
         norm = 3*np.std(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)])
 
-        #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) == 0)] = 0
-        #current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)] = \
-            #np.log10(np.abs(current_res[np.where(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size) != 0)]))
-
         plt.imshow(current_res, extent = extent, origin = 'lower', cmap = 'seismic', vmin = -100, vmax = 100)
-        #plt.imshow(wgt_matrix[i*size**2:(i+1)*size**2].reshape(size,size), extent = extent, origin = 'lower')
         plt.colorbar(fraction=0.046, pad=0.14)
-        #plt.scatter(galx,galy, c = 'r', s = 12, marker = '*', edgecolors='k')
+
 
     plt.subplots_adjust(wspace = 0.4, hspace = 0.3)
 
@@ -1162,12 +1163,10 @@ def slice_plot(fileroot):
     for i,savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        newwcs = galsim.wcs.readFromFitsHeader(savedwcs.header)[0]
+        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
-
     magresiduals = -2.5*np.log10(measured_flux)+2.5*np.log10(np.array(supernova))
-
 
     galxes = []
     stds = []
@@ -1177,7 +1176,7 @@ def slice_plot(fileroot):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
         trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
-        snx, sny = wcs.toImage(snra, sndec, units = 'deg')
+        snx, sny = wcs.world_to_pixel(snra, sndec)
 
         plt.subplot(len(cutout_wcs_list)//3 + 1,3,i+1)
         if i >= num_total_images - num_detect_images:
@@ -1201,12 +1200,7 @@ def slice_plot(fileroot):
 
         justbgres = trueimage - justbgim
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
-
-
-        #plt.plot(trueimage[5], label = 'Image')
-
         plt.axhline(0, ls = '--', color = 'k')
-        #plt.plot(im1[5], label = 'Model', lw = 3)
         plt.plot(trueimage[5] - im1[5], label = 'Im-Model', alpha = 0.4)
         plt.ylim(-250,250)
 
@@ -1219,20 +1213,17 @@ def slice_plot(fileroot):
             plt.plot(justbgim[5], label = 'BGModel')
             plt.plot(justbgres[5], label = 'Im-BGModel')
 
-            #plt.plot(justbgres[5] - snim[5], label = 'SN Residuals', ls = '--')
             plt.ylim(-500,np.max(trueimage[5]))
             snim = sn_matrix[i*size**2:(i+1)*size**2, i].reshape(size,size)*X[-num_detect_images:][i - num_total_images + num_detect_images]
 
         else:
             snim = np.zeros_like(justbgres)
 
+        plt.axvline(snx+4, ls = '--', color = 'k')
+        plt.axvline(snx-4, ls = '--', color = 'k')
+        plt.axvline(snx, ls = '--', color = 'r')
 
-
-        plt.axvline(snx-1+4, ls = '--', color = 'k')
-        plt.axvline(snx-1-4, ls = '--', color = 'k')
-        plt.axvline(snx-1, ls = '--', color = 'r')
-
-        plt.xlim(snx-1-3.8, snx-1+3.8)
+        plt.xlim(snx-size/2, snx+size/2)
 
 
         plt.legend(loc = 'upper left')
@@ -1328,8 +1319,8 @@ def get_SN_SED(SNID, date, sn_path):
     return np.array(lam), np.array(flambda[bestindex])
 
 
-def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 100],
-                subsize = 4):
+def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
+                      subsize=4):
     '''
     Construct a "contour grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image. This is
@@ -1369,7 +1360,7 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Inputs:
     image: 2D numpy array of floats of shape (size x size), the image to build
     the grid on.
-    wcs: the WCS of the image, currently a galsim.fitswcs.AstropyWCS object
+    wcs: snappl.wcs.BaseWCS object
 
     percentiles: list of floats, the percentiles to use to bin the image. The
                 more bins, the more possible grid points could be placed in
@@ -1387,8 +1378,8 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     '''
     size = image.shape[0]
-    x = np.arange(0,size,1.0)
-    y = np.arange(0,size,1.0)
+    x = np.arange(0, size, 1.0)
+    y = np.arange(0, size, 1.0)
     xg, yg = np.meshgrid(x, y, indexing='ij')
     xg = xg.ravel()
     yg = yg.ravel()
@@ -1402,9 +1393,9 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
     Lager.debug(f'Using levels: {levels} in make_contour_grid')
 
     interp = RegularGridInterpolator((x, y), image, method='linear',
-                                 bounds_error=False, fill_value=None)
+                                     bounds_error=False, fill_value=None)
 
-    aa = interp((xg,yg))
+    aa = interp((xg, yg))
 
     x_totalgrid = []
     y_totalgrid = []
@@ -1415,29 +1406,29 @@ def make_contour_grid(image, wcs, numlevels = None, percentiles = [0, 90, 98, 10
         # Generate a grid that gets finer each iteration of the loop. For
         # instance, in brightness bin 1, 1 point per pixel, in brightness bin
         # 2, 4 points per pixel (2 in each direction), etc.
-        x = np.arange(0,size,1/(i+1))
-        y = np.arange(0,size,1/(i+1))
+        x = np.arange(0, size, 1/(i+1))
+        y = np.arange(0, size, 1/(i+1))
         if i == 0:
             x = x[np.where(np.abs(x - size/2) < subsize)]
             y = y[np.where(np.abs(y - size/2) < subsize)]
         xg, yg = np.meshgrid(x, y, indexing='ij')
-        aa = interp((xg,yg))
+        aa = interp((xg, yg))
         xg = xg[np.where((aa > zmin) & (aa <= zmax))]
         yg = yg[np.where((aa > zmin) & (aa <= zmax))]
         x_totalgrid.extend(xg)
         y_totalgrid.extend(yg)
 
-    xx, yy = y_totalgrid, x_totalgrid # Here is another place I need to flip
+    xx, yy = y_totalgrid, x_totalgrid  # Here is another place I need to flip
     # x and y. I'd like this to be more rigorous or at least clear.
     xx = np.array(xx)
     yy = np.array(yy)
     xx = xx.flatten()
     yy = yy.flatten()
     Lager.debug(f'Built a grid with {np.size(xx)} points')
+    first_n = 5
+    Lager.debug(f'First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}')
 
-    result = wcs.toWorld(xx, yy, units='deg')
-    ra_grid = result[0]
-    dec_grid = result[1]
+    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
     return ra_grid, dec_grid
 
@@ -1578,8 +1569,8 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None,
     '''
 
     if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
-            Lager.info('Making a results directory for output at ',
-                       os.getcwd(), '/results')
+            Lager.info('Making a results directory for output at ' +
+                       os.getcwd() + '/results')
             os.makedirs(os.path.join(os.getcwd(), 'results/'))
             os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
             os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
@@ -1795,7 +1786,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # TODO: Calculate peak MJD outside of the function
 
         images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
-            exposures = fetchImages(num_total_images,
+            exposures, cutout_image_list = fetchImages(num_total_images,
                                                  num_detect_images, ID,
                                                  sn_path, band, size,
                                                  subtract_background,
@@ -1842,8 +1833,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     if not grid_type == 'none':
         if object_type == 'star':
             Lager.warning('For fitting stars, you probably dont want a grid.')
-        ra_grid, dec_grid = makeGrid(grid_type, images, size, ra, dec,
-                                     cutout_wcs_list,
+        ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
                                      percentiles=percentiles)
     else:
         ra_grid = np.array([])
@@ -1913,6 +1903,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                                    sca=exposures['SCA'][i])
 
         # TODO: Why is band here twice?
+        Lager.debug(f'ra_grid {ra_grid[:5]}')
+        Lager.debug(f'dec_grid {dec_grid[:5]}')
         background_model_array, bgpsf = construct_psf_background(ra_grid,
                                                 dec_grid,
                                                 cutout_wcs_list[i], x, y,

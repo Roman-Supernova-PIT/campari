@@ -1,13 +1,3 @@
-# TODO -- remove these next few lines!
-# This needs to be set up in an environment
-# where snappl is available.  This will happen "soon"
-# Get Rob to fix all of this.  For now, this is a hack
-# so you can work short term.
-import sys
-import pathlib
-sys.path.insert(0, str(pathlib.Path(__file__).parent/"extern/snappl"))
-# End of lines that will go away once we do this right
-
 import numpy as np
 import galsim
 import pandas as pd
@@ -20,6 +10,7 @@ from roman_imsim.utils import roman_utils
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from astropy.nddata import Cutout2D
+import pathlib
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
 # This supresses a warning because the Open Universe Simulations dates are not
