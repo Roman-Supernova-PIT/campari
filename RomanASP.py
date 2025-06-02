@@ -1,8 +1,5 @@
-from AllASPFuncs import banner, fetchImages, save_lightcurve, \
-                        build_lightcurve, build_lightcurve_sim, \
-                        construct_psf_background, construct_psf_source, \
-                        makeGrid, get_galsim_SED, getWeights, generateGuess, \
-                        get_galsim_SED_list, prep_data_for_fit, run_one_object
+from AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, \
+                        load_config, run_one_object, save_lightcurve
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 import argparse
@@ -54,13 +51,6 @@ Adapted from code by Pedro Bernardinelli
 
 
 '''
-
-
-def load_config(config_path):
-    """Load parameters from a YAML configuration file."""
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config
 
 
 def main():
