@@ -86,14 +86,14 @@ def main():
     parser.add_argument('--SNID_file', type=str, required=False,
                         help='Path to a csv file containing a list of SNIDs to run.' +
                         'If both --SNID and --SNID_file are passed, the file' +
-                         ' will be used preferentially.')
+                        ' will be used preferentially.')
 
     parser.add_argument('-b', '--beginning', type=int, required=False,
-                        help='start of desired lightcurve in days from peak.',
+                        help='start of desired lightcurve in MJD.',
                         default=-np.inf)
 
     parser.add_argument('-e', '--end', type=int, required=False,
-                        help='end of desired light curve in days from peak.',
+                        help='end of desired light curve in MJD.',
                         default=np.inf)
 
     parser.add_argument('--object_type', type=str, required=False,

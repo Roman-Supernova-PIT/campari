@@ -425,7 +425,10 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
                inplace=True)
 
     res = res.loc[res['filter'] == band]
+    # The first date cut selects images that are detections, the second
+    # selects detections within the requested light curve window.
     det = res.loc[(res['date'] >= start) & (res['date'] <= end)].copy()
+    det = det.loc[(det['date'] >= lc_start) & (det['date'] <= lc_end)]
 
     if isinstance(maxdet, int):
         det = det.iloc[:maxdet]
@@ -435,6 +438,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         det = det.loc[det['Pointing'].isin(pointing_list)]
 
     bg = res.loc[(res['date'] < start) | (res['date'] > end)].copy()
+    bg = bg.loc[(bg['date'] >= lc_start) & (bg['date'] <= lc_end)]
 
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
