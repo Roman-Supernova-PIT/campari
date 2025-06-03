@@ -404,9 +404,9 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     lc_start, lc_end: the start and end of the light curve window, in terms of
                       time, in days, away from the peak.
     '''
-    g = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23.fits')[1] #Am I still using this? XXX TODO
-    g = g.data
-    alldates = g['date']
+    #g = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23.fits')[1] #Am I still using this? XXX TODO
+    #g = g.data
+    #alldates = g['date']
     f = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits')[1]
     f = f.data
 
@@ -421,17 +421,17 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     if result.status_code != 200:
         raise RuntimeError( f"Got status code {result.status_code}\n{result.text}" )
 
-    res = pd.DataFrame(result.json())[['filter','pointing','sca', 'mjd']]
+    res = pd.DataFrame(result.json())[['filter', 'pointing', 'sca', 'mjd']]
     res.rename(columns={'mjd': 'date', 'pointing': 'Pointing', 'sca': 'SCA'},
                inplace=True)
 
     res = res.loc[res['filter'] == band]
     det = res.loc[(res['date'] >= start) & (res['date'] <= end)].copy()
-    det['offpeak_time'] = det['date'] - peak
-    det = det.sort_values('offpeak_time')
-    if lc_start != -np.inf or lc_end != np.inf:
-        det = det.loc[(det['offpeak_time'] >= lc_start) &
-                      (det['offpeak_time'] <= lc_end)]
+    #det['offpeak_time'] = det['date'] - peak
+    #det = det.sort_values('offpeak_time')
+    #if lc_start != -np.inf or lc_end != np.inf:
+    #    det = det.loc[(det['offpeak_time'] >= lc_start) &
+    #                  (det['offpeak_time'] <= lc_end)]
     if isinstance(maxdet, int):
         det = det.iloc[:maxdet]
     det['DETECTED'] = True
@@ -440,10 +440,10 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         det = det.loc[det['Pointing'].isin(pointing_list)]
 
     bg = res.loc[(res['date'] < start) | (res['date'] > end)].copy()
-    bg['offpeak_time'] = bg['date'] - peak
-    if lc_start != -np.inf or lc_end != np.inf:
-        bg = bg.loc[(bg['offpeak_time'] >= lc_start) &
-                    (bg['offpeak_time'] <= lc_end)]
+    #bg['offpeak_time'] = bg['date'] - peak
+    #if lc_start != -np.inf or lc_end != np.inf:
+    #    bg = bg.loc[(bg['offpeak_time'] >= lc_start) &
+    #                (bg['offpeak_time'] <= lc_end)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg['DETECTED'] = False
@@ -467,6 +467,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         zpt = np.mean(mag - logflux)
         zpts.append(zpt)
 
+        '''
         if row.DETECTED:
             try:
                 true_mag.append(cat.loc[cat['object_id'] == snid].mag.values[0])
@@ -481,14 +482,16 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
                 realized_fluxes.append(np.nan)
                 continue
 
+
         else:
             true_mag.append(np.nan)
             true_fluxes.append(np.nan)
             realized_fluxes.append(np.nan)
+        '''
     all_images['zeropoint'] = zpts
-    all_images['true mag'] = true_mag
-    all_images['true flux'] = true_fluxes
-    all_images['realized flux'] = realized_fluxes
+    #all_images['true mag'] = true_mag
+    #all_images['true flux'] = true_fluxes
+    #all_images['realized flux'] = realized_fluxes
     all_images['BAND'] = band
 
     explist = Table.from_pandas(all_images)
