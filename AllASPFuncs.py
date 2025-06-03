@@ -401,24 +401,26 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     roman_path: the path to the Roman data
     pointing_list: If this is passed in, only consider these pointings
     SCA_list: If this is passed in, only consider these SCAs
-    truth: If 'truth' use truth images, if 'simple_model' use simple model images.
+    truth: If 'truth' use truth images, if 'simple_model' use simple model
+            images.
     band: the band to consider
-    lc_start, lc_end: the start and end of the light curve window, in terms of
-                      time, in days, away from the peak.
+    lc_start, lc_end: the start and end of the light curve window, in MJD.
     '''
-    f = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits')[1]
+    f = fits.open(roman_path +
+                  '/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits')[1]
     f = f.data
 
-    explist = tb.Table(names=('Pointing', 'SCA', 'BAND', 'zeropoint', 'RA', 'DEC', 'date', 'true mag', 'true flux', 'realized flux'),\
-            dtype=('i8', 'i4', 'str', 'f8', 'f8', 'f8', 'f8','f8', 'f8', 'f8'))
-
-    #Rob's database method! :D
+    explist = tb.Table(names=('Pointing', 'SCA', 'BAND', 'RA', 'DEC', 'date',
+                              'true mag', 'true flux', 'realized flux'),
+                       dtype=('i8', 'i4', 'str', 'f8', 'f8', 'f8', 'f8', 'f8',
+                              'f8'))
 
     server_url = 'https://roman-desc-simdex.lbl.gov'
     req = requests.Session()
-    result = req.post( f'{server_url}/findromanimages/containing=({ra},{dec})' )
+    result = req.post(f'{server_url}/findromanimages/containing=({ra},{dec})')
     if result.status_code != 200:
-        raise RuntimeError( f"Got status code {result.status_code}\n{result.text}" )
+        raise RuntimeError(f"Got status code {result.status_code}" +
+                           f"\n{result.text}")
 
     res = pd.DataFrame(result.json())[['filter', 'pointing', 'sca', 'mjd']]
     res.rename(columns={'mjd': 'date', 'pointing': 'Pointing', 'sca': 'SCA'},
@@ -444,28 +446,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         bg = bg.iloc[:maxbg]
     bg['DETECTED'] = False
 
-    # combine these two dataframes
     all_images = pd.concat([det, bg])
-    all_images['zeropoint'] = np.nan
-
-    # Now we need to loop through the images and get the information we need
-    zpts = []
-
-    for index, row in all_images.iterrows():
-        cat = pd.read_csv(roman_path+f'/RomanTDS/truth/{band}/' + \
-                                     f'{row.Pointing}/Roman_TDS_index_' +
-                                     f'{band}_{row.Pointing}_{row.SCA}.txt',
-                          sep="\s+", skiprows=1,
-                          names=['object_id', 'ra', 'dec', 'x', 'y',
-                                'realized_flux', 'flux', 'mag',
-                                'obj_type'])
-        cat_star = cat.loc[cat['obj_type'] == 'star']
-        logflux = -2.5*np.log10(cat_star['flux'])
-        mag = cat_star['mag']
-        zpt = np.mean(mag - logflux)
-        zpts.append(zpt)
-
-    all_images['zeropoint'] = zpts
     all_images['BAND'] = band
 
     explist = Table.from_pandas(all_images)
@@ -2003,3 +1984,4 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin='lower', cmap='gray')
     plt.scatter(ra_grid, dec_grid)
+
