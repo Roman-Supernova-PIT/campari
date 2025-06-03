@@ -202,9 +202,12 @@ def main():
         # create a lightcurve compared to true values, and one where we save
         # the images.
 
+        banner('Saving Lightcurve')
+
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
+            lc = build_lightcurve(ID, exposures, sn_path, roman_path,
+                                  confusion_metric,
                                   flux, use_roman, band, object_type,
                                   sigma_flux)
         else:

@@ -384,8 +384,10 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
                      roman_path=None, pointing_list=None, SCA_list=None,
                      truth='simple_model', lc_start=-np.inf, lc_end=np.inf):
     '''
-    This function finds all the exposures that contain a given supernova, and returns a list of them.
-    Utilizes Rob's awesome database method to find the exposures. Humongous speed up thanks to this.
+    This function finds all the exposures that contain a given supernova,
+    and returns a list of them.
+    Utilizes Rob's awesome database method to find the exposures.
+    Humongous speed up thanks to this.
 
     Inputs:
     snid: the ID of the supernova
@@ -404,9 +406,6 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
     lc_start, lc_end: the start and end of the light curve window, in terms of
                       time, in days, away from the peak.
     '''
-    #g = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23.fits')[1] #Am I still using this? XXX TODO
-    #g = g.data
-    #alldates = g['date']
     f = fits.open(roman_path + '/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits')[1]
     f = f.data
 
@@ -427,11 +426,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
 
     res = res.loc[res['filter'] == band]
     det = res.loc[(res['date'] >= start) & (res['date'] <= end)].copy()
-    #det['offpeak_time'] = det['date'] - peak
-    #det = det.sort_values('offpeak_time')
-    #if lc_start != -np.inf or lc_end != np.inf:
-    #    det = det.loc[(det['offpeak_time'] >= lc_start) &
-    #                  (det['offpeak_time'] <= lc_end)]
+
     if isinstance(maxdet, int):
         det = det.iloc[:maxdet]
     det['DETECTED'] = True
@@ -440,10 +435,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
         det = det.loc[det['Pointing'].isin(pointing_list)]
 
     bg = res.loc[(res['date'] < start) | (res['date'] > end)].copy()
-    #bg['offpeak_time'] = bg['date'] - peak
-    #if lc_start != -np.inf or lc_end != np.inf:
-    #    bg = bg.loc[(bg['offpeak_time'] >= lc_start) &
-    #                (bg['offpeak_time'] <= lc_end)]
+
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg['DETECTED'] = False
@@ -454,44 +446,22 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
 
     # Now we need to loop through the images and get the information we need
     zpts = []
-    true_mag = []
-    true_fluxes = []
-    realized_fluxes = []
+
     for index, row in all_images.iterrows():
-        cat = pd.read_csv(roman_path+f'/RomanTDS/truth/{band}/{row.Pointing}/Roman_TDS_index_{band}_{row.Pointing}_{row.SCA}.txt',\
-                                sep="\s+", skiprows = 1,
-                                names = ['object_id', 'ra', 'dec', 'x', 'y', 'realized_flux', 'flux', 'mag', 'obj_type'])
+        cat = pd.read_csv(roman_path+f'/RomanTDS/truth/{band}/' + \
+                                     f'{row.Pointing}/Roman_TDS_index_' +
+                                     f'{band}_{row.Pointing}_{row.SCA}.txt',
+                          sep="\s+", skiprows=1,
+                          names=['object_id', 'ra', 'dec', 'x', 'y',
+                                'realized_flux', 'flux', 'mag',
+                                'obj_type'])
         cat_star = cat.loc[cat['obj_type'] == 'star']
         logflux = -2.5*np.log10(cat_star['flux'])
         mag = cat_star['mag']
         zpt = np.mean(mag - logflux)
         zpts.append(zpt)
 
-        '''
-        if row.DETECTED:
-            try:
-                true_mag.append(cat.loc[cat['object_id'] == snid].mag.values[0])
-                true_fluxes.append(cat.loc[cat['object_id'] == snid].flux.values[0])
-                realized_fluxes.append(cat.loc[cat['object_id'] == snid].realized_flux.values[0])
-
-            except:
-                Lager.error(f'No truth file found for \
-                             {row.Pointing, row.SCA}')
-                true_mag.append(np.nan)
-                true_fluxes.append(np.nan)
-                realized_fluxes.append(np.nan)
-                continue
-
-
-        else:
-            true_mag.append(np.nan)
-            true_fluxes.append(np.nan)
-            realized_fluxes.append(np.nan)
-        '''
     all_images['zeropoint'] = zpts
-    #all_images['true mag'] = true_mag
-    #all_images['true flux'] = true_fluxes
-    #all_images['realized flux'] = realized_fluxes
     all_images['BAND'] = band
 
     explist = Table.from_pandas(all_images)
@@ -1467,8 +1437,8 @@ def calc_mag_and_err(flux, sigma_flux, band, zp = None):
     return mag, magerr, zp
 
 
-def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
-                     use_roman, band, object_type, sigma_flux):
+def build_lightcurve(ID, exposures, sn_path, roman_path, confusion_metric,
+                     flux, use_roman, band, object_type, sigma_flux):
 
     '''
     This code builds a lightcurve datatable from the output of the SMP algorithm.
@@ -1488,28 +1458,44 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
     '''
 
     detections = exposures[np.where(exposures['DETECTED'])]
-    parq_file = find_parquet(ID, path = sn_path, obj_type = object_type)
-    df = open_parquet(parq_file, path = sn_path, obj_type = object_type)
+    parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
+    df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
 
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    sim_sigma_flux = 0 # These are truth values!
-    sim_realized_mag, _, _ = calc_mag_and_err(detections['realized flux'],
-                                             sim_sigma_flux, band)
-    sim_true_mag, _, _ = calc_mag_and_err(detections['true flux'],
-                                         sim_sigma_flux, band)
+
+    sim_true_flux = []
+    sim_realized_flux = []
+    for pointing, SCA in zip(detections['Pointing'], detections['SCA']):
+        catalogue_path = roman_path+f'/RomanTDS/truth/{band}/{pointing}/' \
+                        + f'Roman_TDS_index_{band}_{pointing}_{SCA}.txt'
+        cat = pd.read_csv(catalogue_path, sep="\s+", skiprows=1,
+                          names=['object_id', 'ra', 'dec', 'x', 'y',
+                                 'realized_flux', 'flux', 'mag', 'obj_type'])
+        cat = cat[cat['object_id'] == ID]
+        sim_true_flux.append(cat['flux'].values[0])
+        sim_realized_flux.append(cat['realized_flux'].values[0])
+    sim_true_flux = np.array(sim_true_flux)
+    sim_realized_flux = np.array(sim_realized_flux)
+
+    sim_sigma_flux = 0  # These are truth values!
+    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux,
+                                              sim_sigma_flux, band)
+    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux,
+                                          sim_sigma_flux, band)
+
     if object_type == 'SN':
         df_object_row = df.loc[df.id == ID]
     if object_type == 'star':
         df_object_row = df.loc[df.id == str(ID)]
 
     if object_type == 'SN':
-        meta_dict ={'confusion_metric': confusion_metric, \
-        'host_sep': df_object_row['host_sn_sep'].values[0],\
-        'host_mag_g': df_object_row[f'host_mag_g'].values[0],\
-        'obj_ra': df_object_row['ra'].values[0], \
-        'obj_dec': df_object_row['dec'].values[0], \
-        'host_ra': df_object_row['host_ra'].values[0],\
-        'host_dec': df_object_row['host_dec'].values[0]}
+        meta_dict = {'confusion_metric': confusion_metric,
+                     'host_sep': df_object_row['host_sn_sep'].values[0],
+                     'host_mag_g': df_object_row['host_mag_g'].values[0],
+                     'obj_ra': df_object_row['ra'].values[0],
+                     'obj_dec': df_object_row['dec'].values[0],
+                     'host_ra': df_object_row['host_ra'].values[0],
+                     'host_dec': df_object_row['host_dec'].values[0]}
     else:
         meta_dict = {'ra': df_object_row['ra'].values[0],
                      'dec': df_object_row['dec'].values[0]}
@@ -1519,15 +1505,15 @@ def build_lightcurve(ID, exposures, sn_path, confusion_metric, flux,
                  'mag_err': magerr,
                  'band': np.full(np.size(mag), band),
                  'zeropoint': np.full(np.size(mag), zp),
-                 'SIM_realized_flux': detections['realized flux'],
-                 'SIM_true_flux': detections['true flux'],
+                 'SIM_realized_flux': sim_realized_flux,
+                 'SIM_true_flux': sim_true_flux,
                  'SIM_realized_mag': sim_realized_mag,
-                 'SIM_true_mag': sim_true_mag,}
-    units = {'MJD':u.d, 'SIM_realized_flux': '',  'flux': '',
+                 'SIM_true_mag': sim_true_mag}
+    units = {'MJD': u.d, 'SIM_realized_flux': '',  'flux': '',
              'flux_error': '', 'SIM_realized_mag': '',
-              'SIM_true_flux': '', 'SIM_true_mag': ''}
+             'SIM_true_flux': '', 'SIM_true_mag': ''}
 
-    return QTable(data = data_dict, meta = meta_dict, units = units)
+    return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
@@ -1584,7 +1570,7 @@ def save_lightcurve(lc,identifier, band, psftype, output_path = None,
                            f'{identifier}_{band}_{psftype}_lc.ecsv')
 
     Lager.info(f'Saving lightcurve to {lc_file}')
-    lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
+    lc.write(lc_file, format='ascii.ecsv', overwrite=overwrite)
 
 def banner(text):
     length = len(text) + 8
@@ -1721,7 +1707,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
-                   draw_method_for_non_roman_psf = 'no_pixel'):
+                   draw_method_for_non_roman_psf='no_pixel'):
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
     sn_matrix = []
@@ -1819,7 +1805,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     confusion_metric = 0
     Lager.debug('Confusion Metric not calculated')
 
-    if use_real_images and object_type == 'SN':
+    if use_real_images and object_type == 'SN' and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
         snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
