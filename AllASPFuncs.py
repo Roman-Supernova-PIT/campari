@@ -909,6 +909,12 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
     '''
     This function calculates the weights for each pixel in the cutout images.
 
+    The weights come from two sources. Firstly, the error in the image pixels
+    is accounted for, i.e. higher error = less weight in the fit.
+    Secondly, we can optionally apply a gaussian weighting to the fit
+        centered on the supernova, since we do not care about pixels far away
+        from the supernova.
+
     Inputs:
     cutout_wcs_list: list of snappl.wcs.BaseWCS objects, the WCS for each
                      cutout
@@ -917,7 +923,7 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
     error: numpy array of floats, the error in each pixel of the cutout images.
            If None, a uniform error of 1 is assumed.
     gaussian_var: float, the standard deviation squared of the Gaussian used
-                    to weight the pixels. This is in pixels.
+                    to weight   the pixels. This is in pixels.
     cutoff: float, the cutoff distance in pixels. Pixels further than this
                     distance from the supernova are given a weight of 0.
 
