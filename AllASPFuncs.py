@@ -295,8 +295,6 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     # This is the WCS galsim uses to draw the PSF.
     galsim_wcs = wcs.get_galsim_wcs()
     x, y = wcs.world_to_pixel(ra, dec)
-    # NOTE: This only works if using my PR #23 to snappl, otherwise a frame issue
-    # will cause regression to fail.
 
     # With plus ones here I recover the values pre-refactor!
 
