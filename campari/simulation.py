@@ -249,7 +249,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                                    use_true_center=True)
         return result.array
 
-    config_file = './temp_tds.yaml'
+    config_file = pathlib.Path(__file__).parent/'temp_tds.yaml'
     util_ref = roman_utils(config_file=config_file, visit=base_pointing,
                            sca=base_sca)
     photon_ops = [sim_psf] + util_ref.photon_ops

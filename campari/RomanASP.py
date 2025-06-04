@@ -1,4 +1,4 @@
-from AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, \
+from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, \
                         load_config, run_one_object, save_lightcurve
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
