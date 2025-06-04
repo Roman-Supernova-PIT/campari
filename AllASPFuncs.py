@@ -1881,8 +1881,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         drawing_psf = None if use_roman else airy
 
         whole_sca_wcs = image_list[i].get_wcs()
-        # NOTE: This only works if using my PR #23 to snappl, otherwise a frame issue
-        # will cause regression to fail.
         # With +1s here I recover previous values!
         x, y = whole_sca_wcs.world_to_pixel(ra, dec)
 

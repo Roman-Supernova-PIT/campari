@@ -1,10 +1,14 @@
 from AllASPFuncs import calc_mag_and_err, calculate_background_level, \
+                        construct_psf_background, \
                         extract_sn_from_parquet_file_and_write_to_csv, \
+                        extract_star_from_parquet_file_and_write_to_csv, \
                         findAllExposures, find_parquet, get_galsim_SED, \
-                        get_galsim_SED_list, \
+                        get_galsim_SED_list, get_weights, \
                         get_object_info, load_config, make_adaptive_grid, \
                         make_contour_grid, make_regular_grid, \
+                        open_parquet, \
                         radec2point, save_lightcurve
+import astropy
 from astropy.io import ascii
 from astropy.table import QTable
 import astropy.units as u
@@ -15,6 +19,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+from roman_imsim.utils import roman_utils
 from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
 import snappl
@@ -473,13 +478,13 @@ def test_construct_psf_background():
         np.testing.assert_allclose(psf_background, test_psf_background,
                                    atol=1e-7)
 
+
 def test_get_weights():
     wcs_data = np.load(pathlib.Path(__file__).parent
                        / 'tests/testdata/wcs_dict.npz', allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    Lager.debug(wcs_dict)
     wcs = galsim.fitswcs.AstropyWCS(wcs=astropy.wcs.WCS(wcs_dict))
     test_snra = np.array([7.67367421])
     test_sndec = np.array([-44.26416321])
@@ -487,7 +492,7 @@ def test_get_weights():
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         wgt_matrix = get_weights([wcs], size, test_snra, test_sndec,
-                                 error=None, gaussian_std=1000, cutoff=4)
+                                 error=None, gaussian_var=1000, cutoff=4)
         test_wgt_matrix = np.load(pathlib.Path(__file__).parent
                                 / 'tests/testdata/test_wgt_matrix.npy')
         np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
