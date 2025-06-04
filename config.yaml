@@ -29,3 +29,5 @@ use_real_images: true
 use_roman: true
 weighting: true
 grid_type: contour
+spacing: 0.75
+percentiles: [0, 90, 98, 100]

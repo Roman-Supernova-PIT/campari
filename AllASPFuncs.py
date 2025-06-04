@@ -1782,6 +1782,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                    lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
+                   spacing, percentiles,
                    draw_method_for_non_roman_psf = 'no_pixel'):
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
