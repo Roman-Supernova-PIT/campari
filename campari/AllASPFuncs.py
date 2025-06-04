@@ -518,18 +518,23 @@ def radec2point(RA, DEC, filt, path, start = None, end = None):
     #The plus 1 is because the SCA numbering starts at 1
     return rows, cols + 1
 
-def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_center = None, sed = None, flux = 1, photOps = True):
+def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
+                         y_center=None, sed=None, flux=1, photOps=True):
     '''
-        Constructs the PSF around the point source (x,y) location, allowing for some offset from the center
-        Inputs:
-        x,y are locations in the SCA
-        pointing, SCA: the pointing and SCA of the image
-        stampsize = size of cutout image used
-        x_center and y_center need to be given in coordinates of the cutout.
-        sed: the SED of the source
-        flux: If you are using this function to build a model grid point, this should be 1. If
-            you are using this function to build a model of a source, this should be the flux of the source.
-
+    Constructs the PSF around the point source (x,y) location, allowing for
+        some offset from the center.
+    Inputs:
+    x, y: floats, are locations in the SCA
+    pointing, SCA: ints, the pointing and SCA of the image
+    stampsize = int, size of cutout image used
+    x_center and y_center: floats, x and y location in the cutout.
+    sed: galsim.sed.SED object, the SED of the source
+    flux: float, If you are using this function to build a model grid point,
+        this should be 1. If you are using this function to build a model of
+        a source, this should be the flux of the source.
+    Outputs:
+    psf_image: numpy array of floats of size (stampsize, stampsize), the image
+                of the PSF at the (x,y) location.
     '''
 
     Lager.debug(f'ARGS IN PSF SOURCE: \n x, y: {x, y} \n' +
@@ -550,11 +555,11 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25,  x_center = None, y_
         # run, I'd want to know.
         Lager.warning('NOT USING PHOTON OPS IN PSF SOURCE')
 
-    master = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
-                          y_center=y_center, sed=sed,
-                          include_photonOps=photOps, flux=flux).array
+    psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
+                             y_center=y_center, sed=sed,
+                             include_photonOps=photOps, flux=flux).array
 
-    return master.flatten()
+    return psf_image.flatten()
 
 
 def gaussian(x, A, mu, sigma):
@@ -678,61 +683,44 @@ def calculate_background_level(im):
     return bg
 
 
-def getPSF_Image(self,stamp_size,x=None,y=None, x_center = None, y_center= None, pupil_bin=8,sed=None,
-                        oversampling_factor=1,include_photonOps=False,n_phot=1e6, pixel = False, flux = 1):
+def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
+                 y_center=None, pupil_bin=8, sed=None, oversampling_factor=1,
+                 include_photonOps=False, n_phot=1e6, pixel=False, flux=1):
 
-    """
-    This is a roman imsim function that I have repurposed slightly for off center placement.
-
-    Return a Roman PSF image for some image position
-    Parameters:
-        stamp_size: size of output PSF model stamp in native roman pixel_scale (oversampling_factor=1)
-        x: x-position in SCA
-        y: y-position in SCA
-        pupil_bin: pupil image binning factor
-        sed: SED to be used to draw the PSF - default is a flat SED.
-        oversampling_factor: factor by which to oversample native roman pixel_scale
-        include_photonOps: include additional contributions from other photon operators in effective psf image
-    Returns:
-        the PSF GalSim image object (use image.array to get a numpy array representation)
-    """
-    time1 = time.time()
-    '''
-    if sed is None:
-        sed = galsim.SED(galsim.LookupTable([100, 2600], [1,1], interpolant='linear'),
-                            wave_type='nm', flux_type='fphotons')
-    '''
     if pixel:
         point = galsim.Pixel(1)*sed
         Lager.debug('Building a Pixel shaped PSF source')
     else:
         point = galsim.DeltaFunction()*sed
-    time2 = time.time()
 
-    point = point.withFlux(flux,self.bpass)
-    local_wcs = self.getLocalWCS(x,y)
+    x_center += 1
+    y_center += 1
+    # Galsim uses 1-indexed pixel coordinates.
+
+    point = point.withFlux(flux, self.bpass)
+    local_wcs = self.getLocalWCS(x, y)
     wcs = galsim.JacobianWCS(dudx=local_wcs.dudx/oversampling_factor,
-                                dudy=local_wcs.dudy/oversampling_factor,
-                                dvdx=local_wcs.dvdx/oversampling_factor,
-                                dvdy=local_wcs.dvdy/oversampling_factor)
-    stamp = galsim.Image(stamp_size*oversampling_factor,stamp_size*oversampling_factor,wcs=wcs)
-
-    time3 = time.time()
+                             dudy=local_wcs.dudy/oversampling_factor,
+                             dvdx=local_wcs.dvdx/oversampling_factor,
+                             dvdy=local_wcs.dvdy/oversampling_factor)
+    stamp = galsim.Image(stamp_size*oversampling_factor,
+                         stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
-        psf = galsim.Convolve(point, self.getPSF(x,y,pupil_bin))
-        return psf.drawImage(self.bpass,image=stamp,wcs=wcs,method='no_pixel',
-                            center = galsim.PositionD(x_center, y_center),
-                            use_true_center = True)
+        psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
+        return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
+                             method='no_pixel',
+                             center=galsim.PositionD(x_center, y_center),
+                             use_true_center=True)
 
-    photon_ops = [self.getPSF(x,y,pupil_bin)] + self.photon_ops
+    photon_ops = [self.getPSF(x, y, pupil_bin)] + self.photon_ops
     Lager.debug(f'Using {n_phot:e} photons in getPSF_Image')
-    result = point.drawImage(self.bpass,wcs=wcs, method='phot',
-                            photon_ops=photon_ops, rng=self.rng, \
-                            n_photons=int(n_phot),maxN=int(n_phot),
-                            poisson_flux=False,
-                            center = galsim.PositionD(x_center, y_center),
-                            use_true_center = True, image=stamp)
+    result = point.drawImage(self.bpass, wcs=wcs, method='phot',
+                             photon_ops=photon_ops, rng=self.rng,
+                             n_photons=int(n_phot), maxN=int(n_phot),
+                             poisson_flux=False,
+                             center=galsim.PositionD(x_center, y_center),
+                             use_true_center=True, image=stamp)
     return result
 
 
@@ -1858,8 +1846,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
     if use_real_images and object_type == 'SN' and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
-        x, y = im_wcs_list[0].toImage(ra, dec, units='deg')
-        snx, sny = cutout_wcs_list[0].toImage(snra, sndec, units='deg')
+        x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
+        snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
         pointing, SCA = exposures['Pointing'][0], exposures['SCA'][0]
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
@@ -1923,7 +1911,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
         # TODO make this not bad
         if num_detect_images != 0 and i >= num_total_images - num_detect_images:
-            snx, sny = cutout_wcs_list[i].toImage(snra, sndec, units='deg')
+            snx, sny = cutout_image_list[i]\
+                       .get_wcs().world_to_pixel(snra, sndec)
             if use_roman:
                 if use_real_images:
                     pointing = exposures['Pointing'][i]
@@ -1940,17 +1929,18 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                 Lager.debug(f'Using SED #{sn_index}')
                 sed = sedlist[sn_index]
                 Lager.debug(f'x, y, snx, sny, {x, y, snx, sny}')
-                psf_source_array = construct_psf_source(x, y, pointing, SCA,
-                                             stampsize=size, x_center=snx,
-                                             y_center=sny, sed=sed,
-                                             photOps=source_phot_ops)
+                psf_source_array =\
+                    construct_psf_source(x, y, pointing, SCA,
+                                         stampsize=size, x_center=snx,
+                                         y_center=sny, sed=sed,
+                                         photOps=source_phot_ops)
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
                 profile = profile.withFlux(1, roman_bandpasses[band])
                 convolved = galsim.Convolve(profile, drawing_psf)
                 psf_source_array =\
-                     convolved.drawImage(roman_bandpasses[band],
+                    convolved.drawImage(roman_bandpasses[band],
                                         method=draw_method_for_non_roman_psf,
                                         image=stamp,
                                         wcs=cutout_wcs_list[i],
