@@ -23,6 +23,7 @@ from roman_imsim.utils import roman_utils
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
 import snappl
+from snpit_utils.logger import SNLogger as Lager
 import tempfile
 import warnings
 import yaml
@@ -187,7 +188,8 @@ def test_run_on_star():
 
 
 def test_regression():
-    # Regression lightcurve was changed on 5.29.2025 to fix an off by one err.
+    # Regression lightcurve was changed on June 4th 2025 because generateGuess
+    # now uses snappl wcs.
     config = yaml.safe_load(open(config_path))
     config['use_roman'] = True
     config['use_real_images'] = True
@@ -217,6 +219,7 @@ def test_regression():
                              delimiter=' ')
 
     for col in current.columns:
+        Lager.debug(f'Checking col {col}')
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = "The lightcurves do not match for column %s" % col

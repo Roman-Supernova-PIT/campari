@@ -243,17 +243,14 @@ def generateGuess(imlist, wcslist, ra_grid, dec_grid):
     imx, imy = np.meshgrid(imx, imy)
     all_vals = np.zeros_like(ra_grid)
 
-    for i,imwcs in enumerate(zip(imlist, wcslist)):
+    for i, imwcs in enumerate(zip(imlist, wcslist)):
         im, wcs = imwcs
-        if type(wcs) == galsim.fitswcs.AstropyWCS:
-            # This actually means that we have a galsim wcs that was loaded from an astropy one
-            xx, yy = wcs.toImage(ra_grid, dec_grid,units='deg')
-        else:
-            xx, yy = wcs.world_to_pixel(SkyCoord(ra = ra_grid*u.degree, dec = dec_grid*u.degree))
-
+        xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
         grid_point_vals = np.zeros_like(xx)
-        for imval, imxval, imyval in zip(im.flatten(), imx.flatten(), imy.flatten()):
-            grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
+        for imval, imxval, imyval in zip(im.flatten(),
+                                         imx.flatten(), imy.flatten()):
+            grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) &
+                                     (np.abs(yy - imyval) < 0.5))] = imval
         all_vals += grid_point_vals
     return all_vals/len(wcslist)
 
@@ -747,14 +744,14 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
 
     Returns:
     images: array, the actual image data, shape (num_total_images, size, size)
-    cutout_wcs_list: list of wcs objects for the cutouts
-    im_wcs_list: list of wcs objects for the entire SCA
     err: array, the uncertainty in each pixel
                 of images, shape (num_total_images, size, size)
     snra, sndec: floats, the RA and DEC of the supernova, a single float is
                          used for both of these as we assume the object is
                          not moving between exposures.
     exposures: astropy.table.table.Table, table of exposures used
+    cutout_image_list: list of snappl.image.Image objects, the cutout images
+    image_list: list of snappl.image.Image objects, the full images
 
     '''
 
@@ -796,21 +793,17 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
     # code understands.
 
     images = []
-    cutout_wcs_list = []
-    im_wcs_list = []
     err = []
     for cutout, image in zip(cutout_image_list, image_list):
         images.append(cutout._data)
         # These next two lines are bad stuff these will be removed.
         # Bad because they use ._wcs (with an underscore) and because
         # they are not snappl objects. This is all to be removed.
-        cutout_wcs_list.append(galsim.AstropyWCS(wcs=cutout._wcs._wcs))
-        im_wcs_list.append(galsim.AstropyWCS(wcs=image._wcs._wcs))
         err.append(cutout._noise)
 
     ########################### END TEMPORARY SECTION #########################
 
-    return images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
+    return images, err, snra, sndec, ra, dec, \
         exposures, cutout_image_list, image_list
 
 
@@ -1762,8 +1755,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     Lager.debug(f'ID: {ID}')
     psf_matrix = []
     sn_matrix = []
-    cutout_wcs_list = []
-    im_wcs_list = []
+
 
     # This is a catch for when I'm doing my own simulated WCSs
     util_ref = None
@@ -1776,7 +1768,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
 
-        images, cutout_wcs_list, im_wcs_list, err, snra, sndec, ra, dec, \
+        images, err, snra, sndec, ra, dec, \
             exposures, cutout_image_list, image_list = \
                                      fetchImages(num_total_images,
                                                  num_detect_images, ID,
@@ -1827,15 +1819,17 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # make sense.
     if make_initial_guess and num_total_images != num_detect_images:
         if num_detect_images != 0:
-            x0test = generateGuess(images[:-num_detect_images], cutout_wcs_list,
+            x0test = generateGuess(images[:-num_detect_images],
+                                   [im.get_wcs() for im in cutout_image_list],
                                    ra_grid, dec_grid)
             x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
             x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
             print(x0test.shape)
             Lager.debug(f'setting initial guess to {initial_flux_guess}')
         else:
-            x0test = generateGuess(images, cutout_wcs_list, ra_grid,
-                                   dec_grid)
+            x0test = generateGuess(images,
+                                   [im.get_wcs() for im in cutout_image_list],
+                                   ra_grid, dec_grid)
 
     else:
         x0test = None
@@ -2031,7 +2025,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
-        wgt_matrix, confusion_metric, X, cutout_wcs_list, sim_lc
+        wgt_matrix, confusion_metric, X, \
+        [im.get_wcs() for im in cutout_image_list], sim_lc
 
 
 def plot_image_and_grid(image, wcs, ra_grid, dec_grid):

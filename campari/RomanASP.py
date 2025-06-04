@@ -220,8 +220,8 @@ def main():
         # save wcses
         primary_hdu = fits.PrimaryHDU()
         hdul = [primary_hdu]
-        for i, galsimwcs in enumerate(cutout_wcs_list):
-            hdul.append(fits.ImageHDU(header=galsimwcs.wcs.to_header(),
+        for i, wcs in enumerate(cutout_wcs_list):
+            hdul.append(fits.ImageHDU(header=wcs.to_fits_header(),
                         name="WCS" + str(i)))
         hdul = fits.HDUList(hdul)
         filepath = f'./results/images/{identifier}_{band}_{psftype}_wcs.fits'
