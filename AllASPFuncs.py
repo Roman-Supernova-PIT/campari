@@ -916,8 +916,8 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
     snra, sndec: floats, the RA and DEC of the supernova
     error: numpy array of floats, the error in each pixel of the cutout images.
            If None, a uniform error of 1 is assumed.
-    gaussian_var: float, the standard deviation of the Gaussian used to weight
-                  the pixels. This is in pixels.
+    gaussian_var: float, the standard deviation squared of the Gaussian used
+                    to weight the pixels. This is in pixels.
     cutoff: float, the cutoff distance in pixels. Pixels further than this
                     distance from the supernova are given a weight of 0.
 
