@@ -1705,7 +1705,6 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     '''
     # Get the supernova IDs from the parquet file
     df = open_parquet(parquet_file, sn_path, obj_type='SN')
-    # For now, this is only supported for SNe. TODO
     if mag_limits is not None:
         min_mag, max_mag = mag_limits
         # This can't always be just g band I think. TODO
@@ -1719,6 +1718,59 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
         raise ValueError('No supernovae found in the given range.')
 
     pd.DataFrame(SN_ID).to_csv(output_path, index=False, header=False)
+    Lager.info(f'Saved to {output_path}')
+
+
+def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
+                                                  output_path,
+                                                  ra=None,
+                                                  dec=None,
+                                                  radius=None):
+    '''
+    Convenience function for getting a list of star IDs
+    from a parquet file. The stars can be cone-searched for by passing a
+    central coordinate and a radius.
+    This is not used anywhere in the main algorithm.
+
+    Inputs:
+    parquet_file: int,  the number label of the parquet file to use.
+    sn_path: str, the path to the supernova data
+    ra: float, the central RA of the region to search in
+    dec: float, the central Dec of the region to search in
+    radius: float, the radius over which cone search is performed. Can have
+                    any angular astropy.unit attached to it. If no unit is
+                    included, the function will produce a warning and then
+                    automatically assume you meant degrees.
+    If no ra, dec, and radius are passed, no cone search
+    is performed and the IDs of the entire parquet file are returned.
+    If one or two of the above arguments is passed but not all three, the
+    cone search is not performed.
+
+    Output:
+    Saves a csv file to output_path of the IDs of stars from the parquet
+    file that pass location cuts. If none are found, raise a ValueError.
+    '''
+    if not hasattr(radius, 'unit') and radius is not None:
+        Lager.warning('extract_star_from_parquet_file_and_write_to_csv ' +
+                      'a radius argument with no units. Assuming degrees.')
+        radius *= u.deg
+
+    df = open_parquet(parquet_file, sn_path, obj_type='star')
+    df = df[df['object_type'] == 'star']
+
+    if radius is not None and (ra is not None and dec is not None):
+        center_coord = SkyCoord(ra*u.deg, dec*u.deg)
+        df_coords = SkyCoord(ra=df['ra'].values*u.deg,
+                                    dec=df['dec'].values*u.deg)
+        sep = center_coord.separation(df_coords)
+        df = df[sep < radius]
+
+    star_ID = df.id.values
+    star_ID = np.array(star_ID, dtype=int)
+    Lager.info(f'Found {np.size(star_ID)} stars in the given range.')
+    if np.size(star_ID) == 0:
+        raise ValueError('No stars found in the given range.')
+    pd.DataFrame(star_ID).to_csv(output_path, index=False, header=False)
     Lager.info(f'Saved to {output_path}')
 
 
