@@ -1,0 +1,1 @@
+Move over to use the SNPit package template.
