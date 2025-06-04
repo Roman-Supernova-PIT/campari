@@ -1,10 +1,14 @@
 from AllASPFuncs import calc_mag_and_err, calculate_background_level, \
+                        construct_psf_background, \
                         extract_sn_from_parquet_file_and_write_to_csv, \
+                        extract_star_from_parquet_file_and_write_to_csv, \
                         findAllExposures, find_parquet, get_galsim_SED, \
-                        get_galsim_SED_list, \
+                        get_galsim_SED_list, get_weights, \
                         get_object_info, load_config, make_adaptive_grid, \
                         make_contour_grid, make_regular_grid, \
+                        open_parquet, \
                         radec2point, save_lightcurve
+import astropy
 from astropy.io import ascii
 from astropy.table import QTable
 import astropy.units as u
@@ -15,6 +19,7 @@ import numpy as np
 import os
 import pandas as pd
 import pathlib
+from roman_imsim.utils import roman_utils
 from simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
 import snappl
@@ -227,8 +232,11 @@ def test_regression():
                                    / comparison[col])
             msg2 = f"difference is {percent} %"
             msg = msg+msg2
-            np.testing.assert_allclose(current[col], comparison[col],
-                                       rtol=1e-7), msg
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
 def test_get_galsim_SED():
@@ -441,13 +449,42 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
+def test_construct_psf_background():
+    wcs_data = np.load('./tests/testdata/wcs_dict.npz', allow_pickle=True)
+    # Loading the data in this way, the data is packaged in an array,
+    # this extracts just the value so that we can build the WCS.
+    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
+
+    ra_grid = np.array([7.67357048, 7.67360506, 7.67363963, 7.67367421])
+    dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
+                         -44.26416321])
+
+    config_file = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    pointing = 43623  # These numbers are arbitrary for this test.
+    SCA = 7
+
+    size = 9
+    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
+
+    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
+                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+
+        psf_background = construct_psf_background(ra_grid, dec_grid, wcs,
+                                                  x_loc=2044, y_loc=2044,
+                                                  stampsize=size, band='Y106',
+                                                  util_ref=util_ref)
+        test_psf_background = np.load(pathlib.Path(__file__).parent
+                                      / 'tests/testdata/test_psf_bg.npy')
+        np.testing.assert_allclose(psf_background, test_psf_background,
+                                   atol=1e-7)
+
+
 def test_get_weights():
     wcs_data = np.load(pathlib.Path(__file__).parent
                        / 'tests/testdata/wcs_dict.npz', allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    Lager.debug(wcs_dict)
     wcs = galsim.fitswcs.AstropyWCS(wcs=astropy.wcs.WCS(wcs_dict))
     test_snra = np.array([7.67367421])
     test_sndec = np.array([-44.26416321])
@@ -455,7 +492,7 @@ def test_get_weights():
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         wgt_matrix = get_weights([wcs], size, test_snra, test_sndec,
-                                 error=None, gaussian_std=1000, cutoff=4)
+                                 error=None, gaussian_var=1000, cutoff=4)
         test_wgt_matrix = np.load(pathlib.Path(__file__).parent
                                 / 'tests/testdata/test_wgt_matrix.npy')
         np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)

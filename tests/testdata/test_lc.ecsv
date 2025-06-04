@@ -13,7 +13,7 @@
 # - {name: SIM_realized_mag, datatype: float64}
 # - {name: SIM_true_mag, datatype: float64}
 # meta: !!omap
-# - {confusion_metric: 42.87779402427623}
+# - {confusion_metric: 0}
 # - {host_sep: 0.17470838}
 # - {host_mag_g: 25.508}
 # - {obj_ra: 7.344774044463684}
@@ -27,4 +27,4 @@
 #       value: !astropy.table.SerializedColumn {name: MJD}
 # schema: astropy-2.0
 MJD flux flux_error mag mag_err band zeropoint SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
-62495.605 4210.764760581415 4950.943976761171 23.600753304035784 1.2765897476914776 Y106 15.023547191066584 2348.0 2458.98456 24.23491052188777 24.184766248812018
+62495.605 3847.582099346836 1682.7761905910404 23.698686014483197 0.4748569328617622 Y106 15.023547191066584 2348.0 2458.98456 24.23491052188777 24.184766248812018
