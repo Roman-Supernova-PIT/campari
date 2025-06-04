@@ -1,0 +1,35 @@
+{
+  "template": "https://github.com/Roman-Supernova-PIT/package-template",
+  "commit": "6e3a5098a36684e6d6f5c18a0da13e71bb5c42d1",
+  "checkout": null,
+  "context": {
+    "cookiecutter": {
+      "package_name": "roman-snpit-campari",
+      "module_name": "campari",
+      "github_snpit_repo_name": "campari",
+      "short_description": "Scene modelling photometry for Roman Supernova PIT",
+      "author_name": "Cole Meldorf",
+      "author_email": "cmeldorf@sas.upenn.edu",
+      "github_username": "ColeFMeldorf",
+      "minimum_python_version": "3.11",
+      "use_compiled_extensions": "n",
+      "include_example_code": "n",
+      "include_github_workflows": "y",
+      "_project_url": "https://github.com/Roman-Supernova-PIT",
+      "_pit_github_org": "Roman-Supernova-PIT",
+      "_pit_name": "Roman Supernove Project Infrastructure Team",
+      "_sphinx_theme": "alabaster",
+      "_parent_project": "",
+      "install_requires": "",
+      "_copy_without_render": [
+        "docs/_templates",
+        "docs/_static",
+        ".github/workflows",
+        ".github/"
+      ],
+      "_template": "https://github.com/Roman-Supernova-PIT/package-template",
+      "_commit": "6e3a5098a36684e6d6f5c18a0da13e71bb5c42d1"
+    }
+  },
+  "directory": null
+}
