@@ -26,7 +26,7 @@ from campari.simulation import simulate_galaxy, simulate_images, simulate_supern
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.logger import SNLogger as Lager
-from snpit_utils.Config import Config
+from snpit_utils.config import Config
 import tempfile
 import warnings
 import yaml
@@ -43,22 +43,29 @@ def config_path():
 def cfg( config_path ):
     return Config.get(config_path, setdefault=True)
 
-# roman_path = config.value('photometry.campari.paths.roman_path')
-# sn_path = config.value('photometry.campari.paths.sn_path')
 
-def test_find_parquet():
+@pytest.fixture(scope='module')
+def roman_path( cfg ):
+    return cfg.value('photometry.campari.paths.roman_path')
+
+@pytest.fixture(scope='module')
+def sn_path( cfg ):
+    return cfg.value('photometry.campari.paths.sn_path')
+
+
+def test_find_parquet(sn_path):
     parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
 
 
-def test_radec2point():
+def test_radec2point(roman_path):
     p, s = radec2point(7.731890048839705, -44.4589649005717, 'Y106',
                        path=roman_path)
     assert p == 10535
     assert s == 14
 
 
-def test_get_object_info():
+def test_get_object_info(roman_path, sn_path):
     ra, dec, p, s, start, end, peak = get_object_info(50134575, 10430, 'Y106',
                                                       snpath=sn_path,
                                                       roman_path=roman_path,
@@ -72,7 +79,7 @@ def test_get_object_info():
     assert peak[0] == np.float32(62683.98)
 
 
-def test_findAllExposures():
+def test_findAllExposures(roman_path):
     explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
                                62654., 62958., 62683.98, 'Y106', maxbg=24,
                                maxdet=24, return_list=True, stampsize=25,
@@ -86,7 +93,7 @@ def test_findAllExposures():
     assert explist['date'].all() == compare_table['date'].all()
 
 
-def test_simulate_images():
+def test_simulate_images(roman_path):
     lam = 1293  # nm
     band = 'F184'
     airy = \
@@ -110,7 +117,7 @@ def test_simulate_images():
     assert compare_images.all() == np.asarray(images).all()
 
 
-def test_simulate_wcs():
+def test_simulate_wcs(roman_path):
     wcs_dict = simulate_wcs(angle=np.pi/4, x_shift=0.1, y_shift=0,
                             roman_path=roman_path, base_sca=11,
                             base_pointing=662, band='F184')
@@ -181,35 +188,28 @@ def test_savelightcurve():
 
 
 def test_run_on_star( config_path ):
-    config = yaml.safe_load(open(config_path))
     err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
-                         f'-o "testdata" --config {temp_config_path} '
+                         f'-o "testdata" --config {config_path} '
                          f'--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
-def test_regression():
+def test_regression(config_path):
     # Regression lightcurve was changed on June 4th 2025 because generateGuess
     # now uses snappl wcs.
-    config = yaml.safe_load(open(config_path))
-    config['use_roman'] = True
-    config['use_real_images'] = True
-    config['fetch_SED'] = False
-    config['grid_type'] = 'contour'
-    config['band'] = 'Y106'
-    config['size'] = 19
-    config['weighting'] = True
-    config['subtract_background'] = True
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
-    config['source_phot_ops'] = False
 
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
-            as temp_config:
-        yaml.dump(config, temp_config)
-        temp_config_path = temp_config.name
-    output = os.system(f'python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 -o \
-              "testdata" --config {temp_config_path}')
+    output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
+                       f"-o testdata --config {config_path} "
+                        "--photometry-campari-use_roman 1 "
+                        "--photometry-campari-use_real_images 1 "
+                        "--photometry-campari-fetch_SED 0 "
+                        "--photometry-campari-grid_options-type contour "
+                        "--photometry-campari-cutout_size 19 "
+                        "--photometry-campari-weighting 1 "
+                        "--photometry-campari-subtract_background 1 "
+                        "--photometry-campari-source_phot_ops 0 ")
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv(pathlib.Path(__file__).parent
@@ -239,7 +239,7 @@ def test_regression():
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
-def test_get_galsim_SED():
+def test_get_galsim_SED(sn_path):
     sed = get_galsim_SED(40973149150, 000, sn_path, obj_type='star',
                          fetch_SED=True)
     lam = sed._spec.x
@@ -267,7 +267,7 @@ def test_get_galsim_SED():
     np.testing.assert_array_equal(flambda, sn_flambda_test)
 
 
-def test_get_galsim_SED_list():
+def test_get_galsim_SED_list(sn_path):
     exposures = {'date': [62535.424], 'DETECTED': [True]}
     exposures = pd.DataFrame(exposures)
     fetch_SED = True
@@ -297,7 +297,7 @@ def test_plot_lc():
     assert output[5] == 0.0
 
 
-def test_extract_sn_from_parquet_file_and_write_to_csv():
+def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     output_path = pathlib.Path(__file__).parent / "testdata/snids.csv"
     extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path,
                                                   output_path,
@@ -310,7 +310,7 @@ def test_extract_sn_from_parquet_file_and_write_to_csv():
         "The SNIDs do not match the test example"
 
 
-def test_extract_star_from_parquet_file_and_write_to_csv():
+def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)\
             as temp_file:
         output_path = temp_file.name
@@ -479,7 +479,7 @@ def test_construct_psf_background():
                                    atol=1e-7)
 
 
-def test_get_weights():
+def test_get_weights(roman_path):
     test_snra = np.array([7.34465537])
     test_sndec = np.array([-44.91932581])
     size = 7
