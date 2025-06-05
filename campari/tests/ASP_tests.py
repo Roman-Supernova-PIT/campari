@@ -8,6 +8,7 @@ from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
                         make_contour_grid, make_regular_grid, \
                         open_parquet, \
                         radec2point, save_lightcurve
+import pytest
 import astropy
 from astropy.io import ascii
 from astropy.table import QTable
@@ -33,11 +34,17 @@ import yaml
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-config_path = pathlib.Path(__file__).parent / 'test_config.yaml'
-config = Config.get(config_path, setdefault=True)
-roman_path = config.value('photometry.campari.paths.roman_path')
-sn_path = config.value('photometry.campari.paths.sn_path')
+@pytest.fixture( scope='session' )
+def config_path():
+    return pathlib.Path(__file__).parent / 'test_config.yaml'
 
+
+@pytest.fixture( scope='module' )
+def cfg( config_path ):
+    return Config.get(config_path, setdefault=True)
+
+# roman_path = config.value('photometry.campari.paths.roman_path')
+# sn_path = config.value('photometry.campari.paths.sn_path')
 
 def test_find_parquet():
     parq_file_ID = find_parquet(50134575, sn_path)
@@ -173,18 +180,11 @@ def test_savelightcurve():
     assert os.path.exists(lc_file)
 
 
-def test_run_on_star():
+def test_run_on_star( config_path ):
     config = yaml.safe_load(open(config_path))
-    config['grid_type'] = 'none'
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".yaml", delete=False)\
-            as temp_config:
-        yaml.dump(config, temp_config)
-        temp_config_path = temp_config.name
-
-    err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1\
-                          -o "testdata" --config {temp_config_path}\
-                          --object_type star')
+    err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
+                         f'-o "testdata" --config {temp_config_path} '
+                         f'--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 

@@ -49,7 +49,30 @@ Adapted from code by Pedro Bernardinelli
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Can overwrite config file")
+    # Run one arg pass just to get the config file, so we can augment
+    #   the full arg parser later with config options
+    configparser = argparse.ArgumentParser( add_help=False )
+    configparser.add_argument( '-c', '--config', default=None, help="Location of the .yaml config file" )
+    args, leftovers = configparser.parse_known_args()
+
+    desc = "Run the campari pipeline."
+    try:
+        cfg = Config.get( args.config, setdefault=True )
+    except RuntimeError:
+        # If it failed to load the config file, just move on with life.  This
+        #   may mean that things will fail later, but it may also just mean
+        #   that somebody is doing '--help'
+        cfg = None
+        desc += ( " Include --config <configfile> before --help (or set SNPIT_CONFIG) for "
+                  "help to show you all config options that can be passed on the command line." )
+
+    parser = argparse.ArgumentParser(description=desc)
+
+    # This next argument will have been consumed by configparser above, and
+    #   thus will never be parsed here, but include it so it shows up
+    #   with --help.
+    parser.add_argument('-c', '--config', default=None,
+                        help="Location of the .yaml config file.  Defaults to env var SNPIT_CONFIG." )
 
     parser.add_argument('-f', '--filter', type=str, required=True,
                         help='Roman filter')
@@ -64,9 +87,6 @@ def main():
     # TODO:change all instances of this variable to det_images
     parser.add_argument('-o', '--output_path', type=str, required=False,
                         help='relative output path')
-
-    parser.add_argument('-c', '--config', type=str, required=False,
-                        help='relative config file path')
 
     parser.add_argument('--SNID_file', type=str, required=False,
                         help='Path to a csv file containing a list of SNIDs to run.' +
@@ -88,7 +108,14 @@ def main():
                              'assumes supernova.',
                         default='SN')
 
-    args = parser.parse_args()
+    if cfg is not None:
+        cfg.augment_argparse( parser )
+    args = parser.parse_args( leftovers )
+
+    if cfg is None:
+        raise ValueError( "Must pass as config file, or must set SNPIT_CONFIG" )
+    cfg.parse_args( args )
+
     band = args.filter
     SNID = args.SNID
     num_total_images = args.num_total_images
