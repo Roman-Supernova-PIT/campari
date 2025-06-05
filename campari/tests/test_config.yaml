@@ -15,6 +15,9 @@ photometry:
     paths:
       roman_path: /hpc/group/cosmology/OpenUniverse2024
       sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
+      output_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
+      debug_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
+
 
     grid_options:
       type: contour

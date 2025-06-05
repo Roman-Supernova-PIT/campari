@@ -8,6 +8,7 @@ import galsim
 import numpy as np
 import os
 import pandas as pd
+import pathlib
 import snappl
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
@@ -224,18 +225,19 @@ def main():
         else:
             psftype = 'analyticpsf'
 
+        output_dir = pathlib.Path(cfg.value('photometry.campari.paths.output_dir'))
         save_lightcurve(lc, identifier, band, psftype,
-                        output_path=output_path)
+                        output_path=output_dir)
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
-        Lager.info('Saving images to ./results/images/' +
-                   f'{identifier}_{band}_{psftype}_images.npy')
-        np.save(f'./results/images/{identifier}_{band}_{psftype}_images.npy',
+        debug_dir = pathlib.Path(cfg.value('photometry.campari.paths.debug_dir'))
+        Lager.info(f'Saving images to {debug_dir}')
+        np.save(debug_dir / f'{identifier}_{band}_{psftype}_images.npy',
                 images_and_model)
 
         # Save the ra and decgrid
-        np.save(f'./results/images/{identifier}_{band}_{psftype}_grid.npy',
+        np.save(debug_dir / f'{identifier}_{band}_{psftype}_grid.npy',
                 [ra_grid, dec_grid, X[:np.size(ra_grid)]])
 
         # save wcses
@@ -245,7 +247,7 @@ def main():
             hdul.append(fits.ImageHDU(header=wcs.to_fits_header(),
                         name="WCS" + str(i)))
         hdul = fits.HDUList(hdul)
-        filepath = f'./results/images/{identifier}_{band}_{psftype}_wcs.fits'
+        filepath = debug_dir / f'{identifier}_{band}_{psftype}_wcs.fits'
         hdul.writeto(filepath, overwrite=True)
 
 if __name__ == "__main__":

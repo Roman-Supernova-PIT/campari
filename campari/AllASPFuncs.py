@@ -1520,8 +1520,9 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     units = {'MJD':u.d, 'SIM_flux': '',  'flux': '', 'flux_error':''}
     return QTable(data = data_dict, meta = meta_dict, units = units)
 
-def save_lightcurve(lc,identifier, band, psftype, output_path = None,
-                    overwrite = True):
+
+def save_lightcurve(lc, identifier, band, psftype, output_path=None,
+                    overwrite=True):
     '''
     This function parses settings in the SMP algorithm and saves the lightcurve
     to an ecsv file with an appropriate name.
@@ -1611,13 +1612,14 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
                 correct rows and columns, see comment below. Shape (n*s^2, n)
     wgt_matrix: 1D array of weights. Length n*s^2
     '''
-    size_sq = images[0].image_shape[0]
+    Lager.debug('Prep data for fit')
+    size_sq = images[0].image_shape[0]**2
     tot_num = len(images)
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
-    err = np.concatenate([im.noise for im in images])
-    image_data = np.concatenate([im.data for im in images])
+    err = np.concatenate([im.noise.flatten() for im in images])
+    image_data = np.concatenate([im.data.flatten() for im in images])
 
     # The final design matrix for our fit should have dimensions:
     # (total number of pixels in all images, number of model components)
@@ -1642,7 +1644,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
 
-    return images, err, sn_matrix, wgt_matrix
+    return image_data, err, sn_matrix, wgt_matrix
 
 
 def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
@@ -1959,12 +1961,18 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     banner('Solving Photometry')
+
     # These if statements can definitely be written more elegantly.
     if not make_initial_guess:
         x0test = np.zeros(psf_matrix.shape[1])
 
     if not subtract_background:
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
+
+    Lager.debug(f'shape psf_matrix: {psf_matrix.shape}')
+    Lager.debug(f'shape wgt_matrix: {wgt_matrix.reshape(-1,1).shape}')
+    Lager.debug(f'image shape: {images.shape}')
+
 
     if method == 'lsqr':
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
@@ -1975,9 +1983,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
                     f'r1norm: {r1norm}')
     flux = X[-num_detect_images:]
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
-    Lager.debug(f'inv_cov shape: {inv_cov.shape}')
-    Lager.debug(f'psf_matrix shape: {psf_matrix.shape}')
-    Lager.debug(f'wgt_matrix shape: {wgt_matrix.shape}')
+
     try:
         cov = np.linalg.inv(inv_cov)
     except LinAlgError:
