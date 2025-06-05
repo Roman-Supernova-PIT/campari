@@ -255,9 +255,9 @@ def generateGuess(imlist, ra_grid, dec_grid):
     all_vals = np.zeros_like(ra_grid)
 
     wcslist = [im.get_wcs() for im in imlist]
-    imlist = [im.data for im in imlist]
+    imdata = [im.data for im in imlist]
 
-    for i, imwcs in enumerate(zip(imlist, wcslist)):
+    for i, imwcs in enumerate(zip(imdata, wcslist)):
         im, wcs = imwcs
         xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
         grid_point_vals = np.zeros_like(xx)
