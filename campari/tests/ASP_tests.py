@@ -1,3 +1,7 @@
+from astropy.io import ascii
+from astropy.table import QTable
+import astropy.units as u
+from astropy.utils.exceptions import AstropyWarning
 from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
                         construct_psf_background, \
                         extract_sn_from_parquet_file_and_write_to_csv, \
@@ -8,48 +12,44 @@ from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
                         make_contour_grid, make_regular_grid, \
                         open_parquet, \
                         radec2point, save_lightcurve
-import pytest
-import astropy
-from astropy.io import ascii
-from astropy.table import QTable
-import astropy.units as u
-from astropy.utils.exceptions import AstropyWarning
+from campari.simulation import simulate_galaxy, simulate_images, \
+                               simulate_supernova, simulate_wcs
 from erfa import ErfaWarning
 import galsim
 import numpy as np
 import os
 import pandas as pd
 import pathlib
+import pytest
 from roman_imsim.utils import roman_utils
-from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, \
-                       simulate_wcs
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
-from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger as Lager
 import tempfile
 import warnings
-import yaml
 
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-@pytest.fixture( scope='session' )
+
+@pytest.fixture(scope='session')
 def config_path():
     return pathlib.Path(__file__).parent / 'test_config.yaml'
 
 
-@pytest.fixture( scope='module' )
-def cfg( config_path ):
+@pytest.fixture(scope='module')
+def cfg(config_path):
     return Config.get(config_path, setdefault=True)
 
 
 @pytest.fixture(scope='module')
-def roman_path( cfg ):
+def roman_path(cfg):
     return cfg.value('photometry.campari.paths.roman_path')
 
+
 @pytest.fixture(scope='module')
-def sn_path( cfg ):
+def sn_path(cfg):
     return cfg.value('photometry.campari.paths.sn_path')
 
 
@@ -187,7 +187,7 @@ def test_savelightcurve():
     assert os.path.exists(lc_file)
 
 
-def test_run_on_star( config_path ):
+def test_run_on_star(config_path):
     err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
                          f'-o "testdata" --config {config_path} '
                          f'--object_type star --photometry-campari-grid_options-type none')
