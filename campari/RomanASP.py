@@ -105,34 +105,6 @@ def main():
     config = Config.get(args.config, setdefault=True)
 
     size = config.value('photometry.campari.cutout_size')
-    # use_real_images = config['use_real_images']
-    # use_roman = config['use_roman']
-    # check_perfection = config['check_perfection']
-    # make_exact = config['make_exact']
-    # avoid_non_linearity = config['avoid_non_linearity']
-    # deltafcn_profile = config['deltafcn_profile']
-    # do_xshift = config['do_xshift']
-    # do_rotation = config['do_rotation']
-    # noise = config['noise']
-    # method = config['method']
-    # make_initial_guess = config['make_initial_guess']
-    # subtract_background = config['subtract_background']
-    # weighting = config['weighting']
-    # pixel = config['pixel']
-    # roman_path = config['roman_path']
-    # sn_path = config['sn_path']
-    # bg_gal_flux = config['bg_gal_flux']
-    # source_phot_ops = config['source_phot_ops']
-    # mismatch_seds = config['mismatch_seds']
-    # fetch_SED = config['fetch_SED']
-    # initial_flux_guess = config['initial_flux_guess']
-    # deltafcn_profile = config['deltafcn_profile']
-    # sim_gal_ra_offset = config['sim_gal_ra_offset']
-    # sim_gal_dec_offset = config['sim_gal_dec_offset']
-    # spacing = config['spacing']
-    # percentiles = config['percentiles']
-    # grid_type = config['grid_type']
-
     use_real_images = config.value('photometry.campari.use_real_images')
     use_roman = config.value('photometry.campari.use_roman')
     check_perfection = config.value('photometry.campari.simulations.check_perfection')
