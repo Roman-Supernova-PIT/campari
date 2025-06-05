@@ -2019,10 +2019,3 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin='lower', cmap='gray')
     plt.scatter(ra_grid, dec_grid)
-
-
-def load_config(config_path):
-    """Load parameters from a YAML configuration file."""
-    with open(config_path, 'r') as file:
-        config = yaml.safe_load(file)
-    return config

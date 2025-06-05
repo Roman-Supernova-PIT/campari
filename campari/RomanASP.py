@@ -1,5 +1,5 @@
 from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, \
-                        load_config, run_one_object, save_lightcurve
+                         run_one_object, save_lightcurve
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 import argparse
@@ -99,46 +99,68 @@ def main():
     lc_end = args.end
     object_type = args.object_type
 
-    if args.config is not None:
-        config_path = args.config
-    else:
-        config_path = os.path.join(os.path.dirname(os.path.abspath(__file__)),
-                                   'config.yaml')
-
     if SNID_file is not None:
         SNID = pd.read_csv(SNID_file, header=None).values.flatten().tolist()
 
-    config = load_config(config_path)
+    config = Config.get(args.config, setdefault=True)
 
-    size = config['size']
-    use_real_images = config['use_real_images']
-    use_roman = config['use_roman']
-    check_perfection = config['check_perfection']
-    make_exact = config['make_exact']
-    avoid_non_linearity = config['avoid_non_linearity']
-    deltafcn_profile = config['deltafcn_profile']
-    do_xshift = config['do_xshift']
-    do_rotation = config['do_rotation']
-    noise = config['noise']
-    method = config['method']
-    make_initial_guess = config['make_initial_guess']
-    subtract_background = config['subtract_background']
-    weighting = config['weighting']
-    pixel = config['pixel']
-    roman_path = config['roman_path']
-    sn_path = config['sn_path']
-    bg_gal_flux = config['bg_gal_flux']
-    source_phot_ops = config['source_phot_ops']
-    mismatch_seds = config['mismatch_seds']
-    fetch_SED = config['fetch_SED']
-    initial_flux_guess = config['initial_flux_guess']
-    deltafcn_profile = config['deltafcn_profile']
-    sim_gal_ra_offset = config['sim_gal_ra_offset']
-    sim_gal_dec_offset = config['sim_gal_dec_offset']
-    spacing = config['spacing']
-    percentiles = config['percentiles']
+    size = config.value('photometry.campari.cutout_size')
+    # use_real_images = config['use_real_images']
+    # use_roman = config['use_roman']
+    # check_perfection = config['check_perfection']
+    # make_exact = config['make_exact']
+    # avoid_non_linearity = config['avoid_non_linearity']
+    # deltafcn_profile = config['deltafcn_profile']
+    # do_xshift = config['do_xshift']
+    # do_rotation = config['do_rotation']
+    # noise = config['noise']
+    # method = config['method']
+    # make_initial_guess = config['make_initial_guess']
+    # subtract_background = config['subtract_background']
+    # weighting = config['weighting']
+    # pixel = config['pixel']
+    # roman_path = config['roman_path']
+    # sn_path = config['sn_path']
+    # bg_gal_flux = config['bg_gal_flux']
+    # source_phot_ops = config['source_phot_ops']
+    # mismatch_seds = config['mismatch_seds']
+    # fetch_SED = config['fetch_SED']
+    # initial_flux_guess = config['initial_flux_guess']
+    # deltafcn_profile = config['deltafcn_profile']
+    # sim_gal_ra_offset = config['sim_gal_ra_offset']
+    # sim_gal_dec_offset = config['sim_gal_dec_offset']
+    # spacing = config['spacing']
+    # percentiles = config['percentiles']
+    # grid_type = config['grid_type']
 
-    grid_type = config['grid_type']
+    use_real_images = config.value('photometry.campari.use_real_images')
+    use_roman = config.value('photometry.campari.use_roman')
+    check_perfection = config.value('photometry.campari.simulations.check_perfection')
+    make_exact = config.value('photometry.campari.simulations.make_exact')
+    avoid_non_linearity = config.value('photometry.campari.simulations.avoid_non_linearity')
+    deltafcn_profile = config.value('photometry.campari.simulations.deltafcn_profile')
+    do_xshift = config.value('photometry.campari.simulations.do_xshift')
+    do_rotation = config.value('photometry.campari.simulations.do_rotation')
+    noise = config.value('photometry.campari.simulations.noise')
+    method = config.value('photometry.campari.method')
+    make_initial_guess = config.value('photometry.campari.make_initial_guess')
+    subtract_background = config.value('photometry.campari.subtract_background')
+    weighting = config.value('photometry.campari.weighting')
+    pixel = config.value('photometry.campari.pixel')
+    roman_path = config.value('photometry.campari.paths.roman_path')
+    sn_path = config.value('photometry.campari.paths.sn_path')
+    bg_gal_flux = config.value('photometry.campari.simulations.bg_gal_flux')
+    source_phot_ops = config.value('photometry.campari.source_phot_ops')
+    mismatch_seds = config.value('photometry.campari.simulations.mismatch_seds')
+    fetch_SED = config.value('photometry.campari.fetch_SED')
+    initial_flux_guess = config.value('photometry.campari.initial_flux_guess')
+    sim_gal_ra_offset = config.value('photometry.campari.simulations.sim_gal_ra_offset')
+    sim_gal_dec_offset = config.value('photometry.campari.simulations.sim_gal_dec_offset')
+    spacing = config.value('photometry.campari.grid_options.spacing')
+    percentiles = config.value('photometry.campari.grid_options.percentiles')
+    grid_type = config.value('photometry.campari.grid_options.type')
+
+
     er = f'{grid_type} is not a recognized grid type. Available options are '
     er += 'regular, adaptive, contour, or single. Details in documentation.'
     assert grid_type in ['regular', 'adaptive', 'contour',

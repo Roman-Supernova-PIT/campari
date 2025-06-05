@@ -4,7 +4,7 @@ from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
                         extract_star_from_parquet_file_and_write_to_csv, \
                         findAllExposures, find_parquet, get_galsim_SED, \
                         get_galsim_SED_list, get_weights, \
-                        get_object_info, load_config, make_adaptive_grid, \
+                        get_object_info, make_adaptive_grid, \
                         make_contour_grid, make_regular_grid, \
                         open_parquet, \
                         radec2point, save_lightcurve
@@ -32,11 +32,9 @@ import yaml
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-
 config_path = pathlib.Path(__file__).parent.parent / 'config.yaml'
-config = load_config(config_path)
-roman_path = config['roman_path']
-sn_path = config['sn_path']
+roman_path =  '/hpc/group/cosmology/OpenUniverse2024'
+sn_path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
 
 
 def test_find_parquet():
