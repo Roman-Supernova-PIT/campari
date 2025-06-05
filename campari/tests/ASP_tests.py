@@ -495,3 +495,4 @@ def test_get_weights():
         test_wgt_matrix = np.load(pathlib.Path(__file__).parent
                                 / 'testdata/test_wgt_matrix.npy')
         np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
+
