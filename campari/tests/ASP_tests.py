@@ -25,6 +25,7 @@ from campari.simulation import simulate_galaxy, simulate_images, simulate_supern
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.Config import Config
 import tempfile
 import warnings
 import yaml
@@ -32,9 +33,10 @@ import yaml
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-config_path = pathlib.Path(__file__).parent.parent / 'config.yaml'
-roman_path =  '/hpc/group/cosmology/OpenUniverse2024'
-sn_path = '/hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/'
+config_path = pathlib.Path(__file__).parent / 'test_config.yaml'
+config = Config.get(config_path, setdefault=True)
+roman_path = config.value('photometry.campari.paths.roman_path')
+sn_path = config.value('photometry.campari.paths.sn_path')
 
 
 def test_find_parquet():
