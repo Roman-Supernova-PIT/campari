@@ -171,4 +171,3 @@ cython_debug/
 # Stuff Cole added:
 *.ipynb
 *.ipynb_checkpoints
-config.yaml
