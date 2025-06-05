@@ -202,14 +202,14 @@ def test_regression(config_path):
 
     output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
                        f"-o testdata --config {config_path} "
-                        "--photometry-campari-use_roman 1 "
-                        "--photometry-campari-use_real_images 1 "
-                        "--photometry-campari-fetch_SED 0 "
+                        "--photometry-campari-use_roman "
+                        "--photometry-campari-use_real_images "
+                        "--no-photometry-campari-fetch_SED "
                         "--photometry-campari-grid_options-type contour "
                         "--photometry-campari-cutout_size 19 "
-                        "--photometry-campari-weighting 1 "
-                        "--photometry-campari-subtract_background 1 "
-                        "--photometry-campari-source_phot_ops 0 ")
+                        "--photometry-campari-weighting "
+                        "--photometry-campari-subtract_background "
+                        "--no-photometry-campari-source_phot_ops ")
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv(pathlib.Path(__file__).parent
