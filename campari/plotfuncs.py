@@ -3,6 +3,7 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import snappl
+import snappl.wcs
 from astropy.table import Table
 
 
@@ -63,11 +64,12 @@ def plot_lc(filepath, return_data=False):
 
 def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
-    plt.imshow(image, origin='lower', cmap='gray')
+    imshow = plt.imshow(image, origin='lower', cmap='gray')
     plt.scatter(ra_grid, dec_grid)
+    return imshow
 
 
-def plot_images(lc_filepath, images_filepath, size=11):
+def plot_images(lc_filepath, images_filepath, size=19):
     imgdata = np.load(images_filepath)
     num_total_images = imgdata.shape[1]//size**2
     images = imgdata[0]
@@ -76,23 +78,26 @@ def plot_images(lc_filepath, images_filepath, size=11):
     wcs_filepath = images_filepath.split('_images.npy')[0] + '_wcs.fits'
     grid_filepath = images_filepath.split('_images.npy')[0] + '_grid.npy'
     fluxdata = Table.read(lc_filepath)
-    snra, sndec = fluxdata['sn_ra'][0], fluxdata['sn_dec'][0]
-    galra, galdec = fluxdata['host_ra'][0], fluxdata['host_dec'][0]
+    snra, sndec = fluxdata.meta['obj_ra'], fluxdata.meta['obj_dec']
+    galra, galdec = fluxdata.meta['host_ra'], fluxdata.meta['host_dec']
     hdul = fits.open(wcs_filepath)
 
     cutout_wcs_list = []
     for i, savedwcs in enumerate(hdul):
         if i == 0:
             continue
-        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
+        newwcs = snappl.wcs.AstropyWCS.from_header(savedwcs.header)
         cutout_wcs_list.append(newwcs)
 
     ra_grid, dec_grid, gridvals = np.load(grid_filepath)
-
-    fig = plt.figure(figsize=(15, 3*num_total_images))
-
+    #fig = plt.figure(figsize=(15, 3*num_total_images))
     for i, wcs in enumerate(cutout_wcs_list):
-        extent = [-0.5, size-0.5, -0.5, size-0.5]
+
+        current_image = images[i*size**2:(i+1)*size**2].reshape(size, size)
+        imshow = plot_image_and_grid(current_image, wcs._wcs, ra_grid, dec_grid)
+
+        '''
+
         xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
         snx, sny = wcs.world_to_pixel(snra, sndec)
         galx, galy = wcs.world_to_pixel(galra, galdec)
@@ -100,19 +105,21 @@ def plot_images(lc_filepath, images_filepath, size=11):
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
         vmin = np.mean(gridvals) - np.std(gridvals)
         vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx, yy, s = 1, c= 'k', vmin = vmin, vmax = vmax)
+        plt.scatter(xx, yy, s=1, c='k', vmin=vmin, vmax=vmax)
         plt.title('True Image')
-        plt.scatter(snx, sny, c = 'r', s = 8, marker = '*')
-        plt.scatter(galx,galy, c = 'b', s = 8, marker = '*')
+        plt.scatter(snx, sny, c='r', s=8, marker='*', label='Supernova')
+        plt.scatter(galx, galy, c='b', s=8, marker='*', label='Host Galaxy')
         imshow = plt.imshow(images[i*size**2:(i+1)*size**2].reshape(size,size), origin = 'lower', extent = extent)
         plt.colorbar(fraction=0.046, pad=0.04)
         trueimage = images[i*size**2:(i+1)*size**2].reshape(size,size)
-
+        '''
 
         ############################################
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+2)
         plt.title('Model')
+
+        extent = [-0.5, size-0.5, -0.5, size-0.5]
 
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
         xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
@@ -146,6 +153,7 @@ def plot_images(lc_filepath, images_filepath, size=11):
 
 
     plt.subplots_adjust(wspace = 0.4, hspace = 0.3)
+    plt.legend()
 
 
 def slice_plot(fileroot):
