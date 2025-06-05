@@ -23,6 +23,7 @@ from roman_imsim.utils import roman_utils
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, \
                        simulate_wcs
 import snappl
+from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.logger import SNLogger as Lager
 import tempfile
 import warnings
@@ -479,20 +480,22 @@ def test_construct_psf_background():
 
 
 def test_get_weights():
-    wcs_data = np.load(pathlib.Path(__file__).parent
-                       / 'testdata/wcs_dict.npz', allow_pickle=True)
-    # Loading the data in this way, the data is packaged in an array,
-    # this extracts just the value so that we can build the WCS.
-    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    wcs = galsim.fitswcs.AstropyWCS(wcs=astropy.wcs.WCS(wcs_dict))
-    test_snra = np.array([7.67367421])
-    test_sndec = np.array([-44.26416321])
+    test_snra = np.array([7.34465537])
+    test_sndec = np.array([-44.91932581])
     size = 7
-    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
-                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
-        wgt_matrix = get_weights([wcs], size, test_snra, test_sndec,
-                                 error=None, gaussian_var=1000, cutoff=4)
-        test_wgt_matrix = np.load(pathlib.Path(__file__).parent
-                                / 'testdata/test_wgt_matrix.npy')
-        np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
+    pointing = 111
+    SCA = 13
+    truth = 'simple_model'
+    band = 'Y106'
+    imagepath = roman_path + (f'/RomanTDS/images/{truth}/{band}/{pointing}'
+                              f'/Roman_TDS_{truth}_{band}_{pointing}_'
+                              f'{SCA}.fits.gz')
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, SCA)
+    snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
+    wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
+                             gaussian_var=1000, cutoff=4)
+
+    test_wgt_matrix = np.load(pathlib.Path(__file__).parent
+                              / 'testdata/test_wgt_matrix.npy')
+    np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
 

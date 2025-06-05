@@ -230,18 +230,32 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     return ra_grid, dec_grid
 
 
-def generateGuess(imlist, wcslist, ra_grid, dec_grid):
+def generateGuess(imlist, ra_grid, dec_grid):
     '''
     This function initializes the guess for the optimization. For each grid
     point, it finds the average value of the pixel it is sitting in on
     each image. In some cases, this has offered minor improvements but it is
     not make or break for the algorithm.
+
+    Inputs:
+    imlist: list of snappl.image.Image objects, the images to use for the
+            guess.
+    ra_grid, dec_grid: numpy arrays of floats, the RA and DEC of the
+                       grid points.
+
+    Outputs:
+    all_vals: numpy array of floats, the proposed initial guess for each model
+                point.
+
     '''
-    size = np.shape(imlist[0])[0]
+    size = imlist[0].image_shape[0]
     imx = np.arange(0, size, 1)
     imy = np.arange(0, size, 1)
     imx, imy = np.meshgrid(imx, imy)
     all_vals = np.zeros_like(ra_grid)
+
+    wcslist = [im.get_wcs() for im in imlist]
+    imlist = [im.data for im in imlist]
 
     for i, imwcs in enumerate(zip(imlist, wcslist)):
         im, wcs = imwcs
@@ -252,7 +266,8 @@ def generateGuess(imlist, wcslist, ra_grid, dec_grid):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) &
                                      (np.abs(yy - imyval) < 0.5))] = imval
         all_vals += grid_point_vals
-    return all_vals/len(wcslist)
+    all_vals /= len(imlist)
+    return all_vals
 
 
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
@@ -743,16 +758,12 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
     lc_start, lc_end: ints, MJD bounds on where to fetch images.
 
     Returns:
-    images: array, the actual image data, shape (num_total_images, size, size)
-    err: array, the uncertainty in each pixel
-                of images, shape (num_total_images, size, size)
     snra, sndec: floats, the RA and DEC of the supernova, a single float is
                          used for both of these as we assume the object is
                          not moving between exposures.
     exposures: astropy.table.table.Table, table of exposures used
     cutout_image_list: list of snappl.image.Image objects, the cutout images
     image_list: list of snappl.image.Image objects, the full images
-
     '''
 
     pqfile = find_parquet(ID, sn_path, obj_type=object_type)
@@ -769,14 +780,13 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
                                  maxdet=num_detect_images, return_list=True,
                                  band=band, lc_start=lc_start, lc_end=lc_end)
     num_predetection_images = exposures[~exposures['DETECTED']]
-    num_detection_images = exposures[exposures['DETECTED']]
     if len(num_predetection_images) == 0 and object_type == 'SN':
         raise ValueError('No pre-detection images found in time range ' +
-        'provided, skipping this object.')
+                         'provided, skipping this object.')
 
     if len(num_predetection_images) == 0:
         raise ValueError('No detection images found in time range ' +
-                            'provided, skipping this object.')
+                         'provided, skipping this object.')
 
     if num_total_images != np.inf and len(exposures) != num_total_images:
         raise ValueError(f'Not Enough Exposures. \
@@ -787,24 +797,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
                         subtract_background=subtract_background,
                         roman_path=roman_path)
 
-    # THIS IS TEMPORARY. In this PR, I am refactoring constructImages to return
-    # Image objects. However, the rest of the code is not refactored yet. This
-    # returns the Image objects back into the numpy arrays that the rest of the
-    # code understands.
-
-    images = []
-    err = []
-    for cutout, image in zip(cutout_image_list, image_list):
-        images.append(cutout._data)
-        # These next two lines are bad stuff these will be removed.
-        # Bad because they use ._wcs (with an underscore) and because
-        # they are not snappl objects. This is all to be removed.
-        err.append(cutout._noise)
-
-    ########################### END TEMPORARY SECTION #########################
-
-    return images, err, snra, sndec, ra, dec, \
-        exposures, cutout_image_list, image_list
+    return snra, sndec, ra, dec, exposures, cutout_image_list, image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -847,8 +840,7 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
-                gaussian_var=1000, cutoff=4):
+def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
     '''
     This function calculates the weights for each pixel in the cutout images.
 
@@ -859,12 +851,8 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
         from the supernova.
 
     Inputs:
-    cutout_wcs_list: list of snappl.wcs.BaseWCS objects, the WCS for each
-                     cutout
-    size: int, the size of the cutout image (size x size)
+    images: list of snappl Image objects, used to get wcs, error, and size.
     snra, sndec: floats, the RA and DEC of the supernova
-    error: numpy array of floats, the error in each pixel of the cutout images.
-           If None, a uniform error of 1 is assumed.
     gaussian_var: float, the standard deviation squared of the Gaussian used
                     to weight   the pixels. This is in pixels.
     cutoff: float, the cutoff distance in pixels. Pixels further than this
@@ -875,9 +863,13 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
                 the pixels in each cutout. Each array is size: (size x size)
 
     '''
+    size = images[0].image_shape[0]
+    wcs_list = [im.get_wcs() for im in images]
+    error = [im.noise for im in images]
+
     wgt_matrix = []
     Lager.debug(f'Gaussian Variance in get_weights {gaussian_var}')
-    for i, wcs in enumerate(cutout_wcs_list):
+    for i, wcs in enumerate(wcs_list):
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
@@ -895,7 +887,6 @@ def get_weights(cutout_wcs_list, size, snra, sndec, error=None,
         # there is some way that these weights are normalized, but I don't
         # know exactly how that should be yet. Online sources speaking about
         # weighted linear regression never seem to address normalization. TODO
-
 
         # Here, we throw out pixels that are more than 4 pixels away from the
         # SN. The reason we do this is because by choosing an image size one
@@ -1599,7 +1590,7 @@ def get_galsim_SED_list(ID, exposures, fetch_SED, object_type, sn_path):
     return sedlist
 
 
-def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
+def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     '''
     This function takes the data from the images and puts it into the form such
     that we can analytically solve for the best fit using linear algebra.
@@ -1609,8 +1600,7 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
     d = number of detection images
 
     Inputs:
-    images: list of np arrays of image data. List of length n of sxs arrays.
-    err: list of np arrays of error data. List of length n of sxs arrays.
+    images: list of snappl Image objects. List of length n objects.
     sn_matrix: list of np arrays of SN models. List of length d of sxs arrays.
     wgt_matrix: list of np arrays of weights. List of length n of sxs arrays.
 
@@ -1621,13 +1611,13 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
                 correct rows and columns, see comment below. Shape (n*s^2, n)
     wgt_matrix: 1D array of weights. Length n*s^2
     '''
-    size_sq = int((images[0].size))
+    size_sq = images[0].image_shape[0]
     tot_num = len(images)
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
-    images = np.concatenate([arr.flatten() for arr in images])
-    err = np.concatenate([arr.flatten() for arr in err])
+    err = np.concatenate([im.noise for im in images])
+    images = np.concatenate([im.data for im in images])
 
     # The final design matrix for our fit should have dimensions:
     # (total number of pixels in all images, number of model components)
@@ -1643,16 +1633,17 @@ def prep_data_for_fit(images, err, sn_matrix, wgt_matrix):
 
     psf_zeros = np.zeros((np.size(images), tot_num))
     for i in range(det_num):
-        sn_index = tot_num - det_num + i # We only want to edit SN columns.
+        sn_index = tot_num - det_num + i  # We only want to edit SN columns.
         psf_zeros[
             (sn_index) * size_sq:  # Fill in rows s^2 * image number...
-            (sn_index + 1) * size_sq, #... to s^2 * (image number + 1) ...
-            sn_index] = sn_matrix[i] # ...in the correct column.
+            (sn_index + 1) * size_sq,  # ... to s^2 * (image number + 1) ...
+            sn_index] = sn_matrix[i]  # ...in the correct column.
     sn_matrix = np.vstack(psf_zeros)
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
 
     return images, err, sn_matrix, wgt_matrix
+
 
 def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
                                                   output_path,
@@ -1768,7 +1759,8 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
 
-        images, err, snra, sndec, ra, dec, \
+        # images, err,
+        snra, sndec, ra, dec, \
             exposures, cutout_image_list, image_list = \
                                      fetchImages(num_total_images,
                                                  num_detect_images, ID,
@@ -1817,19 +1809,13 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
     # The num_total_images - num_detect_images check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
-    if make_initial_guess and num_total_images != num_detect_images:
-        if num_detect_images != 0:
-            x0test = generateGuess(images[:-num_detect_images],
-                                   [im.get_wcs() for im in cutout_image_list],
-                                   ra_grid, dec_grid)
-            x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
-            x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
-            print(x0test.shape)
-            Lager.debug(f'setting initial guess to {initial_flux_guess}')
-        else:
-            x0test = generateGuess(images,
-                                   [im.get_wcs() for im in cutout_image_list],
-                                   ra_grid, dec_grid)
+    num_nondetect_images = num_total_images - num_detect_images
+    if make_initial_guess and num_nondetect_images != 0:
+        x0test = generateGuess(cutout_image_list[:num_nondetect_images],
+                               ra_grid, dec_grid)
+        x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
+        x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
+        Lager.debug(f'setting initial guess to {initial_flux_guess}')
 
     else:
         x0test = None
@@ -1955,13 +1941,12 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
     # Get the weights
     if weighting:
-        wgt_matrix = get_weights([im.get_wcs() for im in cutout_image_list],
-                                 size, snra, sndec, error=err)
+        wgt_matrix = get_weights(cutout_image_list, snra, sndec)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[1])
 
     images, err, sn_matrix, wgt_matrix =\
-        prep_data_for_fit(images, err, sn_matrix, wgt_matrix)
+        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
 
     # Calculate amount of the PSF cut out by setting a distance cap
     test_sn_matrix = np.copy(sn_matrix)
