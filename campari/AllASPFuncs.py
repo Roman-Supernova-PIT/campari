@@ -1617,7 +1617,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
 
     # Flatten into 1D arrays
     err = np.concatenate([im.noise for im in images])
-    images = np.concatenate([im.data for im in images])
+    image_data = np.concatenate([im.data for im in images])
 
     # The final design matrix for our fit should have dimensions:
     # (total number of pixels in all images, number of model components)
@@ -1631,7 +1631,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # others. We'll do this by initializing a matrix of zeros, and then filling
     # in the SN model in the correct place in the loop below:
 
-    psf_zeros = np.zeros((np.size(images), tot_num))
+    psf_zeros = np.zeros((np.size(image_data), tot_num))
     for i in range(det_num):
         sn_index = tot_num - det_num + i  # We only want to edit SN columns.
         psf_zeros[
