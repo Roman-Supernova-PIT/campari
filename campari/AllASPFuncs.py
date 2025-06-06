@@ -555,7 +555,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
                 f' sed: {sed} \n' +
                 f' flux: {flux}')
 
-    config_file = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    config_file = pathlib.Path( Config.get().value( 'photometry.campari.galsim.tds_file' ) )
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, 'You must provide an SED for the source'
@@ -1857,7 +1857,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
         # TODO: Put this in snappl
         if use_real_images:
-            util_ref = roman_utils(config_file=pathlib.Path(__file__).parent/'temp_tds.yaml',
+            util_ref = roman_utils(config_file=pathlib.Path(Config.get().value('photometry.campari.galsim.tds_file')),
                                    visit=exposures['Pointing'][i],
                                    sca=exposures['SCA'][i])
 

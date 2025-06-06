@@ -502,7 +502,7 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_psf_background():
+def test_construct_psf_background( cfg ):
     wcs_data = np.load('./testdata/wcs_dict.npz', allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
@@ -512,7 +512,7 @@ def test_construct_psf_background():
     dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
                          -44.26416321])
 
-    config_file = pathlib.Path(__file__).parent.parent/'temp_tds.yaml'
+    config_file = pathlib.Path( cfg.value( 'photometry.campari.galsim.tds_file' )
     pointing = 43623  # These numbers are arbitrary for this test.
     SCA = 7
 

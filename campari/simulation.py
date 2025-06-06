@@ -175,7 +175,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     images = imagelist
     Lager.debug(f'images shape: {images[0].shape}')
     Lager.debug(f'images length {len(images)}')
-    file_path = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    file_path = pathlib.Path( Config.get().value( 'photometry.campari.galsim.tds_file' ) )
     util_ref = roman_utils(config_file=file_path,
                            visit=base_pointing, sca=base_sca)
 
@@ -249,7 +249,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                                    use_true_center=True)
         return result.array
 
-    config_file = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    config_file = pathlib.Path( Config.get().value( 'photometry.campari.galsim.tds_file' ) )
     util_ref = roman_utils(config_file=config_file, visit=base_pointing,
                            sca=base_sca)
     photon_ops = [sim_psf] + util_ref.photon_ops
