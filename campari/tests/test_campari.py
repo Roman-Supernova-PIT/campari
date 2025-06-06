@@ -35,16 +35,6 @@ warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-@pytest.fixture(scope='session')
-def config_path():
-    return pathlib.Path(__file__).parent / 'test_config.yaml'
-
-
-@pytest.fixture(scope='module')
-def cfg(config_path):
-    return Config.get(config_path, setdefault=True)
-
-
 @pytest.fixture(scope='module')
 def roman_path(cfg):
     return cfg.value('photometry.campari.paths.roman_path')
@@ -191,7 +181,7 @@ def test_savelightcurve():
 
 def test_run_on_star(config_path):
     err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
-                         f'-o "testdata" --config {config_path} '
+                         f'--config {config_path} '
                          f'--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -210,12 +200,13 @@ def test_regression_function(config_path):
     try:
         sys.argv = a
         RomanASP.main()
-        current = pd.read_csv(pathlib.Path(__file__).parent
-                          / 'testdata/40120913_Y106_romanpsf_lc.ecsv',
-                          comment='#', delimiter=' ')
+        cfg = Config.get()
+        current = pd.read_csv(( pathlib.Path( cfg.value( 'photometry.campari.paths.output_dir' ) )
+                                / '40120913_Y106_romanpsf_lc.ecsv' ),
+                              comment='#', delimiter=' ')
         comparison = pd.read_csv(pathlib.Path(__file__).parent
-                                / 'testdata/test_lc.ecsv', comment='#',
-                                delimiter=' ')
+                                 / 'testdata/test_lc.ecsv', comment='#',
+                                 delimiter=' ')
 
         for col in current.columns:
             Lager.debug(f'Checking col {col}')

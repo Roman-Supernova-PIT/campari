@@ -1,0 +1,76 @@
+# Sample config file for campari
+# The values below are what's used in
+#   our tests.
+
+photometry:
+
+  # Campari is the scene modelling photometry package at
+  #  https://github.com/Roman-Supernova-PIT/campari
+  # PyPI package : tbd
+  #
+  # TODO : document all individual options
+  campari:
+    cutout_size: 11
+    initial_flux_guess: 3000
+    fetch_SED: true
+    source_phot_ops: true
+    use_roman: true
+    weighting: true
+    make_initial_guess: true
+    method: lsqr
+    pixel: false
+    subtract_background: true
+    use_real_images: true
+
+    paths:
+      # roman_path is where the OpenUniverse 2024 FITS image files are found
+      roman_path: /sims_dir
+      # sn_path is where OpenUniverse 2024 parquet files with diff img
+      #   SED files are.  Has object ID metadata.  This will go away
+      #   later once we disentangle galsim from campari
+      sn_path: /snana_pq_dir
+      # output_dir is where output lightcurves are written
+      output_dir: /campari_out_dir
+      # debug_dir is where output images and such are written
+      debug_dir: /campari_debug_dir
+
+    # OMG
+    galsim:
+      # This is a file that tells the code where to find galsim truth
+      #  tables and stuff
+      tds_file: /campari/examples/perlmutter/tds.yaml
+
+    grid_options:
+      type: contour
+      percentiles:
+      - 0
+      - 90
+      - 98
+      - 100
+      spacing: 0.75
+      turn_grid_off: false
+
+    simulations:
+      avoid_non_linearity: false
+      background_level: 0
+      bg_gal_flux: 100000.0
+      check_perfection: false
+      deltafcn_profile: false
+      do_rotation: true
+      do_xshift: true
+      make_exact: false
+      mismatch_seds: false
+      noise: 0
+      sim_gal_dec_offset: 1e-5
+      sim_gal_ra_offset: 1e-5
+      single_grid_point: false
+
+
+
+
+
+
+
+
+
+

@@ -86,9 +86,6 @@ def main():
                         help='Number of images to use with SN detections',
                         default=np.inf)
     # TODO:change all instances of this variable to det_images
-    parser.add_argument('-o', '--output_path', type=str, required=False,
-                        help='relative output path')
-
     parser.add_argument('--SNID_file', type=str, required=False,
                         help='Path to a csv file containing a list of SNIDs to run.' +
                         'If both --SNID and --SNID_file are passed, the file' +
@@ -121,7 +118,6 @@ def main():
     SNID = args.SNID
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
-    output_path = args.output_path
     SNID_file = args.SNID_file
     lc_start = args.beginning
     lc_end = args.end
