@@ -62,10 +62,13 @@ def plot_lc(filepath, return_data=False):
             sigma_mag.values, truth_mag.values, bias, scatter
 
 
-def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
-    fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
+def plot_image_and_grid(image, wcs, ra_grid, dec_grid, ax=None):
+    print(wcs)
+    if ax is None:
+        fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     imshow = plt.imshow(image, origin='lower', cmap='gray')
-    plt.scatter(ra_grid, dec_grid)
+    ax.scatter(ra_grid, dec_grid, transform=ax.get_transform('world'),
+               s=1, color='r', label='Grid Points', alpha=0.5)
     return imshow
 
 
@@ -119,7 +122,7 @@ def plot_images(lc_filepath, images_filepath, size=19):
         plt.subplot(len(cutout_wcs_list), 4, 4*i+2)
         plt.title('Model')
 
-        extent = [-0.5, size-0.5, -0.5, size-0.5]
+        #extent = [-0.5, size-0.5, -0.5, size-0.5]
 
         im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size,size)
         xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
@@ -133,7 +136,8 @@ def plot_images(lc_filepath, images_filepath, size=19):
         vmin = imshow.get_clim()[0]
         vmax = imshow.get_clim()[1]
 
-        plt.imshow(im1, extent = extent, origin = 'lower', vmin = vmin, vmax = vmax)
+        #plt.imshow(im1, extent = extent, origin = 'lower', vmin = vmin, vmax = vmax)
+        imshow = plot_image_and_grid(im1, wcs._wcs, ra_grid, dec_grid)
         plt.colorbar(fraction=0.046, pad=0.04)
 
         ############################################
