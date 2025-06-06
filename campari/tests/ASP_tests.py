@@ -512,7 +512,7 @@ def test_construct_psf_background( cfg ):
     dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
                          -44.26416321])
 
-    config_file = pathlib.Path( cfg.value( 'photometry.campari.galsim.tds_file' )
+    config_file = pathlib.Path(cfg.value('photometry.campari.galsim.tds_file'))
     pointing = 43623  # These numbers are arbitrary for this test.
     SCA = 7
 
