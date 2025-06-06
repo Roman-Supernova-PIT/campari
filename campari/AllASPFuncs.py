@@ -268,7 +268,7 @@ def generateGuess(imlist, ra_grid, dec_grid):
         all_vals += grid_point_vals
     return all_vals/len(wcslist)
 
-    
+
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
                              psf=None, pixel=False,
                              util_ref=None, band=None):
@@ -472,6 +472,7 @@ def find_parquet(ID, path, obj_type='SN'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
+
     files = os.listdir(path)
     file_prefix = {"SN": "snana", "star": "pointsource"}
     files = [f for f in files if file_prefix[obj_type] in f]
@@ -495,6 +496,7 @@ def open_parquet(parq, path, obj_type = 'SN', engine="fastparquet"):
     file_prefix = {"SN": "snana", "star": "pointsource"}
     base_name = "{0:s}_{1}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
+    Lager.debug(f'Opening parquet file: {file_path}')
     df = pd.read_parquet(file_path, engine=engine)
     return df
 
