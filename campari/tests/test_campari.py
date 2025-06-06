@@ -179,19 +179,18 @@ def test_savelightcurve():
     assert os.path.exists(lc_file)
 
 
-def test_run_on_star(config_path):
+def test_run_on_star():
     err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
-                         f'--config {config_path} '
                          f'--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
-def test_regression_function(config_path):
+def test_regression_function():
     curfile = (pathlib.Path(__file__).parent
                / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
     curfile.unlink(missing_ok=True)
     a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1", "-o",
-    "testdata", "--config", str(config_path), "--photometry-campari-use_roman",
+    "testdata", "--photometry-campari-use_roman",
      "--photometry-campari-use_real_images", "--no-photometry-campari-fetch_SED",
       "--photometry-campari-grid_options-type", "contour", "--photometry-campari-cutout_size",
        "19", "--photometry-campari-weighting", "--photometry-campari-subtract_background",
@@ -232,7 +231,7 @@ def test_regression_function(config_path):
         sys.argv = orig_argv
 
 
-def test_regression(config_path):
+def test_regression():
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
@@ -243,7 +242,6 @@ def test_regression(config_path):
     curfile.unlink(missing_ok=True)
 
     output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
-                       f"-o testdata --config {config_path} "
                         "--photometry-campari-use_roman "
                         "--photometry-campari-use_real_images "
                         "--no-photometry-campari-fetch_SED "
