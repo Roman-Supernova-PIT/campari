@@ -8,5 +8,5 @@ from snpit_utils.config import Config
 
 
 @pytest.fixture(scope='module')
-def cfg(config_path):
+def cfg():
     return Config.get()
