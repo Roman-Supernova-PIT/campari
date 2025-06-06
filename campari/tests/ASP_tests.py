@@ -241,10 +241,9 @@ def test_regression_function(config_path):
         sys.argv = orig_argv
 
 
-
 def test_regression(config_path):
-    # Regression lightcurve was changed on June 5th 2025 because generateGuess
-    # had a bug where it divided the guess by the wrong number.
+    # Regression lightcurve was changed on June 6th 2025 because we were on an
+    # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
