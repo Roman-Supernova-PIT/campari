@@ -255,19 +255,20 @@ def generateGuess(imlist, ra_grid, dec_grid):
     all_vals = np.zeros_like(ra_grid)
 
     wcslist = [im.get_wcs() for im in imlist]
-    imdata = [im.data for im in imlist]
+    imdata = [im.data.flatten() for im in imlist]
 
     for i, imwcs in enumerate(zip(imdata, wcslist)):
         im, wcs = imwcs
+        Lager.debug(f'image size: {im.shape}')
         xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
         grid_point_vals = np.zeros_like(xx)
         for imval, imxval, imyval in zip(im.flatten(),
                                          imx.flatten(), imy.flatten()):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) &
                                      (np.abs(yy - imyval) < 0.5))] = imval
+            Lager.debug((imval, np.mean(grid_point_vals)))
         all_vals += grid_point_vals
-    all_vals /= len(imlist)
-    return all_vals
+    return all_vals/len(wcslist)
 
 
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
