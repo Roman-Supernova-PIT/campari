@@ -189,12 +189,15 @@ def test_regression_function():
     curfile = (pathlib.Path(__file__).parent
                / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
     curfile.unlink(missing_ok=True)
-    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1", "-o",
-    "testdata", "--photometry-campari-use_roman",
-     "--photometry-campari-use_real_images", "--no-photometry-campari-fetch_SED",
-      "--photometry-campari-grid_options-type", "contour", "--photometry-campari-cutout_size",
-       "19", "--photometry-campari-weighting", "--photometry-campari-subtract_background",
-        "--no-photometry-campari-source_phot_ops"]
+    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1",
+         "--photometry-campari-use_roman",
+         "--photometry-campari-use_real_images",
+         "--no-photometry-campari-fetch_SED",
+         "--photometry-campari-grid_options-type", "contour",
+         "--photometry-campari-cutout_size", "19",
+         "--photometry-campari-weighting",
+         "--photometry-campari-subtract_background",
+         "--no-photometry-campari-source_phot_ops"]
     orig_argv = sys.argv
     try:
         sys.argv = a
