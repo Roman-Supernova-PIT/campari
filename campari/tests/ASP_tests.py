@@ -14,10 +14,12 @@ from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
                         radec2point, save_lightcurve
 from campari.simulation import simulate_galaxy, simulate_images, \
                                simulate_supernova, simulate_wcs
+from campari import RomanASP
 from erfa import ErfaWarning
 import galsim
 import numpy as np
 import os
+import sys
 import pandas as pd
 import pathlib
 import pytest
@@ -194,11 +196,61 @@ def test_run_on_star(config_path):
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
+def test_regression_function(config_path):
+    curfile = (pathlib.Path(__file__).parent
+               / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
+    curfile.unlink(missing_ok=True)
+    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1", "-o",
+    "testdata", "--config", str(config_path), "--photometry-campari-use_roman",
+     "--photometry-campari-use_real_images", "--no-photometry-campari-fetch_SED",
+      "--photometry-campari-grid_options-type", "contour", "--photometry-campari-cutout_size",
+       "19", "--photometry-campari-weighting", "--photometry-campari-subtract_background",
+        "--no-photometry-campari-source_phot_ops"]
+    orig_argv = sys.argv
+    try:
+        sys.argv = a
+        RomanASP.main()
+        current = pd.read_csv(pathlib.Path(__file__).parent
+                          / 'testdata/40120913_Y106_romanpsf_lc.ecsv',
+                          comment='#', delimiter=' ')
+        comparison = pd.read_csv(pathlib.Path(__file__).parent
+                                / 'testdata/test_lc.ecsv', comment='#',
+                                delimiter=' ')
+
+        for col in current.columns:
+            Lager.debug(f'Checking col {col}')
+            # According to Michael and Rob, this is roughly what can be expected
+            # due to floating point precision.
+            msg = "The lightcurves do not match for column %s" % col
+            if col == 'band':
+                # band is the only string column, so we check it with array_equal
+                np.testing.assert_array_equal(current[col], comparison[col]), msg
+            else:
+                percent = 100 * np.max((current[col] - comparison[col])
+                                    / comparison[col])
+                msg2 = f"difference is {percent} %"
+                msg = msg+msg2
+                # Switching from one type of WCS to another gave rise in a
+                # difference of about 1e-9 pixels for the grid, which led to a
+                # change in flux of 2e-7. I don't want switching WCS types to make
+                # this fail, so I put the rtol at just above that level.
+                np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
+
+            #check output
+    finally:
+        sys.argv = orig_argv
+
+
+
 def test_regression(config_path):
-    # Regression lightcurve was changed on June 4th 2025 because generateGuess
-    # now uses snappl wcs.
+    # Regression lightcurve was changed on June 5th 2025 because generateGuess
+    # had a bug where it divided the guess by the wrong number.
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
+
+    curfile = (pathlib.Path(__file__).parent
+               / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
+    curfile.unlink(missing_ok=True)
 
     output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
                        f"-o testdata --config {config_path} "
@@ -237,6 +289,7 @@ def test_regression(config_path):
             # change in flux of 2e-7. I don't want switching WCS types to make
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
+
 
 
 def test_get_galsim_SED(sn_path):
