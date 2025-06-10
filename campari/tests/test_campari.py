@@ -280,7 +280,7 @@ def test_regression_function():
             # underflow, but it's a thing worth being aware of.
             # Relative errors of 1e-7 (for floats) or 1e-16 (for
             # doubles) can easily arise from floating-point underflow;
-            # whehter or not you're worried about those errors depends
+            # whether or not you're worried about those errors depends
             # on how confident you are that the order of operations is
             # identical in two different test cases.  Bigger errors
             # *can* arise from floating point underflow, but never just
