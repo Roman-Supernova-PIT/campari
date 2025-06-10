@@ -69,16 +69,36 @@ def main():
 
     parser = argparse.ArgumentParser(description=desc)
 
+    ####################
+    # BASE CONFIG
+
     # This next argument will have been consumed by configparser above, and
     #   thus will never be parsed here, but include it so it shows up
     #   with --help.
     parser.add_argument('-c', '--config', default=None,
                         help="Location of the .yaml config file.  Defaults to env var SNPIT_CONFIG." )
 
-    parser.add_argument('-f', '--filter', type=str, required=True,
-                        help='Roman filter')
-    parser.add_argument('-s', '--SNID', type=int, required=False,
-                        help='Supernova ID', nargs="*")
+    parser.add_argument('-f', '--filter', type=str, required=True, help='Roman filter')
+
+    ####################
+    # FINDING THE LOCATION ON THE SKY TO SCENE MODEL
+
+    # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO) to find supernova RA and Dec
+    parser.add_argument('-s', '--SNID', type=int, default=None, required=False, nargs='*',
+                        help='OpenUnivere2024 Supernova IDs; ignored if --SNID-file is given')
+    parser.add_argument('--SNID-file', type=str, default=None, required=False,
+                        help='Path to a csv file containing a list of OpenUniverse SNIDs to run.' )
+
+    # If instead you give --ra and --dec, it will assume there is a
+    # point source at that position and will scene model a stamp around
+    # it. (NOT YET SUPPORTED.)
+    parser.add_argument('--ra', type=float, default=None, help="RA of transient point source" )
+    parser.add_argument('--dec', type=float, default=None, help="Dec of transient point source" )
+
+    ####################
+    # FINDING THE IMAGES TO RUN SCENE MODELLING ON
+
+    # If you give -t, -d, -b, and/or -e, then campari will decide automatically (HOW?) what images to use.
     parser.add_argument('-t', '--num_total_images', type=int, required=False,
                         help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
@@ -86,19 +106,24 @@ def main():
                         help='Number of images to use with SN detections',
                         default=np.inf)
     # TODO:change all instances of this variable to det_images
-    parser.add_argument('--SNID_file', type=str, required=False,
-                        help='Path to a csv file containing a list of SNIDs to run.' +
-                        'If both --SNID and --SNID_file are passed, the file' +
-                         ' will be used preferentially.')
-
     parser.add_argument('-b', '--beginning', type=int, required=False,
                         help='start of desired lightcurve in days from peak.',
                         default=-np.inf)
-
     parser.add_argument('-e', '--end', type=int, required=False,
                         help='end of desired light curve in days from peak.',
                         default=np.inf)
 
+    # If instead you give imglist, then you expliclty list the images
+    # used.  TODO: specify type of image, and adapt the code to handle
+    # that.  Right now it will just assume openuniverse 2024.
+
+    parser.add_argument('-i', '--img-list', default=None, help="File with list of images" )
+
+    ####################
+    # What does it mean to run on stars??????  Assume constant flux? No
+    # host galaxy?  Ideally, the code to run on stars should be exactly
+    # the same as the code to run on supernova.  Or does this have to do
+    # with looking up the data in the opensim tables?
     parser.add_argument('--object_type', type=str, required=False,
                         choices=["star", "SN"],
                         help='If star, will run on stars. If SN, will run  ' +
@@ -111,20 +136,27 @@ def main():
     args = parser.parse_args( leftovers )
 
     if cfg is None:
-        raise ValueError( "Must pass as config file, or must set SNPIT_CONFIG" )
+        raise ValueError( "Must pass a config file, or must set SNPIT_CONFIG" )
     cfg.parse_args( args )
 
     band = args.filter
-    SNID = args.SNID
+
+    if ( args.ra is not None ) or ( args.dec is not None ):
+        raise NotImplementedError( "--ra and --dec not yet supported." )
+    if args.SNID_file is not None:
+        SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
+    else:
+        SNID = args.SNID
+
+    if args.img_list is not None:
+        raise NotImplementedError( "--img-list not yet supported." )
+
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
-    SNID_file = args.SNID_file
     lc_start = args.beginning
     lc_end = args.end
     object_type = args.object_type
 
-    if SNID_file is not None:
-        SNID = pd.read_csv(SNID_file, header=None).values.flatten().tolist()
 
     config = Config.get(args.config, setdefault=True)
 

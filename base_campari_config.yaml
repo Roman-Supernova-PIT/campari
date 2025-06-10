@@ -3,7 +3,7 @@
 # intended as package defaults, but they're also the values that are
 # used in the dockerized campari tests using github workflows.
 #
-# If you want your own config that overrides some of these values bug
+# If you want your own config that overrides some of these values but
 # keeps the rest, then Make a new file that starts with the following
 # (with no spaces before the "r" on the first line):
 #
@@ -19,7 +19,9 @@
 
 
 # Photometry is intended to be the base config tree for everything
-# photometry related in the Roman SNPIT.
+# photometry related in the Roman SNPIT.  Other files will
+# have other things underneath photometry (e.g. photometry.phrosty,
+# photometry.snappl, etc.).
 photometry:
 
   # Campari is the scene modelling photometry package at
