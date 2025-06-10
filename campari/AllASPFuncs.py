@@ -1274,7 +1274,13 @@ def get_SN_SED(SNID, date, sn_path):
     filenum = find_parquet(SNID, sn_path, obj_type = 'SN')
     file_name = 'snana' + '_' + str(filenum) + '.hdf5'
     fullpath = os.path.join(sn_path, file_name)
-    sed_table = h5py.File(fullpath, 'r')
+    # Setting locking=False on the next line becasue it seems that you can't open an h5py file unless
+    #   you have write access to... something.  Not sure what.  The directory where it exists?  We won't
+    #   always have that.  It's scary to set locking to false, because it subverts all kinds of safety stuff
+    #   that hdf5 does.  However, in this case, it's not actually scary, because these files were created once
+    #   and we expect them to be static.  Locking only matters if you think somebody else might change the file
+    #   while you're in the middle of reading bits of it.
+    sed_table = h5py.File(fullpath, 'r', locking=False)
     sed_table = sed_table[str(SNID)]
     flambda = sed_table['flambda']
     lam = sed_table['lambda']
@@ -1532,29 +1538,24 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
     identifier (str): the supernova ID or 'simulated'
     band (str): the bandpass of the images used
     psftype (str): 'romanpsf' or 'analyticpsf'
-    output_path (str): the path to save the lightcurve to.
+    output_path (str): the path to save the lightcurve to.  Defaults to
+      config value phtometry.campari.paths.output_dir
 
     Returns:
     None, saves the lightcurve to a ecsv file.
     The file name is:
-    output_path/identifier_band_psftype_lc.ecsv
+    <output_path>/identifier_band_psftype_lc.ecsv
     '''
 
-    if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
-            Lager.info('Making a results directory for output at ' +
-                       os.getcwd() + '/results')
-            os.makedirs(os.path.join(os.getcwd(), 'results/'))
-            os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
-            os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
+    output_path = Config.get().value('photometry.campari.paths.output_dir') if output_path is None else output_path
+    output_path = pathlib.Path( output_path )
+    output_path.mkdir( exist_ok=True, parents=True )
 
-    if output_path is None:
-        output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
-
-    lc_file = os.path.join(output_path,
-                           f'{identifier}_{band}_{psftype}_lc.ecsv')
+    lc_file = output_path / f'{identifier}_{band}_{psftype}_lc.ecsv'
 
     Lager.info(f'Saving lightcurve to {lc_file}')
     lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
+
 
 def banner(text):
     length = len(text) + 8
