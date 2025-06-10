@@ -2,18 +2,26 @@ from astropy.io import ascii
 from astropy.table import QTable
 import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
-from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
-                        construct_psf_background, \
-                        extract_sn_from_parquet_file_and_write_to_csv, \
-                        extract_star_from_parquet_file_and_write_to_csv, \
-                        findAllExposures, find_parquet, get_galsim_SED, \
-                        get_galsim_SED_list, get_weights, \
-                        get_object_info, make_adaptive_grid, \
-                        make_contour_grid, make_regular_grid, \
-                        open_parquet, \
-                        radec2point, save_lightcurve
-from campari.simulation import simulate_galaxy, simulate_images, \
-                               simulate_supernova, simulate_wcs
+from campari.AllASPFuncs import (
+    calc_mag_and_err,
+    calculate_background_level,
+    construct_psf_background,
+    extract_sn_from_parquet_file_and_write_to_csv,
+    extract_star_from_parquet_file_and_write_to_csv,
+    findAllExposures,
+    find_parquet,
+    get_galsim_SED,
+    get_galsim_SED_list,
+    get_object_info,
+    get_weights,
+    make_adaptive_grid,
+    make_contour_grid,
+    make_regular_grid,
+    open_parquet,
+    radec2point,
+    save_lightcurv
+)
+from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from campari import RomanASP
 from erfa import ErfaWarning
 import galsim
@@ -180,12 +188,26 @@ def test_savelightcurve():
 
 
 def test_run_on_star():
+    # Call it as a function first so we can pdb and such
+    args = [ "_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+             "--object_type", "star", "--photometry-campari-grid_options-type", "none" ]
+    orig_argv = sys.argv
+    try:
+        sys.argv = args
+        RomanASP.main()
+    except Exception as ex:
+        assert False, str(ex)
+    finally:
+        sys.argv = orig_argv
+
+    # Make sure it runs from the command line
     err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
                          f'--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
 def test_regression_function():
+    # TODO : don't write this to testdata
     curfile = (pathlib.Path(__file__).parent
                / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
     curfile.unlink(missing_ok=True)
@@ -240,6 +262,7 @@ def test_regression():
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
+    # TODO : don't write this to testdata
     curfile = (pathlib.Path(__file__).parent
                / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
     curfile.unlink(missing_ok=True)
@@ -342,6 +365,7 @@ def test_plot_lc():
 
 
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
+    # TODO don't write to testdata
     output_path = pathlib.Path(__file__).parent / "testdata/snids.csv"
     extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path,
                                                   output_path,

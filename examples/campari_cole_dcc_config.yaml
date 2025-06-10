@@ -1,5 +1,5 @@
 replaceable_preloads:
-  - sample_campari_config.yaml
+  - ../base_campari_config.yaml
 
 photometry:
   campari:
