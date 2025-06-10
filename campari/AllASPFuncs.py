@@ -268,7 +268,7 @@ def generateGuess(imlist, ra_grid, dec_grid):
         all_vals += grid_point_vals
     return all_vals/len(wcslist)
 
-    
+
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
                              psf=None, pixel=False,
                              util_ref=None, band=None):
@@ -472,6 +472,7 @@ def find_parquet(ID, path, obj_type='SN'):
     '''
     Find the parquet file that contains a given supernova ID.
     '''
+
     files = os.listdir(path)
     file_prefix = {"SN": "snana", "star": "pointsource"}
     files = [f for f in files if file_prefix[obj_type] in f]
@@ -495,6 +496,7 @@ def open_parquet(parq, path, obj_type = 'SN', engine="fastparquet"):
     file_prefix = {"SN": "snana", "star": "pointsource"}
     base_name = "{0:s}_{1}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
+    Lager.debug(f'Opening parquet file: {file_path}')
     df = pd.read_parquet(file_path, engine=engine)
     return df
 
@@ -555,7 +557,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
                 f' sed: {sed} \n' +
                 f' flux: {flux}')
 
-    config_file = pathlib.Path(__file__).parent/'temp_tds.yaml'
+    config_file = pathlib.Path( Config.get().value( 'photometry.campari.galsim.tds_file' ) )
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, 'You must provide an SED for the source'
@@ -1247,9 +1249,8 @@ def get_star_SED(SNID, sn_path):
     filenum = find_parquet(SNID, sn_path, obj_type = 'star')
     pqfile = open_parquet(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
-    #THIS HARDCODE WILL NEED TO BE REMOVED
-    #Make hardcodes keyword args until they are fixed
-    fullpath = os.path.join('/hpc/home/cfm37/rubin_sim_data/sims_sed_library/', file_name)
+    #SED needs to move out to snappl
+    fullpath = pathlib.Path( Config.get().value( 'photometry.campari.paths.sims_sed_library' ) ) / file_name
     sed_table = pd.read_csv(fullpath,  compression='gzip', sep = '\s+', comment = '#')
     lam = sed_table.iloc[:, 0]
     flambda = sed_table.iloc[:, 1]
@@ -1272,7 +1273,13 @@ def get_SN_SED(SNID, date, sn_path):
     filenum = find_parquet(SNID, sn_path, obj_type = 'SN')
     file_name = 'snana' + '_' + str(filenum) + '.hdf5'
     fullpath = os.path.join(sn_path, file_name)
-    sed_table = h5py.File(fullpath, 'r')
+    # Setting locking=False on the next line becasue it seems that you can't open an h5py file unless
+    #   you have write access to... something.  Not sure what.  The directory where it exists?  We won't
+    #   always have that.  It's scary to set locking to false, because it subverts all kinds of safety stuff
+    #   that hdf5 does.  However, in this case, it's not actually scary, because these files were created once
+    #   and we expect them to be static.  Locking only matters if you think somebody else might change the file
+    #   while you're in the middle of reading bits of it.
+    sed_table = h5py.File(fullpath, 'r', locking=False)
     sed_table = sed_table[str(SNID)]
     flambda = sed_table['flambda']
     lam = sed_table['lambda']
@@ -1530,29 +1537,24 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
     identifier (str): the supernova ID or 'simulated'
     band (str): the bandpass of the images used
     psftype (str): 'romanpsf' or 'analyticpsf'
-    output_path (str): the path to save the lightcurve to.
+    output_path (str): the path to save the lightcurve to.  Defaults to
+      config value phtometry.campari.paths.output_dir
 
     Returns:
     None, saves the lightcurve to a ecsv file.
     The file name is:
-    output_path/identifier_band_psftype_lc.ecsv
+    <output_path>/identifier_band_psftype_lc.ecsv
     '''
 
-    if not os.path.exists(os.path.join(os.getcwd(), 'results/')):
-            Lager.info('Making a results directory for output at ' +
-                       os.getcwd() + '/results')
-            os.makedirs(os.path.join(os.getcwd(), 'results/'))
-            os.makedirs(os.path.join(os.getcwd(), 'results/images/'))
-            os.makedirs(os.path.join(os.getcwd(), 'results/lightcurves/'))
+    output_path = Config.get().value('photometry.campari.paths.output_dir') if output_path is None else output_path
+    output_path = pathlib.Path( output_path )
+    output_path.mkdir( exist_ok=True, parents=True )
 
-    if output_path is None:
-        output_path = os.path.join(os.getcwd(), 'results/lightcurves/')
-
-    lc_file = os.path.join(output_path,
-                           f'{identifier}_{band}_{psftype}_lc.ecsv')
+    lc_file = output_path / f'{identifier}_{band}_{psftype}_lc.ecsv'
 
     Lager.info(f'Saving lightcurve to {lc_file}')
     lc.write(lc_file, format = 'ascii.ecsv', overwrite = overwrite)
+
 
 def banner(text):
     length = len(text) + 8
@@ -1857,7 +1859,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images, roman_p
 
         # TODO: Put this in snappl
         if use_real_images:
-            util_ref = roman_utils(config_file=pathlib.Path(__file__).parent/'temp_tds.yaml',
+            util_ref = roman_utils(config_file=pathlib.Path(Config.get().value('photometry.campari.galsim.tds_file')),
                                    visit=exposures['Pointing'][i],
                                    sca=exposures['SCA'][i])
 

@@ -13,11 +13,14 @@ photometry:
     use_real_images: true
 
     paths:
-      roman_path: /hpc/group/cosmology/OpenUniverse2024
-      sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
-      output_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
-      debug_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
+      roman_path: /sims_dir
+      sn_path: /snana_pq_dir
+      output_dir: /campari_out_dir
+      debug_dir: /campari_debug_dir
 
+    # OMG
+    galsim:
+      tds_file: /campari/examples/perlmutter/tds.yaml
 
     grid_options:
       type: contour

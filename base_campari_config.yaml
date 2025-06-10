@@ -1,0 +1,188 @@
+# Base config file for campari.  Please do not change the values in this
+# file unless you know what you're doing.  The config values here are
+# intended as package defaults, but they're also the values that are
+# used in our dockerized tests.
+#
+# If you want your own config that overrides some of these values but
+# keeps the rest, then make a new .yaml file that starts with the
+# following (with no spaces before the text on the first line):
+#
+#   replaceable_preloads:
+#     - <dir>/base_campari_config.yaml
+#
+# where <dir> is the directory of your campari checkout.  It can be
+# relative to the location of your new config file.  Then, put anything
+# you want to update later in the config.  You can find an example of
+# this in examples/campari_cole_dcc_config.yaml
+#
+# There are other options for including config files within each other;
+# see the docstring on snappl.config.Config for more information.
+
+
+# Photometry is intended to be the base config tree for everything
+# photometry related in the Roman SNPIT.  Other files will
+# have other things underneath photometry (e.g. photometry.phrosty,
+# photometry.snappl, etc.).
+photometry:
+
+  # Campari is the scene modelling photometry package at
+  #  https://github.com/Roman-Supernova-PIT/campari
+  # PyPI package : tbd
+  campari:
+    # cutout_size is the size of the thumbnail patch on the images in
+    # which to do the fit.  Should be odd.
+    cutout_size: 11
+
+    # When we make the initial guess, every model component gets a
+    # starting value. This includes the supernova fluxes. Setting this
+    # value chooses the initial flux for the SN in each image before the
+    # algorithm solves for the true value. Changing this number has very
+    # very little effect on the results and can be safely left at 1. It
+    # is only a configuration variable because I thought it was not
+    # smart to hard code it.
+    initial_flux_guess: 3000
+
+    # If true, get the SN SED from the OpenUniverse parquet files. If
+    # false, use a flat SED. May not be perfectly functional yet.
+    # Eventually this will no longer be a campari argument when it is
+    # refactored to offload SED loading to snappl.
+    fetch_SED: true
+
+    # If true, use the galsim photon shooting to generate the PSF for
+    # fitting the SN. This seemingly needs to be true for a quality fit.
+    # This will eventually not be a campari option as all PSF operations
+    # are moved out to snappl.
+    source_phot_ops: true
+
+    # If true, use a Galsim-generated Roman PSF to create images. If false, use an analytic Airy PSF.
+    use_roman: true
+
+    # If true, use a Gaussian weighting centered on the SN.  This will
+    # make the pixels near the center of the clip (i.e. where the
+    # supernova is) have more weight than the pixels at the edge of the
+    # thumbnail, where we don't care about the values as much.  Use of
+    # this typically improves results.
+    weighting: true
+
+    # If true, the algorithm uses an average of the pixel values at each
+    # model point to set an initial guess for each model point. Slight
+    # improvement in certain cases but not pivotal.
+    make_initial_guess: true
+
+    # (This next one isn't used?)
+    method: lsqr
+
+    # Experimental: If true, use a pixel (tophat) function rather than a
+    # delta function to be convolved with the PSF in order to build the
+    # model.
+    pixel: false
+
+    # (Cole: is this what was documented as "fit_background" in the old
+    # version of the main README file?)
+    subtract_background: true
+
+    # If true, use Roman OpenUniverse images (...which aren't really
+    # real, as they're simulations...).  If false, use images you
+    # simulate yourself, see the "simulation" config subtree below.
+    # This will probably change as campari is refactored to not
+    # integrate OpenUniverse within itself.
+    use_real_images: true
+
+    paths:
+      # roman_path is where the OpenUniverse 2024 FITS image files are found
+      roman_path: /sims_dir
+      # sn_path is where to find OpenUniverse 2024 parquet files with
+      #   SEDs.  Has object ID metadata.  This will go away later once
+      #   we disentangle galsim from campari
+      sn_path: /snana_pq_dir
+      # Another file that will go away when we disentangle from
+      #   galsim
+      sims_sed_library: /sims_sed_library
+      # output_dir is where output lightcurves are written
+      output_dir: /campari_out_dir
+      # debug_dir is where output images and such are written
+      debug_dir: /campari_debug_dir
+
+    # OMG
+    galsim:
+      # This is a file that tells the code where to find galsim truth
+      #  tables and stuff
+      tds_file: /campari/examples/perlmutter/tds.yaml
+
+    # The grid is related to how campari constructs is background model
+    grid_options:
+      # The type of grid to use when ... doing something related to the background model.  Options include:
+      #   regular — a regularly spaced grid
+      #   adaptive — Points are placed in the image based on the
+      #              brightness in each pixel
+      #   contour — Points are placed by placing finer and finer
+      #             regularly spaced grids in different contour levels
+      #             of a linear interpolation of the image. See
+      #             make_contour_grid docstring for a more detailed
+      #             explanation.
+      #   single — Place a single grid point. This is for sanity
+      #            checking that the algroithm is drawing points where
+      #            expected.
+      #   none — Don't generate a background model at all. Useful for
+      #          testing just the PSF photometry of the SN if running on
+      #          a star, for instance.
+      type: contour
+
+      # (What is this?)
+      percentiles:
+      - 0
+      - 90
+      - 98
+      - 100
+
+      # (What is this?)
+      spacing: 0.75
+
+      # (What is this?)
+      turn_grid_off: false
+
+    # Simulations are for simple simulated images created inside campari
+    # itself.  They exist for testing functaionality, and for
+    # experimenting with how other options work.  All of the following
+    # will be ignored if photometry.campari.use_real_images is true.
+    simulations:
+      # Sky background in simulated images.
+      background_level: 0
+
+      # Total flux of the simualted background galaxy.a
+      bg_gal_flux: 100000.0
+
+      # (not currently used; TODO: Ensure users can use the avoid non linearity and check perfection options.)
+      avoid_non_linearity: false
+      check_perfection: false
+
+      # If deltafcn_profile is true, the galaxy is no longer a realistic
+      # galaxy profile and instead a Dirac delta function. Combined with
+      # single_grid_point, it is hypothetically possible for the
+      # algorithm to perfectly recover the background by fitting a Dirac
+      # delta to a Dirac delta at the exact same location. TODO: explain
+      # this better.
+      deltafcn_profile: false
+      single_grid_point: false
+
+      # If true, successive images are rotated (as they will be for real Roman images).
+      do_rotation: true
+
+      # If true, successive images have their centers offset (as they will be for real Roman images).
+      do_xshift: true
+
+      # (not currently used)
+      make_exact: false
+
+      # If true, intentionally use a different SED to generate the SN
+      # than to fit it later. Useful for testing how much the SED
+      # affects the fit.
+      mismatch_seds: false
+
+      # Standard deviation of Gaussian noise added to images.
+      noise: 0
+
+      # TODO: doc
+      sim_gal_dec_offset: 1e-5
+      sim_gal_ra_offset: 1e-5
+

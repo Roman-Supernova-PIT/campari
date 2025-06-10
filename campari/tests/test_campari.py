@@ -2,18 +2,26 @@ from astropy.io import ascii
 from astropy.table import QTable
 import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
-from campari.AllASPFuncs import calc_mag_and_err, calculate_background_level, \
-                        construct_psf_background, \
-                        extract_sn_from_parquet_file_and_write_to_csv, \
-                        extract_star_from_parquet_file_and_write_to_csv, \
-                        findAllExposures, find_parquet, get_galsim_SED, \
-                        get_galsim_SED_list, get_weights, \
-                        get_object_info, make_adaptive_grid, \
-                        make_contour_grid, make_regular_grid, \
-                        open_parquet, \
-                        radec2point, save_lightcurve
-from campari.simulation import simulate_galaxy, simulate_images, \
-                               simulate_supernova, simulate_wcs
+from campari.AllASPFuncs import (
+    calc_mag_and_err,
+    calculate_background_level,
+    construct_psf_background,
+    extract_sn_from_parquet_file_and_write_to_csv,
+    extract_star_from_parquet_file_and_write_to_csv,
+    findAllExposures,
+    find_parquet,
+    get_galsim_SED,
+    get_galsim_SED_list,
+    get_object_info,
+    get_weights,
+    make_adaptive_grid,
+    make_contour_grid,
+    make_regular_grid,
+    open_parquet,
+    radec2point,
+    save_lightcurve
+)
+from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from campari import RomanASP
 from erfa import ErfaWarning
 import galsim
@@ -33,16 +41,6 @@ import warnings
 
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
-
-
-@pytest.fixture(scope='session')
-def config_path():
-    return pathlib.Path(__file__).parent / 'test_config.yaml'
-
-
-@pytest.fixture(scope='module')
-def cfg(config_path):
-    return Config.get(config_path, setdefault=True)
 
 
 @pytest.fixture(scope='module')
@@ -177,50 +175,123 @@ def test_simulate_supernova():
 
 
 def test_savelightcurve():
-    data_dict = {'MJD': [1, 2, 3, 4, 5], 'true_flux': [1, 2, 3, 4, 5],
-                 'measured_flux': [1, 2, 3, 4, 5]}
-    units = {'MJD': u.d, 'true_flux': '',  'measured_flux': ''}
-    meta_dict = {}
-    lc = QTable(data=data_dict, meta=meta_dict, units=units)
-    save_lightcurve(lc, 'test', 'test', 'test')
+    output_dir = pathlib.Path( Config.get().value('photometry.campari.paths.output_dir') )
+    output_dir.mkdir( parents=True, exist_ok=True )
+    lc_file = output_dir / 'test_test_test_lc.ecsv'
+    assert not lc_file.exists(), f"File {lc_file} eixsts; delete it before running tests"
 
-    output_path = pathlib.Path(__file__).parent / 'results/lightcurves/'
-    lc_file = os.path.join(output_path, 'test_test_test_lc.ecsv')
-    assert os.path.exists(lc_file)
+    try:
+        data_dict = {'MJD': [1, 2, 3, 4, 5], 'true_flux': [1, 2, 3, 4, 5],
+                     'measured_flux': [1, 2, 3, 4, 5]}
+        units = {'MJD': u.d, 'true_flux': '',  'measured_flux': ''}
+        meta_dict = {}
+        lc = QTable(data=data_dict, meta=meta_dict, units=units)
+        # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
+        save_lightcurve(lc, 'test', 'test', 'test')
+        assert lc_file.is_file()
+        # TODO: look at contents?
+    finally:
+        # Make sure to clean up after ourselves
+        lc_file.unlink( missing_ok=True )
 
 
-def test_run_on_star(config_path):
+def test_run_on_star():
+    # Call it as a function first so we can pdb and such
+    args = [ "_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+             "--object_type", "star", "--photometry-campari-grid_options-type", "none" ]
+    orig_argv = sys.argv
+    try:
+        sys.argv = args
+        RomanASP.main()
+    except Exception as ex:
+        assert False, str(ex)
+    finally:
+        sys.argv = orig_argv
+
+    # Make sure it runs from the command line
     err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
-                         f'-o "testdata" --config {config_path} '
                          f'--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
-def test_regression_function(config_path):
-    curfile = (pathlib.Path(__file__).parent
-               / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
+def test_regression_function():
+    # This runs the same test as test_regression, with a different
+    # interface.  This one calls the main() function (so is useful if
+    # you want to, e.g., do things with pdb).  test_regression runs it
+    # from the command line.  (And we do want to make sure that works!)
+
+    cfg = Config.get()
+    curfile = pathlib.Path( cfg.value('photometry.campari.paths.output_dir') ) / '40120913_Y106_romanpsf_lc.ecsv'
     curfile.unlink(missing_ok=True)
-    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1", "-o",
-    "testdata", "--config", str(config_path), "--photometry-campari-use_roman",
-     "--photometry-campari-use_real_images", "--no-photometry-campari-fetch_SED",
-      "--photometry-campari-grid_options-type", "contour", "--photometry-campari-cutout_size",
-       "19", "--photometry-campari-weighting", "--photometry-campari-subtract_background",
-        "--no-photometry-campari-source_phot_ops"]
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
+
+    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1",
+         "--photometry-campari-use_roman",
+         "--photometry-campari-use_real_images",
+         "--no-photometry-campari-fetch_SED",
+         "--photometry-campari-grid_options-type", "contour",
+         "--photometry-campari-cutout_size", "19",
+         "--photometry-campari-weighting",
+         "--photometry-campari-subtract_background",
+         "--no-photometry-campari-source_phot_ops"]
     orig_argv = sys.argv
     try:
         sys.argv = a
         RomanASP.main()
-        current = pd.read_csv(pathlib.Path(__file__).parent
-                          / 'testdata/40120913_Y106_romanpsf_lc.ecsv',
-                          comment='#', delimiter=' ')
-        comparison = pd.read_csv(pathlib.Path(__file__).parent
-                                / 'testdata/test_lc.ecsv', comment='#',
-                                delimiter=' ')
+        cfg = Config.get()
+        current = pd.read_csv(curfile, comment='#', delimiter=' ')
+        comparison = pd.read_csv(pathlib.Path(__file__).parent / 'testdata/test_lc.ecsv',
+                                 comment='#', delimiter=' ')
 
         for col in current.columns:
             Lager.debug(f'Checking col {col}')
             # According to Michael and Rob, this is roughly what can be expected
             # due to floating point precision.
+            #
+            # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
+            # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
+            # roughly log10(2^24)=7 significant figures.  As such,
+            # errors of 1e-7 can very easily come from things like order
+            # of operations (even in system libraries).  64-bit floats
+            # (i.e. doubles) have a 53-bit mantissa, and log10(2^53)=16,
+            # so you have 15 or 16 sig figs which "ought to be enough
+            # for anybody".  HOWEVER, you *can* get errors much larger
+            # than this, depending on your order of operations.  For
+            # example, try the following code:
+            #
+            #   import numpy
+            #   a = numpy.float32( 1e8 )
+            #   print( f"a={a}" )
+            #   b = numpy.float32( 1 )
+            #   print( f"b={b}" )
+            #   print( a - ( a - b ) )
+            #   print( a - a + b )
+            #
+            # If you know algebra, you know that the last two numbers
+            # printed out should be exactly the same.  However, you get
+            # either a 100% differerence, or an *infinite* difference,
+            # depending on how you define relative difference in this
+            # case.
+            #
+            # The numpy libraries try to be a bit clever when doing
+            # things like .sum() to avoid the worst of floating-point
+            # underflow, but it's a thing worth being aware of.
+            # Relative errors of 1e-7 (for floats) or 1e-16 (for
+            # doubles) can easily arise from floating-point underflow;
+            # whether or not you're worried about those errors depends
+            # on how confident you are that the order of operations is
+            # identical in two different test cases.  Bigger errors
+            # *can* arise from floating point underflow, but never just
+            # wave your hands and say, "eh, the tests are passing, it's
+            # just underflow!"  Understand how underflow did it.  If it
+            # did, and you're not worried, document that.  But,
+            # probably, you should be worried, and you should
+            # restructure the order of operations in your code to avoid
+            # underflow errors bigger than the number of sig figs in a
+            # floating point number.)
+
             msg = "The lightcurves do not match for column %s" % col
             if col == 'band':
                 # band is the only string column, so we check it with array_equal
@@ -241,19 +312,21 @@ def test_regression_function(config_path):
         sys.argv = orig_argv
 
 
-
-def test_regression(config_path):
-    # Regression lightcurve was changed on June 5th 2025 because generateGuess
-    # had a bug where it divided the guess by the wrong number.
+def test_regression():
+    # Regression lightcurve was changed on June 6th 2025 because we were on an
+    # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
-    curfile = (pathlib.Path(__file__).parent
-               / 'testdata/40120913_Y106_romanpsf_lc.ecsv')
+    cfg = Config.get()
+
+    curfile = pathlib.Path( cfg.value('photometry.campari.paths.output_dir') ) / '40120913_Y106_romanpsf_lc.ecsv'
     curfile.unlink(missing_ok=True)
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
 
     output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
-                       f"-o testdata --config {config_path} "
                         "--photometry-campari-use_roman "
                         "--photometry-campari-use_real_images "
                         "--no-photometry-campari-fetch_SED "
@@ -264,12 +337,9 @@ def test_regression(config_path):
                         "--no-photometry-campari-source_phot_ops ")
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = pd.read_csv(pathlib.Path(__file__).parent
-                          / 'testdata/40120913_Y106_romanpsf_lc.ecsv',
-                          comment='#', delimiter=' ')
-    comparison = pd.read_csv(pathlib.Path(__file__).parent
-                             / 'testdata/test_lc.ecsv', comment='#',
-                             delimiter=' ')
+    current = pd.read_csv(curfile, comment='#', delimiter=' ')
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / 'testdata/test_lc.ecsv',
+                             comment='#', delimiter=' ')
 
     for col in current.columns:
         Lager.debug(f'Checking col {col}')
@@ -351,16 +421,21 @@ def test_plot_lc():
 
 
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
-    output_path = pathlib.Path(__file__).parent / "testdata/snids.csv"
-    extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path,
-                                                  output_path,
-                                                  mag_limits=[20, 21])
-    sn_ids = pd.read_csv(output_path, header=None).values.flatten()
+    cfg = Config.get()
+    new_snid_file = ( pathlib.Path( cfg.value('photometry.campari.paths.debug_dir') ) /
+                      'test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv' )
+    new_snid_file.unlink( missing_ok=True )
+    # Make sure we're really writing a new file so that this
+    #   test is really meaningful
+    assert not new_snid_file.exists()
+
+    # TODO don't write to testdata
+    extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path, new_snid_file, mag_limits=[20, 21])
+    sn_ids = pd.read_csv(new_snid_file, header=None).values.flatten()
     test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent
                               / "testdata/test_snids.csv",
                               header=None).values.flatten()
-    np.testing.assert_array_equal(sn_ids, test_sn_ids), \
-        "The SNIDs do not match the test example"
+    np.testing.assert_array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"
 
 
 def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
@@ -502,7 +577,7 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_psf_background():
+def test_construct_psf_background( cfg ):
     wcs_data = np.load('./testdata/wcs_dict.npz', allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
@@ -512,7 +587,7 @@ def test_construct_psf_background():
     dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
                          -44.26416321])
 
-    config_file = pathlib.Path(__file__).parent.parent/'temp_tds.yaml'
+    config_file = pathlib.Path(cfg.value('photometry.campari.galsim.tds_file'))
     pointing = 43623  # These numbers are arbitrary for this test.
     SCA = 7
 
