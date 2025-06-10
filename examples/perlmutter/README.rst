@@ -65,13 +65,11 @@ Running interactively
 
 Make sure you are in your parent directory.
 
-Copy the file ``interactive_podman.sh`` from the ``examples/perlmutter`` directory (which, under your parent directory, will be at ``campari/examples/perlmutter/interactive_podman.sh``) to your parent directory.
-
 Make sure you're on the machine where you want to run.  If you're going to do something short, it's probably OK to do it on the login node, but it's antisocial to do big things on login nodes.  For running the tests in this example, the login node is *probably* fine, but you might want to get yourself an interactive node to work on.  (Be careful not to let the interactive node sit around after you're done with it, as you will be eating up our nersc allocation.)
 
 Run::
 
-  bash interactive_podman.sh
+  bash examples/perlmutter/interactive_podman.sh
 
 You are now inside the container; you can tell that this has happened because your prompt will have changed to something like ``root@0a168a1f80df:/#`` (the actual hex barf will be different).
 
