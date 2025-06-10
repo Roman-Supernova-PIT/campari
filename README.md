@@ -1,3 +1,5 @@
+(**Warning** : some of this readme is currently out of date, especially with regards to paths.  We need to update it.)
+
 ## Environment
 To create an environment to run this code the following 'module load' will be necessary on NERSC \
 On other systems 'conda' may be already in your path. Consult the documentation for the relevant system. \
