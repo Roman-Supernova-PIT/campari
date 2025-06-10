@@ -22,11 +22,3 @@ podman-hpc run --gpu \
     -it \
     registry.nersc.gov/m4385/rknop/roman-snpit-env:cpu \
     /bin/bash
-
-    # --mount type=bind,source=$PWD/sn_info_dir,target=/sn_info_dir \
-    # --mount type=bind,source=$PWD/lc_out_dir,target=/lc_out_dir \
-    # --mount type=bind,source=$SCRATCH/phrosty_temp,target=/phrosty_temp \
-    # --env SN_INFO_DIR=/sn_info_dir \
-    # --env DIA_OUT_DIR=/dia_out_dir \
-    # --env SIMS_DIR=/sims_dir \
-    # --env SNANA_PQ_DIR=/snana_pq_dir \
