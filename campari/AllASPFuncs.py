@@ -1249,7 +1249,6 @@ def get_star_SED(SNID, sn_path):
     filenum = find_parquet(SNID, sn_path, obj_type = 'star')
     pqfile = open_parquet(filenum, sn_path, obj_type = 'star')
     file_name = pqfile[pqfile['id'] == str(SNID)]['sed_filepath'].values[0]
-    #THIS HARDCODE WILL NEED TO BE REMOVED
     #SED needs to move out to snappl
     fullpath = pathlib.Path( Config.get().value( 'photometry.campari.paths.sims_sed_library' ) ) / file_name
     sed_table = pd.read_csv(fullpath,  compression='gzip', sep = '\s+', comment = '#')
