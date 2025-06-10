@@ -1,0 +1,1 @@
+Refactoring to use paths from config ; add example running campari with podman on perlmutter.
