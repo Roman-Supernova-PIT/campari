@@ -68,6 +68,9 @@ python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
 
 ### NERSC 
+
+(Aside: see examples/perlmutter for an example of running campari in a podman container on Perlmutter.)
+
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
 ```

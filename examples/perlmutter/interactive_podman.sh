@@ -16,7 +16,7 @@ podman-hpc run --gpu \
     --env NUMEXPR_NUM_THREADS=1 \
     --env OMP_NUM_THREADS=1 \
     --env VECLIB_MAXIMUM_THREADS=1 \
-    --env SNPIT_CONFIG=/campari/base_campari_config.yaml
+    --env SNPIT_CONFIG=/campari/base_campari_config.yaml \
     --env TERM=xterm \
     --annotation run.oci.keep_original_groups=1 \
     -it \
