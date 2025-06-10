@@ -2,7 +2,7 @@
 Example running campari on Perlmutter in a docker image with podman
 =====================================================================
 
-.. toctree::
+.. contents::
 
 Getting set up
 ==============
