@@ -6,6 +6,7 @@ photometry:
     paths:
       roman_path: /hpc/group/cosmology/OpenUniverse2024
       sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
+      sims_sed_library: /hpc/home/cfm37/rubin_sim_data/sims_sed_library
       output_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
       debug_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
 
