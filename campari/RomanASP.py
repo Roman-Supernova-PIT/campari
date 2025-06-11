@@ -1,18 +1,23 @@
-from campari.AllASPFuncs import banner, build_lightcurve, \
-                                 build_lightcurve_sim, run_one_object, \
-                                 save_lightcurve
-from astropy.io import fits
-from astropy.utils.exceptions import AstropyWarning
+# Standard Library
 import argparse
-from erfa import ErfaWarning
+import pathlib
+import warnings
+
+# Common Library
 import galsim
 import numpy as np
 import pandas as pd
-import pathlib
+from astropy.io import fits
+from astropy.utils.exceptions import AstropyWarning
+from erfa import ErfaWarning
+
+# SN-PIT
 import snappl
-from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
-import warnings
+from snpit_utils.logger import SNLogger as Lager
+
+# Campari
+from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, run_one_object, save_lightcurve
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.

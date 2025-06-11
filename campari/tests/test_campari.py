@@ -1,15 +1,34 @@
+import os
+import pathlib
+import sys
+import tempfile
+import warnings
+
+import astropy.units as u
+import galsim
+import numpy as np
+import pandas as pd
+import pytest
 from astropy.io import ascii
 from astropy.table import QTable
-import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
+from erfa import ErfaWarning
+from roman_imsim.utils import roman_utils
+
+import snappl
+from snappl.image import OpenUniverse2024FITSImage
+from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger as Lager
+
+from campari import RomanASP
 from campari.AllASPFuncs import (
     calc_mag_and_err,
     calculate_background_level,
     construct_psf_background,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
-    findAllExposures,
     find_parquet,
+    findAllExposures,
     get_galsim_SED,
     get_galsim_SED_list,
     get_object_info,
@@ -19,25 +38,9 @@ from campari.AllASPFuncs import (
     make_regular_grid,
     open_parquet,
     radec2point,
-    save_lightcurve
+    save_lightcurve,
 )
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
-from campari import RomanASP
-from erfa import ErfaWarning
-import galsim
-import numpy as np
-import os
-import sys
-import pandas as pd
-import pathlib
-import pytest
-from roman_imsim.utils import roman_utils
-import snappl
-from snappl.image import OpenUniverse2024FITSImage
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
-import tempfile
-import warnings
 
 warnings.simplefilter('ignore', category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
