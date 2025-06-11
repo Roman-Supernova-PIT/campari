@@ -625,7 +625,7 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
 
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
-            # In the future, I"d like to manually insert an array of ones for
+            # In the future, I'd like to manually insert an array of ones for
             # the error, or something.
 
         """
@@ -654,7 +654,7 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
                 # ....or manually calculating it!
                 bg = calculate_background_level(imagedata)
 
-        bgflux.append(bg)  # This currently isn"t returned, but might be a good
+        bgflux.append(bg)  # This currently isn't returned, but might be a good
         # thing to put in output? TODO
 
         image_cutout._data -= bg
@@ -1641,7 +1641,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
     psf_matrix = []
     sn_matrix = []
 
-    # This is a catch for when I"m doing my own simulated WCSs
+    # This is a catch for when I'm doing my own simulated WCSs
     util_ref = None
 
     percentiles = []
