@@ -1,4 +1,3 @@
-import pathlib
 import pytest # noqa: F401
 
 import tox # noqa: F401

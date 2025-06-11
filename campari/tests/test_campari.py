@@ -1,15 +1,34 @@
+import os
+import pathlib
+import sys
+import tempfile
+import warnings
+
+import astropy.units as u
+import galsim
+import numpy as np
+import pandas as pd
+import pytest
 from astropy.io import ascii
 from astropy.table import QTable
-import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
+from erfa import ErfaWarning
+from roman_imsim.utils import roman_utils
+
+import snappl
+from snappl.image import OpenUniverse2024FITSImage
+from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger as Lager
+
+from campari import RomanASP
 from campari.AllASPFuncs import (
     calc_mag_and_err,
     calculate_background_level,
     construct_psf_background,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
-    findAllExposures,
     find_parquet,
+    findAllExposures,
     get_galsim_SED,
     get_galsim_SED_list,
     get_object_info,
@@ -19,38 +38,22 @@ from campari.AllASPFuncs import (
     make_regular_grid,
     open_parquet,
     radec2point,
-    save_lightcurve
+    save_lightcurve,
 )
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
-from campari import RomanASP
-from erfa import ErfaWarning
-import galsim
-import numpy as np
-import os
-import sys
-import pandas as pd
-import pathlib
-import pytest
-from roman_imsim.utils import roman_utils
-import snappl
-from snappl.image import OpenUniverse2024FITSImage
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
-import tempfile
-import warnings
 
-warnings.simplefilter('ignore', category=AstropyWarning)
+warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def roman_path(cfg):
-    return cfg.value('photometry.campari.paths.roman_path')
+    return cfg.value("photometry.campari.paths.roman_path")
 
 
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def sn_path(cfg):
-    return cfg.value('photometry.campari.paths.sn_path')
+    return cfg.value("photometry.campari.paths.sn_path")
 
 
 def test_find_parquet(sn_path):
@@ -59,17 +62,17 @@ def test_find_parquet(sn_path):
 
 
 def test_radec2point(roman_path):
-    p, s = radec2point(7.731890048839705, -44.4589649005717, 'Y106',
+    p, s = radec2point(7.731890048839705, -44.4589649005717, "Y106",
                        path=roman_path)
     assert p == 10535
     assert s == 14
 
 
 def test_get_object_info(roman_path, sn_path):
-    ra, dec, p, s, start, end, peak = get_object_info(50134575, 10430, 'Y106',
+    ra, dec, p, s, start, end, peak = get_object_info(50134575, 10430, "Y106",
                                                       snpath=sn_path,
                                                       roman_path=roman_path,
-                                                      obj_type='SN')
+                                                      obj_type="SN")
     assert ra == 7.731890048839705
     assert dec == -44.4589649005717
     assert p == 10535
@@ -81,21 +84,21 @@ def test_get_object_info(roman_path, sn_path):
 
 def test_findAllExposures(roman_path):
     explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
-                               62654., 62958., 62683.98, 'Y106', maxbg=24,
+                               62654., 62958., 62683.98, "Y106", maxbg=24,
                                maxdet=24, return_list=True, stampsize=25,
                                roman_path=roman_path,
                                pointing_list=None, SCA_list=None,
-                               truth='simple_model')
+                               truth="simple_model")
     compare_table = ascii.read(pathlib.Path(__file__).parent
-                               / 'testdata/findallexposurestest.dat')
-    assert explist['Pointing'].all() == compare_table['Pointing'].all()
-    assert explist['SCA'].all() == compare_table['SCA'].all()
-    assert explist['date'].all() == compare_table['date'].all()
+                               / "testdata/findallexposurestest.dat")
+    assert explist["Pointing"].all() == compare_table["Pointing"].all()
+    assert explist["SCA"].all() == compare_table["SCA"].all()
+    assert explist["date"].all() == compare_table["date"].all()
 
 
 def test_simulate_images(roman_path):
     lam = 1293  # nm
-    band = 'F184'
+    band = "F184"
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
@@ -113,42 +116,42 @@ def test_simulate_images(roman_path):
                         input_psf=airy, bg_gal_flux=9e5)
 
     compare_images = np.load(pathlib.Path(__file__).parent
-                             / 'testdata/images.npy')
+                             / "testdata/images.npy")
     assert compare_images.all() == np.asarray(images).all()
 
 
 def test_simulate_wcs(roman_path):
     wcs_dict = simulate_wcs(angle=np.pi/4, x_shift=0.1, y_shift=0,
                             roman_path=roman_path, base_sca=11,
-                            base_pointing=662, band='F184')
-    b = np.load(pathlib.Path(__file__).parent / 'testdata/wcs_dict.npz',
+                            base_pointing=662, band="F184")
+    b = np.load(pathlib.Path(__file__).parent / "testdata/wcs_dict.npz",
                 allow_pickle=True)
-    assert wcs_dict == b, 'WCS simulation does not match test example'
+    assert wcs_dict == b, "WCS simulation does not match test example"
 
 
 def test_simulate_galaxy():
-    band = 'F184'
+    band = "F184"
     roman_bandpasses = galsim.roman.getBandpasses()
     lam = 1293  # nm
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
-                     interpolant='linear'), wave_type='nm',
-                     flux_type='fphotons')
+                     interpolant="linear"), wave_type="nm",
+                     flux_type="fphotons")
     sim_psf = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
     convolved = simulate_galaxy(bg_gal_flux=9e5, deltafcn_profile=False,
                                 band=band, sim_psf=sim_psf, sed=sed)
 
-    a = convolved.drawImage(roman_bandpasses[band], method='no_pixel',
+    a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
                             use_true_center=True)
     b = np.load(pathlib.Path(__file__).parent
-                / 'testdata/test_galaxy.npy')
+                / "testdata/test_galaxy.npy")
     assert (a.array - b).all() == 0, "The two galaxy images are not the same!"
 
 
 def test_simulate_supernova():
     wcs_data = np.load(pathlib.Path(__file__).parent
-                       / 'testdata/wcs_dict.npz', allow_pickle=True)
+                       / "testdata/wcs_dict.npz", allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
@@ -156,11 +159,11 @@ def test_simulate_supernova():
     wcs, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
 
     stamp = galsim.Image(11, 11, wcs=wcs)
-    band = 'F184'
+    band = "F184"
     lam = 1293  # nm
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
-                     interpolant='linear'), wave_type='nm',
-                     flux_type='fphotons')
+                     interpolant="linear"), wave_type="nm",
+                     flux_type="fphotons")
     sim_psf = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
@@ -170,24 +173,24 @@ def test_simulate_supernova():
                                          base_pointing=662, base_sca=11,
                                          random_seed=12345)
     test_sn = np.load(pathlib.Path(__file__).parent
-                      / 'testdata/supernova_image.npy')
+                      / "testdata/supernova_image.npy")
     np.testing.assert_allclose(supernova_image, test_sn, rtol=1e-7)
 
 
 def test_savelightcurve():
-    output_dir = pathlib.Path( Config.get().value('photometry.campari.paths.output_dir') )
+    output_dir = pathlib.Path( Config.get().value("photometry.campari.paths.output_dir") )
     output_dir.mkdir( parents=True, exist_ok=True )
-    lc_file = output_dir / 'test_test_test_lc.ecsv'
+    lc_file = output_dir / "test_test_test_lc.ecsv"
     assert not lc_file.exists(), f"File {lc_file} eixsts; delete it before running tests"
 
     try:
-        data_dict = {'MJD': [1, 2, 3, 4, 5], 'true_flux': [1, 2, 3, 4, 5],
-                     'measured_flux': [1, 2, 3, 4, 5]}
-        units = {'MJD': u.d, 'true_flux': '',  'measured_flux': ''}
+        data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5],
+                     "measured_flux": [1, 2, 3, 4, 5]}
+        units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
         meta_dict = {}
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
-        save_lightcurve(lc, 'test', 'test', 'test')
+        save_lightcurve(lc, "test", "test", "test")
         assert lc_file.is_file()
         # TODO: look at contents?
     finally:
@@ -209,8 +212,8 @@ def test_run_on_star():
         sys.argv = orig_argv
 
     # Make sure it runs from the command line
-    err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
-                         f'--object_type star --photometry-campari-grid_options-type none')
+    err_code = os.system("python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 "
+                         "--object_type star --photometry-campari-grid_options-type none")
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
@@ -221,7 +224,7 @@ def test_regression_function():
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path( cfg.value('photometry.campari.paths.output_dir') ) / '40120913_Y106_romanpsf_lc.ecsv'
+    curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -241,12 +244,12 @@ def test_regression_function():
         sys.argv = a
         RomanASP.main()
         cfg = Config.get()
-        current = pd.read_csv(curfile, comment='#', delimiter=' ')
-        comparison = pd.read_csv(pathlib.Path(__file__).parent / 'testdata/test_lc.ecsv',
-                                 comment='#', delimiter=' ')
+        current = pd.read_csv(curfile, comment="#", delimiter=" ")
+        comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
+                                 comment="#", delimiter=" ")
 
         for col in current.columns:
-            Lager.debug(f'Checking col {col}')
+            Lager.debug(f"Checking col {col}")
             # According to Michael and Rob, this is roughly what can be expected
             # due to floating point precision.
             #
@@ -292,8 +295,8 @@ def test_regression_function():
             # underflow errors bigger than the number of sig figs in a
             # floating point number.)
 
-            msg = "The lightcurves do not match for column %s" % col
-            if col == 'band':
+            msg = f"The lightcurves do not match for column {col}"
+            if col == "band":
                 # band is the only string column, so we check it with array_equal
                 np.testing.assert_array_equal(current[col], comparison[col]), msg
             else:
@@ -307,7 +310,7 @@ def test_regression_function():
                 # this fail, so I put the rtol at just above that level.
                 np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
-            #check output
+            # check output
     finally:
         sys.argv = orig_argv
 
@@ -320,13 +323,13 @@ def test_regression():
 
     cfg = Config.get()
 
-    curfile = pathlib.Path( cfg.value('photometry.campari.paths.output_dir') ) / '40120913_Y106_romanpsf_lc.ecsv'
+    curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
+    output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
                         "--photometry-campari-use_roman "
                         "--photometry-campari-use_real_images "
                         "--no-photometry-campari-fetch_SED "
@@ -337,16 +340,16 @@ def test_regression():
                         "--no-photometry-campari-source_phot_ops ")
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = pd.read_csv(curfile, comment='#', delimiter=' ')
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / 'testdata/test_lc.ecsv',
-                             comment='#', delimiter=' ')
+    current = pd.read_csv(curfile, comment="#", delimiter=" ")
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
+                             comment="#", delimiter=" ")
 
     for col in current.columns:
-        Lager.debug(f'Checking col {col}')
+        Lager.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
-        msg = "The lightcurves do not match for column %s" % col
-        if col == 'band':
+        msg = f"The lightcurves do not match for column {col}"
+        if col == "band":
             # band is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col]), msg
         else:
@@ -363,54 +366,54 @@ def test_regression():
 
 
 def test_get_galsim_SED(sn_path):
-    sed = get_galsim_SED(40973149150, 000, sn_path, obj_type='star',
+    sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
                          fetch_SED=True)
     lam = sed._spec.x
     flambda = sed._spec.f
 
     star_lam_test = np.load(pathlib.Path(__file__).parent
-                            / 'testdata/star_lam_test.npy')
+                            / "testdata/star_lam_test.npy")
     np.testing.assert_array_equal(lam, star_lam_test)
     star_flambda_test = np.load(pathlib.Path(__file__).parent
-                                / 'testdata/star_flambda_test.npy')
+                                / "testdata/star_flambda_test.npy")
 
     np.testing.assert_array_equal(flambda, star_flambda_test)
 
-    sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type='SN',
+    sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type="SN",
                          fetch_SED=True)
     lam = sed._spec.x
     flambda = sed._spec.f
 
     sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / 'testdata/sn_lam_test.npy')
+                          / "testdata/sn_lam_test.npy")
     sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / 'testdata/sn_flambda_test.npy')
+                              / "testdata/sn_flambda_test.npy")
 
     np.testing.assert_array_equal(lam, sn_lam_test)
     np.testing.assert_array_equal(flambda, sn_flambda_test)
 
 
 def test_get_galsim_SED_list(sn_path):
-    exposures = {'date': [62535.424], 'DETECTED': [True]}
+    exposures = {"date": [62535.424], "DETECTED": [True]}
     exposures = pd.DataFrame(exposures)
     fetch_SED = True
-    object_type = 'SN'
+    object_type = "SN"
     ID = 40120913
     sedlist = get_galsim_SED_list(ID, exposures, fetch_SED,
                                   object_type, sn_path)
     assert len(sedlist) == 1, "The length of the SED list is not 1"
     sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / 'testdata/sn_lam_test.npy')
+                          / "testdata/sn_lam_test.npy")
     np.testing.assert_array_equal(sedlist[0]._spec.x, sn_lam_test)
     sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / 'testdata/sn_flambda_test.npy')
+                              / "testdata/sn_flambda_test.npy")
     np.testing.assert_array_equal(sedlist[0]._spec.f, sn_flambda_test)
 
 
 def test_plot_lc():
     from campari.AllASPFuncs import plot_lc
     output = plot_lc(pathlib.Path(__file__).parent
-                     / 'testdata/test_lc_plot.ecsv',
+                     / "testdata/test_lc_plot.ecsv",
                      return_data=True)
     assert output[0][0] == 23.34624211038908
     assert output[1][0] == 62535.424
@@ -422,8 +425,8 @@ def test_plot_lc():
 
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     cfg = Config.get()
-    new_snid_file = ( pathlib.Path( cfg.value('photometry.campari.paths.debug_dir') ) /
-                      'test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv' )
+    new_snid_file = ( pathlib.Path( cfg.value("photometry.campari.paths.debug_dir") ) /
+                      "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv" )
     new_snid_file.unlink( missing_ok=True )
     # Make sure we're really writing a new file so that this
     #   test is really meaningful
@@ -460,21 +463,21 @@ def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
         extract_star_from_parquet_file_and_write_to_csv(10430, sn_path,
                                                         output_path)
         star_ids = pd.read_csv(output_path, header=None).values.flatten()
-        parq = open_parquet(10430, sn_path, obj_type='star')
-        assert len(star_ids) == parq['id'].size, \
-            'extract_star_from_parquet_file_and_write_to_csv did not return' +\
-            'all stars when no radius was passed'
+        parq = open_parquet(10430, sn_path, obj_type="star")
+        assert len(star_ids) == parq["id"].size, \
+            "extract_star_from_parquet_file_and_write_to_csv did not return" +\
+            "all stars when no radius was passed"
 
 
 def test_make_regular_grid():
     wcs_data = np.load(pathlib.Path(__file__).parent
-                       / 'testdata/wcs_dict.npz',
+                       / "testdata/wcs_dict.npz",
                        allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    ra_center = wcs_dict['CRVAL1']
-    dec_center = wcs_dict['CRVAL2']
+    ra_center = wcs_dict["CRVAL1"]
+    dec_center = wcs_dict["CRVAL2"]
 
     test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
                         7.67366176, 7.67376548, 7.67348473, 7.67358845,
@@ -493,16 +496,16 @@ def test_make_regular_grid():
 
 
 def test_make_adaptive_grid():
-    wcs_data = np.load('./testdata/wcs_dict.npz', allow_pickle=True)
+    wcs_data = np.load("./testdata/wcs_dict.npz", allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    ra_center = wcs_dict['CRVAL1']
-    dec_center = wcs_dict['CRVAL2']
+    ra_center = wcs_dict["CRVAL1"]
+    dec_center = wcs_dict["CRVAL2"]
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
-                                 / 'testdata/images.npy')
+                                 / "testdata/images.npy")
         image = compare_images[:11**2].reshape(11, 11)
         ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                                image=image, percentiles=[99])
@@ -518,7 +521,7 @@ def test_make_adaptive_grid():
 
 def test_make_contour_grid():
     wcs_data = np.load(pathlib.Path(__file__).parent
-                       / 'testdata/wcs_dict.npz',
+                       / "testdata/wcs_dict.npz",
                        allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
@@ -529,7 +532,7 @@ def test_make_contour_grid():
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
-                                 / 'testdata/images.npy')
+                                 / "testdata/images.npy")
         image = compare_images[:11**2].reshape(11, 11)
         ra_grid, dec_grid = make_contour_grid(image, wcs)
         msg = f"RA vals do not match to {atol:.1e} using galsim wcs."
@@ -560,7 +563,7 @@ def test_calculate_background_level():
 def test_calc_mag_and_err():
     flux = np.array([-1e2, 1e2, 1e3, 1e4])
     sigma_flux = np.array([10, 10, 10, 10])
-    band = 'Y106'
+    band = "Y106"
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
     test_mag = np.array([np.nan, 27.66165575,  25.16165575,  22.66165575])
@@ -578,7 +581,7 @@ def test_calc_mag_and_err():
 
 
 def test_construct_psf_background( cfg ):
-    wcs_data = np.load('./testdata/wcs_dict.npz', allow_pickle=True)
+    wcs_data = np.load("./testdata/wcs_dict.npz", allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
@@ -587,7 +590,7 @@ def test_construct_psf_background( cfg ):
     dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
                          -44.26416321])
 
-    config_file = pathlib.Path(cfg.value('photometry.campari.galsim.tds_file'))
+    config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     SCA = 7
 
@@ -599,10 +602,10 @@ def test_construct_psf_background( cfg ):
 
         psf_background = construct_psf_background(ra_grid, dec_grid, wcs,
                                                   x_loc=2044, y_loc=2044,
-                                                  stampsize=size, band='Y106',
+                                                  stampsize=size, band="Y106",
                                                   util_ref=util_ref)
         test_psf_background = np.load(pathlib.Path(__file__).parent
-                                      / 'testdata/test_psf_bg.npy')
+                                      / "testdata/test_psf_bg.npy")
         np.testing.assert_allclose(psf_background, test_psf_background,
                                    atol=1e-7)
 
@@ -613,17 +616,16 @@ def test_get_weights(roman_path):
     size = 7
     pointing = 111
     SCA = 13
-    truth = 'simple_model'
-    band = 'Y106'
-    imagepath = roman_path + (f'/RomanTDS/images/{truth}/{band}/{pointing}'
-                              f'/Roman_TDS_{truth}_{band}_{pointing}_'
-                              f'{SCA}.fits.gz')
+    truth = "simple_model"
+    band = "Y106"
+    imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
+                              f"/Roman_TDS_{truth}_{band}_{pointing}_"
+                              f"{SCA}.fits.gz")
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, SCA)
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
 
     test_wgt_matrix = np.load(pathlib.Path(__file__).parent
-                              / 'testdata/test_wgt_matrix.npy')
+                              / "testdata/test_wgt_matrix.npy")
     np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
-
