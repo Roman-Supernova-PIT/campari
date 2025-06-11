@@ -21,12 +21,12 @@ from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, 
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
-warnings.simplefilter('ignore', category=AstropyWarning)
+warnings.simplefilter("ignore", category=AstropyWarning)
 # Because the Open Universe Sims have dates from the future, we supress a
 # warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-r'''
+r"""
 Cole Meldorf 2024
 Adapted from code by Pedro Bernardinelli
 
@@ -50,14 +50,14 @@ Adapted from code by Pedro Bernardinelli
               /___/_/|_/    /_/  /___/ /_/
 
 
-'''
+"""
 
 
 def main():
     # Run one arg pass just to get the config file, so we can augment
     #   the full arg parser later with config options
     configparser = argparse.ArgumentParser(add_help=False)
-    configparser.add_argument('-c', '--config', default=None,
+    configparser.add_argument("-c", "--config", default=None,
                               help="Location of the .yaml config file")
     args, leftovers = configparser.parse_known_args()
 
@@ -67,7 +67,7 @@ def main():
     except RuntimeError:
         # If it failed to load the config file, just move on with life.  This
         #   may mean that things will fail later, but it may also just mean
-        #   that somebody is doing '--help'
+        #   that somebody is doing "--help"
         cfg = None
         desc += (" Include --config <configfile> before --help "
                  "(or set SNPIT_CONFIG) for help to show you all config "
@@ -81,32 +81,32 @@ def main():
     # This next argument will have been consumed by configparser above, and
     #   thus will never be parsed here, but include it so it shows up
     #   with --help.
-    parser.add_argument('-c', '--config', default=None,
+    parser.add_argument("-c", "--config", default=None,
                         help="Location of the .yaml config file.  Defaults to "
                         "env var SNPIT_CONFIG.")
 
-    parser.add_argument('-f', '--filter', type=str, required=True,
-                        help='Roman filter')
+    parser.add_argument("-f", "--filter", type=str, required=True,
+                        help="Roman filter")
 
     ####################
     # FINDING THE LOCATION ON THE SKY TO SCENE MODEL
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument('-s', '--SNID', type=int, default=None,
-                        required=False, nargs='*',
-                        help='OpenUnivere2024 Supernova IDs; ignored if'
-                             ' --SNID-file is given')
-    parser.add_argument('--SNID-file', type=str, default=None, required=False,
-                        help='Path to a csv file containing a list of '
-                             'OpenUniverse SNIDs to run.')
+    parser.add_argument("-s", "--SNID", type=int, default=None,
+                        required=False, nargs="*",
+                        help="OpenUnivere2024 Supernova IDs; ignored if"
+                             " --SNID-file is given")
+    parser.add_argument("--SNID-file", type=str, default=None, required=False,
+                        help="Path to a csv file containing a list of "
+                             "OpenUniverse SNIDs to run.")
 
     # If instead you give --ra and --dec, it will assume there is a
     # point source at that position and will scene model a stamp around
     # it. (NOT YET SUPPORTED.)
-    parser.add_argument('--ra', type=float, default=None,
+    parser.add_argument("--ra", type=float, default=None,
                         help="RA of transient point source")
-    parser.add_argument('--dec', type=float, default=None,
+    parser.add_argument("--dec", type=float, default=None,
                         help="Dec of transient point source")
 
     ####################
@@ -114,25 +114,25 @@ def main():
 
     # If you give -t, -d, -b, and/or -e, then campari will decide
     #  (HOW?) what images to use.
-    parser.add_argument('-t', '--num_total_images', type=int, required=False,
-                        help='Number of images to use', default=np.inf)
+    parser.add_argument("-t", "--num_total_images", type=int, required=False,
+                        help="Number of images to use", default=np.inf)
     # TODO:change all instances of this variable to tot_images
-    parser.add_argument('-d', '--num_detect_images', type=int, required=False,
-                        help='Number of images to use with SN detections',
+    parser.add_argument("-d", "--num_detect_images", type=int, required=False,
+                        help="Number of images to use with SN detections",
                         default=np.inf)
     # TODO:change all instances of this variable to det_images
-    parser.add_argument('-b', '--beginning', type=int, required=False,
-                        help='start of desired lightcurve in days from peak.',
+    parser.add_argument("-b", "--beginning", type=int, required=False,
+                        help="start of desired lightcurve in days from peak.",
                         default=-np.inf)
-    parser.add_argument('-e', '--end', type=int, required=False,
-                        help='end of desired light curve in days from peak.',
+    parser.add_argument("-e", "--end", type=int, required=False,
+                        help="end of desired light curve in days from peak.",
                         default=np.inf)
 
     # If instead you give imglist, then you expliclty list the images
     # used.  TODO: specify type of image, and adapt the code to handle
     # that.  Right now it will just assume openuniverse 2024.
 
-    parser.add_argument('-i', '--img-list', default=None,
+    parser.add_argument("-i", "--img-list", default=None,
                         help="File with list of images")
 
     ####################
@@ -140,12 +140,12 @@ def main():
     # host galaxy?  Ideally, the code to run on stars should be exactly
     # the same as the code to run on supernova.  Or does this have to do
     # with looking up the data in the opensim tables?
-    parser.add_argument('--object_type', type=str, required=False,
+    parser.add_argument("--object_type", type=str, required=False,
                         choices=["star", "SN"],
-                        help='If star, will run on stars. If SN, will run  ' +
-                             'on supernovae. If no argument is passed,' +
-                             'assumes supernova.',
-                        default='SN')
+                        help="If star, will run on stars. If SN, will run  " +
+                             "on supernovae. If no argument is passed," +
+                             "assumes supernova.",
+                        default="SN")
 
     if cfg is not None:
         cfg.augment_argparse(parser)
@@ -176,39 +176,39 @@ def main():
 
     config = Config.get(args.config, setdefault=True)
 
-    size = config.value('photometry.campari.cutout_size')
-    use_real_images = config.value('photometry.campari.use_real_images')
-    use_roman = config.value('photometry.campari.use_roman')
-    check_perfection = config.value('photometry.campari.simulations.check_perfection')
-    make_exact = config.value('photometry.campari.simulations.make_exact')
-    avoid_non_linearity = config.value('photometry.campari.simulations.avoid_non_linearity')
-    deltafcn_profile = config.value('photometry.campari.simulations.deltafcn_profile')
-    do_xshift = config.value('photometry.campari.simulations.do_xshift')
-    do_rotation = config.value('photometry.campari.simulations.do_rotation')
-    noise = config.value('photometry.campari.simulations.noise')
-    method = config.value('photometry.campari.method')
-    make_initial_guess = config.value('photometry.campari.make_initial_guess')
-    subtract_background = config.value('photometry.campari.subtract_background')
-    weighting = config.value('photometry.campari.weighting')
-    pixel = config.value('photometry.campari.pixel')
-    roman_path = config.value('photometry.campari.paths.roman_path')
-    sn_path = config.value('photometry.campari.paths.sn_path')
-    bg_gal_flux = config.value('photometry.campari.simulations.bg_gal_flux')
-    source_phot_ops = config.value('photometry.campari.source_phot_ops')
-    mismatch_seds = config.value('photometry.campari.simulations.mismatch_seds')
-    fetch_SED = config.value('photometry.campari.fetch_SED')
-    initial_flux_guess = config.value('photometry.campari.initial_flux_guess')
-    sim_gal_ra_offset = config.value('photometry.campari.simulations.sim_gal_ra_offset')
-    sim_gal_dec_offset = config.value('photometry.campari.simulations.sim_gal_dec_offset')
-    spacing = config.value('photometry.campari.grid_options.spacing')
-    percentiles = config.value('photometry.campari.grid_options.percentiles')
-    grid_type = config.value('photometry.campari.grid_options.type')
+    size = config.value("photometry.campari.cutout_size")
+    use_real_images = config.value("photometry.campari.use_real_images")
+    use_roman = config.value("photometry.campari.use_roman")
+    check_perfection = config.value("photometry.campari.simulations.check_perfection")
+    make_exact = config.value("photometry.campari.simulations.make_exact")
+    avoid_non_linearity = config.value("photometry.campari.simulations.avoid_non_linearity")
+    deltafcn_profile = config.value("photometry.campari.simulations.deltafcn_profile")
+    do_xshift = config.value("photometry.campari.simulations.do_xshift")
+    do_rotation = config.value("photometry.campari.simulations.do_rotation")
+    noise = config.value("photometry.campari.simulations.noise")
+    method = config.value("photometry.campari.method")
+    make_initial_guess = config.value("photometry.campari.make_initial_guess")
+    subtract_background = config.value("photometry.campari.subtract_background")
+    weighting = config.value("photometry.campari.weighting")
+    pixel = config.value("photometry.campari.pixel")
+    roman_path = config.value("photometry.campari.paths.roman_path")
+    sn_path = config.value("photometry.campari.paths.sn_path")
+    bg_gal_flux = config.value("photometry.campari.simulations.bg_gal_flux")
+    source_phot_ops = config.value("photometry.campari.source_phot_ops")
+    mismatch_seds = config.value("photometry.campari.simulations.mismatch_seds")
+    fetch_SED = config.value("photometry.campari.fetch_SED")
+    initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
+    sim_gal_ra_offset = config.value("photometry.campari.simulations.sim_gal_ra_offset")
+    sim_gal_dec_offset = config.value("photometry.campari.simulations.sim_gal_dec_offset")
+    spacing = config.value("photometry.campari.grid_options.spacing")
+    percentiles = config.value("photometry.campari.grid_options.percentiles")
+    grid_type = config.value("photometry.campari.grid_options.type")
 
 
-    er = f'{grid_type} is not a recognized grid type. Available options are '
-    er += 'regular, adaptive, contour, or single. Details in documentation.'
-    assert grid_type in ['regular', 'adaptive', 'contour',
-                         'single', 'none'], er
+    er = f"{grid_type} is not a recognized grid type. Available options are "
+    er += "regular, adaptive, contour, or single. Details in documentation."
+    assert grid_type in ["regular", "adaptive", "contour",
+                         "single", "none"], er
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -217,7 +217,7 @@ def main():
                                       aberrations=aberrations)
 
     if make_exact:
-        assert grid_type == 'single'
+        assert grid_type == "single"
     if avoid_non_linearity:
         assert deltafcn_profile
     assert num_detect_images <= num_total_images
@@ -226,11 +226,11 @@ def main():
 
     if not isinstance(SNID, list):
         SNID = [SNID]
-    Lager.debug('Snappl version:')
+    Lager.debug("Snappl version:")
     Lager.debug(snappl.__version__)
     # run one supernova function TODO
     for ID in SNID:
-        banner(f'Running SN {ID}')
+        banner(f"Running SN {ID}")
         try:
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
@@ -245,11 +245,11 @@ def main():
                             noise, check_perfection, avoid_non_linearity,
                             sim_gal_ra_offset, sim_gal_dec_offset,
                             spacing, percentiles)
-        # I don't have a particular error in mind for this, but I think
-        # it's worth having a catch just in case that one supernova fails,
-        # this way the rest of the code doesn't halt.
+        # I don"t have a particular error in mind for this, but I think
+        # it"s worth having a catch just in case that one supernova fails,
+        # this way the rest of the code doesn"t halt.
         except ValueError as e:
-            Lager.info(f'ValueError: {e}')
+            Lager.info(f"ValueError: {e}")
             continue
 
         # Saving the output. The output needs two sections, one where we
@@ -262,27 +262,27 @@ def main():
                                   flux, use_roman, band, object_type,
                                   sigma_flux)
         else:
-            identifier = 'simulated'
+            identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
         if use_roman:
-            psftype = 'romanpsf'
+            psftype = "romanpsf"
         else:
-            psftype = 'analyticpsf'
+            psftype = "analyticpsf"
 
-        output_dir = pathlib.Path(cfg.value('photometry.campari.paths.output_dir'))
+        output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
         save_lightcurve(lc, identifier, band, psftype,
                         output_path=output_dir)
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
-        debug_dir = pathlib.Path(cfg.value('photometry.'
-                                 'campari.paths.debug_dir'))
-        Lager.info(f'Saving images to {debug_dir}')
-        np.save(debug_dir / f'{identifier}_{band}_{psftype}_images.npy',
+        debug_dir = pathlib.Path(cfg.value("photometry."
+                                 "campari.paths.debug_dir"))
+        Lager.info(f"Saving images to {debug_dir}")
+        np.save(debug_dir / f"{identifier}_{band}_{psftype}_images.npy",
                 images_and_model)
 
         # Save the ra and decgrid
-        np.save(debug_dir / f'{identifier}_{band}_{psftype}_grid.npy',
+        np.save(debug_dir / f"{identifier}_{band}_{psftype}_grid.npy",
                 [ra_grid, dec_grid, X[:np.size(ra_grid)]])
 
         # save wcses
@@ -292,7 +292,7 @@ def main():
             hdul.append(fits.ImageHDU(header=wcs.to_fits_header(),
                         name="WCS" + str(i)))
         hdul = fits.HDUList(hdul)
-        filepath = debug_dir / f'{identifier}_{band}_{psftype}_wcs.fits'
+        filepath = debug_dir / f"{identifier}_{band}_{psftype}_wcs.fits"
         hdul.writeto(filepath, overwrite=True)
 
 

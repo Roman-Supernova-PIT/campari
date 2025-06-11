@@ -54,8 +54,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     """
 
     if not use_roman:
-        assert input_psf is not None, 'you must provide an input psf if not \
-             using roman'
+        assert input_psf is not None, "you must provide an input psf if not \
+             using roman"
     else:
         input_psf = None
     galra = ra + sim_gal_ra_offset
@@ -109,23 +109,23 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         im_wcs_list.append(galwcs)
 
         if mismatch_seds:
-            Lager.debug('INTENTIONALLY MISMATCHING SEDS, 1a SED')
+            Lager.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
             file_path = r"snflux_1a.dat"
-            df = pd.read_csv(file_path, sep=r'\s+', header=None, names=['Day',
-                             'Wavelength', 'Flux'])
+            df = pd.read_csv(file_path, sep=r"\s+", header=None, names=["Day",
+                             "Wavelength", "Flux"])
             a = df.loc[df.Day == 0]
             del df
             sed = galsim.SED(galsim.LookupTable(a.Wavelength/10, a.Flux,
-                             interpolant='linear'), wave_type='nm',
-                             flux_type='fphotons')
+                             interpolant="linear"), wave_type="nm",
+                             flux_type="fphotons")
 
         else:
             sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
-                             interpolant='linear'), wave_type='nm',
-                             flux_type='fphotons')
+                             interpolant="linear"), wave_type="nm",
+                             flux_type="fphotons")
 
         stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
-        pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units='deg')
+        pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units="deg")
 
         if use_roman:
             sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
@@ -138,7 +138,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         convolved = simulate_galaxy(bg_gal_flux, deltafcn_profile, band,
                                     sim_psf, sed)
 
-        a = convolved.drawImage(roman_bandpasses[band], method='no_pixel',
+        a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
                                 image=stamp, wcs=cutoutgalwcs,
                                 center=galsim.PositionD(pointx, pointy),
                                 use_true_center=True)
@@ -160,9 +160,9 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
             # following is zero on the first sn image and counts up:
             sn_im_index = i - num_total_images + num_detect_images
             if sn_im_index >= 0:
-                snx, sny = cutoutgalwcs.toImage(snra, sndec, units='deg')
+                snx, sny = cutoutgalwcs.toImage(snra, sndec, units="deg")
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
-                Lager.debug(f'sed: {sed}')
+                Lager.debug(f"sed: {sed}")
                 supernova_image = \
                     simulate_supernova(snx, sny, stamp,
                                        sim_lc[sn_im_index],
@@ -176,9 +176,9 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         imagelist.append(a)
 
     images = imagelist
-    Lager.debug(f'images shape: {images[0].shape}')
-    Lager.debug(f'images length {len(images)}')
-    file_path = pathlib.Path( Config.get().value( 'photometry.campari.galsim.tds_file' ) )
+    Lager.debug(f"images shape: {images[0].shape}")
+    Lager.debug(f"images length {len(images)}")
+    file_path = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
     util_ref = roman_utils(config_file=file_path,
                            visit=base_pointing, sca=base_sca)
 
@@ -190,33 +190,33 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
                  band):
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
-    image = fits.open(roman_path + f'/RomanTDS/images/truth/{band}/' +
-                      f'{base_pointing}/Roman_TDS_truth_{band}_{base_pointing}'
-                      + f'_{base_sca}.fits.gz')
+    image = fits.open(roman_path + f"/RomanTDS/images/truth/{band}/" +
+                      f"{base_pointing}/Roman_TDS_truth_{band}_{base_pointing}"
+                      + f"_{base_sca}.fits.gz")
 
     CD_matrix = np.zeros((2, 2))
-    CD_matrix[0, 0] = image[0].header['CD1_1']
-    CD_matrix[0, 1] = image[0].header['CD1_2']
-    CD_matrix[1, 0] = image[0].header['CD2_1']
-    CD_matrix[1, 1] = image[0].header['CD2_2']
+    CD_matrix[0, 0] = image[0].header["CD1_1"]
+    CD_matrix[0, 1] = image[0].header["CD1_2"]
+    CD_matrix[1, 0] = image[0].header["CD2_1"]
+    CD_matrix[1, 1] = image[0].header["CD2_2"]
 
     CD_matrix_rotated = CD_matrix @ rotation_matrix
 
     wcs_dict = {
-            'CTYPE1': image[0].header['CTYPE1'],
-            'CTYPE2': image[0].header['CTYPE2'],
-            'CRPIX1': image[0].header['CRPIX1'],
-            'CRPIX2': image[0].header['CRPIX2'],
-            'CD1_1': CD_matrix_rotated[0, 0],
-            'CD1_2': CD_matrix_rotated[0, 1],
-            'CD2_1': CD_matrix_rotated[1, 0],
-            'CD2_2': CD_matrix_rotated[1, 1],
-            'CUNIT1': image[0].header['CUNIT1'],
-            'CUNIT2': image[0].header['CUNIT2'],
-            'CRVAL1':   image[0].header['CRVAL1'] + x_shift,
-            'CRVAL2':  image[0].header['CRVAL2'] + y_shift,
-            'NAXIS1': image[0].header['NAXIS1'],
-            'NAXIS2': image[0].header['NAXIS2']
+            "CTYPE1": image[0].header["CTYPE1"],
+            "CTYPE2": image[0].header["CTYPE2"],
+            "CRPIX1": image[0].header["CRPIX1"],
+            "CRPIX2": image[0].header["CRPIX2"],
+            "CD1_1": CD_matrix_rotated[0, 0],
+            "CD1_2": CD_matrix_rotated[0, 1],
+            "CD2_1": CD_matrix_rotated[1, 0],
+            "CD2_2": CD_matrix_rotated[1, 1],
+            "CUNIT1": image[0].header["CUNIT1"],
+            "CUNIT2": image[0].header["CUNIT2"],
+            "CRVAL1":   image[0].header["CRVAL1"] + x_shift,
+            "CRVAL2":  image[0].header["CRVAL2"] + y_shift,
+            "NAXIS1": image[0].header["NAXIS1"],
+            "NAXIS2": image[0].header["NAXIS2"]
         }
 
     return wcs_dict
@@ -247,12 +247,12 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
     # Code below copied from galsim largely
     if not source_phot_ops:
         result = sim_psf.drawImage(roman_bandpasses[band], image=stamp,
-                                   wcs=stamp.wcs, method='no_pixel',
+                                   wcs=stamp.wcs, method="no_pixel",
                                    center=galsim.PositionD(snx, sny),
                                    use_true_center=True)
         return result.array
 
-    config_file = pathlib.Path( Config.get().value( 'photometry.campari.galsim.tds_file' ) )
+    config_file = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
     util_ref = roman_utils(config_file=config_file, visit=base_pointing,
                            sca=base_sca)
     photon_ops = [sim_psf] + util_ref.photon_ops
@@ -260,7 +260,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
     # If random_seed is zero, galsim will use the current time to make a seed
     rng = galsim.BaseDeviate(random_seed)
     result = profile.drawImage(roman_bandpasses[band], wcs=stamp.wcs,
-                               method='phot', photon_ops=photon_ops,
+                               method="phot", photon_ops=photon_ops,
                                rng=rng, n_photons=int(1e6),
                                maxN=int(1e6), poisson_flux=False,
                                center=galsim.PositionD(snx, sny),
