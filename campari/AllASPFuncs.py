@@ -142,7 +142,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     subpixel_grid_width: When we place the model points in a pixel, we place
                         them on a small range of locations within the pixel.
                         For instance, 0.25, 0.5, and 0.75 for x values. However
-                        I"ve found this leads to awkward gaps in grid points
+                        I've found this leads to awkward gaps in grid points
                         between pixels. For instance, the point at 0.25 would
                         be half a pixel from the point located at 0.75 in the
                         next lower pixel, and only 0.25 from the point at 0.5
@@ -211,7 +211,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
             elif num == 1:
                 xs.append(y)
                 ys.append(x)  # I know I swap this because Astropy takes (y,x)
-                # order but I"d really like to iron out all the places I do
+                # order but I'd really like to iron out all the places I do
                 # this rather than doing it so off the cuff. TODO
             else:
                 xx = np.linspace(x - subpixel_grid_width/2,
@@ -284,13 +284,13 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         i.e. x y location in the SCA.
     stampsize: int, the size of the stamp being used
     band: str, the bandpass being used
-    psf: Here you can provide a PSF to use, if you don"t provide one, you must
+    psf: Here you can provide a PSF to use, if you don't provide one, you must
         provide a util_ref, and this function will calculate the Roman PSF
         instead.
     pixel: bool, If True, use a pixel tophat function to convolve the PSF with,
         otherwise use a delta function. Does not seem to hugely affect results.
     util_ref: A roman_imsim.utils.roman_utils object, which is used to
-        calculate the PSF. If you provide this, you don"t need to provide a PSF
+        calculate the PSF. If you provide this, you don't need to provide a PSF
         and the Roman PSF will be calculated. Note
         that this needs to be for the correct SCA/Pointing combination.
 
@@ -353,12 +353,12 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
                      roman_path=None, pointing_list=None, SCA_list=None,
                      truth="simple_model", lc_start=-np.inf, lc_end=np.inf):
     """ This function finds all the exposures that contain a given supernova,
-    and returns a list of them. Utilizes Rob"s awesome database method to
+    and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
 
     Inputs:
     snid: the ID of the supernova
-    ra, dec: the RA and DEC of the supernova (TODO: Is this necessary if we"re
+    ra, dec: the RA and DEC of the supernova (TODO: Is this necessary if we're
             passing the ID?)
     peak: the peak of the supernova
     start, end: the start and end of the observing window
@@ -386,7 +386,7 @@ def findAllExposures(snid, ra, dec, peak, start, end, band, maxbg=24,
                        dtype=("i8", "i4", "str", "f8", "f8", "f8", "f8",
                               "f8", "f8", "f8"))
 
-    # Rob"s database method! :D
+    # Rob's database method! :D
 
     server_url = "https://roman-desc-simdex.lbl.gov"
     req = requests.Session()
@@ -567,7 +567,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
-        # run, I"d want to know.
+        # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
     psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
@@ -879,9 +879,9 @@ def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
         # NOTE: This 5 is here because when I made this function I was
         # checking my work by plotting and the *5 made it easier to see. I
         # thought the overall normalization
-        # of the weights did not matter. I was half right, they don"t matter
+        # of the weights did not matter. I was half right, they don't matter
         # for the flux but they do matter for the size of the errors. Therefore
-        # there is some way that these weights are normalized, but I don"t
+        # there is some way that these weights are normalized, but I don't
         # know exactly how that should be yet. Online sources speaking about
         # weighted linear regression never seem to address normalization. TODO
 
@@ -1095,7 +1095,7 @@ def plot_images(fileroot, size=11):
 
 
 def get_galsim_SED(SNID, date, sn_path, fetch_SED, obj_type="SN"):
-    """Return the appropriate SED for the object on the day. Since SN"s SEDs
+    """Return the appropriate SED for the object on the day. Since SN SEDs
     are time dependent but stars are not, we need to handle them differently.
 
     Inputs:
@@ -1166,15 +1166,15 @@ def get_SN_SED(SNID, date, sn_path):
     filenum = find_parquet(SNID, sn_path, obj_type="SN")
     file_name = "snana" + "_" + str(filenum) + ".hdf5"
     fullpath = os.path.join(sn_path, file_name)
-    # Setting locking=False on the next line becasue it seems that you can"t
+    # Setting locking=False on the next line becasue it seems that you can't
     #   open an h5py file unless you have write access to... something.
-    #   Not sure what.  The directory where it exists?  We won"t
-    #   always have that.  It"s scary to set locking to false, because it
+    #   Not sure what.  The directory where it exists?  We won't
+    #   always have that.  It's scary to set locking to false, because it
     #   subverts all kinds of safety stuff that hdf5 does.  However,
-    #   because these files were created once in this case, it"s not actually
+    #   because these files were created once in this case, it's not actually
     #   scary, and we expect them to be static.  Locking only matters if you
     #   think somebody else might change the file
-    #   while you"re in the middle of reading bits of it.
+    #   while you're in the middle of reading bits of it.
     sed_table = h5py.File(fullpath, "r", locking=False)
     sed_table = sed_table[str(SNID)]
     flambda = sed_table["flambda"]
@@ -1212,7 +1212,7 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
         5. Increase the point density, and move to the next higher brightness
             bin.
 
-    Here"s a schematic:
+    Here's a schematic:
     Our Image:  Binned by brightness:
                           ───────          ·····              ·····
             ░░░░░░        │     │          ·   ·              ·:::·
@@ -1290,7 +1290,7 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
         y_totalgrid.extend(yg)
 
     xx, yy = y_totalgrid, x_totalgrid  # Here is another place I need to flip
-    # x and y. I"d like this to be more rigorous or at least clear.
+    # x and y. I'd like this to be more rigorous or at least clear.
     xx = np.array(xx)
     yy = np.array(yy)
     xx = xx.flatten()
@@ -1519,11 +1519,11 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # Then, the first s^2 rows of the matrix correspond to the first image,
     # the next s^2 rows to the second image, etc.,  where s is the size of the
     # image. For the SN model, the flux in each image is ostensibly different.
-    # Therefore we need a unique flux for each image, and we don"t want the
+    # Therefore we need a unique flux for each image, and we don't want the
     # flux of the supernova in one image to affect the flux in another image.
     # Therefore, we need to place the supernova model in the correct image
     # (i.e. the correct rows of the design matrix) and zero out all of the
-    # others. We"ll do this by initializing a matrix of zeros, and then filling
+    # others. We'll do this by initializing a matrix of zeros, and then filling
     # in the SN model in the correct place in the loop below:
 
     psf_zeros = np.zeros((np.size(image_data), tot_num))
@@ -1561,7 +1561,7 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     df = open_parquet(parquet_file, sn_path, obj_type="SN")
     if mag_limits is not None:
         min_mag, max_mag = mag_limits
-        # This can"t always be just g band I think. TODO
+        # This can't always be just g band I think. TODO
         df = df[(df["peak_mag_g"] >= min_mag) & (df["peak_mag_g"] <= max_mag)]
     SN_ID = df.id.values
     SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
@@ -1900,7 +1900,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         # Eventually I might completely separate out simulated SNe, though I
         # am hesitant to do that as I want them to be treated identically as
         # possible. In the meantime, just return zeros for the simulated lc
-        # if we aren"t simulating.
+        # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \

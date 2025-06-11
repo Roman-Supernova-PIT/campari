@@ -95,7 +95,7 @@ def main():
     # to find supernova RA and Dec
     parser.add_argument("-s", "--SNID", type=int, default=None,
                         required=False, nargs="*",
-                        help="OpenUnivere2024 Supernova IDs; ignored if"
+                        help="OpenUniverse2024 Supernova IDs; ignored if"
                              " --SNID-file is given")
     parser.add_argument("--SNID-file", type=str, default=None, required=False,
                         help="Path to a csv file containing a list of "
@@ -245,9 +245,9 @@ def main():
                             noise, check_perfection, avoid_non_linearity,
                             sim_gal_ra_offset, sim_gal_dec_offset,
                             spacing, percentiles)
-        # I don"t have a particular error in mind for this, but I think
-        # it"s worth having a catch just in case that one supernova fails,
-        # this way the rest of the code doesn"t halt.
+        # I don't have a particular error in mind for this, but I think
+        # it's worth having a catch just in case that one supernova fails,
+        # this way the rest of the code doesn't halt.
         except ValueError as e:
             Lager.info(f"ValueError: {e}")
             continue

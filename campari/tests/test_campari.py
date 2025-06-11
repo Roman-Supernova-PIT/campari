@@ -226,8 +226,8 @@ def test_regression_function():
     cfg = Config.get()
     curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
-    # Make sure the output file we"re going to write doesn"t exist so
-    #  we know we"re really running this test!
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
     assert not curfile.exists()
 
     a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1",
@@ -280,16 +280,16 @@ def test_regression_function():
             #
             # The numpy libraries try to be a bit clever when doing
             # things like .sum() to avoid the worst of floating-point
-            # underflow, but it"s a thing worth being aware of.
+            # underflow, but it's a thing worth being aware of.
             # Relative errors of 1e-7 (for floats) or 1e-16 (for
             # doubles) can easily arise from floating-point underflow;
-            # whether or not you"re worried about those errors depends
+            # whether or not you're worried about those errors depends
             # on how confident you are that the order of operations is
             # identical in two different test cases.  Bigger errors
             # *can* arise from floating point underflow, but never just
-            # wave your hands and say, "eh, the tests are passing, it"s
+            # wave your hands and say, "eh, the tests are passing, it's
             # just underflow!"  Understand how underflow did it.  If it
-            # did, and you"re not worried, document that.  But,
+            # did, and you're not worried, document that.  But,
             # probably, you should be worried, and you should
             # restructure the order of operations in your code to avoid
             # underflow errors bigger than the number of sig figs in a
@@ -306,7 +306,7 @@ def test_regression_function():
                 msg = msg+msg2
                 # Switching from one type of WCS to another gave rise in a
                 # difference of about 1e-9 pixels for the grid, which led to a
-                # change in flux of 2e-7. I don"t want switching WCS types to make
+                # change in flux of 2e-7. I don't want switching WCS types to make
                 # this fail, so I put the rtol at just above that level.
                 np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
@@ -325,8 +325,8 @@ def test_regression():
 
     curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
-    # Make sure the output file we"re going to write doesn"t exist so
-    #  we know we"re really running this test!
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
     assert not curfile.exists()
 
     output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
@@ -359,7 +359,7 @@ def test_regression():
             msg = msg+msg2
             # Switching from one type of WCS to another gave rise in a
             # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don"t want switching WCS types to make
+            # change in flux of 2e-7. I don't want switching WCS types to make
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
@@ -428,11 +428,11 @@ def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     new_snid_file = ( pathlib.Path( cfg.value("photometry.campari.paths.debug_dir") ) /
                       "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv" )
     new_snid_file.unlink( missing_ok=True )
-    # Make sure we"re really writing a new file so that this
+    # Make sure we're really writing a new file so that this
     #   test is really meaningful
     assert not new_snid_file.exists()
 
-    # TODO don"t write to testdata
+    # TODO don't write to testdata
     extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path, new_snid_file, mag_limits=[20, 21])
     sn_ids = pd.read_csv(new_snid_file, header=None).values.flatten()
     test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent
