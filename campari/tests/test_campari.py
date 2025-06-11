@@ -209,8 +209,8 @@ def test_run_on_star():
         sys.argv = orig_argv
 
     # Make sure it runs from the command line
-    err_code = os.system(f'python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
-                         f'--object_type star --photometry-campari-grid_options-type none')
+    err_code = os.system('python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 '
+                         '--object_type star --photometry-campari-grid_options-type none')
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
@@ -292,7 +292,7 @@ def test_regression_function():
             # underflow errors bigger than the number of sig figs in a
             # floating point number.)
 
-            msg = "The lightcurves do not match for column %s" % col
+            msg = f"The lightcurves do not match for column {col}"
             if col == 'band':
                 # band is the only string column, so we check it with array_equal
                 np.testing.assert_array_equal(current[col], comparison[col]), msg
@@ -307,7 +307,7 @@ def test_regression_function():
                 # this fail, so I put the rtol at just above that level.
                 np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
-            #check output
+            # check output
     finally:
         sys.argv = orig_argv
 
@@ -326,7 +326,7 @@ def test_regression():
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    output = os.system(f"python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
+    output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
                         "--photometry-campari-use_roman "
                         "--photometry-campari-use_real_images "
                         "--no-photometry-campari-fetch_SED "
@@ -345,7 +345,7 @@ def test_regression():
         Lager.debug(f'Checking col {col}')
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
-        msg = "The lightcurves do not match for column %s" % col
+        msg = f"The lightcurves do not match for column {col}"
         if col == 'band':
             # band is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col]), msg
@@ -626,4 +626,3 @@ def test_get_weights(roman_path):
     test_wgt_matrix = np.load(pathlib.Path(__file__).parent
                               / 'testdata/test_wgt_matrix.npy')
     np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
-

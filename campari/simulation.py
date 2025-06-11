@@ -27,8 +27,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                     roman_path, size=11, input_psf=None, constant_imgs=False,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11):
-    '''
-    This function simulates images using galsim for testing purposes. It is not
+    """This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
     num_total_images: int, the number of images to simulate
@@ -49,7 +48,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     images: a numpy array of the images, with shape (num_total_images, size, size)
     im_wcs_list: a list of the wcs objects for each full SCA image
     cutout_wcs_list: a list of the wcs objects for each cutout image
-    '''
+    """
 
     if not use_roman:
         assert input_psf is not None, 'you must provide an input psf if not \
@@ -149,7 +148,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
 
         # Noise it up!
         if noise > 0:
-            a += np.random.normal(0, noise, size**2).reshape(size, size)
+            rng = np.random.default_rng()
+            a += rng.normal(0, noise, size**2).reshape(size, size)
 
         # Inject a supernova! If using.
         if sim_lc != 0:

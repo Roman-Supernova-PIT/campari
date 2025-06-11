@@ -1,19 +1,18 @@
-from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, \
-                         run_one_object, save_lightcurve
+from campari.AllASPFuncs import banner, build_lightcurve, \
+                                 build_lightcurve_sim, run_one_object, \
+                                 save_lightcurve
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 import argparse
 from erfa import ErfaWarning
 import galsim
 import numpy as np
-import os
 import pandas as pd
 import pathlib
 import snappl
 from snpit_utils.logger import SNLogger as Lager
 from snpit_utils.config import Config
 import warnings
-import yaml
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -52,20 +51,22 @@ Adapted from code by Pedro Bernardinelli
 def main():
     # Run one arg pass just to get the config file, so we can augment
     #   the full arg parser later with config options
-    configparser = argparse.ArgumentParser( add_help=False )
-    configparser.add_argument( '-c', '--config', default=None, help="Location of the .yaml config file" )
+    configparser = argparse.ArgumentParser(add_help=False)
+    configparser.add_argument('-c', '--config', default=None,
+                              help="Location of the .yaml config file")
     args, leftovers = configparser.parse_known_args()
 
     desc = "Run the campari pipeline."
     try:
-        cfg = Config.get( args.config, setdefault=True )
+        cfg = Config.get(args.config, setdefault=True)
     except RuntimeError:
         # If it failed to load the config file, just move on with life.  This
         #   may mean that things will fail later, but it may also just mean
         #   that somebody is doing '--help'
         cfg = None
-        desc += ( " Include --config <configfile> before --help (or set SNPIT_CONFIG) for "
-                  "help to show you all config options that can be passed on the command line." )
+        desc += (" Include --config <configfile> before --help "
+                 "(or set SNPIT_CONFIG) for help to show you all config "
+                 "options that can be passed on the command line.")
 
     parser = argparse.ArgumentParser(description=desc)
 
@@ -76,29 +77,38 @@ def main():
     #   thus will never be parsed here, but include it so it shows up
     #   with --help.
     parser.add_argument('-c', '--config', default=None,
-                        help="Location of the .yaml config file.  Defaults to env var SNPIT_CONFIG." )
+                        help="Location of the .yaml config file.  Defaults to "
+                        "env var SNPIT_CONFIG.")
 
-    parser.add_argument('-f', '--filter', type=str, required=True, help='Roman filter')
+    parser.add_argument('-f', '--filter', type=str, required=True,
+                        help='Roman filter')
 
     ####################
     # FINDING THE LOCATION ON THE SKY TO SCENE MODEL
 
-    # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO) to find supernova RA and Dec
-    parser.add_argument('-s', '--SNID', type=int, default=None, required=False, nargs='*',
-                        help='OpenUnivere2024 Supernova IDs; ignored if --SNID-file is given')
+    # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
+    # to find supernova RA and Dec
+    parser.add_argument('-s', '--SNID', type=int, default=None,
+                        required=False, nargs='*',
+                        help='OpenUnivere2024 Supernova IDs; ignored if'
+                             ' --SNID-file is given')
     parser.add_argument('--SNID-file', type=str, default=None, required=False,
-                        help='Path to a csv file containing a list of OpenUniverse SNIDs to run.' )
+                        help='Path to a csv file containing a list of '
+                             'OpenUniverse SNIDs to run.')
 
     # If instead you give --ra and --dec, it will assume there is a
     # point source at that position and will scene model a stamp around
     # it. (NOT YET SUPPORTED.)
-    parser.add_argument('--ra', type=float, default=None, help="RA of transient point source" )
-    parser.add_argument('--dec', type=float, default=None, help="Dec of transient point source" )
+    parser.add_argument('--ra', type=float, default=None,
+                        help="RA of transient point source")
+    parser.add_argument('--dec', type=float, default=None,
+                        help="Dec of transient point source")
 
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
-    # If you give -t, -d, -b, and/or -e, then campari will decide automatically (HOW?) what images to use.
+    # If you give -t, -d, -b, and/or -e, then campari will decide
+    #  (HOW?) what images to use.
     parser.add_argument('-t', '--num_total_images', type=int, required=False,
                         help='Number of images to use', default=np.inf)
     # TODO:change all instances of this variable to tot_images
@@ -117,7 +127,8 @@ def main():
     # used.  TODO: specify type of image, and adapt the code to handle
     # that.  Right now it will just assume openuniverse 2024.
 
-    parser.add_argument('-i', '--img-list', default=None, help="File with list of images" )
+    parser.add_argument('-i', '--img-list', default=None,
+                        help="File with list of images")
 
     ####################
     # What does it mean to run on stars??????  Assume constant flux? No
@@ -132,17 +143,17 @@ def main():
                         default='SN')
 
     if cfg is not None:
-        cfg.augment_argparse( parser )
-    args = parser.parse_args( leftovers )
+        cfg.augment_argparse(parser)
+    args = parser.parse_args(leftovers)
 
     if cfg is None:
-        raise ValueError( "Must pass a config file, or must set SNPIT_CONFIG" )
-    cfg.parse_args( args )
+        raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
+    cfg.parse_args(args)
 
     band = args.filter
 
-    if ( args.ra is not None ) or ( args.dec is not None ):
-        raise NotImplementedError( "--ra and --dec not yet supported." )
+    if (args.ra is not None) or (args.dec is not None):
+        raise NotImplementedError("--ra and --dec not yet supported.")
     if args.SNID_file is not None:
         SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
     else:
@@ -259,7 +270,8 @@ def main():
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
-        debug_dir = pathlib.Path(cfg.value('photometry.campari.paths.debug_dir'))
+        debug_dir = pathlib.Path(cfg.value('photometry.'
+                                 'campari.paths.debug_dir'))
         Lager.info(f'Saving images to {debug_dir}')
         np.save(debug_dir / f'{identifier}_{band}_{psftype}_images.npy',
                 images_and_model)
@@ -277,6 +289,7 @@ def main():
         hdul = fits.HDUList(hdul)
         filepath = debug_dir / f'{identifier}_{band}_{psftype}_wcs.fits'
         hdul.writeto(filepath, overwrite=True)
+
 
 if __name__ == "__main__":
     main()
