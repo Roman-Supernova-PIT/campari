@@ -26,6 +26,7 @@ from scipy.interpolate import RegularGridInterpolator
 # SN-PIT
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
+from snappl.psf import ou24PSF
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 
@@ -570,9 +571,16 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
-                             y_center=y_center, sed=sed,
-                             include_photonOps=photOps, flux=flux).array
+    psf_object = ou24PSF(pointing=pointing, sca=SCA,
+                                    config_file=config_file, size=stampsize,
+                                    include_photonOps=photOps)
+
+    # psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
+    #                          x_center=x_center,
+    #                          y_center=y_center, sed=sed,
+    #                          include_photonOps=photOps, flux=flux).array
+
+    psf_image = psf_object.get_stamp(x_center, y_center, flux=1., seed=None)
 
     return psf_image.flatten()
 
