@@ -203,7 +203,7 @@ def main():
     spacing = config.value("photometry.campari.grid_options.spacing")
     percentiles = config.value("photometry.campari.grid_options.percentiles")
     grid_type = config.value("photometry.campari.grid_options.type")
-
+    save_model = config.value("photometry.campari.save_model")
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -233,7 +233,7 @@ def main():
         banner(f"Running SN {ID}")
         try:
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-                confusion_metric, X, cutout_wcs_list, sim_lc = \
+                confusion_metric, X, cutout_wcs_list, sim_lc, model, x0test = \
                 run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
                             sn_path, size, band, fetch_SED, use_real_images,
                             use_roman, subtract_background,
@@ -256,22 +256,20 @@ def main():
         # create a lightcurve compared to true values, and one where we save
         # the images.
 
-        if use_real_images:
-            identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
-                                  flux, use_roman, band, object_type,
-                                  sigma_flux)
-        else:
-            identifier = "simulated"
-            lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
-        if use_roman:
-            psftype = "romanpsf"
-        else:
-            psftype = "analyticpsf"
+        identifier = str(ID) if use_real_images else "simulated"
+        psftype = "romanpsf" if use_roman else "analyticpsf"
 
-        output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
-        save_lightcurve(lc, identifier, band, psftype,
-                        output_path=output_dir)
+        if num_detect_images > 0:
+            if use_real_images:
+                lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
+                                    flux, use_roman, band, object_type,
+                                    sigma_flux)
+            else:
+                lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
+
+            output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
+            save_lightcurve(lc, identifier, band, psftype,
+                            output_path=output_dir)
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])
@@ -284,6 +282,14 @@ def main():
         # Save the ra and decgrid
         np.save(debug_dir / f"{identifier}_{band}_{psftype}_grid.npy",
                 [ra_grid, dec_grid, X[:np.size(ra_grid)]])
+
+        # save the model
+        if save_model:
+            Lager.info(f"Saving model to {debug_dir}")
+            np.save(debug_dir / f"{identifier}_{band}_{psftype}_model.npy",
+                    model)
+            np.save(debug_dir / f"{identifier}_{band}_{psftype}_x0.npy",
+                    x0test)
 
         # save wcses
         primary_hdu = fits.PrimaryHDU()

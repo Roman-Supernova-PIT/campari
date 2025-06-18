@@ -10,5 +10,6 @@ photometry:
       output_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
       debug_dir: /hpc/home/cfm37/MultiSMP/campari/tests/testdata
 
+
     galsim:
       tds_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml

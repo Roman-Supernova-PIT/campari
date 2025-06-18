@@ -88,6 +88,8 @@ photometry:
     # integrate OpenUniverse within itself.
     use_real_images: true
 
+    save_model: false
+
     paths:
       # roman_path is where the OpenUniverse 2024 FITS image files are found
       roman_path: /sims_dir

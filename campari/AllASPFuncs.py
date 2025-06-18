@@ -249,6 +249,7 @@ def generateGuess(imlist, ra_grid, dec_grid):
                 point.
 
     """
+    Lager.debug('G Guess new')
     size = imlist[0].image_shape[0]
     imx = np.arange(0, size, 1)
     imy = np.arange(0, size, 1)
@@ -257,7 +258,7 @@ def generateGuess(imlist, ra_grid, dec_grid):
 
     wcslist = [im.get_wcs() for im in imlist]
     imdata = [im.data.flatten() for im in imlist]
-
+    Lager.warning('Subtracing one to genGuess, this needs to be solved!!!')
     for i, imwcs in enumerate(zip(imdata, wcslist)):
         im, wcs = imwcs
         xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
@@ -503,7 +504,6 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     file_prefix = {"SN": "snana", "star": "pointsource"}
     base_name = "{:s}_{}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
-    Lager.debug(f"Opening parquet file: {file_path}")
     df = pd.read_parquet(file_path, engine=engine)
     return df
 
@@ -1542,7 +1542,8 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
 
 def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
                                                   output_path,
-                                                  mag_limits=None):
+                                                  mag_limits=None,
+                                                  sep_limits=None):
     """Convenience function for getting a list of SN IDs that obey some
     conditions from a parquet file. This is not used anywhere in the main
     algorithm.
@@ -1562,7 +1563,27 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     if mag_limits is not None:
         min_mag, max_mag = mag_limits
         # This can't always be just g band I think. TODO
-        df = df[(df["peak_mag_g"] >= min_mag) & (df["peak_mag_g"] <= max_mag)]
+        df_magcut = df[(df["peak_mag_g"] >= min_mag) &
+                       (df["peak_mag_g"] <= max_mag)]
+        if np.size(df_magcut) == 0:
+            raise ValueError("No supernovae found in the given range. " +
+                             " The min and max mag in the sample are: "
+                             f"{np.min(df['peak_mag_g'].values)}" +
+                             f", {np.max(df['peak_mag_g'].values)}")
+        else:
+            df = df_magcut
+    if sep_limits is not None:
+        min_sep, max_sep = sep_limits
+        df_sepcut = df[(df["host_sn_sep"] >= min_sep) &
+                       (df["host_sn_sep"] <= max_sep)]
+
+        if np.size(df_sepcut) == 0:
+            raise ValueError("No supernovae found in the given range. " +
+                             " The min and max separation in the sample are: "
+                             f"{np.min(df['host_sn_sep'].values)}" +
+                             f", {np.max(df['host_sn_sep'].values)}")
+        else:
+            df = df_sepcut
     SN_ID = df.id.values
     SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
     # some reason. They only seem to have 1 or 2 images ever. TODO
@@ -1712,21 +1733,21 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
 
     # Calculate the Confusion Metric
 
-    if use_real_images and object_type == "SN" and num_detect_images > 1:
-        sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
-        x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
-        snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
-        pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
-        psf_source_array = construct_psf_source(x, y, pointing, SCA,
-                                                stampsize=size,
-                                                x_center=snx, y_center=sny,
-                                                sed=sed)
-        confusion_metric = np.dot(images[0].flatten(), psf_source_array)
+    # if use_real_images and object_type == "SN" and num_detect_images > 1:
+    #     sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
+    #     x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
+    #     snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
+    #     pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
+    #     psf_source_array = construct_psf_source(x, y, pointing, SCA,
+    #                                             stampsize=size,
+    #                                             x_center=snx, y_center=sny,
+    #                                             sed=sed)
+    #     confusion_metric = np.dot(images[0].flatten(), psf_source_array)
 
-        Lager.debug(f"Confusion Metric: {confusion_metric}")
-    else:
-        confusion_metric = 0
-        Lager.debug("Confusion Metric not calculated")
+    #     Lager.debug(f"Confusion Metric: {confusion_metric}")
+    # else:
+    confusion_metric = 0
+    Lager.debug("Confusion Metric not calculated")
 
     # Build the backgrounds loop
     # TODO: Zip all the things you index [i] on directly and loop over
@@ -1904,7 +1925,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         sim_lc = np.zeros(num_detect_images)
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
-        [im.get_wcs() for im in cutout_image_list], sim_lc
+        [im.get_wcs() for im in cutout_image_list], sim_lc, psf_matrix, x0test
 
 
 def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
