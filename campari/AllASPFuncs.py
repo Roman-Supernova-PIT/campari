@@ -29,6 +29,8 @@ from snappl.image import OpenUniverse2024FITSImage
 from snappl.psf import ou24PSF
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
+import snappl.psf
+from snappl.psf import PSF
 
 # Campari
 from campari.simulation import simulate_images
@@ -571,9 +573,12 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    psf_object = ou24PSF(pointing=pointing, sca=SCA,
-                                    config_file=config_file, size=stampsize,
-                                    include_photonOps=photOps)
+#    psf_object = ou24PSF(pointing=pointing, sca=SCA,
+#                                    config_file=config_file, size=stampsize,
+#                                    include_photonOps=photOps)
+
+#    "ou24PSF_slow"
+    psf_object = PSF.get_psf_object( "ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
 
     # psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
     #                          x_center=x_center,
