@@ -639,6 +639,7 @@ def test_construct_psf_source():
                      wave_type='Angstrom',
                      flux_type='fphotons')
     # Need to switch x_center and y_center back to 12 once centering fixed
+<<<<<<< HEAD
 
     # comparison_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
     #                                  stampsize=25, x_center=12,
@@ -661,32 +662,59 @@ def test_construct_psf_source():
                                atol=1e-6, verbose=True), \
         "The sum of the PSF source images do not match within 1e-6"
 
+=======
+    psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
+                                     stampsize=25, x_center=2044,
+                                     y_center=2044, sed=sed,
+                                     flux=1, photOps=False)
+    comparison_image = np.load(pathlib.Path(__file__).parent
+                               / 'testdata/test_psf_source.npy')
+    #comparison_image /= np.sum(comparison_image)
+    Lager.debug(f'psf im sum {np.sum(psf_image)}')
+    Lager.debug(f'comparison im sum {np.sum(comparison_image)}')
+    np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
+                               atol=1e-7, verbose=True), \
+        "The sum of the PSF source images do not match within 1e-7"
+>>>>>>> 13ab3b86d15a74959e1ded566c34b30393d8ad68
 
     try:
         np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
                                    verbose=True)
 
+<<<<<<< HEAD
     except AssertionError as e:
         import matplotlib
         matplotlib.use('pdf')
         plt.subplot(1, 3, 1)
         plt.title("Constructed PSF Source")
         plt.grid(True)
+=======
+    except AssertionError:
+        plt.subplot(1, 3, 1)
+        plt.title("Constructed PSF Source")
+>>>>>>> 13ab3b86d15a74959e1ded566c34b30393d8ad68
         plt.imshow(psf_image.reshape(25, 25), origin='lower')
 
         plt.subplot(1, 3, 2)
         plt.title("Comparison PSF Source")
+<<<<<<< HEAD
         plt.grid(True)
+=======
+>>>>>>> 13ab3b86d15a74959e1ded566c34b30393d8ad68
         plt.imshow(comparison_image.reshape(25, 25), origin='lower')
 
         plt.subplot(1, 3, 3)
         plt.title("Difference")
+<<<<<<< HEAD
         plt.grid(True)
+=======
+>>>>>>> 13ab3b86d15a74959e1ded566c34b30393d8ad68
         plt.imshow(np.log10(np.abs(psf_image.reshape(25, 25) -
                                    comparison_image.reshape(25, 25))),
                    origin='lower')
         plt.colorbar(label="log10( |constructed - comparison| )")
 
+<<<<<<< HEAD
         im_path = pathlib.Path(__file__).parent / 'test_psf_source_comparison.png'
         Lager.debug(f"Saving diagnostic image to {im_path}")
         plt.savefig(im_path)
@@ -694,3 +722,11 @@ def test_construct_psf_source():
 
         assert False, f"PSF source images do not match, a diagnostic " \
                       f"image has been saved to {im_path}. Error: {e}"
+=======
+        im_path = {pathlib.Path(__file__).parent /
+                   'test_psf_source_comparison.png'}
+        plt.savefig(im_path)
+
+        assert False, f"PSF source images do not match, a diagnostic " \
+                      f"image has been saved to {im_path}"
+>>>>>>> 13ab3b86d15a74959e1ded566c34b30393d8ad68
