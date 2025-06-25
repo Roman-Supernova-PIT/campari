@@ -26,7 +26,7 @@ from scipy.interpolate import RegularGridInterpolator
 # SN-PIT
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
-from snappl.psf import ou24PSF
+#from snappl.psf import ou24PSF
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 import snappl.psf
@@ -67,6 +67,7 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
@@ -537,7 +538,7 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
 
 
 def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
-                         y_center=None, sed=None, flux=1, photOps=True):
+                         y_center=None, sed=None, flux=1, photOps=True, mode='old'):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
@@ -553,7 +554,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     psf_image: numpy array of floats of size (stampsize, stampsize), the image
                 of the PSF at the (x,y) location.
     """
-
+    
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
                 f" Pointing, SCA: {pointing, SCA} \n" +
                 f" stamp size: {stampsize} \n" +
@@ -561,7 +562,8 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
                 f" sed: {sed} \n" +
                 f" flux: {flux}")
 
-    config_file = pathlib.Path(Config.get()
+    Lager.debug('hardcoding config this must be removed')
+    config_file = pathlib.Path(Config.get('/pscratch/sd/c/cmeldorf/campari/examples/perlmutter/campari_config_jupyter.yaml')
                                .value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
@@ -573,19 +575,15 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-#    psf_object = ou24PSF(pointing=pointing, sca=SCA,
-#                                    config_file=config_file, size=stampsize,
-#                                    include_photonOps=photOps)
-
-#    "ou24PSF_slow"
-    psf_object = PSF.get_psf_object( "ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
-
-    # psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
-    #                          x_center=x_center,
-    #                          y_center=y_center, sed=sed,
-    #                          include_photonOps=photOps, flux=flux).array
-
-    psf_image = psf_object.get_stamp(x_center, y_center, flux=1., seed=None)
+    if mode == 'new':
+        Lager.debug(f'PhotOps: {photOps}')
+        psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
+        psf_image = psf_object.get_stamp(x=x,y=y,x0=x_center,y0=y_center, flux=1., seed=None)
+    if mode == 'old':
+        psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
+                               x_center=x_center,
+                               y_center=y_center, sed=sed,
+                               include_photonOps=photOps, flux=flux).array
 
     return psf_image.flatten()
 
@@ -731,6 +729,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
+        Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
         psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
                              method="no_pixel",
