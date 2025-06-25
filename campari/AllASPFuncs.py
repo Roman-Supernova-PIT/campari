@@ -578,7 +578,8 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     if mode == 'new':
         Lager.debug(f'PhotOps: {photOps}')
         psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
-        psf_image = psf_object.get_stamp(x=x,y=y,x0=x_center,y0=y_center, flux=1., seed=None)
+        #Switched x0 and x here
+        psf_image = psf_object.get_stamp(x0=x,y0=y,x=x_center,y=y_center, flux=1., seed=None)
     if mode == 'old':
         psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
                                x_center=x_center,
@@ -1810,11 +1811,18 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                 Lager.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
                 Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
+
+                Lager.debug(f'Trying to switch to new coords')
+                snx = x
+                sny = y
+                x = int( np.floor( x + 0.5 ) )
+                y = int( np.floor( y + 0.5 ) )
+                Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
                 psf_source_array =\
                     construct_psf_source(x, y, pointing, SCA,
                                          stampsize=size, x_center=snx,
                                          y_center=sny, sed=sed,
-                                         photOps=source_phot_ops)
+                                         photOps=source_phot_ops, mode = 'new')
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
