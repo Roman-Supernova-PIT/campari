@@ -258,15 +258,15 @@ def generateGuess(imlist, ra_grid, dec_grid):
 
     wcslist = [im.get_wcs() for im in imlist]
     imdata = [im.data.flatten() for im in imlist]
-    Lager.warning('Subtracing one to genGuess, this needs to be solved!!!')
+    Lager.warning('NOW Subtracting one to genGuess, this needs to be solved!!!')
     for i, imwcs in enumerate(zip(imdata, wcslist)):
         im, wcs = imwcs
         xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
         grid_point_vals = np.zeros_like(xx)
         for imval, imxval, imyval in zip(im.flatten(),
                                          imx.flatten(), imy.flatten()):
-            grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) &
-                                     (np.abs(yy - imyval) < 0.5))] = imval
+            grid_point_vals[np.where((np.abs(xx - imxval - 1) < 0.5) &
+                                     (np.abs(yy - imyval - 1) < 0.5))] = imval
         all_vals += grid_point_vals
     return all_vals/len(wcslist)
 
@@ -337,12 +337,13 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     stamp = galsim.Image(stampsize*oversampling_factor,
                          stampsize*oversampling_factor, wcs=galsim_wcs)
     # Loop over the grid points, draw a PSF at each one, and append to a list.
+    Lager.debug('I HAVE ADDED A PLUS ONE IN CONSTRUCT BG THIS MUST BE REMOVED')
     for a, ij in enumerate(zip(x.flatten(), y.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {np.size(x)}")
         i, j = ij
         psfs[:, a] = convolvedpsf.drawImage(bpass, method="no_pixel",
-                                            center=galsim.PositionD(i, j),
+                                            center=galsim.PositionD(i + 1, j + 1),
                                             use_true_center=True, image=stamp,
                                             wcs=galsim_wcs).array.flatten()
 
@@ -770,6 +771,7 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
                         roman_path=roman_path, obj_type=object_type)
     snra = ra
     sndec = dec  # Why is this here? TODO remove in a less urgent PR
+    Lager.debug(f"SNRA, SNDEC: {snra, sndec}")
     start = start[0]
     end = end[0]
     exposures = findAllExposures(ID, ra, dec, peak, start, end,
@@ -904,7 +906,7 @@ def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
 
 
 def makeGrid(grid_type, images, ra, dec, percentiles=[],
-             make_exact=False):
+             make_exact=False, spacing = 1.0):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -950,7 +952,7 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                                                percentiles=percentiles)
     elif grid_type == "regular":
         ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
-                                              size=size, spacing=0.75)
+                                              size=size, spacing=spacing)
 
     if grid_type == "single":
         ra_grid, dec_grid = [ra], [dec]
@@ -1709,7 +1711,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         if object_type == "star":
             Lager.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
-                                     percentiles=percentiles)
+                                     percentiles=percentiles, spacing=spacing)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
