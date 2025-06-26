@@ -582,7 +582,7 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_psf_background( cfg ):
+def test_construct_psf_background( cfg, roman_path ):
     wcs_data = np.load("./testdata/wcs_dict.npz", allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
@@ -595,7 +595,6 @@ def test_construct_psf_background( cfg ):
     config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     SCA = 7
-
     size = 9
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
@@ -608,6 +607,7 @@ def test_construct_psf_background( cfg ):
                                                   util_ref=util_ref)
         test_psf_background = np.load(pathlib.Path(__file__).parent
                                       / "testdata/test_psf_bg.npy")
+
         np.testing.assert_allclose(psf_background, test_psf_background,
                                    atol=1e-7)
 

@@ -276,7 +276,7 @@ def generateGuess(imlist, ra_grid, dec_grid):
 
 def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
                              psf=None, pixel=False,
-                             util_ref=None, band=None):
+                             util_ref=None, band=None, sca_wcs = None):
 
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
@@ -310,15 +310,18 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
 
     # This is the WCS galsim uses to draw the PSF.
     galsim_wcs = wcs.get_galsim_wcs()
+
+    # Changed this to reflect new coord defn when constructing PSF
     x, y = wcs.world_to_pixel(ra, dec)
 
-    # With plus ones here I recover the values pre-refactor!
+    #import pdb; pdb.set_trace()
 
     if psf is None:
         # How different are these two methods? TODO XXX
         pupil_bin = 8
-        # psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
-        psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
+        psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
+        Lager.debug(f"Got PSF at loc {x_loc, y_loc} with pupil_bin {pupil_bin}")
+        #psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
 
     bpass = roman.getBandpasses()[band]
 
@@ -339,16 +342,51 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     convolvedpsf = galsim.Convolve(point, psf)
     stamp = galsim.Image(stampsize*oversampling_factor,
                          stampsize*oversampling_factor, wcs=galsim_wcs)
+    
+    pointing = util_ref.visit
+    SCA = util_ref.sca
+
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=False)
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, ij in enumerate(zip(x.flatten(), y.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {np.size(x)}")
         i, j = ij
-        psfs[:, a] = convolvedpsf.drawImage(bpass, method="no_pixel",
-                                            center=galsim.PositionD(i, j),
-                                            use_true_center=True, image=stamp,
-                                            wcs=galsim_wcs).array.flatten()
+        Lager.debug(galsim.PositionD(i, j))
+        #Lager.debug('old wcs : {}'.format(galsim_wcs))
 
+        trying_new_wcs = util_ref.getLocalWCS(i + x_loc - stampsize//2, 
+                                          j + y_loc - stampsize//2)
+        Lager.debug('getting wcs  at {}'.format((i + x_loc - stampsize//2, 
+                                          j + y_loc - stampsize//2)))
+        Lager.debug('old wcs : {}'.format(trying_new_wcs))
+        comp = convolvedpsf.drawImage(bpass, method="no_pixel",
+                                             center=galsim.PositionD(i, j),
+                                             use_true_center=True, image=stamp,
+                                             wcs=trying_new_wcs).array.flatten()
+        #galsim_wcs
+
+        Lager.debug(f"Drawing PSF at {x_loc, y_loc, i, j}")
+
+ 
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, 
+                                          x=i + x_loc - stampsize//2 - 1, 
+                                          y=j + y_loc - stampsize//2 - 1, 
+                                          flux=1., seed=None).flatten()
+        plt.subplot(1, 3, 1)
+        plt.imshow(psfs[:,a].reshape(9, 9), origin='lower')
+        plt.subplot(1, 3, 2)
+        plt.imshow(comp.reshape(9, 9), origin='lower')
+        plt.subplot(1, 3, 3)
+        plt.imshow(np.log10(np.abs(psfs[:,a].reshape(9, 9)
+                                      - comp.reshape(9, 9))), origin='lower')
+        plt.colorbar(label="log10( |constructed - comparison| )")
+        plt.savefig(pathlib.Path(__file__).parent
+                    / "test_psf_background_comparison.png")
+        Lager.debug("Saved test_psf_background_comparison.png")
+        np.testing.assert_allclose(comp, psfs[:, a], atol=1e-7)
+
+    
     return psfs
 
 
@@ -1730,6 +1768,12 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
         snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
         pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
+        Lager.debug(f'Trying to switch to new coords')
+        snx = x
+        sny = y
+        x = int( np.floor( x + 0.5 ) )
+        y = int( np.floor( y + 0.5 ) )
+        Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
                                                 x_center=snx, y_center=sny,
@@ -1811,7 +1855,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                 Lager.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
                 Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
-
                 Lager.debug(f'Trying to switch to new coords')
                 snx = x
                 sny = y
