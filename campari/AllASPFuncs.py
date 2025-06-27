@@ -347,7 +347,7 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {np.size(x)}")
         i, j = ij
-        #Lager.debug(galsim.PositionD(i, j))
+        Lager.debug(galsim.PositionD(i, j))
 
         #Lager.debug('old wcs : {}'.format(galsim_wcs))
         #if psf is None:
@@ -355,12 +355,12 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         pupil_bin = 8
         psf = util_ref.getPSF(i + x_loc - stampsize//2, 
                                           j + y_loc - stampsize//2, pupil_bin=pupil_bin)
-        #Lager.debug(f"Got PSF at loc {i + x_loc - stampsize//2, j + y_loc - stampsize//2} with pupil_bin {pupil_bin}")
+        Lager.debug(f"Got PSF at loc {i + x_loc - stampsize//2, j + y_loc - stampsize//2} with pupil_bin {pupil_bin}")
 
         trying_new_wcs = util_ref.getLocalWCS(i + x_loc - stampsize//2, 
                                           j + y_loc - stampsize//2)
-        #Lager.debug('getting wcs  at {}'.format((i + x_loc - stampsize//2, 
-        #                                  j + y_loc - stampsize//2)))
+        Lager.debug('getting wcs  at {}'.format((i + x_loc - stampsize//2, 
+                                          j + y_loc - stampsize//2)))
         #Lager.debug('old wcs : {}'.format(trying_new_wcs))
         convolvedpsf = galsim.Convolve(point, psf)
         comp = convolvedpsf.drawImage(bpass, method="no_pixel",
