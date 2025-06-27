@@ -538,7 +538,7 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
 
 
 def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
-                         y_center=None, sed=None, flux=1, photOps=True, mode='old'):
+                         y_center=None, sed=None, flux=1, photOps=True):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
@@ -562,8 +562,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
                 f" sed: {sed} \n" +
                 f" flux: {flux}")
 
-    Lager.debug('hardcoding config this must be removed')
-    config_file = pathlib.Path(Config.get('/pscratch/sd/c/cmeldorf/campari/examples/perlmutter/campari_config_jupyter.yaml')
+    config_file = pathlib.Path(Config.get()
                                .value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
@@ -575,16 +574,15 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    if mode == 'new':
-        Lager.debug(f'PhotOps: {photOps}')
-        psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
-        #Switched x0 and x here
-        psf_image = psf_object.get_stamp(x0=x,y0=y,x=x_center,y=y_center, flux=1., seed=None)
-    if mode == 'old':
-        psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
-                               x_center=x_center,
-                               y_center=y_center, sed=sed,
-                               include_photonOps=photOps, flux=flux).array
+    # if mode == 'new':
+    Lager.debug(f'PhotOps: {photOps}')
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
+    psf_image = psf_object.get_stamp(x0=x,y0=y,x=x_center,y=y_center, flux=1., seed=None)
+    # if mode == 'old':
+    #     psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
+    #                            x_center=x_center,
+    #                            y_center=y_center, sed=sed,
+    #                            include_photonOps=photOps, flux=flux).array
 
     return psf_image.flatten()
 
@@ -1730,6 +1728,14 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
         snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
+        # snx and sny are the exact coords of the SN in the SCA frame.
+        # x and y are the pixels the image has been cut out on, and 
+        # hence must be ints. Before, I had snx and sny as SN coords in
+        # the cutout frame, hence this switch.
+        snx = x
+        sny = y
+        x = int( np.floor( x + 0.5 ) )
+        y = int( np.floor( y + 0.5 ) )
         pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
@@ -1811,9 +1817,10 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                 sn_index = i - (num_total_images - num_detect_images)
                 Lager.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
-                Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
-
-                Lager.debug(f'Trying to switch to new coords')
+                # snx and sny are the exact coords of the SN in the SCA frame.
+                # x and y are the pixels the image has been cut out on, and 
+                # hence must be ints. Before, I had snx and sny as SN coords in
+                # the cutout frame, hence this switch.
                 snx = x
                 sny = y
                 x = int( np.floor( x + 0.5 ) )
@@ -1823,7 +1830,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                     construct_psf_source(x, y, pointing, SCA,
                                          stampsize=size, x_center=snx,
                                          y_center=sny, sed=sed,
-                                         photOps=source_phot_ops, mode = 'new')
+                                         photOps=source_phot_ops)
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed

@@ -638,32 +638,19 @@ def test_construct_psf_source():
     sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant='linear'),
                      wave_type='Angstrom',
                      flux_type='fphotons')
-    # Need to switch x_center and y_center back to 12 once centering fixed
-
-    # comparison_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
-    #                                  stampsize=25, x_center=12,
-    #                                  y_center=12, sed=sed,
-    #                                  flux=1, photOps=False, mode= "old")
-    
 
     comparison_image = np.load(pathlib.Path(__file__).parent
              / 'testdata/test_psf_source.npy')
     
-    Lager.debug('running new mode')
-
     psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
                                      stampsize=25, x_center=2044,
                                      y_center=2044, sed=sed,
-                                     flux=1, photOps=False, mode= "new")
+                                     flux=1, photOps=False)
 
-    Lager.debug(f'psf im sum {np.sum(psf_image)}')
-    Lager.debug(f'comparison im sum {np.sum(comparison_image)}')
-    
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True), \
         "The sum of the PSF source images do not match within 1e-6"
     
-
 
     try:
         np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
