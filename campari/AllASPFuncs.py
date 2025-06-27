@@ -731,7 +731,8 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
 
     if not include_photonOps:
         Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
-        psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
+        Lager.debug((x+1,y+1))
+        psf = galsim.Convolve(point, self.getPSF(x+1, y+1, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
                              method="no_pixel",
                              center=galsim.PositionD(x_center, y_center),

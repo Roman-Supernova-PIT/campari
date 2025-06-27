@@ -645,8 +645,9 @@ def test_construct_psf_source():
     #                                  y_center=12, sed=sed,
     #                                  flux=1, photOps=False, mode= "old")
     
+
     comparison_image = np.load(pathlib.Path(__file__).parent
-            / 'testdata/test_psf_source.npy')
+             / 'testdata/test_psf_source.npy')
     
     Lager.debug('running new mode')
 
@@ -657,9 +658,11 @@ def test_construct_psf_source():
 
     Lager.debug(f'psf im sum {np.sum(psf_image)}')
     Lager.debug(f'comparison im sum {np.sum(comparison_image)}')
+    
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True), \
         "The sum of the PSF source images do not match within 1e-6"
+    
 
 
     try:
