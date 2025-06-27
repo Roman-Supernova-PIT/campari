@@ -648,10 +648,8 @@ def test_construct_psf_source():
                                      flux=1, photOps=False)
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
-                               atol=1e-6, verbose=True), \
-        "The sum of the PSF source images do not match within 1e-6"
+                               atol=1e-6, verbose=True)
     
-
     try:
         np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
                                    verbose=True)
@@ -680,7 +678,7 @@ def test_construct_psf_source():
         im_path = pathlib.Path(__file__).parent / 'test_psf_source_comparison.png'
         Lager.debug(f"Saving diagnostic image to {im_path}")
         plt.savefig(im_path)
-        plt.show()
+        plt.close()
 
         assert False, f"PSF source images do not match, a diagnostic " \
                       f"image has been saved to {im_path}. Error: {e}"

@@ -26,7 +26,6 @@ from scipy.interpolate import RegularGridInterpolator
 # SN-PIT
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
-#from snappl.psf import ou24PSF
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 import snappl.psf
@@ -551,20 +550,15 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         this should be 1. If you are using this function to build a model of
         a source, this should be the flux of the source.
     Outputs:
-    psf_image: numpy array of floats of size (stampsize, stampsize), the image
+    psf_image: numpy array of floats of size stampsize**2, the image
                 of the PSF at the (x,y) location.
     """
-    
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
                 f" Pointing, SCA: {pointing, SCA} \n" +
                 f" stamp size: {stampsize} \n" +
                 f" x_center, y_center: {x_center, y_center} \n" +
                 f" sed: {sed} \n" +
                 f" flux: {flux}")
-
-    config_file = pathlib.Path(Config.get()
-                               .value("photometry.campari.galsim.tds_file"))
-    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, "You must provide an SED for the source"
 
@@ -574,8 +568,10 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
-    psf_image = psf_object.get_stamp(x0=x,y0=y,x=x_center,y=y_center, flux=1., seed=None)
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA,
+                                    size=stampsize, include_photonOps=photOps)
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+                                     flux=1., seed=None)
 
     return psf_image.flatten()
 
