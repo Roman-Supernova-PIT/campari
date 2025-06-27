@@ -28,6 +28,8 @@ import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
+import snappl.psf
+from snappl.psf import PSF
 
 # Campari
 from campari.simulation import simulate_images
@@ -64,6 +66,7 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
@@ -538,29 +541,24 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
-    x, y: floats, are locations in the SCA
+    x, y: ints, pixel coordinates where the cutout is centered in the SCA
     pointing, SCA: ints, the pointing and SCA of the image
     stampsize = int, size of cutout image used
-    x_center and y_center: floats, x and y location in the cutout.
+    x_center and y_center: floats, x and y location of the object in the SCA.
     sed: galsim.sed.SED object, the SED of the source
     flux: float, If you are using this function to build a model grid point,
         this should be 1. If you are using this function to build a model of
         a source, this should be the flux of the source.
     Outputs:
-    psf_image: numpy array of floats of size (stampsize, stampsize), the image
+    psf_image: numpy array of floats of size stampsize**2, the image
                 of the PSF at the (x,y) location.
     """
-
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
                 f" Pointing, SCA: {pointing, SCA} \n" +
                 f" stamp size: {stampsize} \n" +
                 f" x_center, y_center: {x_center, y_center} \n" +
                 f" sed: {sed} \n" +
                 f" flux: {flux}")
-
-    config_file = pathlib.Path(Config.get()
-                               .value("photometry.campari.galsim.tds_file"))
-    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, "You must provide an SED for the source"
 
@@ -570,9 +568,10 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
-                             y_center=y_center, sed=sed,
-                             include_photonOps=photOps, flux=flux).array
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA,
+                                    size=stampsize, include_photonOps=photOps)
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+                                     flux=1., seed=None)
 
     return psf_image.flatten()
 
@@ -718,7 +717,9 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
-        psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
+        Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
+        Lager.debug((x+1,y+1))
+        psf = galsim.Convolve(point, self.getPSF(x+1, y+1, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
                              method="no_pixel",
                              center=galsim.PositionD(x_center, y_center),
@@ -1714,8 +1715,13 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
 
     if use_real_images and object_type == "SN" and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
-        x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
-        snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
+        snx, sny = image_list[0].get_wcs().world_to_pixel(ra, dec)
+        # snx and sny are the exact coords of the SN in the SCA frame.
+        # x and y are the pixels the image has been cut out on, and 
+        # hence must be ints. Before, I had snx and sny as SN coords in
+        # the cutout frame, hence this switch.
+        x = int( np.floor( snx + 0.5 ) )
+        y = int( np.floor( sny + 0.5 ) )
         pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
@@ -1737,7 +1743,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
 
         whole_sca_wcs = image_list[i].get_wcs()
         # With +1s here I recover previous values!
-        x, y = whole_sca_wcs.world_to_pixel(ra, dec)
+        snx, sny = whole_sca_wcs.world_to_pixel(ra, dec)
 
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
@@ -1759,7 +1765,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
             background_model_array = \
                 construct_psf_background(ra_grid, dec_grid,
                                          cutout_image_list[i].get_wcs(),
-                                         x, y, size, psf=drawing_psf,
+                                         snx, sny, size, psf=drawing_psf,
                                          pixel=pixel,
                                          util_ref=util_ref, band=band)
 
@@ -1780,8 +1786,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         # TODO make this not bad
         if num_detect_images != 0 and \
            i >= num_total_images - num_detect_images:
-            snx, sny = cutout_image_list[i]\
-                       .get_wcs().world_to_pixel(snra, sndec)
             if use_roman:
                 if use_real_images:
                     pointing = exposures["Pointing"][i]
@@ -1797,6 +1801,12 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                 sn_index = i - (num_total_images - num_detect_images)
                 Lager.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
+                # snx and sny are the exact coords of the SN in the SCA frame.
+                # x and y are the pixels the image has been cut out on, and 
+                # hence must be ints. Before, I had snx and sny as SN coords in
+                # the cutout frame, hence this switch.
+                x = int( np.floor( snx + 0.5 ) )
+                y = int( np.floor( sny + 0.5 ) )
                 Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
                 psf_source_array =\
                     construct_psf_source(x, y, pointing, SCA,
