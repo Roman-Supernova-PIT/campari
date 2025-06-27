@@ -232,6 +232,8 @@ def main():
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
+            # Pull out list of image exposures so we can be more flexible.
+            # Can then call to get the SEDs here. 
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
                 run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
@@ -258,9 +260,9 @@ def main():
 
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
-                                  flux, use_roman, band, object_type,
-                                  sigma_flux)
+            lc = build_lightcurve(ID, exposures, sn_path, roman_path,
+                                  confusion_metric, flux, use_roman, band, 
+                                  object_type, sigma_flux)
         else:
             identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)

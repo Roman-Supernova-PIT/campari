@@ -13,8 +13,10 @@ photometry:
     use_real_images: true
 
     paths:
+      sims_sed_library: /sims_sed_library
       roman_path: /sims_dir
       sn_path: /snana_pq_dir
+      sed_path: /campari_sed_dir
       output_dir: /campari_out_dir
       debug_dir: /campari_debug_dir
 
