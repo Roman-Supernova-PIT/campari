@@ -574,15 +574,8 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    # if mode == 'new':
-    Lager.debug(f'PhotOps: {photOps}')
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=photOps)
     psf_image = psf_object.get_stamp(x0=x,y0=y,x=x_center,y=y_center, flux=1., seed=None)
-    # if mode == 'old':
-    #     psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,
-    #                            x_center=x_center,
-    #                            y_center=y_center, sed=sed,
-    #                            include_photonOps=photOps, flux=flux).array
 
     return psf_image.flatten()
 
