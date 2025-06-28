@@ -13,11 +13,20 @@ from erfa import ErfaWarning
 
 # SN-PIT
 import snappl
+from snappl.sed import OU2024_Truth_SED
+from snappl.sed import Flat_SED
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 
 # Campari
-from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, run_one_object, save_lightcurve
+from campari.AllASPFuncs import (banner,
+                                 build_lightcurve,
+                                 build_lightcurve_sim,
+                                 findAllExposures,
+                                 find_parquet,
+                                 get_object_info,
+                                 run_one_object,
+                                 save_lightcurve)
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -165,14 +174,13 @@ def main():
         SNID = args.SNID
 
     if args.img_list is not None:
-        raise NotImplementedError( "--img-list not yet supported." )
+        raise NotImplementedError("--img-list not yet supported.")
 
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
     lc_start = args.beginning
     lc_end = args.end
     object_type = args.object_type
-
 
     config = Config.get(args.config, setdefault=True)
 
@@ -204,7 +212,6 @@ def main():
     percentiles = config.value("photometry.campari.grid_options.percentiles")
     grid_type = config.value("photometry.campari.grid_options.type")
 
-
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
     assert grid_type in ["regular", "adaptive", "contour",
@@ -232,19 +239,43 @@ def main():
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
+            # Pull out list of image exposures so we can be more flexible.
+            # Can then call to get the SEDs here.
+
+            pqfile = find_parquet(ID, sn_path, obj_type=object_type)
+            Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
+
+            ra, dec, p, s, start, end, peak = get_object_info(ID, pqfile, band=band, snpath=sn_path,
+                                                              roman_path=roman_path, obj_type=object_type)
+            Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
+
+            exposures = findAllExposures(ID, ra, dec, start, end,
+                                         roman_path=roman_path,
+                                         maxbg=num_total_images - num_detect_images,
+                                         maxdet=num_detect_images, return_list=True,
+                                         band=band, lc_start=lc_start, lc_end=lc_end)
+            if fetch_SED:
+                sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
+            else:
+                sed_obj = Flat_SED()
+
+            sedlist = []
+            for date in exposures["date"]:
+                sedlist.append(sed_obj.get_sed(snid=ID, mjd=date))
+
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
-                run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
-                            sn_path, size, band, fetch_SED, use_real_images,
-                            use_roman, subtract_background,
-                            make_initial_guess, initial_flux_guess,
-                            weighting, method, grid_type,
-                            pixel, source_phot_ops,
-                            lc_start, lc_end, do_xshift, bg_gal_flux,
-                            do_rotation, airy, mismatch_seds, deltafcn_profile,
-                            noise, check_perfection, avoid_non_linearity,
-                            sim_gal_ra_offset, sim_gal_dec_offset,
-                            spacing, percentiles)
+                run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images, roman_path,
+                               sn_path, size, band, fetch_SED, sedlist, use_real_images,
+                               use_roman, subtract_background,
+                               make_initial_guess, initial_flux_guess,
+                               weighting, method, grid_type,
+                               pixel, source_phot_ops,
+                               lc_start, lc_end, do_xshift, bg_gal_flux,
+                               do_rotation, airy, mismatch_seds, deltafcn_profile,
+                               noise, check_perfection, avoid_non_linearity,
+                               sim_gal_ra_offset, sim_gal_dec_offset,
+                               spacing, percentiles)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
@@ -258,9 +289,9 @@ def main():
 
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, confusion_metric,
-                                  flux, use_roman, band, object_type,
-                                  sigma_flux)
+            lc = build_lightcurve(ID, exposures, sn_path, roman_path,
+                                  confusion_metric, flux, use_roman, band,
+                                  object_type, sigma_flux)
         else:
             identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)

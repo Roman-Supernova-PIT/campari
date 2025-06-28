@@ -33,6 +33,7 @@ from campari.AllASPFuncs import (
     get_galsim_SED_list,
     get_object_info,
     get_weights,
+    load_SEDs_from_directory,
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
@@ -84,8 +85,8 @@ def test_get_object_info(roman_path, sn_path):
 
 def test_findAllExposures(roman_path):
     explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
-                               62654., 62958., 62683.98, "Y106", maxbg=24,
-                               maxdet=24, return_list=True, stampsize=25,
+                               62654., 62958., "Y106", maxbg=24,
+                               maxdet=24, return_list=True,
                                roman_path=roman_path,
                                pointing_list=None, SCA_list=None,
                                truth="simple_model")
@@ -178,8 +179,8 @@ def test_simulate_supernova():
 
 
 def test_savelightcurve():
-    output_dir = pathlib.Path( Config.get().value("photometry.campari.paths.output_dir") )
-    output_dir.mkdir( parents=True, exist_ok=True )
+    output_dir = pathlib.Path(Config.get().value("photometry.campari.paths.output_dir"))
+    output_dir.mkdir(parents=True, exist_ok=True)
     lc_file = output_dir / "test_test_test_lc.ecsv"
     assert not lc_file.exists(), f"File {lc_file} eixsts; delete it before running tests"
 
@@ -195,13 +196,13 @@ def test_savelightcurve():
         # TODO: look at contents?
     finally:
         # Make sure to clean up after ourselves
-        lc_file.unlink( missing_ok=True )
+        lc_file.unlink(missing_ok=True)
 
 
 def test_run_on_star():
     # Call it as a function first so we can pdb and such
-    args = [ "_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
-             "--object_type", "star", "--photometry-campari-grid_options-type", "none" ]
+    args = ["_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
         sys.argv = args
@@ -364,7 +365,6 @@ def test_regression():
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
-
 def test_get_galsim_SED(sn_path):
     sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
                          fetch_SED=True)
@@ -394,20 +394,22 @@ def test_get_galsim_SED(sn_path):
 
 
 def test_get_galsim_SED_list(sn_path):
-    exposures = {"date": [62535.424], "DETECTED": [True]}
-    exposures = pd.DataFrame(exposures)
+    dates = 62535.424
     fetch_SED = True
     object_type = "SN"
     ID = 40120913
-    sedlist = get_galsim_SED_list(ID, exposures, fetch_SED,
-                                  object_type, sn_path)
-    assert len(sedlist) == 1, "The length of the SED list is not 1"
-    sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / "testdata/sn_lam_test.npy")
-    np.testing.assert_array_equal(sedlist[0]._spec.x, sn_lam_test)
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_flambda_test.npy")
-    np.testing.assert_array_equal(sedlist[0]._spec.f, sn_flambda_test)
+    with tempfile.TemporaryDirectory() as sed_path:
+        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
+                            sed_out_dir=sed_path)
+        sedlist = load_SEDs_from_directory(sed_path)
+        assert len(sedlist) == 1, "The length of the SED list is not 1"
+        sn_lam_test = np.load(pathlib.Path(__file__).parent
+                              / "testdata/sn_lam_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
+        sn_flambda_test = np.load(pathlib.Path(__file__).parent
+                                  / "testdata/sn_flambda_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
+                                   atol=1e-7)
 
 
 def test_plot_lc():
