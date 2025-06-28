@@ -381,7 +381,7 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
 
     explist = tb.Table(names=("Pointing", "SCA", "BAND", "zeropoint", "RA",
                               "DEC", "date", "true mag", "true flux",
-                              "realized flux"), #Remove the superfluous columns here XXXXXXXXXXXX
+                              "realized flux"),  # Remove the superfluous columns here XXXXXXXXXXXX
                        dtype=("i8", "i4", "str", "f8", "f8", "f8", "f8",
                               "f8", "f8", "f8"))
 
@@ -704,16 +704,13 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     lc_start, lc_end: ints, MJD bounds on where to fetch images.
 
     Returns:
-    snra, sndec: floats, the RA and DEC of the supernova, a single float is
+    ra, dec: floats, the RA and DEC of the supernova, a single float is
                          used for both of these as we assume the object is
                          not moving between exposures.
     exposures: astropy.table.table.Table, table of exposures used
     cutout_image_list: list of snappl.image.Image objects, the cutout images
     image_list: list of snappl.image.Image objects, the full images
     """
-
-    snra = ra
-    sndec = dec  # Why is this here? TODO remove in a less urgent PR
 
     num_predetection_images = len(exposures[~exposures["DETECTED"]])
     num_total_images = len(exposures)
@@ -734,7 +731,7 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
                         subtract_background=subtract_background,
                         roman_path=roman_path)
 
-    return snra, sndec, ra, dec, exposures, cutout_image_list, image_list
+    return ra, dec, exposures, cutout_image_list, image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -776,7 +773,7 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -788,7 +785,7 @@ def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
 
     Inputs:
     images: list of snappl Image objects, used to get wcs, error, and size.
-    snra, sndec: floats, the RA and DEC of the supernova
+    ra, dec: floats, the RA and DEC of the supernova
     gaussian_var: float, the standard deviation squared of the Gaussian used
                     to weight   the pixels. This is in pixels.
     cutoff: float, the cutoff distance in pixels. Pixels further than this
@@ -810,7 +807,7 @@ def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
         xx = xx.flatten()
         yy = yy.flatten()
 
-        snx, sny = wcs.world_to_pixel(snra, sndec)
+        snx, sny = wcs.world_to_pixel(ra, dec)
         dist = np.sqrt((xx - snx)**2 + (yy - sny)**2)
 
         wgt = np.ones(size**2)
@@ -969,7 +966,7 @@ def plot_images(fileroot, size=11):
 
     fluxdata = pd.read_csv("./results/lightcurves/"+str(fileroot)+"_lc.csv")
 
-    snra, sndec = fluxdata["sn_ra"][0], fluxdata["sn_dec"][0]
+    ra, dec = fluxdata["sn_ra"][0], fluxdata["sn_dec"][0]
     galra, galdec = fluxdata["host_ra"][0], fluxdata["host_dec"][0]
 
     hdul = fits.open("./results/images/"+str(fileroot)+"_wcs.fits")
@@ -989,7 +986,7 @@ def plot_images(fileroot, size=11):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
         xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-        snx, sny = wcs.world_to_pixel(snra, sndec)
+        snx, sny = wcs.world_to_pixel(ra, dec)
         galx, galy = wcs.world_to_pixel(galra, galdec)
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
@@ -1408,7 +1405,7 @@ def banner(text):
     Lager.debug(message)
 
 
-def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path, 
+def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
                         sed_out_dir=None):
     """Return the appropriate SED for the object for each observation.
     If you are getting truth SEDs, this function calls get_SED on each exposure
@@ -1438,10 +1435,9 @@ def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
         sed_list.append(sed)
         if sed_out_dir is not None:
             sed_df = pd.DataFrame({"lambda": sed._spec.x,
-                                "flux": sed._spec.f})
+                                   "flux": sed._spec.f})
             sed_df.to_csv(f"{sed_out_dir}/sed_{ID}_{date}.csv", index=False)
-    
-        
+
     return sed_list
 
 
@@ -1612,11 +1608,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
 
-        snra, sndec, ra, dec, \
-            exposures, cutout_image_list, image_list = \
+        ra, dec, exposures, cutout_image_list, image_list = \
             fetchImages(exposures, ra, dec, size, subtract_background, roman_path, object_type)
-        if num_total_images != len(exposures) or \
-           num_detect_images != len(exposures[exposures["DETECTED"]]):
+
+        if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["DETECTED"]]):
             Lager.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
             num_total_images = len(exposures)
             num_detect_images = len(exposures[exposures["DETECTED"]])
@@ -1637,9 +1632,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         object_type = "SN"
         err = np.ones_like(images)
 
-    sedlist = get_galsim_SED_list(ID, exposures["date"], fetch_SED, object_type,
-                                   sn_path)
-    #sedlist = load_SEDs_from_directory(sed_path)
+    sedlist = get_galsim_SED_list(ID, exposures["date"], fetch_SED, object_type, sn_path)
+    # sedlist = load_SEDs_from_directory(sed_path)
     # assert len(sedlist) == num_detect_images or len(sedlist) == 1:
     #     raise ValueError("The number of SEDs in the sedlist does not match "
     #                      "the number of detection images, nor is it 1. "
@@ -1678,7 +1672,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     if use_real_images and object_type == "SN" and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
-        snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
+        snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(ra, dec)
         pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
@@ -1744,7 +1738,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         if num_detect_images != 0 and \
            i >= num_total_images - num_detect_images:
             snx, sny = cutout_image_list[i]\
-                       .get_wcs().world_to_pixel(snra, sndec)
+                       .get_wcs().world_to_pixel(ra, dec)
             if use_roman:
                 if use_real_images:
                     pointing = exposures["Pointing"][i]
@@ -1793,7 +1787,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     # Get the weights
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, snra, sndec)
+        wgt_matrix = get_weights(cutout_image_list, ra, dec)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[1])
 
@@ -1877,7 +1871,7 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     plt.scatter(ra_grid, dec_grid)
 
 
-def load_SEDs_from_directory(sed_directory, wave_type="Angstrom", 
+def load_SEDs_from_directory(sed_directory, wave_type="Angstrom",
                              flux_type="fphotons"):
     """This function loads SEDs from a directory of SED files.
     Inputs:
@@ -1897,4 +1891,3 @@ def load_SEDs_from_directory(sed_directory, wave_type="Angstrom",
                          wave_type=wave_type, flux_type=flux_type)
         sed_list.append(sed)
     return sed_list
-
