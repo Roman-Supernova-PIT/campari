@@ -373,17 +373,22 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
             images.
     band: the band to consider
     lc_start, lc_end: the start and end of the light curve window, in MJD.
+
+    explist: astropy.table.Table, the table of exposures that contain the
+    supernova. The columns are:
+        - Pointing: the pointing of the exposure
+        - SCA: the SCA of the exposure
+        - BAND: the band of the exposure
+        - date: the MJD of the exposure
+        - DETECTED: whether the exposure contains a detection or not.
     """
 
     f = fits.open(roman_path +
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
 
-    explist = tb.Table(names=("Pointing", "SCA", "BAND", "zeropoint", "RA",
-                              "DEC", "date", "true mag", "true flux",
-                              "realized flux"),  # Remove the superfluous columns here XXXXXXXXXXXX
-                       dtype=("i8", "i4", "str", "f8", "f8", "f8", "f8",
-                              "f8", "f8", "f8"))
+    explist = tb.Table(names=("Pointing", "SCA", "BAND", "date"),
+                       dtype=("i8", "i4", "str",  "f8"))
 
     # Rob's database method! :D
 
@@ -689,19 +694,15 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     """This function gets the list of exposures to be used for the analysis.
 
     Inputs:
+    exposures: astropy.table.table.Table, the table of exposures to be used.
     num_total_images: total images used in analysis (detection + no detection)
     num_detect_images: number of images used in the analysis that contain a
                        detection.
-    ID: int, the ID of the object
-    sn_path: str, the path to the directory of the supernova catalog parquet
-    files.
-    band: str, the band to be used
-    size: int, cutout will be of shape (size, size)
+    size: int, cutout will be of shape (size, size)e
     subtract_background: If True, subtract sky bg from images. If false, leave
             bg as a free parameter in the forward modelling.
     roman_path: str, the path to the Roman data
-    obj_type: str, the type of object to be used (SN or star)
-    lc_start, lc_end: ints, MJD bounds on where to fetch images.
+    object_type: str, the type of object to be used (SN or star)
 
     Returns:
     ra, dec: floats, the RA and DEC of the supernova, a single float is
@@ -731,7 +732,7 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
                         subtract_background=subtract_background,
                         roman_path=roman_path)
 
-    return ra, dec, exposures, cutout_image_list, image_list
+    return exposures, cutout_image_list, image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -873,7 +874,6 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
     """
     size = images[0].image_shape[0]
     snappl_wcs = images[0].get_wcs()
-
     image_data = images[0].data
 
     Lager.debug(f"Grid type: {grid_type}")
@@ -1613,7 +1613,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
 
-        ra, dec, exposures, cutout_image_list, image_list = \
+        exposures, cutout_image_list, image_list = \
             fetchImages(exposures, ra, dec, size, subtract_background, roman_path, object_type)
 
         if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["DETECTED"]]):
