@@ -401,8 +401,8 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
     res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window
-    start = start[0]
-    end = end[0]
+    start = start[0] if not isinstance(start, float) else start
+    end = end[0] if not isinstance(end, float) else end
     det = res.loc[(res["date"] >= start) & (res["date"] <= end)].copy()
     det = det.loc[(det['date'] >= lc_start) & (det['date'] <= lc_end)]
     if isinstance(maxdet, int):
@@ -875,6 +875,11 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
     snappl_wcs = images[0].get_wcs()
 
     image_data = images[0].data
+
+    Lager.debug(f"Grid type: {grid_type}")
+    if grid_type not in ["regular", "adaptive", "contour", "single"]:
+        raise ValueError("Grid type must be one of: regular, adaptive, "
+                         "contour, single")
     if grid_type == "contour":
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
 
@@ -1584,7 +1589,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
 
 
 def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images,
-                   roman_path, sn_path, size, band, fetch_SED,
+                   roman_path, sn_path, size, band, fetch_SED, sedlist,
                    use_real_images, use_roman, subtract_background,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    grid_type, pixel, source_phot_ops,
@@ -1632,7 +1637,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         object_type = "SN"
         err = np.ones_like(images)
 
-    sedlist = get_galsim_SED_list(ID, exposures["date"], fetch_SED, object_type, sn_path)
+
+    #sedlist = get_galsim_SED_list(ID, exposures["date"], fetch_SED, object_type, sn_path)
     # sedlist = load_SEDs_from_directory(sed_path)
     # assert len(sedlist) == num_detect_images or len(sedlist) == 1:
     #     raise ValueError("The number of SEDs in the sedlist does not match "

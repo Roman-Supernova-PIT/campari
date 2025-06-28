@@ -179,8 +179,8 @@ def test_simulate_supernova():
 
 
 def test_savelightcurve():
-    output_dir = pathlib.Path( Config.get().value("photometry.campari.paths.output_dir") )
-    output_dir.mkdir( parents=True, exist_ok=True )
+    output_dir = pathlib.Path(Config.get().value("photometry.campari.paths.output_dir"))
+    output_dir.mkdir(parents=True, exist_ok=True)
     lc_file = output_dir / "test_test_test_lc.ecsv"
     assert not lc_file.exists(), f"File {lc_file} eixsts; delete it before running tests"
 
@@ -196,13 +196,13 @@ def test_savelightcurve():
         # TODO: look at contents?
     finally:
         # Make sure to clean up after ourselves
-        lc_file.unlink( missing_ok=True )
+        lc_file.unlink(missing_ok=True)
 
 
 def test_run_on_star():
     # Call it as a function first so we can pdb and such
-    args = [ "_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
-             "--object_type", "star", "--photometry-campari-grid_options-type", "none" ]
+    args = ["_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
         sys.argv = args
@@ -399,8 +399,8 @@ def test_get_galsim_SED_list(sn_path):
     object_type = "SN"
     ID = 40120913
     with tempfile.TemporaryDirectory() as sed_path:
-        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path, 
-                            sed_out_dir=sed_path)       
+        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
+                            sed_out_dir=sed_path)
         sedlist = load_SEDs_from_directory(sed_path)
         assert len(sedlist) == 1, "The length of the SED list is not 1"
         sn_lam_test = np.load(pathlib.Path(__file__).parent
@@ -408,7 +408,7 @@ def test_get_galsim_SED_list(sn_path):
         np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
         sn_flambda_test = np.load(pathlib.Path(__file__).parent
                                   / "testdata/sn_flambda_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test, 
+        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
                                    atol=1e-7)
 
 

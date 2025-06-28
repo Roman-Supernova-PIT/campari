@@ -49,9 +49,10 @@ photometry:
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
 
-
-
-
+ou24:
+  config_file: /sn_info_dir/tds.yaml
+  sn_truth_dir: /snana_pq_dir
+  sims_sed_library: /home/rubin_sim_data/sims_sed_library
 
 
 
