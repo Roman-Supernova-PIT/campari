@@ -381,7 +381,7 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
 
     explist = tb.Table(names=("Pointing", "SCA", "BAND", "zeropoint", "RA",
                               "DEC", "date", "true mag", "true flux",
-                              "realized flux"),
+                              "realized flux"), #Remove the superfluous columns here XXXXXXXXXXXX
                        dtype=("i8", "i4", "str", "f8", "f8", "f8", "f8",
                               "f8", "f8", "f8"))
 
@@ -401,6 +401,8 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
     res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window
+    start = start[0]
+    end = end[0]
     det = res.loc[(res["date"] >= start) & (res["date"] <= end)].copy()
     det = det.loc[(det['date'] >= lc_start) & (det['date'] <= lc_end)]
     if isinstance(maxdet, int):
@@ -683,7 +685,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
+def fetchImages(exposures, ra, dec, num_total_images, num_detect_images, ID, sn_path, band, size,
                 subtract_background, roman_path, object_type,
                 lc_start=-np.inf, lc_end=np.inf):
     """This function gets the list of exposures to be used for the analysis.
@@ -712,19 +714,17 @@ def fetchImages(num_total_images, num_detect_images, ID, sn_path, band, size,
     image_list: list of snappl.image.Image objects, the full images
     """
 
-    pqfile = find_parquet(ID, sn_path, obj_type=object_type)
-    ra, dec, p, s, start, end, peak = \
-        get_object_info(ID, pqfile, band=band, snpath=sn_path,
-                        roman_path=roman_path, obj_type=object_type)
+    # pqfile = find_parquet(ID, sn_path, obj_type=object_type)
+    # ra, dec, p, s, start, end, peak = \
+    #     get_object_info(ID, pqfile, band=band, snpath=sn_path,
+    #                     roman_path=roman_path, obj_type=object_type)
     snra = ra
     sndec = dec  # Why is this here? TODO remove in a less urgent PR
-    start = start[0]
-    end = end[0]
-    exposures = findAllExposures(ID, ra, dec, start, end,
-                                 roman_path=roman_path,
-                                 maxbg=num_total_images - num_detect_images,
-                                 maxdet=num_detect_images, return_list=True,
-                                 band=band, lc_start=lc_start, lc_end=lc_end)
+    # exposures = findAllExposures(ID, ra, dec, start, end,
+    #                              roman_path=roman_path,
+    #                              maxbg=num_total_images - num_detect_images,
+    #                              maxdet=num_detect_images, return_list=True,
+    #                              band=band, lc_start=lc_start, lc_end=lc_end)
     num_predetection_images = exposures[~exposures["DETECTED"]]
     if len(num_predetection_images) == 0 and object_type == "SN":
         raise ValueError("No pre-detection images found in time range " +
@@ -1134,8 +1134,7 @@ def get_SN_SED(SNID, date, sn_path):
 
     if closest_days_away > max_days_cutoff:
         Lager.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
-                      + "date. \n The closest SED is " + closest_days_away +
-                      " days away.")
+                      f"date. \n The closest SED is {closest_days_away} days away.")
     return np.array(lam), np.array(flambda[bestindex])
 
 
@@ -1419,9 +1418,8 @@ def banner(text):
 
 
 def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path, 
-                        sed_out_dir):
-    """
-    Return the appropriate SED for the object for each observation.
+                        sed_out_dir=None):
+    """Return the appropriate SED for the object for each observation.
     If you are getting truth SEDs, this function calls get_SED on each exposure
     of the object. Then, get_SED calls get_SN_SED or get_star_SED depending on
     the object type.
@@ -1440,14 +1438,20 @@ def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
     sedlist: list of galsim SED objects, length equal to the number of
              detection images.
     """
+    sed_list = []
     if isinstance(dates, float):
         dates = [dates]  # If only one date is given, make it a list.
     for date in dates:
         sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type,
                              fetch_SED=fetch_SED)
-        sed_df = pd.DataFrame({"lambda": sed._spec.x,
-                               "flux": sed._spec.f})
-        sed_df.to_csv(f"{sed_out_dir}/sed_{ID}_{date}.csv", index=False)
+        sed_list.append(sed)
+        if sed_out_dir is not None:
+            sed_df = pd.DataFrame({"lambda": sed._spec.x,
+                                "flux": sed._spec.f})
+            sed_df.to_csv(f"{sed_out_dir}/sed_{ID}_{date}.csv", index=False)
+    
+        
+    return sed_list
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
@@ -1592,7 +1596,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     Lager.info(f"Saved to {output_path}")
 
 
-def run_one_object(ID, object_type, num_total_images, num_detect_images,
+def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images,
                    roman_path, sn_path, size, band, fetch_SED,
                    use_real_images, use_roman, subtract_background,
                    make_initial_guess, initial_flux_guess, weighting, method,
@@ -1620,7 +1624,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         # images, err,
         snra, sndec, ra, dec, \
             exposures, cutout_image_list, image_list = \
-            fetchImages(num_total_images, num_detect_images, ID,
+            fetchImages(exposures, ra, dec, num_total_images, num_detect_images, ID,
                         sn_path, band, size, subtract_background,
                         roman_path, object_type, lc_start=lc_start,
                         lc_end=lc_end)
@@ -1645,9 +1649,9 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         object_type = "SN"
         err = np.ones_like(images)
 
-    sedlist = get_galsim_SED_list(ID, exposures, fetch_SED, object_type,
+    sedlist = get_galsim_SED_list(ID, exposures["date"], fetch_SED, object_type,
                                    sn_path)
-    sedlist = load_SEDs_from_directory(sed_path)
+    #sedlist = load_SEDs_from_directory(sed_path)
     # assert len(sedlist) == num_detect_images or len(sedlist) == 1:
     #     raise ValueError("The number of SEDs in the sedlist does not match "
     #                      "the number of detection images, nor is it 1. "

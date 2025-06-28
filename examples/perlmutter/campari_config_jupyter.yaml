@@ -1,0 +1,58 @@
+ou24:
+  config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds.yaml
+  sn_truth_dir: /dvs_ro/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
+  sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
+
+photometry:
+  campari:
+    cutout_size: 11
+    initial_flux_guess: 3000
+    fetch_SED: true
+    source_phot_ops: true
+    use_roman: true
+    weighting: true
+    make_initial_guess: true
+    method: lsqr
+    pixel: false
+    subtract_background: true
+    use_real_images: true
+
+    paths:
+      sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
+      roman_path: /dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
+      sn_path: /dvs_ro/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
+      output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
+      debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
+
+
+    # OMG
+    galsim:
+      tds_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
+
+    grid_options:
+      type: contour
+      percentiles:
+      - 0
+      - 90
+      - 98
+      - 100
+      spacing: 0.75
+      turn_grid_off: false
+
+    simulations:
+      avoid_non_linearity: false
+      background_level: 0
+      bg_gal_flux: 100000.0
+      check_perfection: false
+      deltafcn_profile: false
+      do_rotation: true
+      do_xshift: true
+      make_exact: false
+      mismatch_seds: false
+      noise: 0
+      sim_gal_dec_offset: 1e-5
+      sim_gal_ra_offset: 1e-5
+      single_grid_point: false
+
+ou24psf:
+  config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml

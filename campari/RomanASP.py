@@ -17,7 +17,14 @@ from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 
 # Campari
-from campari.AllASPFuncs import banner, build_lightcurve, build_lightcurve_sim, run_one_object, save_lightcurve
+from campari.AllASPFuncs import (banner, 
+                                 build_lightcurve, 
+                                 build_lightcurve_sim,
+                                 findAllExposures,
+                                 find_parquet,
+                                 get_object_info,
+                                 run_one_object, 
+                                 save_lightcurve)
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -233,20 +240,35 @@ def main():
         banner(f"Running SN {ID}")
         try:
             # Pull out list of image exposures so we can be more flexible.
-            # Can then call to get the SEDs here. 
+            # Can then call to get the SEDs here.
+
+            pqfile = find_parquet(ID, sn_path, obj_type=object_type)
+            Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
+
+            ra, dec, p, s, start, end, peak = get_object_info(ID, pqfile, band=band, snpath=sn_path,
+                                                              roman_path=roman_path, obj_type=object_type)
+            Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
+
+            exposures = findAllExposures(ID, ra, dec, start, end,
+                                         roman_path=roman_path,
+                                         maxbg=num_total_images - num_detect_images,
+                                         maxdet=num_detect_images, return_list=True,
+                                         band=band, lc_start=lc_start, lc_end=lc_end)
+            Lager.debug(exposures)
+
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
-                run_one_object(ID, object_type, num_total_images, num_detect_images, roman_path,
-                            sn_path, size, band, fetch_SED, use_real_images,
-                            use_roman, subtract_background,
-                            make_initial_guess, initial_flux_guess,
-                            weighting, method, grid_type,
-                            pixel, source_phot_ops,
-                            lc_start, lc_end, do_xshift, bg_gal_flux,
-                            do_rotation, airy, mismatch_seds, deltafcn_profile,
-                            noise, check_perfection, avoid_non_linearity,
-                            sim_gal_ra_offset, sim_gal_dec_offset,
-                            spacing, percentiles)
+                run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images, roman_path,
+                               sn_path, size, band, fetch_SED, use_real_images,
+                               use_roman, subtract_background,
+                               make_initial_guess, initial_flux_guess,
+                               weighting, method, grid_type,
+                               pixel, source_phot_ops,
+                               lc_start, lc_end, do_xshift, bg_gal_flux,
+                               do_rotation, airy, mismatch_seds, deltafcn_profile,
+                               noise, check_perfection, avoid_non_linearity,
+                               sim_gal_ra_offset, sim_gal_dec_offset,
+                               spacing, percentiles)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.

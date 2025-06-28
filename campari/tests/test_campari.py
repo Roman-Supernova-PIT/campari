@@ -85,8 +85,8 @@ def test_get_object_info(roman_path, sn_path):
 
 def test_findAllExposures(roman_path):
     explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
-                               62654., 62958., 62683.98, "Y106", maxbg=24,
-                               maxdet=24, return_list=True, stampsize=25,
+                               62654., 62958., "Y106", maxbg=24,
+                               maxdet=24, return_list=True,
                                roman_path=roman_path,
                                pointing_list=None, SCA_list=None,
                                truth="simple_model")
