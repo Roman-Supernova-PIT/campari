@@ -732,7 +732,7 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
                         subtract_background=subtract_background,
                         roman_path=roman_path)
 
-    return exposures, cutout_image_list, image_list
+    return cutout_image_list, image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -1609,12 +1609,9 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     roman_bandpasses = galsim.roman.getBandpasses()
 
     if use_real_images:
-        # Find SN Info, find exposures containing it,
-        # and load those as images.
-        # TODO: Calculate peak MJD outside of the function
-
-        exposures, cutout_image_list, image_list = \
-            fetchImages(exposures, ra, dec, size, subtract_background, roman_path, object_type)
+        # Using exposures Table, load those Pointing/SCAs as images.
+        cutout_image_list, image_list = fetchImages(exposures, ra, dec, size, subtract_background, roman_path,
+                                                    object_type)
 
         if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["DETECTED"]]):
             Lager.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
@@ -1636,15 +1633,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                             mismatch_seds=mismatch_seds)
         object_type = "SN"
         err = np.ones_like(images)
-
-
-    #sedlist = get_galsim_SED_list(ID, exposures["date"], fetch_SED, object_type, sn_path)
-    # sedlist = load_SEDs_from_directory(sed_path)
-    # assert len(sedlist) == num_detect_images or len(sedlist) == 1:
-    #     raise ValueError("The number of SEDs in the sedlist does not match "
-    #                      "the number of detection images, nor is it 1. "
-    #                      + f"sedlist length: {len(sedlist)}, "
-    #                      + f"num_detect_images: {num_detect_images}")
 
     # Build the background grid
     if not grid_type == "none":
