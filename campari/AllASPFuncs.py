@@ -685,9 +685,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-def fetchImages(exposures, ra, dec, num_total_images, num_detect_images, ID, sn_path, band, size,
-                subtract_background, roman_path, object_type,
-                lc_start=-np.inf, lc_end=np.inf):
+def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, object_type):
     """This function gets the list of exposures to be used for the analysis.
 
     Inputs:
@@ -714,23 +712,16 @@ def fetchImages(exposures, ra, dec, num_total_images, num_detect_images, ID, sn_
     image_list: list of snappl.image.Image objects, the full images
     """
 
-    # pqfile = find_parquet(ID, sn_path, obj_type=object_type)
-    # ra, dec, p, s, start, end, peak = \
-    #     get_object_info(ID, pqfile, band=band, snpath=sn_path,
-    #                     roman_path=roman_path, obj_type=object_type)
     snra = ra
     sndec = dec  # Why is this here? TODO remove in a less urgent PR
-    # exposures = findAllExposures(ID, ra, dec, start, end,
-    #                              roman_path=roman_path,
-    #                              maxbg=num_total_images - num_detect_images,
-    #                              maxdet=num_detect_images, return_list=True,
-    #                              band=band, lc_start=lc_start, lc_end=lc_end)
-    num_predetection_images = exposures[~exposures["DETECTED"]]
-    if len(num_predetection_images) == 0 and object_type == "SN":
+
+    num_predetection_images = len(exposures[~exposures["DETECTED"]])
+    num_total_images = len(exposures)
+    if num_predetection_images == 0 and object_type == "SN":
         raise ValueError("No pre-detection images found in time range " +
                          "provided, skipping this object.")
 
-    if len(num_predetection_images) == 0:
+    if num_predetection_images == 0:
         raise ValueError("No detection images found in time range " +
                          "provided, skipping this object.")
 
@@ -1621,17 +1612,14 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # and load those as images.
         # TODO: Calculate peak MJD outside of the function
 
-        # images, err,
         snra, sndec, ra, dec, \
             exposures, cutout_image_list, image_list = \
-            fetchImages(exposures, ra, dec, num_total_images, num_detect_images, ID,
-                        sn_path, band, size, subtract_background,
-                        roman_path, object_type, lc_start=lc_start,
-                        lc_end=lc_end)
-        num_total_images = len(exposures)
-        num_detect_images = len(exposures[exposures["DETECTED"]])
-        Lager.debug(f"Updating image numbers to {num_total_images}" +
-                    f" and {num_detect_images}")
+            fetchImages(exposures, ra, dec, size, subtract_background, roman_path, object_type)
+        if num_total_images != len(exposures) or \
+           num_detect_images != len(exposures[exposures["DETECTED"]]):
+            Lager.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
+            num_total_images = len(exposures)
+            num_detect_images = len(exposures[exposures["DETECTED"]])
 
     else:
         # Simulate the images of the SN and galaxy.
