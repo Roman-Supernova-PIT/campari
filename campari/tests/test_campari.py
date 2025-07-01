@@ -660,7 +660,7 @@ def test_construct_psf_source():
         plt.subplot(1, 3, 1)
         plt.title("Constructed PSF Source")
         plt.grid(True)
-        plt.imshow(psf_image.reshape(25, 25), origin='lower')
+        plt.imshow(psf_image.reshape(25, 25), origin="lower")
 
         plt.subplot(1, 3, 2)
         plt.title("Comparison PSF Source")
@@ -672,10 +672,10 @@ def test_construct_psf_source():
         plt.grid(True)
         plt.imshow(np.log10(np.abs(psf_image.reshape(25, 25) -
                                    comparison_image.reshape(25, 25))),
-                   origin='lower')
+                   origin="lower")
         plt.colorbar(label="log10( |constructed - comparison| )")
 
-        im_path = pathlib.Path(__file__).parent / 'test_psf_source_comparison.png'
+        im_path = pathlib.Path(__file__).parent / "test_psf_source_comparison.png"
         Lager.debug(f"Saving diagnostic image to {im_path}")
         plt.savefig(im_path)
         plt.close()
