@@ -13,6 +13,7 @@ from astropy.io import ascii
 from astropy.table import QTable
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+import matplotlib
 from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 
@@ -635,13 +636,13 @@ def test_get_weights(roman_path):
 
 def test_construct_psf_source():
     lam, flambda = [1000, 26000], [1, 1]
-    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant='linear'),
-                     wave_type='Angstrom',
-                     flux_type='fphotons')
+    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
+                     wave_type="Angstrom",
+                     flux_type="fphotons")
 
     comparison_image = np.load(pathlib.Path(__file__).parent
-             / 'testdata/test_psf_source.npy')
-    
+             / "testdata/test_psf_source.npy")
+
     psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
                                      stampsize=25, x_center=2044,
                                      y_center=2044, sed=sed,
@@ -649,14 +650,13 @@ def test_construct_psf_source():
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True)
-    
+
     try:
         np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
                                    verbose=True)
 
     except AssertionError as e:
-        import matplotlib
-        matplotlib.use('pdf')
+        matplotlib.use("pdf")
         plt.subplot(1, 3, 1)
         plt.title("Constructed PSF Source")
         plt.grid(True)
@@ -665,7 +665,7 @@ def test_construct_psf_source():
         plt.subplot(1, 3, 2)
         plt.title("Comparison PSF Source")
         plt.grid(True)
-        plt.imshow(comparison_image.reshape(25, 25), origin='lower')
+        plt.imshow(comparison_image.reshape(25, 25), origin="lower")
 
         plt.subplot(1, 3, 3)
         plt.title("Difference")

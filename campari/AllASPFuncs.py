@@ -28,7 +28,6 @@ import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
-import snappl.psf
 from snappl.psf import PSF
 
 # Campari
@@ -66,7 +65,6 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
-
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
@@ -553,6 +551,8 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     psf_image: numpy array of floats of size stampsize**2, the image
                 of the PSF at the (x,y) location.
     """
+    if not isinstance(x, int) or not isinstance(y, int):
+        raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
                 f" Pointing, SCA: {pointing, SCA} \n" +
                 f" stamp size: {stampsize} \n" +
@@ -703,9 +703,12 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
     else:
         point = galsim.DeltaFunction()*sed
 
+    # Note the +1s in galsim.PositionD below; galsim uses 1-indexed pixel positions,
+    # whereas snappl uses 0-indexed pixel positions
     x_center += 1
     y_center += 1
-    # Galsim uses 1-indexed pixel coordinates.
+    x += 1
+    y += 1
 
     point = point.withFlux(flux, self.bpass)
     local_wcs = self.getLocalWCS(x, y)
@@ -718,8 +721,8 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
 
     if not include_photonOps:
         Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
-        Lager.debug((x+1,y+1))
-        psf = galsim.Convolve(point, self.getPSF(x+1, y+1, pupil_bin))
+
+        psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
                              method="no_pixel",
                              center=galsim.PositionD(x_center, y_center),
@@ -1717,11 +1720,15 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         snx, sny = image_list[0].get_wcs().world_to_pixel(ra, dec)
         # snx and sny are the exact coords of the SN in the SCA frame.
-        # x and y are the pixels the image has been cut out on, and 
-        # hence must be ints. Before, I had snx and sny as SN coords in
-        # the cutout frame, hence this switch.
-        x = int( np.floor( snx + 0.5 ) )
-        y = int( np.floor( sny + 0.5 ) )
+        # x and y are the pixels the image has been cut out on, and
+        # hence must be ints. Before, I had snx and sny as SN coords in the cutout frame, hence this switch.
+        # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+        # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+        # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+        # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does it.
+        # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+        x = int(np.floor(snx + 0.5))
+        y = int(np.floor(sny + 0.5))
         pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
@@ -1742,7 +1749,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         drawing_psf = None if use_roman else airy
 
         whole_sca_wcs = image_list[i].get_wcs()
-        # With +1s here I recover previous values!
         snx, sny = whole_sca_wcs.world_to_pixel(ra, dec)
 
         # Build the model for the background using the correct psf and the
@@ -1802,11 +1808,15 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                 Lager.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
                 # snx and sny are the exact coords of the SN in the SCA frame.
-                # x and y are the pixels the image has been cut out on, and 
-                # hence must be ints. Before, I had snx and sny as SN coords in
-                # the cutout frame, hence this switch.
-                x = int( np.floor( snx + 0.5 ) )
-                y = int( np.floor( sny + 0.5 ) )
+                # x and y are the pixels the image has been cut out on, and
+                # hence must be ints. Before, I had snx and sny as SN coords in the cutout frame, hence this switch.
+                # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+                # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+                # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+                # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
+                # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+                x = int(np.floor(snx + 0.5))
+                y = int(np.floor(sny + 0.5))
                 Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
                 psf_source_array =\
                     construct_psf_source(x, y, pointing, SCA,

@@ -13,6 +13,7 @@ photometry:
     use_real_images: true
 
     paths:
+      sims_sed_library: /home/rubin_sim_data/sims_sed_library
       roman_path: /sims_dir
       sn_path: /snana_pq_dir
       output_dir: /campari_out_dir
@@ -47,6 +48,8 @@ photometry:
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
 
+ou24psf:
+  config_file: /campari/examples/perlmutter/tds.yaml
 
 
 
