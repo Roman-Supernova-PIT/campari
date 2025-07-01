@@ -28,6 +28,7 @@ import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
+from snappl.psf import PSF
 
 # Campari
 from campari.simulation import simulate_images
@@ -538,29 +539,26 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
-    x, y: floats, are locations in the SCA
+    x, y: ints, pixel coordinates where the cutout is centered in the SCA
     pointing, SCA: ints, the pointing and SCA of the image
     stampsize = int, size of cutout image used
-    x_center and y_center: floats, x and y location in the cutout.
+    x_center and y_center: floats, x and y location of the object in the SCA.
     sed: galsim.sed.SED object, the SED of the source
     flux: float, If you are using this function to build a model grid point,
         this should be 1. If you are using this function to build a model of
         a source, this should be the flux of the source.
     Outputs:
-    psf_image: numpy array of floats of size (stampsize, stampsize), the image
+    psf_image: numpy array of floats of size stampsize**2, the image
                 of the PSF at the (x,y) location.
     """
-
+    if not isinstance(x, int) or not isinstance(y, int):
+        raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
                 f" Pointing, SCA: {pointing, SCA} \n" +
                 f" stamp size: {stampsize} \n" +
                 f" x_center, y_center: {x_center, y_center} \n" +
                 f" sed: {sed} \n" +
                 f" flux: {flux}")
-
-    config_file = pathlib.Path(Config.get()
-                               .value("photometry.campari.galsim.tds_file"))
-    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     assert sed is not None, "You must provide an SED for the source"
 
@@ -570,9 +568,10 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    psf_image = getPSF_Image(util_ref, stampsize, x=x, y=y,  x_center=x_center,
-                             y_center=y_center, sed=sed,
-                             include_photonOps=photOps, flux=flux).array
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA,
+                                    size=stampsize, include_photonOps=photOps)
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+                                     flux=1., seed=None)
 
     return psf_image.flatten()
 
@@ -704,9 +703,12 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
     else:
         point = galsim.DeltaFunction()*sed
 
+    # Note the +1s in galsim.PositionD below; galsim uses 1-indexed pixel positions,
+    # whereas snappl uses 0-indexed pixel positions
     x_center += 1
     y_center += 1
-    # Galsim uses 1-indexed pixel coordinates.
+    x += 1
+    y += 1
 
     point = point.withFlux(flux, self.bpass)
     local_wcs = self.getLocalWCS(x, y)
@@ -718,6 +720,8 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
+        Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
+
         psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
                              method="no_pixel",
@@ -871,8 +875,8 @@ def get_weights(images, snra, sndec, gaussian_var=1000, cutoff=4):
         xx = xx.flatten()
         yy = yy.flatten()
 
-        snx, sny = wcs.world_to_pixel(snra, sndec)
-        dist = np.sqrt((xx - snx)**2 + (yy - sny)**2)
+        object_x, object_y = wcs.world_to_pixel(snra, sndec)
+        dist = np.sqrt((xx - object_x)**2 + (yy - object_y)**2)
 
         wgt = np.ones(size**2)
         wgt = 5*np.exp(-dist**2/gaussian_var)
@@ -1050,7 +1054,7 @@ def plot_images(fileroot, size=11):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
         xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-        snx, sny = wcs.world_to_pixel(snra, sndec)
+        object_x, object_y = wcs.world_to_pixel(snra, sndec)
         galx, galy = wcs.world_to_pixel(galra, galdec)
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
@@ -1058,7 +1062,7 @@ def plot_images(fileroot, size=11):
         vmax = np.mean(gridvals) + np.std(gridvals)
         plt.scatter(xx, yy, s=1, c="k", vmin=vmin, vmax=vmax)
         plt.title("True Image")
-        plt.scatter(snx, sny, c="r", s=8, marker="*")
+        plt.scatter(object_x, object_y, c="r", s=8, marker="*")
         plt.scatter(galx, galy, c="b", s=8, marker="*")
         imshow = plt.imshow(images[i*size**2:
                             (i+1)*size**2].reshape(size, size),
@@ -1714,12 +1718,21 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
 
     if use_real_images and object_type == "SN" and num_detect_images > 1:
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
-        x, y = image_list[0].get_wcs().world_to_pixel(ra, dec)
-        snx, sny = cutout_image_list[0].get_wcs().world_to_pixel(snra, sndec)
+        object_x, object_y = image_list[0].get_wcs().world_to_pixel(ra, dec)
+        # object_x and object_y are the exact coords of the SN in the SCA frame.
+        # x and y are the pixels the image has been cut out on, and
+        # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
+        # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+        # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+        # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+        # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does it.
+        # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+        x = int(np.floor(object_x + 0.5))
+        y = int(np.floor(object_y + 0.5))
         pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
         psf_source_array = construct_psf_source(x, y, pointing, SCA,
                                                 stampsize=size,
-                                                x_center=snx, y_center=sny,
+                                                x_center=object_x, y_center=object_y,
                                                 sed=sed)
         confusion_metric = np.dot(images[0].flatten(), psf_source_array)
 
@@ -1736,8 +1749,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         drawing_psf = None if use_roman else airy
 
         whole_sca_wcs = image_list[i].get_wcs()
-        # With +1s here I recover previous values!
-        x, y = whole_sca_wcs.world_to_pixel(ra, dec)
+        object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
 
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
@@ -1759,7 +1771,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
             background_model_array = \
                 construct_psf_background(ra_grid, dec_grid,
                                          cutout_image_list[i].get_wcs(),
-                                         x, y, size, psf=drawing_psf,
+                                         object_x, object_y, size, psf=drawing_psf,
                                          pixel=pixel,
                                          util_ref=util_ref, band=band)
 
@@ -1780,8 +1792,6 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         # TODO make this not bad
         if num_detect_images != 0 and \
            i >= num_total_images - num_detect_images:
-            snx, sny = cutout_image_list[i]\
-                       .get_wcs().world_to_pixel(snra, sndec)
             if use_roman:
                 if use_real_images:
                     pointing = exposures["Pointing"][i]
@@ -1797,11 +1807,21 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                 sn_index = i - (num_total_images - num_detect_images)
                 Lager.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
-                Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
+                # object_x and object_y are the exact coords of the SN in the SCA frame.
+                # x and y are the pixels the image has been cut out on, and
+                # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
+                # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+                # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+                # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+                # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
+                # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+                x = int(np.floor(object_x + 0.5))
+                y = int(np.floor(object_y + 0.5))
+                Lager.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
                 psf_source_array =\
                     construct_psf_source(x, y, pointing, SCA,
-                                         stampsize=size, x_center=snx,
-                                         y_center=sny, sed=sed,
+                                         stampsize=size, x_center=object_x,
+                                         y_center=object_y, sed=sed,
                                          photOps=source_phot_ops)
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
@@ -1813,7 +1833,7 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
                                         method=draw_method_for_non_roman_psf,
                                         image=stamp,
                                         wcs=cutout_wcs_list[i],
-                                        center=(snx, sny),
+                                        center=(object_x, object_y),
                                         use_true_center=True,
                                         add_to_image=False)
                 psf_source_array = psf_source_array.array.flatten()
