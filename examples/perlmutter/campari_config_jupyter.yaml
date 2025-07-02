@@ -24,7 +24,6 @@ photometry:
       output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
       debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
 
-
     # OMG
     galsim:
       tds_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
@@ -56,3 +55,4 @@ photometry:
 
 ou24psf:
   config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
+

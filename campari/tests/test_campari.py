@@ -13,6 +13,8 @@ from astropy.io import ascii
 from astropy.table import QTable
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+import matplotlib
+from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 
 import snappl
@@ -25,6 +27,7 @@ from campari.AllASPFuncs import (
     calc_mag_and_err,
     calculate_background_level,
     construct_psf_background,
+    construct_psf_source,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -631,3 +634,53 @@ def test_get_weights(roman_path):
     test_wgt_matrix = np.load(pathlib.Path(__file__).parent
                               / "testdata/test_wgt_matrix.npy")
     np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
+
+
+def test_construct_psf_source():
+    lam, flambda = [1000, 26000], [1, 1]
+    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
+                     wave_type="Angstrom",
+                     flux_type="fphotons")
+
+    comparison_image = np.load(pathlib.Path(__file__).parent
+             / "testdata/test_psf_source.npy")
+
+    psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
+                                     stampsize=25, x_center=2044,
+                                     y_center=2044, sed=sed,
+                                     flux=1, photOps=False)
+
+    np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
+                               atol=1e-6, verbose=True)
+
+    try:
+        np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
+                                   verbose=True)
+
+    except AssertionError as e:
+        matplotlib.use("pdf")
+        plt.subplot(1, 3, 1)
+        plt.title("Constructed PSF Source")
+        plt.grid(True)
+        plt.imshow(psf_image.reshape(25, 25), origin="lower")
+
+        plt.subplot(1, 3, 2)
+        plt.title("Comparison PSF Source")
+        plt.grid(True)
+        plt.imshow(comparison_image.reshape(25, 25), origin="lower")
+
+        plt.subplot(1, 3, 3)
+        plt.title("Difference")
+        plt.grid(True)
+        plt.imshow(np.log10(np.abs(psf_image.reshape(25, 25) -
+                                   comparison_image.reshape(25, 25))),
+                   origin="lower")
+        plt.colorbar(label="log10( |constructed - comparison| )")
+
+        im_path = pathlib.Path(__file__).parent / "test_psf_source_comparison.png"
+        Lager.debug(f"Saving diagnostic image to {im_path}")
+        plt.savefig(im_path)
+        plt.close()
+
+        assert False, f"PSF source images do not match, a diagnostic " \
+                      f"image has been saved to {im_path}. Error: {e}"
