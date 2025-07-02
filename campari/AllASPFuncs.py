@@ -308,16 +308,9 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     assert util_ref is not None or band is not None, "you must provide at \
         least util_ref or band"
 
-    # This is the WCS galsim uses to draw the PSF.
-    galsim_wcs = wcs.get_galsim_wcs()
 
     # Changed this to reflect new coord defn when constructing PSF
     x, y = wcs.world_to_pixel(ra, dec)
-
-    #import pdb; pdb.set_trace()
-
-
-
     bpass = roman.getBandpasses()[band]
 
     psfs = np.zeros((stampsize * stampsize, np.size(x)))
@@ -333,63 +326,23 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         point *= sed
 
     point = point.withFlux(1, bpass)
-    oversampling_factor = 1
-    
-    stamp = galsim.Image(stampsize*oversampling_factor,
-                         stampsize*oversampling_factor, wcs=galsim_wcs)
-    
+
     pointing = util_ref.visit
     SCA = util_ref.sca
 
-    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=False)
+    psf_object = PSF.get_psf_object("ou24PSF", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=False)
+
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, ij in enumerate(zip(x.flatten(), y.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {np.size(x)}")
         i, j = ij
-        Lager.debug(galsim.PositionD(i, j))
 
-        #Lager.debug('old wcs : {}'.format(galsim_wcs))
-        #if psf is None:
-
-        pupil_bin = 8
-        psf = util_ref.getPSF(i + x_loc - stampsize//2, 
-                                          j + y_loc - stampsize//2, pupil_bin=pupil_bin)
-        Lager.debug(f"Got PSF at loc {i + x_loc - stampsize//2, j + y_loc - stampsize//2} with pupil_bin {pupil_bin}")
-
-        trying_new_wcs = util_ref.getLocalWCS(i + x_loc - stampsize//2, 
-                                          j + y_loc - stampsize//2)
-        Lager.debug('getting wcs  at {}'.format((i + x_loc - stampsize//2, 
-                                          j + y_loc - stampsize//2)))
-        #Lager.debug('old wcs : {}'.format(trying_new_wcs))
-        convolvedpsf = galsim.Convolve(point, psf)
-        comp = convolvedpsf.drawImage(bpass, method="no_pixel",
-                                             center=galsim.PositionD(i, j),
-                                             use_true_center=True, image=stamp,
-                                             wcs=trying_new_wcs).array.flatten()
-        '''
-        Lager.debug(f"Drawing PSF at {x_loc, y_loc, i, j}")
-
- 
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, 
-                                          x=i + x_loc - stampsize//2 - 1, 
-                                          y=j + y_loc - stampsize//2 - 1, 
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc,
+                                          x=i + x_loc - stampsize//2 - 1,
+                                          y=j + y_loc - stampsize//2 - 1,
                                           flux=1., seed=None).flatten()
-        plt.subplot(1, 3, 1)
-        plt.imshow(psfs[:,a].reshape(9, 9), origin='lower')
-        plt.subplot(1, 3, 2)
-        plt.imshow(comp.reshape(9, 9), origin='lower')
-        plt.subplot(1, 3, 3)
-        plt.imshow(np.log10(np.abs(psfs[:,a].reshape(9, 9)
-                                      - comp.reshape(9, 9))), origin='lower')
-        plt.colorbar(label="log10( |constructed - comparison| )")
-        plt.savefig(pathlib.Path(__file__).parent
-                    / "test_psf_background_comparison.png")
-        Lager.debug("Saved test_psf_background_comparison.png")
-        np.testing.assert_allclose(comp, psfs[:, a], atol=1e-7)
-        '''
 
-    
     return psfs
 
 
@@ -595,7 +548,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     psf_image: numpy array of floats of size (stampsize, stampsize), the image
                 of the PSF at the (x,y) location.
     """
-    
+
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
                 f" Pointing, SCA: {pointing, SCA} \n" +
                 f" stamp size: {stampsize} \n" +

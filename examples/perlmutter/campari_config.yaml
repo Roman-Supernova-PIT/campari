@@ -47,6 +47,9 @@ photometry:
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
 
+ou24psf:
+  config_file: /campari/examples/perlmutter/tds.yaml
+
 
 
 
