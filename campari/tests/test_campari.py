@@ -636,7 +636,6 @@ def test_get_weights(roman_path):
 
 def test_construct_psf_source():
     lam, flambda = [1000, 26000], [1, 1]
-
     sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
                      wave_type="Angstrom",
                      flux_type="fphotons")
