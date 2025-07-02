@@ -337,17 +337,6 @@ def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None
 
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=i, y=j, flux=1., seed=None).flatten()
 
-        ###old method###
-
-        # convolvedpsf = galsim.Convolve(point, psf)
-        # psfs[:, a] = convolvedpsf.drawImage(bpass, method="no_pixel",
-        #                                      center=galsim.PositionD(i+1, j+1),
-        #                                      use_true_center=True, image=stamp,
-        #                                      wcs=trying_new_wcs).array.flatten()
-
-        #np.testing.assert_allclose(comp, psfs[:, a], atol=1e-7)
-        #Lager.debug('-------')
-
     return psfs
 
 
