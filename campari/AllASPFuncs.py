@@ -271,16 +271,14 @@ def generateGuess(imlist, ra_grid, dec_grid):
     return all_vals/len(wcslist)
 
 
-def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize,
-                             psf=None, pixel=False,
+def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, pixel=False,
                              util_ref=None, band=None):
 
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
     Inputs:
     ra, dec: arrays of floats, RA and DEC values for the grid
-    wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs
-        of the cutout. A snappl.wcs.BaseWCS object.
+    sca_wcs: the wcs of the entire image, i.e. the entire SCA. A snappl.wcs.BaseWCS object.
     x_loc, y_loc: floats,the pixel location of the image in the FULL image,
         i.e. x y location in the SCA.
     stampsize: int, the size of the stamp being used
@@ -305,9 +303,7 @@ def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize,
     assert util_ref is not None or band is not None, "you must provide at \
         least util_ref or band"
 
-
-    # Changed this to reflect new coord defn when constructing PSF
-    # x, y = wcs.world_to_pixel(ra, dec)
+    # I call this x_SCA to highlight that it's the location in the SCA, not the cutout.
     x_SCA, y_SCA = sca_wcs.world_to_pixel(ra, dec)
     bpass = roman.getBandpasses()[band]
 
@@ -325,21 +321,13 @@ def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize,
 
     point = point.withFlux(1, bpass)
 
-    # oversampling_factor = 1
-    # galsim_wcs = wcs.get_galsim_wcs()
-    # stamp = galsim.Image(stampsize * oversampling_factor, stampsize * oversampling_factor, wcs=galsim_wcs)
-
     pointing = util_ref.visit
     SCA = util_ref.sca
 
     psf_object = PSF.get_psf_object("ou24PSF", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=False)
-    # pupil_bin = 8
+    # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
-    # psf = util_ref.getPSF(x_loc+1, y_loc+1, pupil_bin=pupil_bin)
-    # Lager.debug(f"Got PSF at loc {x_loc+1,y_loc+1} with pupil_bin {pupil_bin}")
-    # trying_new_wcs = util_ref.getLocalWCS(x_loc+1, y_loc+1)
-    # Lager.debug('getting wcs  at {}'.format((x_loc+1, y_loc+1)))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, ij in enumerate(zip(x_SCA.flatten(), y_SCA.flatten())):

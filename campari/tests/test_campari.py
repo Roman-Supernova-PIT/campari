@@ -594,12 +594,9 @@ def test_construct_psf_background(cfg, roman_path):
         f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz"
     )
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, SCA)
-    test_ra, test_dec = 8.08125227898387, -44.49314474981135
-    snappl_cutout = snappl_image.get_ra_dec_cutout(test_ra, test_dec, size)
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
     wcs = snappl_image.get_wcs()
-    #cutout_wcs = snappl_cutout.get_wcs()
 
     ra_grid = np.array([8.0810201,  8.08112403, 8.08122796, 8.08109031])
     dec_grid = np.array([-44.49317591, -44.49322778, -44.49327965, -44.49310067])
@@ -608,7 +605,7 @@ def test_construct_psf_background(cfg, roman_path):
                                               stampsize=size, band="Y106", util_ref=util_ref)
 
     test_psf_background = np.load(pathlib.Path(__file__).parent
-                                    / "testdata/test_psf_bg.npy")
+                                  / "testdata/test_psf_bg.npy")
 
     np.testing.assert_allclose(psf_background, test_psf_background,
                                atol=1e-7)
