@@ -583,34 +583,35 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_psf_background( cfg, roman_path ):
-    wcs_data = np.load("./testdata/wcs_dict.npz", allow_pickle=True)
-    # Loading the data in this way, the data is packaged in an array,
-    # this extracts just the value so that we can build the WCS.
-    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-
-    ra_grid = np.array([7.67357048, 7.67360506, 7.67363963, 7.67367421])
-    dec_grid = np.array([-44.26421364, -44.26419683, -44.26418002,
-                         -44.26416321])
-
+def test_construct_psf_background(cfg, roman_path):
     config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     SCA = 7
     size = 9
+    band = "Y106"
+    truth = "simple_model"
+    imagepath = roman_path + (
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz"
+    )
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, SCA)
+    test_ra, test_dec = 8.08125227898387, -44.49314474981135
+    snappl_cutout = snappl_image.get_ra_dec_cutout(test_ra, test_dec, size)
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
 
-    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
-                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+    wcs = snappl_image.get_wcs()
+    #cutout_wcs = snappl_cutout.get_wcs()
 
-        psf_background = construct_psf_background(ra_grid, dec_grid, wcs,
-                                                  x_loc=2044, y_loc=2044,
-                                                  stampsize=size, band="Y106",
-                                                  util_ref=util_ref)
-        test_psf_background = np.load(pathlib.Path(__file__).parent
-                                      / "testdata/test_psf_bg.npy")
+    ra_grid = np.array([8.0810201,  8.08112403, 8.08122796, 8.08109031])
+    dec_grid = np.array([-44.49317591, -44.49322778, -44.49327965, -44.49310067])
 
-        np.testing.assert_allclose(psf_background, test_psf_background,
-                                   atol=1e-7)
+    psf_background = construct_psf_background(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
+                                              stampsize=size, band="Y106", util_ref=util_ref)
+
+    test_psf_background = np.load(pathlib.Path(__file__).parent
+                                    / "testdata/test_psf_bg.npy")
+
+    np.testing.assert_allclose(psf_background, test_psf_background,
+                               atol=1e-7)
 
 
 def test_get_weights(roman_path):

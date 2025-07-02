@@ -271,9 +271,9 @@ def generateGuess(imlist, ra_grid, dec_grid):
     return all_vals/len(wcslist)
 
 
-def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
+def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize,
                              psf=None, pixel=False,
-                             util_ref=None, band=None, sca_wcs = None):
+                             util_ref=None, band=None):
 
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
@@ -307,11 +307,11 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
 
 
     # Changed this to reflect new coord defn when constructing PSF
-    x, y = wcs.world_to_pixel(ra, dec)
+    # x, y = wcs.world_to_pixel(ra, dec)
     x_SCA, y_SCA = sca_wcs.world_to_pixel(ra, dec)
     bpass = roman.getBandpasses()[band]
 
-    psfs = np.zeros((stampsize * stampsize, np.size(x)))
+    psfs = np.zeros((stampsize * stampsize, np.size(x_SCA)))
 
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
                      interpolant="linear"),
@@ -325,33 +325,29 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
 
     point = point.withFlux(1, bpass)
 
-    oversampling_factor = 1
-    galsim_wcs = wcs.get_galsim_wcs()
-    stamp = galsim.Image(stampsize * oversampling_factor, stampsize * oversampling_factor, wcs=galsim_wcs)
+    # oversampling_factor = 1
+    # galsim_wcs = wcs.get_galsim_wcs()
+    # stamp = galsim.Image(stampsize * oversampling_factor, stampsize * oversampling_factor, wcs=galsim_wcs)
 
     pointing = util_ref.visit
     SCA = util_ref.sca
 
     psf_object = PSF.get_psf_object("ou24PSF", pointing=pointing, sca=SCA, size=stampsize, include_photonOps=False)
-    pupil_bin = 8
+    # pupil_bin = 8
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
-    psf = util_ref.getPSF(x_loc+1, y_loc+1, pupil_bin=pupil_bin)
-    Lager.debug(f"Got PSF at loc {x_loc+1,y_loc+1} with pupil_bin {pupil_bin}")
-    trying_new_wcs = util_ref.getLocalWCS(x_loc+1, y_loc+1)
-    Lager.debug('getting wcs  at {}'.format((x_loc+1, y_loc+1)))
+    # psf = util_ref.getPSF(x_loc+1, y_loc+1, pupil_bin=pupil_bin)
+    # Lager.debug(f"Got PSF at loc {x_loc+1,y_loc+1} with pupil_bin {pupil_bin}")
+    # trying_new_wcs = util_ref.getLocalWCS(x_loc+1, y_loc+1)
+    # Lager.debug('getting wcs  at {}'.format((x_loc+1, y_loc+1)))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
-    for a, ij in enumerate(zip(x.flatten(), y.flatten(), x_SCA.flatten(), y_SCA.flatten())):
+    for a, ij in enumerate(zip(x_SCA.flatten(), y_SCA.flatten())):
         if a % 50 == 0:
-            Lager.debug(f"Drawing PSF {a} of {np.size(x)}")
-        i, j, i_SCA, j_SCA = ij
+            Lager.debug(f"Drawing PSF {a} of {np.size(x_loc)}")
+        i, j = ij
 
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc,
-                                        #  x=i + x_loc - stampsize//2 - 1,
-                                        #  y=j + y_loc - stampsize//2 - 1,
-                                          x=i_SCA, y=j_SCA,
-                                          flux=1., seed=None).flatten()
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=i, y=j, flux=1., seed=None).flatten()
 
         ###old method###
 
@@ -1796,11 +1792,10 @@ def run_one_object(ID, object_type, num_total_images, num_detect_images,
         if grid_type != "none":
             background_model_array = \
                 construct_psf_background(ra_grid, dec_grid,
-                                         cutout_image_list[i].get_wcs(),
+                                         image_list[i].get_wcs(),
                                          object_x, object_y, size, psf=drawing_psf,
                                          pixel=pixel,
-                                         util_ref=util_ref, band=band,
-                                         sca_wcs=image_list[i].get_wcs())
+                                         util_ref=util_ref, band=band)
 
         # TODO comment this
         if not subtract_background:
