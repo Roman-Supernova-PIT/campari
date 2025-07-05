@@ -811,7 +811,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
         yy = yy.flatten()
-        object_x, object_y = wcs.world_to_pixel(snra, sndec)
+        object_x, object_y = wcs.world_to_pixel(ra, dec)
         dist = np.sqrt((xx - object_x)**2 + (yy - object_y)**2)
 
 
@@ -995,7 +995,7 @@ def plot_images(fileroot, size=11):
 
         extent = [-0.5, size-0.5, -0.5, size-0.5]
         xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-        object_x, object_y = wcs.world_to_pixel(snra, sndec)
+        object_x, object_y = wcs.world_to_pixel(ra, dec)
         galx, galy = wcs.world_to_pixel(galra, galdec)
 
         plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
