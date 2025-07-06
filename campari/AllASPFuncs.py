@@ -1395,7 +1395,6 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
-
     output_path = Config.get().value("photometry.campari.paths.output_dir") \
         if output_path is None else output_path
     output_path = pathlib.Path(output_path)

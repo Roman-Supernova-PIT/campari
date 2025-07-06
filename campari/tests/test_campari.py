@@ -182,24 +182,20 @@ def test_simulate_supernova():
 
 
 def test_savelightcurve():
-    output_dir = pathlib.Path(Config.get().value("photometry.campari.paths.output_dir"))
-    output_dir.mkdir(parents=True, exist_ok=True)
-    lc_file = output_dir / "test_test_test_lc.ecsv"
-    assert not lc_file.exists(), f"File {lc_file} eixsts; delete it before running tests"
+    with tempfile.TemporaryDirectory() as output_dir:
+        lc_file = output_dir + "/" + "test_test_test_lc.ecsv"
+        lc_file = pathlib.Path(lc_file)
 
-    try:
         data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5],
-                     "measured_flux": [1, 2, 3, 4, 5]}
+                    "measured_flux": [1, 2, 3, 4, 5]}
         units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
         meta_dict = {}
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
-        save_lightcurve(lc, "test", "test", "test")
+        save_lightcurve(lc, "test", "test", "test", output_path=output_dir)
         assert lc_file.is_file()
         # TODO: look at contents?
-    finally:
-        # Make sure to clean up after ourselves
-        lc_file.unlink(missing_ok=True)
+
 
 
 def test_run_on_star():
