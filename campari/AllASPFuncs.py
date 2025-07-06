@@ -1742,9 +1742,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # TODO make this not bad
         if num_detect_images != 0 and \
            i >= num_total_images - num_detect_images:
-            object_x, object_y = cutout_image_list[i]\
-                       .get_wcs().world_to_pixel(ra, dec)
-
             if use_roman:
                 if use_real_images:
                     pointing = exposures["Pointing"][i]
