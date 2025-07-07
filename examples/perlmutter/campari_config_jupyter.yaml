@@ -1,3 +1,8 @@
+ou24:
+  config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds.yaml
+  sn_truth_dir: /dvs_ro/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
+  sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
+
 photometry:
   campari:
     cutout_size: 11
@@ -18,7 +23,6 @@ photometry:
       sn_path: /dvs_ro/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
       output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
       debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
-      
 
     # OMG
     galsim:
@@ -51,10 +55,4 @@ photometry:
 
 ou24psf:
   config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
-
-
-
-
-
-
 

@@ -16,6 +16,7 @@ photometry:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
       roman_path: /sims_dir
       sn_path: /snana_pq_dir
+      sed_path: /campari_sed_dir
       output_dir: /campari_out_dir
       debug_dir: /campari_debug_dir
 
@@ -48,10 +49,13 @@ photometry:
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
 
+ou24:
+  config_file: /sn_info_dir/tds.yaml
+  sn_truth_dir: /snana_pq_dir
+  sims_sed_library: /home/rubin_sim_data/sims_sed_library
+
 ou24psf:
   config_file: /campari/examples/perlmutter/tds.yaml
-
-
 
 
 
