@@ -187,7 +187,7 @@ def test_savelightcurve():
         lc_file = pathlib.Path(lc_file)
 
         data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5],
-                    "measured_flux": [1, 2, 3, 4, 5]}
+                     "measured_flux": [1, 2, 3, 4, 5]}
         units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
         meta_dict = {}
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
@@ -197,11 +197,10 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-
 def test_run_on_star():
     # Call it as a function first so we can pdb and such
     args = ["_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
-             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
+            "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
         sys.argv = args
@@ -224,7 +223,7 @@ def test_regression_function():
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -301,7 +300,7 @@ def test_regression_function():
                 np.testing.assert_array_equal(current[col], comparison[col]), msg
             else:
                 percent = 100 * np.max((current[col] - comparison[col])
-                                    / comparison[col])
+                                       / comparison[col])
                 msg2 = f"difference is {percent} %"
                 msg = msg+msg2
                 # Switching from one type of WCS to another gave rise in a
@@ -323,21 +322,21 @@ def test_regression():
 
     cfg = Config.get()
 
-    curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
     output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
-                        "--photometry-campari-use_roman "
-                        "--photometry-campari-use_real_images "
-                        "--no-photometry-campari-fetch_SED "
-                        "--photometry-campari-grid_options-type contour "
-                        "--photometry-campari-cutout_size 19 "
-                        "--photometry-campari-weighting "
-                        "--photometry-campari-subtract_background "
-                        "--no-photometry-campari-source_phot_ops ")
+                       "--photometry-campari-use_roman "
+                       "--photometry-campari-use_real_images "
+                       "--no-photometry-campari-fetch_SED "
+                       "--photometry-campari-grid_options-type contour "
+                       "--photometry-campari-cutout_size 19 "
+                       "--photometry-campari-weighting "
+                       "--photometry-campari-subtract_background "
+                       "--no-photometry-campari-source_phot_ops ")
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv(curfile, comment="#", delimiter=" ")
@@ -426,9 +425,9 @@ def test_plot_lc():
 
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     cfg = Config.get()
-    new_snid_file = ( pathlib.Path( cfg.value("photometry.campari.paths.debug_dir") ) /
-                      "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv" )
-    new_snid_file.unlink( missing_ok=True )
+    new_snid_file = (pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
+                     "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv")
+    new_snid_file.unlink(missing_ok=True)
     # Make sure we're really writing a new file so that this
     #   test is really meaningful
     assert not new_snid_file.exists()
@@ -581,7 +580,7 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_psf_background( cfg ):
+def test_construct_psf_background(cfg):
     wcs_data = np.load("./testdata/wcs_dict.npz", allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
@@ -639,7 +638,7 @@ def test_construct_psf_source():
                      flux_type="fphotons")
 
     comparison_image = np.load(pathlib.Path(__file__).parent
-             / "testdata/test_psf_source.npy")
+                               / "testdata/test_psf_source.npy")
 
     psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
                                      stampsize=25, x_center=2044,

@@ -814,7 +814,6 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
         object_x, object_y = wcs.world_to_pixel(ra, dec)
         dist = np.sqrt((xx - object_x)**2 + (yy - object_y)**2)
 
-
         wgt = np.ones(size**2)
         wgt = 5*np.exp(-dist**2/gaussian_var)
         # NOTE: This 5 is here because when I made this function I was
@@ -1096,7 +1095,7 @@ def get_star_SED(SNID, sn_path):
     return np.array(lam), np.array(flambda)
 
 
-def get_SN_SED(SNID, date, sn_path):
+def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     """Return the appropriate SED for the supernova on the given day.
 
     Inputs:
@@ -1126,10 +1125,9 @@ def get_SN_SED(SNID, date, sn_path):
     lam = sed_table["lambda"]
     mjd = sed_table["mjd"]
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    max_days_cutoff = 10
-    closest_days_away = np.min(np.abs(np.array(mjd) - date))
+    closest_days_away = np.min(np.array(mjd) - date)
 
-    if closest_days_away > max_days_cutoff:
+    if np.abs(closest_days_away) > max_days_cutoff:
         Lager.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
                       f"date. \n The closest SED is {closest_days_away} days away.")
     return np.array(lam), np.array(flambda[bestindex])
@@ -1759,7 +1757,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                 sed = sedlist[sn_index]
                 # object_x and object_y are the exact coords of the SN in the SCA frame.
                 # x and y are the pixels the image has been cut out on, and
-                # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
+                # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this
+                # switch.
                 # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
                 # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
                 # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
@@ -1884,19 +1883,22 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     plt.scatter(ra_grid, dec_grid)
 
 
-def load_SED_from_directory(sed_directory, wave_type="Angstrom",
-                             flux_type="fphotons"):
-    """This function loads SEDs from a directory of SED files.
+def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
+    """This function loads SEDs from a directory of SED files. The files must be in CSV format with
+    two columns: "lambda" and "flux". The "lambda" column should contain the
+    wavelengths in Angstroms, and the "flux" column should contain the fluxes in
+    the appropriate units for the specified wave_type and flux_type.
     Inputs:
     sed_directory: str, the path to the directory containing the SED files.
 
     Returns:
     sed_list: list of galsim SED objects. (Temporary until we remove galsim)
     """
+    Lager.debug(f"Loading SEDs from {sed_directory}")
     sed_list = []
-    for file in os.listdir(sed_directory):
-        sed_path = os.path.join(sed_directory, file)
-        sed_table = pd.read_csv(sed_path)
+    for file in pathlib.Path(sed_directory).glob("*.csv"):
+        sed_table = pd.read_csv(file)
+
         flambda = sed_table["flux"]
         lam = sed_table["lambda"]
         # Assuming units are Angstroms how can I check this?
