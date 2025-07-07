@@ -1884,7 +1884,7 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     plt.scatter(ra_grid, dec_grid)
 
 
-def load_SEDs_from_directory(sed_directory, wave_type="Angstrom",
+def load_SED_from_directory(sed_directory, wave_type="Angstrom",
                              flux_type="fphotons"):
     """This function loads SEDs from a directory of SED files.
     Inputs:

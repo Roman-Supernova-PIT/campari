@@ -36,7 +36,7 @@ from campari.AllASPFuncs import (
     get_galsim_SED_list,
     get_object_info,
     get_weights,
-    load_SEDs_from_directory,
+    load_SED_from_directory,
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
@@ -400,7 +400,7 @@ def test_get_galsim_SED_list(sn_path):
     with tempfile.TemporaryDirectory() as sed_path:
         get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
                             sed_out_dir=sed_path)
-        sedlist = load_SEDs_from_directory(sed_path)
+        sedlist = load_SED_from_directory(sed_path)
         assert len(sedlist) == 1, "The length of the SED list is not 1"
         sn_lam_test = np.load(pathlib.Path(__file__).parent
                               / "testdata/sn_lam_test.npy")
