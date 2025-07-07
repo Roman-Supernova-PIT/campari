@@ -36,6 +36,7 @@ from campari.AllASPFuncs import (
     get_galsim_SED_list,
     get_object_info,
     get_weights,
+    load_SED_from_directory,
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
@@ -87,8 +88,8 @@ def test_get_object_info(roman_path, sn_path):
 
 def test_findAllExposures(roman_path):
     explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
-                               62654., 62958., 62683.98, "Y106", maxbg=24,
-                               maxdet=24, return_list=True, stampsize=25,
+                               62654., 62958., "Y106", maxbg=24,
+                               maxdet=24, return_list=True,
                                roman_path=roman_path,
                                pointing_list=None, SCA_list=None,
                                truth="simple_model")
@@ -181,30 +182,25 @@ def test_simulate_supernova():
 
 
 def test_savelightcurve():
-    output_dir = pathlib.Path( Config.get().value("photometry.campari.paths.output_dir") )
-    output_dir.mkdir( parents=True, exist_ok=True )
-    lc_file = output_dir / "test_test_test_lc.ecsv"
-    assert not lc_file.exists(), f"File {lc_file} eixsts; delete it before running tests"
+    with tempfile.TemporaryDirectory() as output_dir:
+        lc_file = output_dir + "/" + "test_test_test_lc.ecsv"
+        lc_file = pathlib.Path(lc_file)
 
-    try:
         data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5],
                      "measured_flux": [1, 2, 3, 4, 5]}
         units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
         meta_dict = {}
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
-        save_lightcurve(lc, "test", "test", "test")
+        save_lightcurve(lc, "test", "test", "test", output_path=output_dir)
         assert lc_file.is_file()
         # TODO: look at contents?
-    finally:
-        # Make sure to clean up after ourselves
-        lc_file.unlink( missing_ok=True )
 
 
 def test_run_on_star():
     # Call it as a function first so we can pdb and such
-    args = [ "_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
-             "--object_type", "star", "--photometry-campari-grid_options-type", "none" ]
+    args = ["_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+            "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
         sys.argv = args
@@ -227,7 +223,7 @@ def test_regression_function():
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -304,7 +300,7 @@ def test_regression_function():
                 np.testing.assert_array_equal(current[col], comparison[col]), msg
             else:
                 percent = 100 * np.max((current[col] - comparison[col])
-                                    / comparison[col])
+                                       / comparison[col])
                 msg2 = f"difference is {percent} %"
                 msg = msg+msg2
                 # Switching from one type of WCS to another gave rise in a
@@ -326,21 +322,21 @@ def test_regression():
 
     cfg = Config.get()
 
-    curfile = pathlib.Path( cfg.value("photometry.campari.paths.output_dir") ) / "40120913_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40120913_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
     output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
-                        "--photometry-campari-use_roman "
-                        "--photometry-campari-use_real_images "
-                        "--no-photometry-campari-fetch_SED "
-                        "--photometry-campari-grid_options-type contour "
-                        "--photometry-campari-cutout_size 19 "
-                        "--photometry-campari-weighting "
-                        "--photometry-campari-subtract_background "
-                        "--no-photometry-campari-source_phot_ops ")
+                       "--photometry-campari-use_roman "
+                       "--photometry-campari-use_real_images "
+                       "--no-photometry-campari-fetch_SED "
+                       "--photometry-campari-grid_options-type contour "
+                       "--photometry-campari-cutout_size 19 "
+                       "--photometry-campari-weighting "
+                       "--photometry-campari-subtract_background "
+                       "--no-photometry-campari-source_phot_ops ")
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv(curfile, comment="#", delimiter=" ")
@@ -365,7 +361,6 @@ def test_regression():
             # change in flux of 2e-7. I don't want switching WCS types to make
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
-
 
 
 def test_get_galsim_SED(sn_path):
@@ -397,20 +392,22 @@ def test_get_galsim_SED(sn_path):
 
 
 def test_get_galsim_SED_list(sn_path):
-    exposures = {"date": [62535.424], "DETECTED": [True]}
-    exposures = pd.DataFrame(exposures)
+    dates = 62535.424
     fetch_SED = True
     object_type = "SN"
     ID = 40120913
-    sedlist = get_galsim_SED_list(ID, exposures, fetch_SED,
-                                  object_type, sn_path)
-    assert len(sedlist) == 1, "The length of the SED list is not 1"
-    sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / "testdata/sn_lam_test.npy")
-    np.testing.assert_array_equal(sedlist[0]._spec.x, sn_lam_test)
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_flambda_test.npy")
-    np.testing.assert_array_equal(sedlist[0]._spec.f, sn_flambda_test)
+    with tempfile.TemporaryDirectory() as sed_path:
+        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
+                            sed_out_dir=sed_path)
+        sedlist = load_SED_from_directory(sed_path)
+        assert len(sedlist) == 1, "The length of the SED list is not 1"
+        sn_lam_test = np.load(pathlib.Path(__file__).parent
+                              / "testdata/sn_lam_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
+        sn_flambda_test = np.load(pathlib.Path(__file__).parent
+                                  / "testdata/sn_flambda_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
+                                   atol=1e-7)
 
 
 def test_plot_lc():
@@ -428,9 +425,9 @@ def test_plot_lc():
 
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     cfg = Config.get()
-    new_snid_file = ( pathlib.Path( cfg.value("photometry.campari.paths.debug_dir") ) /
-                      "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv" )
-    new_snid_file.unlink( missing_ok=True )
+    new_snid_file = (pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
+                     "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv")
+    new_snid_file.unlink(missing_ok=True)
     # Make sure we're really writing a new file so that this
     #   test is really meaningful
     assert not new_snid_file.exists()
@@ -639,7 +636,7 @@ def test_construct_psf_source():
                      flux_type="fphotons")
 
     comparison_image = np.load(pathlib.Path(__file__).parent
-             / "testdata/test_psf_source.npy")
+                               / "testdata/test_psf_source.npy")
 
     psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
                                      stampsize=25, x_center=2044,
