@@ -271,17 +271,15 @@ def generateGuess(imlist, ra_grid, dec_grid):
     return all_vals/len(wcslist)
 
 
-def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
-                             psf=None, pixel=False,
-                             util_ref=None, band=None):
+def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, pixel=False,
+                           util_ref=None, band=None):
 
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
     Inputs:
     ra, dec: arrays of floats, RA and DEC values for the grid
-    wcs: the wcs of the image, if the image is a cutout, this MUST be the wcs
-        of the cutout. A snappl.wcs.BaseWCS object.
-    x_loc, y_loc: floats,the pixel location of the image in the FULL image,
+    sca_wcs: the wcs of the entire image, i.e. the entire SCA. A snappl.wcs.BaseWCS object.
+    x_loc, y_loc: floats,the pixel location of the object in the FULL image,
         i.e. x y location in the SCA.
     stampsize: int, the size of the stamp being used
     band: str, the bandpass being used
@@ -305,21 +303,13 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
     assert util_ref is not None or band is not None, "you must provide at \
         least util_ref or band"
 
-    # This is the WCS galsim uses to draw the PSF.
-    galsim_wcs = wcs.get_galsim_wcs()
-    x, y = wcs.world_to_pixel(ra, dec)
-
-    # With plus ones here I recover the values pre-refactor!
-
-    if psf is None:
-        # How different are these two methods? TODO XXX
-        pupil_bin = 8
-        # psf = util_ref.getPSF(x_loc, y_loc, pupil_bin=pupil_bin)
-        psf = galsim.roman.getPSF(1, band, pupil_bin=pupil_bin, wcs=galsim_wcs)
-
+    # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
+    x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     bpass = roman.getBandpasses()[band]
 
-    psfs = np.zeros((stampsize * stampsize, np.size(x)))
+    num_grid_points = np.size(x_sca)
+
+    psfs = np.zeros((stampsize * stampsize, num_grid_points))
 
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
                      interpolant="linear"),
@@ -332,26 +322,28 @@ def construct_psf_background(ra, dec, wcs, x_loc, y_loc, stampsize,
         point *= sed
 
     point = point.withFlux(1, bpass)
-    oversampling_factor = 1
-    convolvedpsf = galsim.Convolve(point, psf)
-    stamp = galsim.Image(stampsize*oversampling_factor,
-                         stampsize*oversampling_factor, wcs=galsim_wcs)
+
+    pointing = util_ref.visit
+    sca = util_ref.sca
+
+    psf_object = PSF.get_psf_object("ou24PSF", pointing=pointing, sca=sca, size=stampsize, include_photonOps=False)
+    # See run_one_object documentation to explain this pixel coordinate conversion.
+    x_loc = int(np.floor(x_loc + 0.5))
+    y_loc = int(np.floor(y_loc + 0.5))
+
     # Loop over the grid points, draw a PSF at each one, and append to a list.
-    for a, ij in enumerate(zip(x.flatten(), y.flatten())):
+    for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
-            Lager.debug(f"Drawing PSF {a} of {np.size(x)}")
-        i, j = ij
-        psfs[:, a] = convolvedpsf.drawImage(bpass, method="no_pixel",
-                                            center=galsim.PositionD(i, j),
-                                            use_true_center=True, image=stamp,
-                                            wcs=galsim_wcs).array.flatten()
+            Lager.debug(f"Drawing PSF {a} of {num_grid_points}")
+
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()
 
     return psfs
 
 
 def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
                      maxdet=24, return_list=False,
-                     roman_path=None, pointing_list=None, SCA_list=None,
+                     roman_path=None, pointing_list=None, sca_list=None,
                      truth="simple_model", lc_start=-np.inf, lc_end=np.inf):
     """ This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
@@ -369,7 +361,7 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
     stampsize: the size of the stamp to use
     roman_path: the path to the Roman data
     pointing_list: If this is passed in, only consider these pointings
-    SCA_list: If this is passed in, only consider these SCAs
+    sca_list: If this is passed in, only consider these SCAs
     truth: If "truth" use truth images, if "simple_model" use simple model
             images.
     band: the band to consider
@@ -378,7 +370,7 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
     explist: astropy.table.Table, the table of exposures that contain the
     supernova. The columns are:
         - Pointing: the pointing of the exposure
-        - SCA: the SCA of the exposure
+        - sca: the SCA of the exposure
         - BAND: the band of the exposure
         - date: the MJD of the exposure
         - DETECTED: whether the exposure contains a detection or not.
@@ -489,13 +481,13 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
     return rows, cols + 1
 
 
-def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
-                         y_center=None, sed=None, flux=1, photOps=True):
+def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
+                              y_center=None, sed=None, flux=1, photOps=True):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
     x, y: ints, pixel coordinates where the cutout is centered in the SCA
-    pointing, SCA: ints, the pointing and SCA of the image
+    pointing, sca: ints, the pointing and SCA of the image
     stampsize = int, size of cutout image used
     x_center and y_center: floats, x and y location of the object in the SCA.
     sed: galsim.sed.SED object, the SED of the source
@@ -506,10 +498,12 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
     psf_image: numpy array of floats of size stampsize**2, the image
                 of the PSF at the (x,y) location.
     """
+
     if not isinstance(x, int) or not isinstance(y, int):
         raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
+
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
-                f" Pointing, SCA: {pointing, SCA} \n" +
+                f" Pointing, SCA: {pointing, sca} \n" +
                 f" stamp size: {stampsize} \n" +
                 f" x_center, y_center: {x_center, y_center} \n" +
                 f" sed: {sed} \n" +
@@ -523,7 +517,7 @@ def construct_psf_source(x, y, pointing, SCA, stampsize=25, x_center=None,
         # run, I'd want to know.
         Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=SCA,
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
                                     size=stampsize, include_photonOps=photOps)
     psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
                                      flux=1., seed=None)
@@ -566,14 +560,14 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
         Lager.debug(f"Constructing image {indx} of {len(exposures)}")
         band = i["BAND"]
         pointing = i["Pointing"]
-        SCA = i["SCA"]
+        sca = i["SCA"]
 
         # TODO : replace None with the right thing once Exposure is implemented
 
         imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
                                   f"/Roman_TDS_{truth}_{band}_{pointing}_"
-                                  f"{SCA}.fits.gz")
-        image = OpenUniverse2024FITSImage(imagepath, None, SCA)
+                                  f"{sca}.fits.gz")
+        image = OpenUniverse2024FITSImage(imagepath, None, sca)
         imagedata, errordata, flags = image.get_data(which="all")
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
 
@@ -1305,9 +1299,9 @@ def build_lightcurve(ID, exposures, sn_path, roman_path, confusion_metric, flux,
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, SCA in zip(detections['Pointing'], detections['SCA']):
+    for pointing, sca in zip(detections['Pointing'], detections['SCA']):
         catalogue_path = roman_path+f'/RomanTDS/truth/{band}/{pointing}/' \
-                        + f'Roman_TDS_index_{band}_{pointing}_{SCA}.txt'
+                        + f'Roman_TDS_index_{band}_{pointing}_{sca}.txt'
         cat = pd.read_csv(catalogue_path, sep=r"\s+", skiprows=1,
                           names=['object_id', 'ra', 'dec', 'x', 'y',
                                  'realized_flux', 'flux', 'mag', 'obj_type'])
@@ -1677,11 +1671,16 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
         x = int(np.floor(object_x + 0.5))
         y = int(np.floor(object_y + 0.5))
-        pointing, SCA = exposures["Pointing"][0], exposures["SCA"][0]
-        psf_source_array = construct_psf_source(x, y, pointing, SCA,
-                                                stampsize=size,
-                                                x_center=object_x, y_center=object_y,
-                                                sed=sed)
+        pointing, sca = exposures["Pointing"][0], exposures["SCA"][0]
+        snx = x
+        sny = y
+        x = int(np.floor(x + 0.5))
+        y = int(np.floor(y + 0.5))
+        Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
+        psf_source_array = construct_transient_scene(x, y, pointing, sca,
+                                                     stampsize=size,
+                                                     x_center=object_x, y_center=object_y,
+                                                     sed=sed)
         confusion_metric = np.dot(images[0].flatten(), psf_source_array)
 
         Lager.debug(f"Confusion Metric: {confusion_metric}")
@@ -1717,11 +1716,11 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         Lager.debug("Constructing background model array for image " + str(i))
         if grid_type != "none":
             background_model_array = \
-                construct_psf_background(ra_grid, dec_grid,
-                                         cutout_image_list[i].get_wcs(),
-                                         object_x, object_y, size, psf=drawing_psf,
-                                         pixel=pixel,
-                                         util_ref=util_ref, band=band)
+                construct_static_scene(ra_grid, dec_grid,
+                                       whole_sca_wcs,
+                                       object_x, object_y, size, psf=drawing_psf,
+                                       pixel=pixel,
+                                       util_ref=util_ref, band=band)
 
         # TODO comment this
         if not subtract_background:
@@ -1743,10 +1742,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
             if use_roman:
                 if use_real_images:
                     pointing = exposures["Pointing"][i]
-                    SCA = exposures["SCA"][i]
+                    sca = exposures["SCA"][i]
                 else:
                     pointing = 662
-                    SCA = 11
+                    sca = 11
                 # sedlist is the length of the number of supernova
                 # detection images. Therefore, when we iterate onto the
                 # first supernova image, we want to be on the first element
@@ -1768,10 +1767,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                 y = int(np.floor(object_y + 0.5))
                 Lager.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
                 psf_source_array =\
-                    construct_psf_source(x, y, pointing, SCA,
-                                         stampsize=size, x_center=object_x,
-                                         y_center=object_y, sed=sed,
-                                         photOps=source_phot_ops)
+                    construct_transient_scene(x, y, pointing, sca,
+                                              stampsize=size, x_center=object_x,
+                                              y_center=object_y, sed=sed,
+                                              photOps=source_phot_ops)
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
