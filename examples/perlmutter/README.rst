@@ -44,7 +44,7 @@ From now on, I will call this directory your *parent* directory.  A good place t
 Create output directories
 #########################
 
-Under your parent directory, use ``mkdir`` to create each of the following directories::
+In the same folder as your parent directory, use mkdir to create each of the following directories::
 
   campari_out_dir
   campari_debug_dir
@@ -69,7 +69,7 @@ Make sure you're on the machine where you want to run.  If you're going to do so
 
 Run::
 
-  bash examples/perlmutter/interactive_podman.sh
+  bash campari/examples/perlmutter/interactive_podman.sh
 
 You are now inside the container; you can tell that this has happened because your prompt will have changed to something like ``root@0a168a1f80df:/#`` (the actual hex barf will be different).
 
