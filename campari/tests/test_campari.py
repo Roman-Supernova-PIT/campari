@@ -26,8 +26,8 @@ from campari import RomanASP
 from campari.AllASPFuncs import (
     calc_mag_and_err,
     calculate_background_level,
-    construct_psf_background,
-    construct_psf_source,
+    construct_static_scene,
+    construct_transient_scene,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -580,7 +580,7 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_psf_background(cfg, roman_path):
+def test_construct_static_scene(cfg, roman_path):
     config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
@@ -598,8 +598,8 @@ def test_construct_psf_background(cfg, roman_path):
     ra_grid = np.array([8.0810201,  8.08112403, 8.08122796, 8.08109031])
     dec_grid = np.array([-44.49317591, -44.49322778, -44.49327965, -44.49310067])
 
-    psf_background = construct_psf_background(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
-                                              stampsize=size, band="Y106", util_ref=util_ref)
+    psf_background = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
+                                            stampsize=size, band="Y106", util_ref=util_ref)
 
     test_psf_background = np.load(pathlib.Path(__file__).parent
                                   / "testdata/test_psf_bg.npy")
@@ -629,7 +629,7 @@ def test_get_weights(roman_path):
     np.testing.assert_allclose(wgt_matrix, test_wgt_matrix, atol=1e-7)
 
 
-def test_construct_psf_source():
+def test_construct_transient_scene():
     lam, flambda = [1000, 26000], [1, 1]
     sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
                      wave_type="Angstrom",
@@ -638,10 +638,10 @@ def test_construct_psf_source():
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
 
-    psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, sca=7,
-                                     stampsize=25, x_center=2044,
-                                     y_center=2044, sed=sed,
-                                     flux=1, photOps=False)
+    psf_image = construct_transient_scene(x=2044, y=2044, pointing=43623, sca=7,
+                                          stampsize=25, x_center=2044,
+                                          y_center=2044, sed=sed,
+                                          flux=1, photOps=False)
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True)

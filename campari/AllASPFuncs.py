@@ -271,8 +271,8 @@ def generateGuess(imlist, ra_grid, dec_grid):
     return all_vals/len(wcslist)
 
 
-def construct_psf_background(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, pixel=False,
-                             util_ref=None, band=None):
+def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, pixel=False,
+                           util_ref=None, band=None):
 
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
@@ -481,8 +481,8 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
     return rows, cols + 1
 
 
-def construct_psf_source(x, y, pointing, sca, stampsize=25, x_center=None,
-                         y_center=None, sed=None, flux=1, photOps=True):
+def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
+                              y_center=None, sed=None, flux=1, photOps=True):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
@@ -1672,16 +1672,15 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         x = int(np.floor(object_x + 0.5))
         y = int(np.floor(object_y + 0.5))
         pointing, sca = exposures["Pointing"][0], exposures["SCA"][0]
-        Lager.debug(f'Trying to switch to new coords')
         snx = x
         sny = y
-        x = int( np.floor( x + 0.5 ) )
-        y = int( np.floor( y + 0.5 ) )
+        x = int(np.floor(x + 0.5))
+        y = int(np.floor(y + 0.5))
         Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
-        psf_source_array = construct_psf_source(x, y, pointing, sca,
-                                                stampsize=size,
-                                                x_center=object_x, y_center=object_y,
-                                                sed=sed)
+        psf_source_array = construct_transient_scene(x, y, pointing, sca,
+                                                     stampsize=size,
+                                                     x_center=object_x, y_center=object_y,
+                                                     sed=sed)
         confusion_metric = np.dot(images[0].flatten(), psf_source_array)
 
         Lager.debug(f"Confusion Metric: {confusion_metric}")
@@ -1717,11 +1716,11 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         Lager.debug("Constructing background model array for image " + str(i))
         if grid_type != "none":
             background_model_array = \
-                construct_psf_background(ra_grid, dec_grid,
-                                         whole_sca_wcs,
-                                         object_x, object_y, size, psf=drawing_psf,
-                                         pixel=pixel,
-                                         util_ref=util_ref, band=band)
+                construct_static_scene(ra_grid, dec_grid,
+                                       whole_sca_wcs,
+                                       object_x, object_y, size, psf=drawing_psf,
+                                       pixel=pixel,
+                                       util_ref=util_ref, band=band)
 
         # TODO comment this
         if not subtract_background:
@@ -1768,10 +1767,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                 y = int(np.floor(object_y + 0.5))
                 Lager.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
                 psf_source_array =\
-                    construct_psf_source(x, y, pointing, sca,
-                                         stampsize=size, x_center=object_x,
-                                         y_center=object_y, sed=sed,
-                                         photOps=source_phot_ops)
+                    construct_transient_scene(x, y, pointing, sca,
+                                              stampsize=size, x_center=object_x,
+                                              y_center=object_y, sed=sed,
+                                              photOps=source_phot_ops)
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
