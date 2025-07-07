@@ -91,7 +91,7 @@ def test_findAllExposures(roman_path):
                                62654., 62958., "Y106", maxbg=24,
                                maxdet=24, return_list=True,
                                roman_path=roman_path,
-                               pointing_list=None, SCA_list=None,
+                               pointing_list=None, sca_list=None,
                                truth="simple_model")
     compare_table = ascii.read(pathlib.Path(__file__).parent
                                / "testdata/findallexposurestest.dat")
@@ -583,15 +583,15 @@ def test_calc_mag_and_err():
 def test_construct_psf_background(cfg, roman_path):
     config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
-    SCA = 7
+    sca = 7
     size = 9
     band = "Y106"
     truth = "simple_model"
     imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{SCA}.fits.gz"
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
     )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, SCA)
-    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=SCA)
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
 
     wcs = snappl_image.get_wcs()
 
@@ -613,13 +613,13 @@ def test_get_weights(roman_path):
     test_sndec = np.array([-44.91932581])
     size = 7
     pointing = 111
-    SCA = 13
+    sca = 13
     truth = "simple_model"
     band = "Y106"
     imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
                               f"/Roman_TDS_{truth}_{band}_{pointing}_"
-                              f"{SCA}.fits.gz")
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, SCA)
+                              f"{sca}.fits.gz")
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
@@ -638,7 +638,7 @@ def test_construct_psf_source():
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
 
-    psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, SCA=7,
+    psf_image = construct_psf_source(x=2044, y=2044, pointing=43623, sca=7,
                                      stampsize=25, x_center=2044,
                                      y_center=2044, sed=sed,
                                      flux=1, photOps=False)
