@@ -15,7 +15,7 @@ import scipy.sparse as sp
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.table import QTable, Table
+from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
@@ -710,6 +710,8 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     image_list: list of snappl.image.Image objects, the full images
     """
 
+    np.save("exposures.npy", exposures)
+    Lager.debug("Saved exposures")
     num_predetection_images = len(exposures[~exposures["DETECTED"]])
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
@@ -1271,8 +1273,7 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     return mag, magerr, zp
 
 
-def build_lightcurve(ID, exposures, sn_path, roman_path, confusion_metric, flux,
-                     use_roman, band, object_type, sigma_flux, ra=None, dec=None):
+def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec):
 
     """This code builds a lightcurve datatable from the output of the SMP
        algorithm.
@@ -1286,84 +1287,90 @@ def build_lightcurve(ID, exposures, sn_path, roman_path, confusion_metric, flux,
     X (array): the output of the SMP algorithm
     use_roman (bool): whether or not the lightcurve was built using Roman PSF
     band (str): the bandpass of the images used
-    ra, dec (float): the RA and DEC of the object. These only need to be passed in if using --force mode,
-        because we can't fetch them by ID.
+    ra, dec (float): the RA and DEC of the object.
 
     Returns:
     lc: a QTable containing the lightcurve data
     """
+    flux = np.atleast_1d(flux)
+    sigma_flux = np.atleast_1d(sigma_flux)
+    band = exposures["BAND"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     detections = exposures[np.where(exposures["DETECTED"])]
-
-    if ID is not None:
-        parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
-        df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
-
-        sim_true_flux = []
-        sim_realized_flux = []
-        for pointing, sca in zip(detections['Pointing'], detections['SCA']):
-            catalogue_path = roman_path+f'/RomanTDS/truth/{band}/{pointing}/' \
-                            + f'Roman_TDS_index_{band}_{pointing}_{sca}.txt'
-            cat = pd.read_csv(catalogue_path, sep=r"\s+", skiprows=1,
-                              names=['object_id', 'ra', 'dec', 'x', 'y',
-                                     'realized_flux', 'flux', 'mag', 'obj_type'])
-            cat = cat[cat['object_id'] == ID]
-            sim_true_flux.append(cat['flux'].values[0])
-            sim_realized_flux.append(cat['realized_flux'].values[0])
-        sim_true_flux = np.array(sim_true_flux)
-        sim_realized_flux = np.array(sim_realized_flux)
-
-        sim_sigma_flux = 0  # These are truth values!
-        sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux,
-                                                  sim_sigma_flux, band)
-        sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux,
-                                              sim_sigma_flux, band)
-
-        if object_type == "SN":
-            df_object_row = df.loc[df.id == ID]
-        if object_type == "star":
-            df_object_row = df.loc[df.id == str(ID)]
-
-        if object_type == "SN":
-            meta_dict = {"confusion_metric": confusion_metric,
-                         "host_sep": df_object_row["host_sn_sep"].values[0],
-                         "host_mag_g": df_object_row["host_mag_g"].values[0],
-                         "obj_ra": df_object_row["ra"].values[0],
-                         "obj_dec": df_object_row["dec"].values[0],
-                         "host_ra": df_object_row["host_ra"].values[0],
-                         "host_dec": df_object_row["host_dec"].values[0]}
-        else:
-            meta_dict = {"ra": df_object_row["ra"].values[0],
-                        "dec": df_object_row["dec"].values[0]}
-    else:
-        sim_true_flux = np.full_like(flux, np.nan)
-        sim_realized_flux = np.full_like(flux, np.nan)
-        sim_realized_mag = np.full_like(mag, np.nan)
-        sim_true_mag = np.full_like(mag, np.nan)
-        if object_type == "SN":
-            meta_dict = {"confusion_metric": confusion_metric,
-                         "host_sep": np.nan,
-                         "host_mag_g": np.nan,
-                         "obj_ra": ra, "obj_dec": dec,
-                         "host_ra": np.nan, "host_dec": np.nan}
-        else:
-            meta_dict = {"ra": ra, "dec": dec}
-        Lager.debug("No Object ID as campari was run in --force mode, no truth information available.")
+    meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
+    if confusion_metric is not None:
+        meta_dict["confusion_metric"] = confusion_metric
 
     data_dict = {"MJD": detections["date"], "flux": flux,
                  "flux_error": sigma_flux, "mag": mag,
                  "mag_err": magerr,
                  "band": np.full(np.size(mag), band),
-                 "zeropoint": np.full(np.size(mag), zp),
-                 "SIM_realized_flux": sim_realized_flux,
-                 "SIM_true_flux": sim_true_flux,
-                 "SIM_realized_mag": sim_realized_mag,
-                 "SIM_true_mag": sim_true_mag}
-    units = {"MJD": u.d, "SIM_realized_flux": "",  "flux": "",
-             "flux_error": "", "SIM_realized_mag": "",
-             "SIM_true_flux": "", "SIM_true_mag": ""}
+                 "zeropoint": np.full(np.size(mag), zp)}
+
+    units = {"MJD": u.d,  "flux": "",
+             "flux_error": "", 'mag': "",
+             "mag_err": "", "band": ""}
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
+
+
+def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
+
+    detections = exposures[np.where(exposures["DETECTED"])]
+    band = exposures["BAND"][0]
+    ID = lc.meta["ID"]
+    parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
+    df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
+
+    sim_true_flux = []
+    sim_realized_flux = []
+    for pointing, sca in zip(detections["Pointing"], detections["SCA"]):
+        catalogue_path = (
+            roman_path + f"/RomanTDS/truth/{band}/{pointing}/" + f"Roman_TDS_index_{band}_{pointing}_{sca}.txt"
+        )
+        cat = pd.read_csv(
+            catalogue_path,
+            sep=r"\s+",
+            skiprows=1,
+            names=["object_id", "ra", "dec", "x", "y", "realized_flux", "flux", "mag", "obj_type"],
+        )
+        cat = cat[cat["object_id"] == ID]
+        sim_true_flux.append(cat["flux"].values[0])
+        sim_realized_flux.append(cat["realized_flux"].values[0])
+    sim_true_flux = np.array(sim_true_flux)
+    sim_realized_flux = np.array(sim_realized_flux)
+
+    sim_sigma_flux = 0  # These are truth values!
+    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, band)
+    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, band)
+
+    if object_type == "SN":
+        df_object_row = df.loc[df.id == ID]
+        meta_dict = {
+            "host_sep": df_object_row["host_sn_sep"].values[0].item(),
+            "host_mag_g": df_object_row["host_mag_g"].values[0].item(),
+            "host_ra": df_object_row["host_ra"].values[0].item(),
+            "host_dec": df_object_row["host_dec"].values[0].item(),
+        }
+
+    data_dict = {
+        "SIM_realized_flux": sim_realized_flux,
+        "SIM_true_flux": sim_true_flux,
+        "SIM_realized_mag": sim_realized_mag,
+        "SIM_true_mag": sim_true_mag,
+    }
+    units = {
+        "SIM_realized_flux": "",
+        "SIM_realized_mag": "",
+        "SIM_true_flux": "",
+        "SIM_true_mag": "",
+    }
+
+    Lager.debug(QTable(data=data_dict, meta=meta_dict, units=units).meta)
+
+    lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
+
+    return lc
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
