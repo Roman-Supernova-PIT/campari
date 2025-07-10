@@ -9,6 +9,7 @@ import numpy as np
 import pandas as pd
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
+from astropy import units as u
 from erfa import ErfaWarning
 
 # SN-PIT
@@ -22,6 +23,7 @@ from snpit_utils.logger import SNLogger as Lager
 from campari.AllASPFuncs import (banner,
                                  build_lightcurve,
                                  build_lightcurve_sim,
+                                 extract_id_using_ra_dec,
                                  findAllExposures,
                                  find_parquet,
                                  get_object_info,
@@ -117,6 +119,14 @@ def main():
                         help="RA of transient point source")
     parser.add_argument("--dec", type=float, default=None,
                         help="Dec of transient point source")
+    parser.add_argument("--radius", type=float, default=None,
+                        help="Radius in degrees to search for supernovae "
+                             "around the given RA and Dec. If not given, "
+                             "will return the closest.")
+    parser.add_argument("--force", type=bool, default=False,
+                        help="If true, will perform the algorithm centered at the ra/dec without searching "
+                             "for supernovae. Therefore, it is possible to run the algorithm on a location that"
+                             " does not have a supernova. ")
 
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
@@ -125,17 +135,22 @@ def main():
     #  (HOW?) what images to use.
     parser.add_argument("-t", "--num_total_images", type=int, required=False,
                         help="Number of images to use", default=np.inf)
-    # TODO:change all instances of this variable to tot_images
     parser.add_argument("-d", "--num_detect_images", type=int, required=False,
                         help="Number of images to use with SN detections",
                         default=np.inf)
-    # TODO:change all instances of this variable to det_images
     parser.add_argument("-b", "--beginning", type=int, required=False,
                         help="start of desired lightcurve in days from peak.",
                         default=-np.inf)
     parser.add_argument("-e", "--end", type=int, required=False,
                         help="end of desired light curve in days from peak.",
                         default=np.inf)
+
+    parser.add_argument("--transient_start", type=int, required=False,
+                        help="Date of first detection of transient in MJD. Only used in --force mode.",
+                        default=None)
+    parser.add_argument("--transient_end", type=int, required=False,
+                        help="Date of last detection of transient in MJD. Only used in --force mode.",
+                        default=None)
 
     # If instead you give imglist, then you expliclty list the images
     # used.  TODO: specify type of image, and adapt the code to handle
@@ -166,20 +181,10 @@ def main():
 
     band = args.filter
 
-    if (args.ra is not None) or (args.dec is not None):
-        raise NotImplementedError("--ra and --dec not yet supported.")
-    if args.SNID_file is not None:
-        SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
-    else:
-        SNID = args.SNID
-
-    if args.img_list is not None:
-        raise NotImplementedError("--img-list not yet supported.")
-
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
-    lc_start = args.beginning
-    lc_end = args.end
+    image_selection_start = args.beginning
+    image_selection_end = args.end
     object_type = args.object_type
 
     config = Config.get(args.config, setdefault=True)
@@ -217,6 +222,48 @@ def main():
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
 
+    # Option 1, user passes a file of SNIDs
+    if args.SNID_file is not None:
+        SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
+
+    # Option 2, user passes a SNID
+    elif args.SNID is not None:
+        SNID = args.SNID
+
+    # Option 3, user passes a ra and dec, and optionally a radius.
+    elif ((args.ra is not None) or (args.dec is not None)) and not args.force:
+        if args.radius is None:
+            radius = 5 * u.arcsec  # If radius is not given we'll return the closest SN, but we do need to pick
+                                   # some radius to search within.
+        else:
+            radius = args.radius * u.arcsec
+        SNID, dist = extract_id_using_ra_dec(sn_path, ra=args.ra, dec=args.dec, radius=radius)
+        Lager.debug(f"Found {len(SNID)} supernovae within {radius} of RA={args.ra}, Dec={args.dec}")
+        if args.radius is None:
+            SNID = SNID[np.argmin(dist)]
+            Lager.debug(f"Using the closest SN, {SNID}, at a distance of {dist.min()} arcsec.")
+
+    # Option 4, user passes ra and dec and force mode, meaning we don't search for SNID.
+    elif args.force:
+        if args.ra is None or args.dec is None:
+            raise ValueError("Must specify --ra and --dec to run campari with --force mode.")
+        ra = args.ra
+        dec = args.dec
+        if args.transient_start is None or args.transient_end is None:
+            raise ValueError("Must specify --start and --end to run campari with --force mode.")
+        transient_start = args.transient_start
+        transient_end = args.transient_end
+        Lager.debug("Forcing campari to run on the given RA and Dec, "
+                    f" RA={ra}, Dec={dec} with detections between "
+                    f"MJD {transient_start} and {transient_end}.")
+        SNID = None  # No SNID, since we're forcing it to run on a given RA and Dec.
+    else:
+        raise ValueError("Must specify --SNID, --SNID-file, or --ra and --dec "
+                         "to run campari.")
+
+    if args.img_list is not None:
+        raise NotImplementedError("--img-list not yet supported.")
+
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
     aberrations = galsim.roman.getPSF(1, band, pupil_bin=1).aberrations
@@ -235,25 +282,26 @@ def main():
         SNID = [SNID]
     Lager.debug("Snappl version:")
     Lager.debug(snappl.__version__)
-    # run one supernova function TODO
+
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
-            # Pull out list of image exposures so we can be more flexible.
-            # Can then call to get the SEDs here.
+            if not args.force:
+                pqfile = find_parquet(ID, sn_path, obj_type=object_type)
+                Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
 
-            pqfile = find_parquet(ID, sn_path, obj_type=object_type)
-            Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
+                ra, dec, p, s, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=band,
+                                                                                      snpath=sn_path,
+                                                                                      roman_path=roman_path,
+                                                                                      obj_type=object_type)
+                Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
 
-            ra, dec, p, s, start, end, peak = get_object_info(ID, pqfile, band=band, snpath=sn_path,
-                                                              roman_path=roman_path, obj_type=object_type)
-            Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
-
-            exposures = findAllExposures(ID, ra, dec, start, end,
+            exposures = findAllExposures(ra, dec, transient_start, transient_end,
                                          roman_path=roman_path,
                                          maxbg=num_total_images - num_detect_images,
                                          maxdet=num_detect_images, return_list=True,
-                                         band=band, lc_start=lc_start, lc_end=lc_end)
+                                         band=band, image_selection_start=image_selection_start,
+                                         image_selection_end=image_selection_end)
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
             else:
@@ -271,7 +319,7 @@ def main():
                                make_initial_guess, initial_flux_guess,
                                weighting, method, grid_type,
                                pixel, source_phot_ops,
-                               lc_start, lc_end, do_xshift, bg_gal_flux,
+                               image_selection_start, image_selection_end, do_xshift, bg_gal_flux,
                                do_rotation, airy, mismatch_seds, deltafcn_profile,
                                noise, check_perfection, avoid_non_linearity,
                                sim_gal_ra_offset, sim_gal_dec_offset,
@@ -291,7 +339,7 @@ def main():
             identifier = str(ID)
             lc = build_lightcurve(ID, exposures, sn_path, roman_path,
                                   confusion_metric, flux, use_roman, band,
-                                  object_type, sigma_flux)
+                                  object_type, sigma_flux, ra=ra, dec=dec)
         else:
             identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)

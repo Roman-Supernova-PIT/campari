@@ -28,6 +28,7 @@ from campari.AllASPFuncs import (
     calculate_background_level,
     construct_static_scene,
     construct_transient_scene,
+    extract_id_using_ra_dec,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -87,7 +88,7 @@ def test_get_object_info(roman_path, sn_path):
 
 
 def test_findAllExposures(roman_path):
-    explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
+    explist = findAllExposures(7.731890048839705, -44.4589649005717,
                                62654., 62958., "Y106", maxbg=24,
                                maxdet=24, return_list=True,
                                roman_path=roman_path,
@@ -677,3 +678,12 @@ def test_construct_transient_scene():
 
         assert False, f"PSF source images do not match, a diagnostic " \
                       f"image has been saved to {im_path}. Error: {e}"
+
+
+def test_extract_id_using_ra_dec(sn_path):
+    ra = 7.3447740
+    dec = -44.919229
+    ID, dist = extract_id_using_ra_dec(sn_path, ra, dec, radius=5 * u.arcsec, object_type="SN")
+    np.testing.assert_equal(ID, 40120913), "The ID extracted from the RA/Dec does not match the expected value."
+    np.testing.assert_allclose(dist, 0.003364, rtol=1e-3), \
+        "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec."
