@@ -1,0 +1,1 @@
+added functionality to run solely on a provided ra/dec coordinate
