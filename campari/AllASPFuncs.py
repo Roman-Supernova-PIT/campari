@@ -342,19 +342,20 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     return psfs
 
 
-def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=24,
-                     maxdet=24, return_list=False,
+def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
+                     maxdet=None, return_list=False,
                      roman_path=None, pointing_list=None, sca_list=None,
                      truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
-    """ This function finds all the exposures that contain a given supernova,
+    """This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
 
     Inputs:
     ra, dec: the RA and DEC of the supernova
     peak: the peak of the supernova
-    transient_start, transient_end: the first and last MJD of a detection of the transient,
-        defines what we consider as a detected vs. undetected image.
+    transient_start, transient_end: floats, the first and last MJD of a detection of the transient,
+        defines what which images contain transient light (and therefore recieve a single model point
+        at the location of the transient) and which do not.
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
     return_list: whether to return the exposures as a list or not
@@ -365,7 +366,7 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=24,
     truth: If "truth" use truth images, if "simple_model" use simple model
             images.
     band: the band to consider
-    image_selection_start, image_selection_end: the start and end of where images are selected from, in MJD.
+    image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
     explist: astropy.table.Table, the table of exposures that contain the
     supernova. The columns are:
         - Pointing: the pointing of the exposure
@@ -381,6 +382,12 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=24,
 
     explist = tb.Table(names=("Pointing", "SCA", "BAND", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
+
+    transient_start = np.atleast_1d(transient_start)[0]
+    transient_end = np.atleast_1d(transient_end)[0]
+    if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
+        raise TypeError("maxdet and maxbg must be integers or None, " +
+                        f"not {type(maxdet), type(maxbg)}")
 
     # Rob's database method! :D
 
@@ -398,11 +405,10 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=24,
     res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window
-    transient_start = transient_start[0] if not isinstance(transient_start, (float, int)) else transient_start
-    transient_end = transient_end[0] if not isinstance(transient_end, (float, int)) else transient_end
+
     det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
     det = det.loc[(det['date'] >= image_selection_start) & (det['date'] <= image_selection_end)]
-    if isinstance(maxdet, int):
+    if maxdet is not None:
         det = det.iloc[:maxdet]
     det["DETECTED"] = True
 
@@ -1554,7 +1560,8 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_
 
 def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type="SN"):
     """Convenience function for getting a list of SN RA and Dec that can be
-    cone-searched for by passing a central coordinate and a radius.
+    cone-searched for by passing a central coordinate and a radius. For now, this solely
+    pulls objects from the OpenUniverse simulations.
 
     Parameters
     ----------
@@ -1575,7 +1582,6 @@ def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type
     all_dist: numpy array of float, the distances of the objects found in the
                 given range, in arcseconds.
     """
-
 
     if not hasattr(radius, "unit") and radius is not None:
         Lager.warning("extract_id_using_ra_dec got a radius argument with no units. Assuming degrees.")

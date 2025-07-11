@@ -718,7 +718,6 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
         else:
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
 
-
     # Now add the truth to the lightcurve
     lc = add_truth_to_lc(lc, explist, sn_path, roman_path, "SN")
 

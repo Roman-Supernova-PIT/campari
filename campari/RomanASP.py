@@ -9,7 +9,6 @@ import numpy as np
 import pandas as pd
 from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
-from astropy import units as u
 from erfa import ErfaWarning
 
 # SN-PIT
@@ -20,10 +19,10 @@ from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 
 # Campari
-from campari.AllASPFuncs import (banner,
+from campari.AllASPFuncs import (add_truth_to_lc,
+                                 banner,
                                  build_lightcurve,
                                  build_lightcurve_sim,
-                                 extract_id_using_ra_dec,
                                  findAllExposures,
                                  find_parquet,
                                  get_object_info,
@@ -123,10 +122,11 @@ def main():
                         help="Radius in degrees to search for supernovae "
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
-    parser.add_argument("--force", type=bool, default=False,
-                        help="If true, will perform the algorithm centered at the ra/dec without searching "
+    parser.add_argument("--object_lookup", type=bool, default=True,
+                        help="If False, will perform the algorithm centered at the ra/dec without searching "
                              "for supernovae. Therefore, it is possible to run the algorithm on a location that"
-                             " does not have a supernova. ")
+                             " does not have a supernova. If True, the SNID is used to look up the object in some "
+                             "catalog, such as the Open Universe 2024 catalog. Default is True.")
 
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
@@ -138,18 +138,18 @@ def main():
     parser.add_argument("-d", "--num_detect_images", type=int, required=False,
                         help="Number of images to use with SN detections",
                         default=np.inf)
-    parser.add_argument("-b", "--beginning", type=int, required=False,
-                        help="start of desired lightcurve in days from peak.",
+    parser.add_argument("-b", "--image_selection_start", type=float, required=False,
+                        help="First MJD of images to be selected for use by the algorithm.",
                         default=-np.inf)
-    parser.add_argument("-e", "--end", type=int, required=False,
-                        help="end of desired light curve in days from peak.",
+    parser.add_argument("-e", "--image_selection_end", type=float, required=False,
+                        help="Last MJD of images to be selected for use by the algorithm.",
                         default=np.inf)
 
-    parser.add_argument("--transient_start", type=int, required=False,
-                        help="Date of first detection of transient in MJD. Only used in --force mode.",
+    parser.add_argument("--transient_start", type=float, required=False,
+                        help="MJD of first detection of transient. Only used when --object_lookup is False.",
                         default=None)
-    parser.add_argument("--transient_end", type=int, required=False,
-                        help="Date of last detection of transient in MJD. Only used in --force mode.",
+    parser.add_argument("--transient_end", type=float, required=False,
+                        help="MJD of last detection of transient. Only used when --object_lookup is False.",
                         default=None)
 
     # If instead you give imglist, then you expliclty list the images
@@ -183,8 +183,8 @@ def main():
 
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
-    image_selection_start = args.beginning
-    image_selection_end = args.end
+    image_selection_start = args.image_selection_start
+    image_selection_end = args.image_selection_end
     object_type = args.object_type
 
     config = Config.get(args.config, setdefault=True)
@@ -230,33 +230,24 @@ def main():
     elif args.SNID is not None:
         SNID = args.SNID
 
-    # Option 3, user passes a ra and dec, and optionally a radius.
-    elif ((args.ra is not None) or (args.dec is not None)) and not args.force:
-        if args.radius is None:
-            radius = 5 * u.arcsec  # If radius is not given we'll return the closest SN, but we do need to pick
-                                   # some radius to search within.
-        else:
-            radius = args.radius * u.arcsec
-        SNID, dist = extract_id_using_ra_dec(sn_path, ra=args.ra, dec=args.dec, radius=radius)
-        Lager.debug(f"Found {len(SNID)} supernovae within {radius} of RA={args.ra}, Dec={args.dec}")
-        if args.radius is None:
-            SNID = SNID[np.argmin(dist)]
-            Lager.debug(f"Using the closest SN, {SNID}, at a distance of {dist.min()} arcsec.")
-
-    # Option 4, user passes ra and dec and force mode, meaning we don't search for SNID.
-    elif args.force:
-        if args.ra is None or args.dec is None:
-            raise ValueError("Must specify --ra and --dec to run campari with --force mode.")
+    # Option 3, user passes a ra and dec, meaning we don't search for SNID.
+    elif ((args.ra is not None) or (args.dec is not None)):
         ra = args.ra
         dec = args.dec
         if args.transient_start is None or args.transient_end is None:
-            raise ValueError("Must specify --start and --end to run campari with --force mode.")
+            raise ValueError("Must specify --transient_start and --transient_end to run campari at a given RA and Dec.")
         transient_start = args.transient_start
         transient_end = args.transient_end
-        Lager.debug("Forcing campari to run on the given RA and Dec, "
-                    f" RA={ra}, Dec={dec} with detections between "
-                    f"MJD {transient_start} and {transient_end}.")
-        SNID = None  # No SNID, since we're forcing it to run on a given RA and Dec.
+        Lager.debug(
+            "Forcing campari to run on the given RA and Dec, "
+            f" RA={ra}, Dec={dec} with detections between "
+            f"MJD {transient_start} and {transient_end}."
+        )
+
+    elif args.object_lookup and (args.SNID is None) and (args.SNID_file is None):
+        raise ValueError("Must specify --SNID, --SNID-file, to run campari with --object_lookup. Note that"
+                         " --object_lookup is True by default, so if you want to run campari without looking up a SNID,"
+                         " you must set --object_lookup=False.")
     else:
         raise ValueError("Must specify --SNID, --SNID-file, or --ra and --dec "
                          "to run campari.")
@@ -286,7 +277,7 @@ def main():
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
-            if not args.force:
+            if args.object_lookup:
                 pqfile = find_parquet(ID, sn_path, obj_type=object_type)
                 Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
 
@@ -337,9 +328,12 @@ def main():
 
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, roman_path,
-                                  confusion_metric, flux, use_roman, band,
-                                  object_type, sigma_flux, ra=ra, dec=dec)
+            lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
+            if args.object_lookup:
+                lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
+            # lc = build_lightcurve(ID, exposures, sn_path, roman_path,
+            #                       confusion_metric, flux, use_roman, band,
+            #                       object_type, sigma_flux, ra, dec)
         else:
             identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
