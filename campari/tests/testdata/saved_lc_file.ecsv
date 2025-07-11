@@ -1,0 +1,23 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: MJD, unit: d, datatype: float64}
+# - {name: flux, datatype: int64}
+# - {name: flux_error, datatype: int64}
+# - {name: mag, datatype: float64}
+# - {name: mag_err, datatype: float64}
+# - {name: band, datatype: string}
+# - {name: zeropoint, datatype: float64}
+# meta: !!omap
+# - {ID: 40120913}
+# - {obj_ra: 7}
+# - {obj_dec: -41}
+# - {confusion_metric: 100}
+# - __serialized_columns__:
+#     MJD:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: d}
+#       value: !astropy.table.SerializedColumn {name: MJD}
+# schema: astropy-2.0
+MJD flux flux_error mag mag_err band zeropoint
+62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584
