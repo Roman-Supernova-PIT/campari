@@ -6,6 +6,7 @@ import warnings
 # Common Library
 import astropy.table as tb
 import galsim
+import glob
 import h5py
 import numpy as np
 import pandas as pd
@@ -14,7 +15,7 @@ import scipy.sparse as sp
 from astropy import units as u
 from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.table import QTable, Table
+from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
@@ -341,20 +342,20 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     return psfs
 
 
-def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
-                     maxdet=24, return_list=False,
+def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
+                     maxdet=None, return_list=False,
                      roman_path=None, pointing_list=None, sca_list=None,
-                     truth="simple_model", lc_start=-np.inf, lc_end=np.inf):
-    """ This function finds all the exposures that contain a given supernova,
+                     truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
+    """This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
 
     Inputs:
-    snid: the ID of the supernova
-    ra, dec: the RA and DEC of the supernova (TODO: Is this necessary if we're
-            passing the ID?)
+    ra, dec: the RA and DEC of the supernova
     peak: the peak of the supernova
-    start, end: the start and end of the observing window
+    transient_start, transient_end: floats, the first and last MJD of a detection of the transient,
+        defines what which images contain transient light (and therefore recieve a single model point
+        at the location of the transient) and which do not.
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
     return_list: whether to return the exposures as a list or not
@@ -365,8 +366,7 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
     truth: If "truth" use truth images, if "simple_model" use simple model
             images.
     band: the band to consider
-    lc_start, lc_end: the start and end of the light curve window, in MJD.
-
+    image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
     explist: astropy.table.Table, the table of exposures that contain the
     supernova. The columns are:
         - Pointing: the pointing of the exposure
@@ -383,6 +383,12 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
     explist = tb.Table(names=("Pointing", "SCA", "BAND", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
 
+    transient_start = np.atleast_1d(transient_start)[0]
+    transient_end = np.atleast_1d(transient_end)[0]
+    if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
+        raise TypeError("maxdet and maxbg must be integers or None, " +
+                        f"not {type(maxdet), type(maxbg)}")
+
     # Rob's database method! :D
 
     server_url = "https://roman-desc-simdex.lbl.gov"
@@ -398,20 +404,18 @@ def findAllExposures(snid, ra, dec, start, end, band, maxbg=24,
 
     res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
-    # selects detections within the requested light curve window
-    start = start[0] if not isinstance(start, float) else start
-    end = end[0] if not isinstance(end, float) else end
-    det = res.loc[(res["date"] >= start) & (res["date"] <= end)].copy()
-    det = det.loc[(det['date'] >= lc_start) & (det['date'] <= lc_end)]
-    if isinstance(maxdet, int):
+    # selects detections within the requested light curve window.
+    det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
+    det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
+    if maxdet is not None:
         det = det.iloc[:maxdet]
     det["DETECTED"] = True
 
     if pointing_list is not None:
         det = det.loc[det["Pointing"].isin(pointing_list)]
 
-    bg = res.loc[(res["date"] < start) | (res["date"] > end)].copy()
-    bg = bg.loc[(bg['date'] >= lc_start) & (bg['date'] <= lc_end)]
+    bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
+    bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["DETECTED"] = False
@@ -669,7 +673,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
-        Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
+        Lager.debug(f"in getPSF_Image: {self.bpass}, {x_center}, {y_center}")
 
         psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
@@ -711,6 +715,7 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     image_list: list of snappl.image.Image objects, the full images
     """
 
+    Lager.debug("Saved exposures")
     num_predetection_images = len(exposures[~exposures["DETECTED"]])
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
@@ -1272,8 +1277,7 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     return mag, magerr, zp
 
 
-def build_lightcurve(ID, exposures, sn_path, roman_path, confusion_metric, flux,
-                     use_roman, band, object_type, sigma_flux):
+def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec):
 
     """This code builds a lightcurve datatable from the output of the SMP
        algorithm.
@@ -1287,67 +1291,90 @@ def build_lightcurve(ID, exposures, sn_path, roman_path, confusion_metric, flux,
     X (array): the output of the SMP algorithm
     use_roman (bool): whether or not the lightcurve was built using Roman PSF
     band (str): the bandpass of the images used
+    ra, dec (float): the RA and DEC of the object.
 
     Returns:
     lc: a QTable containing the lightcurve data
     """
-
-    detections = exposures[np.where(exposures["DETECTED"])]
-    parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
-    df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
-
+    flux = np.atleast_1d(flux)
+    sigma_flux = np.atleast_1d(sigma_flux)
+    band = exposures["BAND"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    sim_true_flux = []
-    sim_realized_flux = []
-    for pointing, sca in zip(detections['Pointing'], detections['SCA']):
-        catalogue_path = roman_path+f'/RomanTDS/truth/{band}/{pointing}/' \
-                        + f'Roman_TDS_index_{band}_{pointing}_{sca}.txt'
-        cat = pd.read_csv(catalogue_path, sep=r"\s+", skiprows=1,
-                          names=['object_id', 'ra', 'dec', 'x', 'y',
-                                 'realized_flux', 'flux', 'mag', 'obj_type'])
-        cat = cat[cat['object_id'] == ID]
-        sim_true_flux.append(cat['flux'].values[0])
-        sim_realized_flux.append(cat['realized_flux'].values[0])
-    sim_true_flux = np.array(sim_true_flux)
-    sim_realized_flux = np.array(sim_realized_flux)
-
-    sim_sigma_flux = 0  # These are truth values!
-    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux,
-                                              sim_sigma_flux, band)
-    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux,
-                                          sim_sigma_flux, band)
-
-    if object_type == "SN":
-        df_object_row = df.loc[df.id == ID]
-    if object_type == "star":
-        df_object_row = df.loc[df.id == str(ID)]
-
-    if object_type == "SN":
-        meta_dict = {"confusion_metric": confusion_metric,
-                     "host_sep": df_object_row["host_sn_sep"].values[0],
-                     "host_mag_g": df_object_row["host_mag_g"].values[0],
-                     "obj_ra": df_object_row["ra"].values[0],
-                     "obj_dec": df_object_row["dec"].values[0],
-                     "host_ra": df_object_row["host_ra"].values[0],
-                     "host_dec": df_object_row["host_dec"].values[0]}
-    else:
-        meta_dict = {"ra": df_object_row["ra"].values[0],
-                     "dec": df_object_row["dec"].values[0]}
+    detections = exposures[np.where(exposures["DETECTED"])]
+    meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
+    if confusion_metric is not None:
+        meta_dict["confusion_metric"] = confusion_metric
 
     data_dict = {"MJD": detections["date"], "flux": flux,
                  "flux_error": sigma_flux, "mag": mag,
                  "mag_err": magerr,
                  "band": np.full(np.size(mag), band),
-                 "zeropoint": np.full(np.size(mag), zp),
-                 "SIM_realized_flux": sim_realized_flux,
-                 "SIM_true_flux": sim_true_flux,
-                 "SIM_realized_mag": sim_realized_mag,
-                 "SIM_true_mag": sim_true_mag}
-    units = {"MJD": u.d, "SIM_realized_flux": "",  "flux": "",
-             "flux_error": "", "SIM_realized_mag": "",
-             "SIM_true_flux": "", "SIM_true_mag": ""}
+                 "zeropoint": np.full(np.size(mag), zp)}
+
+    units = {"MJD": u.d,  "flux": "",
+             "flux_error": "", "mag": u.mag,
+             "mag_err": u.mag, "band": ""}
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
+
+
+def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
+
+    detections = exposures[np.where(exposures["DETECTED"])]
+    band = exposures["BAND"][0]
+    ID = lc.meta["ID"]
+    parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
+    df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
+
+    sim_true_flux = []
+    sim_realized_flux = []
+    for pointing, sca in zip(detections["Pointing"], detections["SCA"]):
+        catalogue_path = (
+            roman_path + f"/RomanTDS/truth/{band}/{pointing}/" + f"Roman_TDS_index_{band}_{pointing}_{sca}.txt"
+        )
+        cat = pd.read_csv(
+            catalogue_path,
+            sep=r"\s+",
+            skiprows=1,
+            names=["object_id", "ra", "dec", "x", "y", "realized_flux", "flux", "mag", "obj_type"],
+        )
+        cat = cat[cat["object_id"] == ID]
+        sim_true_flux.append(cat["flux"].values[0])
+        sim_realized_flux.append(cat["realized_flux"].values[0])
+    sim_true_flux = np.array(sim_true_flux)
+    sim_realized_flux = np.array(sim_realized_flux)
+
+    sim_sigma_flux = 0  # These are truth values!
+    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, band)
+    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, band)
+
+    if object_type == "SN":
+        df_object_row = df.loc[df.id == ID]
+        meta_dict = {
+            "host_sep": df_object_row["host_sn_sep"].values[0].item(),
+            "host_mag_g": df_object_row["host_mag_g"].values[0].item(),
+            "host_ra": df_object_row["host_ra"].values[0].item(),
+            "host_dec": df_object_row["host_dec"].values[0].item(),
+        }
+
+    data_dict = {
+        "SIM_realized_flux": sim_realized_flux,
+        "SIM_true_flux": sim_true_flux,
+        "SIM_realized_mag": sim_realized_mag,
+        "SIM_true_mag": sim_true_mag,
+    }
+    units = {
+        "SIM_realized_flux": "",
+        "SIM_realized_mag": "",
+        "SIM_true_flux": "",
+        "SIM_true_mag": "",
+    }
+
+    Lager.debug(QTable(data=data_dict, meta=meta_dict, units=units).meta)
+
+    lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
+
+    return lc
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
@@ -1496,9 +1523,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     return image_data, err, sn_matrix, wgt_matrix
 
 
-def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
-                                                  output_path,
-                                                  mag_limits=None):
+def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_path, mag_limits=None):
     """Convenience function for getting a list of SN IDs that obey some
     conditions from a parquet file. This is not used anywhere in the main
     algorithm.
@@ -1529,6 +1554,64 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
 
     pd.DataFrame(SN_ID).to_csv(output_path, index=False, header=False)
     Lager.info(f"Saved to {output_path}")
+
+
+def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type="SN"):
+    """Convenience function for getting a list of SN RA and Dec that can be
+    cone-searched for by passing a central coordinate and a radius. For now, this solely
+    pulls objects from the OpenUniverse simulations.
+
+    Parameters
+    ----------
+    sn_path: str, the path to the supernova data
+    ra: float, the central RA of the region to search in
+    dec: float, the central Dec of the region to search in
+    radius: float, the radius over which cone search is performed. Can have
+            any angular astropy.unit attached to it. If no unit is
+            included, the function will produce a warning and then
+            automatically assume you meant degrees.
+    object_type: str, the type of object to search for. Can be "SN" or "star".
+                  Defaults to "SN".
+
+    Returns
+    -------
+    all_SN_ID: numpy array of int, the IDs of the objects found in the
+               given range.
+    all_dist: numpy array of float, the distances of the objects found in the
+                given range, in arcseconds.
+    """
+
+    if not hasattr(radius, "unit") and radius is not None:
+        Lager.warning("extract_id_using_ra_dec got a radius argument with no units. Assuming degrees.")
+        radius *= u.deg
+
+    file_prefix = {"SN": "snana", "star": "pointsource"}
+    file_prefix = file_prefix[object_type]
+    parquet_files = sorted(glob.glob(os.path.join(sn_path, f"{file_prefix}_*.parquet")))
+    SN_ID_list = []
+    dist_list = []
+    Lager.debug(f"Found {len(parquet_files)} parquet files in {sn_path} with prefix {file_prefix}")
+    for file in parquet_files:
+        p = file.split(f"{file_prefix}_")[-1].split(".parquet")[0]
+        df = open_parquet(p, sn_path, obj_type="SN")
+
+        if radius is not None and (ra is not None and dec is not None):
+            center_coord = SkyCoord(ra * u.deg, dec * u.deg)
+            df_coords = SkyCoord(ra=df["ra"].values * u.deg, dec=df["dec"].values * u.deg)
+            sep = center_coord.separation(df_coords)
+            df = df[sep < radius]
+            dist_list.extend(sep[sep < radius].to(u.arcsec).value)
+        SN_ID = df.id.values
+        SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
+        # some reason. They only seem to have 1 or 2 images ever. TODO
+        SN_ID_list.extend(SN_ID)
+    all_SN_ID = np.array(SN_ID_list, dtype=int)
+    all_dist = np.array(dist_list, dtype=float)
+    Lager.info(f"Found {np.size(all_SN_ID)} {object_type}s in the given range.")
+    if np.size(all_SN_ID) == 0:
+        raise ValueError(f"No {object_type}s found in the given range.")
+
+    return all_SN_ID, all_dist
 
 
 def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
@@ -1588,7 +1671,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                    use_real_images, use_roman, subtract_background,
                    make_initial_guess, initial_flux_guess, weighting, method,
                    grid_type, pixel, source_phot_ops,
-                   lc_start, lc_end, do_xshift, bg_gal_flux, do_rotation, airy,
+                   image_selection_start, image_selection_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
                    spacing, percentiles,

@@ -10,7 +10,7 @@ import numpy as np
 import pandas as pd
 import pytest
 from astropy.io import ascii
-from astropy.table import QTable
+from astropy.table import QTable, Table
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import matplotlib
@@ -24,10 +24,13 @@ from snpit_utils.logger import SNLogger as Lager
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
+    add_truth_to_lc,
+    build_lightcurve,
     calc_mag_and_err,
     calculate_background_level,
     construct_static_scene,
     construct_transient_scene,
+    extract_id_using_ra_dec,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -87,7 +90,7 @@ def test_get_object_info(roman_path, sn_path):
 
 
 def test_findAllExposures(roman_path):
-    explist = findAllExposures(50134575, 7.731890048839705, -44.4589649005717,
+    explist = findAllExposures(7.731890048839705, -44.4589649005717,
                                62654., 62958., "Y106", maxbg=24,
                                maxdet=24, return_list=True,
                                roman_path=roman_path,
@@ -677,3 +680,56 @@ def test_construct_transient_scene():
 
         assert False, f"PSF source images do not match, a diagnostic " \
                       f"image has been saved to {im_path}. Error: {e}"
+
+
+def test_extract_id_using_ra_dec(sn_path):
+    ra = 7.3447740
+    dec = -44.919229
+    ID, dist = extract_id_using_ra_dec(sn_path, ra, dec, radius=5 * u.arcsec, object_type="SN")
+    np.testing.assert_equal(ID, 40120913), "The ID extracted from the RA/Dec does not match the expected value."
+    np.testing.assert_allclose(dist, 0.003364, rtol=1e-3), \
+        "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec."
+
+
+def test_build_lc_and_add_truth(roman_path, sn_path):
+    exposures = pd.DataFrame({
+        "Pointing": [111, 38265],
+        "SCA": [13, 15],
+        "date": [62000.40235, 62495.605],
+        "DETECTED": [False, True],
+        "BAND": ["Y106", "Y106"],
+    })
+    explist = Table.from_pandas(exposures)
+    explist.sort(["DETECTED", "SCA"])
+
+    # The data values are arbitary, just to check that the lc is constructed properly.
+    lc = build_lightcurve(40120913, explist, 100, 100, 10, 7, -41)
+
+    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
+
+    for i in lc.columns:
+        if not isinstance(saved_lc[i][0], str):
+            np.testing.assert_allclose(lc[i].value, saved_lc[i])
+        else:
+            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
+    for key in list(lc.meta.keys()):
+        if not isinstance(saved_lc.meta[key], str):
+            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
+        else:
+            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
+
+    # Now add the truth to the lightcurve
+    lc = add_truth_to_lc(lc, explist, sn_path, roman_path, "SN")
+
+    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
+
+    for i in lc.columns:
+        if not isinstance(saved_lc[i][0], str):
+            np.testing.assert_allclose(lc[i].value, saved_lc[i])
+        else:
+            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
+    for key in list(lc.meta.keys()):
+        if not isinstance(saved_lc.meta[key], str):
+            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
+        else:
+            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])

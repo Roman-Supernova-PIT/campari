@@ -19,7 +19,8 @@ from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
 
 # Campari
-from campari.AllASPFuncs import (banner,
+from campari.AllASPFuncs import (add_truth_to_lc,
+                                 banner,
                                  build_lightcurve,
                                  build_lightcurve_sim,
                                  findAllExposures,
@@ -117,6 +118,15 @@ def main():
                         help="RA of transient point source")
     parser.add_argument("--dec", type=float, default=None,
                         help="Dec of transient point source")
+    parser.add_argument("--radius", type=float, default=None,
+                        help="Radius in degrees to search for supernovae "
+                             "around the given RA and Dec. If not given, "
+                             "will return the closest.")
+    parser.add_argument("--object_lookup", type=bool, default=True,
+                        help="If False, will perform the algorithm centered at the ra/dec without searching "
+                             "for supernovae. Therefore, it is possible to run the algorithm on a location that"
+                             " does not have a supernova. If True, the SNID is used to look up the object in some "
+                             "catalog, such as the Open Universe 2024 catalog. Default is True.")
 
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
@@ -125,17 +135,31 @@ def main():
     #  (HOW?) what images to use.
     parser.add_argument("-t", "--num_total_images", type=int, required=False,
                         help="Number of images to use", default=np.inf)
-    # TODO:change all instances of this variable to tot_images
     parser.add_argument("-d", "--num_detect_images", type=int, required=False,
                         help="Number of images to use with SN detections",
                         default=np.inf)
-    # TODO:change all instances of this variable to det_images
-    parser.add_argument("-b", "--beginning", type=int, required=False,
-                        help="start of desired lightcurve in days from peak.",
+    parser.add_argument("-b", "--image_selection_start", type=float, required=False,
+                        help="First MJD of images to be selected for use.",
                         default=-np.inf)
-    parser.add_argument("-e", "--end", type=int, required=False,
-                        help="end of desired light curve in days from peak.",
+    parser.add_argument("-e", "--image_selection_end", type=float, required=False,
+                        help="Last MJD of images to be selected for use.",
                         default=np.inf)
+
+    parser.add_argument(
+        "--transient_start",
+        type=float,
+        required=False,
+        help="MJD of first epoch of transient. Only used when --object_lookup is False. If --object_lookup is True,"
+        " then the catalog values for transient_start, transient_end will be used."
+        "If not given but transient_end is, will assume the first detection is at -inf.",
+        default=None,
+    )
+    parser.add_argument("--transient_end", type=float, required=False,
+                        help="MJD of last epoch of transient. Only used when --object_lookup is False."
+                        " If --object_lookup is True, then the catalog values for transient_start, transient_end will "
+                        " be used."
+                        " If not given but transient_start is, will assume the last detection is at +inf.",
+                        default=None)
 
     # If instead you give imglist, then you expliclty list the images
     # used.  TODO: specify type of image, and adapt the code to handle
@@ -166,20 +190,10 @@ def main():
 
     band = args.filter
 
-    if (args.ra is not None) or (args.dec is not None):
-        raise NotImplementedError("--ra and --dec not yet supported.")
-    if args.SNID_file is not None:
-        SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
-    else:
-        SNID = args.SNID
-
-    if args.img_list is not None:
-        raise NotImplementedError("--img-list not yet supported.")
-
     num_total_images = args.num_total_images
     num_detect_images = args.num_detect_images
-    lc_start = args.beginning
-    lc_end = args.end
+    image_selection_start = args.image_selection_start
+    image_selection_end = args.image_selection_end
     object_type = args.object_type
 
     config = Config.get(args.config, setdefault=True)
@@ -217,6 +231,44 @@ def main():
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
 
+    # Option 1, user passes a file of SNIDs
+    if args.SNID_file is not None:
+        SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
+
+    # Option 2, user passes a SNID
+    elif args.SNID is not None:
+        SNID = args.SNID
+
+    # Option 3, user passes a ra and dec, meaning we don't search for SNID.
+    elif ((args.ra is not None) or (args.dec is not None)):
+        ra = args.ra
+        dec = args.dec
+        if args.transient_start is None and args.transient_end is None:
+            raise ValueError("Must specify --transient_start and --transient_end to run campari at a given RA and Dec.")
+        transient_start = args.transient_start
+        transient_end = args.transient_end
+        # If only one is specified, we assume that the other is +/- infinity.
+        if transient_start is None:
+            transient_start = -np.inf
+        if transient_end is None:
+            transient_end = np.inf
+        Lager.debug(
+            "Forcing campari to run on the given RA and Dec, "
+            f" RA={ra}, Dec={dec} with transient flux fit for between "
+            f"MJD {transient_start} and {transient_end}."
+        )
+
+    elif args.object_lookup and (args.SNID is None) and (args.SNID_file is None):
+        raise ValueError("Must specify --SNID, --SNID-file, to run campari with --object_lookup. Note that"
+                         " --object_lookup is True by default, so if you want to run campari without looking up a SNID,"
+                         " you must set --object_lookup=False.")
+    else:
+        raise ValueError("Must specify --SNID, --SNID-file, or --ra and --dec "
+                         "to run campari.")
+
+    if args.img_list is not None:
+        raise NotImplementedError("--img-list not yet supported.")
+
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
     aberrations = galsim.roman.getPSF(1, band, pupil_bin=1).aberrations
@@ -235,25 +287,26 @@ def main():
         SNID = [SNID]
     Lager.debug("Snappl version:")
     Lager.debug(snappl.__version__)
-    # run one supernova function TODO
+
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
-            # Pull out list of image exposures so we can be more flexible.
-            # Can then call to get the SEDs here.
+            if args.object_lookup:
+                pqfile = find_parquet(ID, sn_path, obj_type=object_type)
+                Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
 
-            pqfile = find_parquet(ID, sn_path, obj_type=object_type)
-            Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
+                ra, dec, p, s, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=band,
+                                                                                      snpath=sn_path,
+                                                                                      roman_path=roman_path,
+                                                                                      obj_type=object_type)
+                Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
 
-            ra, dec, p, s, start, end, peak = get_object_info(ID, pqfile, band=band, snpath=sn_path,
-                                                              roman_path=roman_path, obj_type=object_type)
-            Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
-
-            exposures = findAllExposures(ID, ra, dec, start, end,
+            exposures = findAllExposures(ra, dec, transient_start, transient_end,
                                          roman_path=roman_path,
                                          maxbg=num_total_images - num_detect_images,
                                          maxdet=num_detect_images, return_list=True,
-                                         band=band, lc_start=lc_start, lc_end=lc_end)
+                                         band=band, image_selection_start=image_selection_start,
+                                         image_selection_end=image_selection_end)
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
             else:
@@ -271,7 +324,7 @@ def main():
                                make_initial_guess, initial_flux_guess,
                                weighting, method, grid_type,
                                pixel, source_phot_ops,
-                               lc_start, lc_end, do_xshift, bg_gal_flux,
+                               image_selection_start, image_selection_end, do_xshift, bg_gal_flux,
                                do_rotation, airy, mismatch_seds, deltafcn_profile,
                                noise, check_perfection, avoid_non_linearity,
                                sim_gal_ra_offset, sim_gal_dec_offset,
@@ -289,9 +342,10 @@ def main():
 
         if use_real_images:
             identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, sn_path, roman_path,
-                                  confusion_metric, flux, use_roman, band,
-                                  object_type, sigma_flux)
+            lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
+            if args.object_lookup:
+                lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
+
         else:
             identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
