@@ -139,17 +139,26 @@ def main():
                         help="Number of images to use with SN detections",
                         default=np.inf)
     parser.add_argument("-b", "--image_selection_start", type=float, required=False,
-                        help="First MJD of images to be selected for use by the algorithm.",
+                        help="First MJD of images to be selected for use.",
                         default=-np.inf)
     parser.add_argument("-e", "--image_selection_end", type=float, required=False,
-                        help="Last MJD of images to be selected for use by the algorithm.",
+                        help="Last MJD of images to be selected for use.",
                         default=np.inf)
 
-    parser.add_argument("--transient_start", type=float, required=False,
-                        help="MJD of first detection of transient. Only used when --object_lookup is False.",
-                        default=None)
+    parser.add_argument(
+        "--transient_start",
+        type=float,
+        required=False,
+        help="MJD of first epoch of transient. Only used when --object_lookup is False. If --object_lookup is True,"
+        " then the catalog values for transient_start, transient_end will be used."
+        "If not given but transient_end is, will assume the first detection is at -inf.",
+        default=None,
+    )
     parser.add_argument("--transient_end", type=float, required=False,
-                        help="MJD of last detection of transient. Only used when --object_lookup is False.",
+                        help="MJD of last epoch of transient. Only used when --object_lookup is False."
+                        " If --object_lookup is True, then the catalog values for transient_start, transient_end will "
+                        " be used."
+                        " If not given but transient_start is, will assume the last detection is at +inf.",
                         default=None)
 
     # If instead you give imglist, then you expliclty list the images
@@ -234,13 +243,18 @@ def main():
     elif ((args.ra is not None) or (args.dec is not None)):
         ra = args.ra
         dec = args.dec
-        if args.transient_start is None or args.transient_end is None:
+        if args.transient_start is None and args.transient_end is None:
             raise ValueError("Must specify --transient_start and --transient_end to run campari at a given RA and Dec.")
         transient_start = args.transient_start
         transient_end = args.transient_end
+        # If only one is specified, we assume that the other is +/- infinity.
+        if transient_start is None:
+            transient_start = -np.inf
+        if transient_end is None:
+            transient_end = np.inf
         Lager.debug(
             "Forcing campari to run on the given RA and Dec, "
-            f" RA={ra}, Dec={dec} with detections between "
+            f" RA={ra}, Dec={dec} with transient flux fit for between "
             f"MJD {transient_start} and {transient_end}."
         )
 
@@ -331,9 +345,7 @@ def main():
             lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
             if args.object_lookup:
                 lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
-            # lc = build_lightcurve(ID, exposures, sn_path, roman_path,
-            #                       confusion_metric, flux, use_roman, band,
-            #                       object_type, sigma_flux, ra, dec)
+
         else:
             identifier = "simulated"
             lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)

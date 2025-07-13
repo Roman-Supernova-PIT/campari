@@ -404,10 +404,9 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
 
     res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
-    # selects detections within the requested light curve window
-
+    # selects detections within the requested light curve window.
     det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
-    det = det.loc[(det['date'] >= image_selection_start) & (det['date'] <= image_selection_end)]
+    det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
     if maxdet is not None:
         det = det.iloc[:maxdet]
     det["DETECTED"] = True
@@ -416,7 +415,7 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
         det = det.loc[det["Pointing"].isin(pointing_list)]
 
     bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
-    bg = bg.loc[(bg['date'] >= image_selection_start) & (bg['date'] <= image_selection_end)]
+    bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["DETECTED"] = False
@@ -674,7 +673,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
-        Lager.debug(f'in getPSF_Image: {self.bpass}, {x_center}, {y_center}')
+        Lager.debug(f"in getPSF_Image: {self.bpass}, {x_center}, {y_center}")
 
         psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
@@ -716,7 +715,6 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     image_list: list of snappl.image.Image objects, the full images
     """
 
-    np.save("exposures.npy", exposures)
     Lager.debug("Saved exposures")
     num_predetection_images = len(exposures[~exposures["DETECTED"]])
     num_total_images = len(exposures)
@@ -1314,8 +1312,8 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
                  "zeropoint": np.full(np.size(mag), zp)}
 
     units = {"MJD": u.d,  "flux": "",
-             "flux_error": "", 'mag': "",
-             "mag_err": "", "band": ""}
+             "flux_error": "", "mag": u.mag,
+             "mag_err": u.mag, "band": ""}
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
