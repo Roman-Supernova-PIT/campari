@@ -423,6 +423,9 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
 
     bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
     bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
+
+    if pointing_list is not None:
+        bg = bg.loc[bg["Pointing"].isin(pointing_list)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["DETECTED"] = False
