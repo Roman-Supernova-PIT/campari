@@ -231,6 +231,9 @@ def main():
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
 
+    max_no_transient_images = num_total_images - num_detect_images  # This might be refactored in a more intelligent way
+    max_transient_images = num_detect_images                        # later.
+
     # Option 1, user passes a file of SNIDs
     if args.SNID_file is not None:
         SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
@@ -267,7 +270,13 @@ def main():
                          "to run campari.")
 
     if args.img_list is not None:
-        raise NotImplementedError("--img-list not yet supported.")
+        columns = ["Pointing", "SCA"]
+        image_df = pd.read_csv(args.img_list, header=None, names=columns)
+        # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
+        max_no_transient_images = None
+        max_transient_images = None
+    else:
+        image_df = None
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -303,10 +312,16 @@ def main():
 
             exposures = findAllExposures(ra, dec, transient_start, transient_end,
                                          roman_path=roman_path,
-                                         maxbg=num_total_images - num_detect_images,
-                                         maxdet=num_detect_images, return_list=True,
+                                         maxbg=max_no_transient_images,
+                                         maxdet=max_transient_images, return_list=True,
                                          band=band, image_selection_start=image_selection_start,
-                                         image_selection_end=image_selection_end)
+                                         image_selection_end=image_selection_end, pointing_list=image_df["Pointing"])
+
+            if not np.array_equiv(np.sort(exposures["Pointing"]), np.sort(image_df["Pointing"])):
+                Lager.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
+                              " following pointings were not found: "
+                              f"{np.setdiff1d(image_df['Pointing'], exposures['Pointing'])}")
+
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
             else:
