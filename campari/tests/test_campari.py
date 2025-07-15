@@ -201,10 +201,11 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-def test_run_on_star():
+def test_run_on_star(roman_path):
     # Call it as a function first so we can pdb and such
     # "40973149150"
-    args = ["_", "-s", "40973166870", "-f", "Y106", "-t", "20000", "-d", "10000",
+    args = ["_", "-s", "40973166870", "-f", "Y106", "-t", "20000", "-d", "10000", "-i",
+            f"{roman_path}/test_image_list.csv",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
