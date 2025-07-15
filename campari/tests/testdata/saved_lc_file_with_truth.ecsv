@@ -4,8 +4,8 @@
 # - {name: MJD, unit: d, datatype: float64}
 # - {name: flux, datatype: int64}
 # - {name: flux_error, datatype: int64}
-# - {name: mag, datatype: float64}
-# - {name: mag_err, datatype: float64}
+# - {name: mag, unit: mag, datatype: float64}
+# - {name: mag_err, unit: mag, datatype: float64}
 # - {name: band, datatype: string}
 # - {name: zeropoint, datatype: float64}
 # - {name: SIM_realized_flux, datatype: float64}
@@ -13,19 +13,27 @@
 # - {name: SIM_realized_mag, datatype: float64}
 # - {name: SIM_true_mag, datatype: float64}
 # meta: !!omap
-# - {ID: 40120913}
+# - {ID: 20172782}
 # - {obj_ra: 7}
 # - {obj_dec: -41}
 # - {confusion_metric: 100}
-# - {host_sep: 0.17470838129520416}
-# - {host_mag_g: 25.507999420166016}
-# - {host_ra: 7.344728}
-# - {host_dec: -44.919194}
+# - {host_sep: 1.7006677389144897}
+# - {host_mag_g: 23.76300048828125}
+# - {host_ra: 7.550449}
+# - {host_dec: -44.8073}
 # - __serialized_columns__:
 #     MJD:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
 #       value: !astropy.table.SerializedColumn {name: MJD}
+#     mag:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: &id001 !astropy.units.Unit {unit: mag}
+#       value: !astropy.table.SerializedColumn {name: mag}
+#     mag_err:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: *id001
+#       value: !astropy.table.SerializedColumn {name: mag_err}
 # schema: astropy-2.0
 MJD flux flux_error mag mag_err band zeropoint SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
-62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 2348.0 2458.98456 24.23491052188777 24.184766248812018
+62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 1040.0 1069.10031 25.119072405079763 25.089109614636662

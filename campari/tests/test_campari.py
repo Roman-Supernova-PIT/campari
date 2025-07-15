@@ -122,12 +122,10 @@ def test_simulate_images(roman_path):
                         deltafcn_profile=False, roman_path=roman_path, size=11,
                         input_psf=airy, bg_gal_flux=9e5, base_sca=3, base_pointing=5934, source_phot_ops=False)
 
-    np.save(pathlib.Path(__file__).parent / "testdata/images.npy", images)
     compare_images = np.load(pathlib.Path(__file__).parent
                              / "testdata/images.npy")
 
     np.testing.assert_allclose(images, compare_images, rtol=1e-7)
-    #assert compare_images.all() == np.asarray(images).all()
 
 
 def test_simulate_wcs(roman_path):
@@ -512,7 +510,8 @@ def test_make_adaptive_grid():
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
-        image = compare_images[:11**2].reshape(11, 11)
+        Lager.debug(f"compare_images shape: {compare_images.shape}")
+        image = compare_images[0].reshape(11, 11)
         ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                                image=image, percentiles=[99])
         test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
@@ -539,12 +538,12 @@ def test_make_contour_grid():
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
-        image = compare_images[:11**2].reshape(11, 11)
+        image = compare_images[0].reshape(11, 11)
         ra_grid, dec_grid = make_contour_grid(image, wcs)
-        msg = f"RA vals do not match to {atol:.1e} using galsim wcs."
+        msg = f"RA vals do not match to {atol:.1e}."
         np.testing.assert_allclose(ra_grid[:4], test_ra,
                                    atol=atol, rtol=1e-9), msg
-        msg = f"Dec vals do not match to {atol:.1e} using galsim wcs."
+        msg = f"Dec vals do not match to {atol:.1e}."
         np.testing.assert_allclose(dec_grid[:4], test_dec,
                                    atol=atol, rtol=1e-9), msg
 
@@ -596,7 +595,9 @@ def test_construct_static_scene(cfg, roman_path):
     size = 9
     band = "Y106"
     truth = "simple_model"
-    imagepath = roman_path + (f"/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz")
+    imagepath = roman_path + (
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
+    )
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
 
@@ -621,8 +622,9 @@ def test_get_weights(roman_path):
     sca = 3
     truth = "simple_model"
     band = "Y106"
-    imagepath = roman_path + (f"/Roman_TDS_{truth}_{band}_{pointing}_"
-                              f"{sca}.fits.gz")
+    imagepath = roman_path + (
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
+    )
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     wcs = snappl_image.get_wcs()
     Lager.debug(wcs.pixel_to_world(2044, 2044))
@@ -702,12 +704,22 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
         "DETECTED": [False, True],
         "BAND": ["Y106", "Y106"],
     })
+
+    exposures = pd.DataFrame(
+        {
+            "Pointing": [5934, 35198],
+            "SCA": [3, 2],
+            "date": [62000.40235, 62495.605],
+            "DETECTED": [False, True],
+            "BAND": ["Y106", "Y106"],
+        }
+    )
+
     explist = Table.from_pandas(exposures)
     explist.sort(["DETECTED", "SCA"])
 
     # The data values are arbitary, just to check that the lc is constructed properly.
-    lc = build_lightcurve(40120913, explist, 100, 100, 10, 7, -41)
-
+    lc = build_lightcurve(20172782, explist, 100, 100, 10, 7, -41)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
