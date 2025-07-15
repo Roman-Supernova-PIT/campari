@@ -87,7 +87,11 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     """
+    Lager.debug(f'CRPIX1 {wcs.to_fits_header()["CRPIX1"]}')
+    if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
 
+        Lager.warning("This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
+                      "cutout WCS, this is likely not a cutout WCS.")
     if subsize > size:
         Lager.warning("subsize is larger than the image size. " +
                       f"{size} > {subsize}. This would cause model points to" +
@@ -305,7 +309,10 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
         least util_ref or band"
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
+    Lager.debug(sca_wcs)
+    Lager.debug(f"input ra and dec {ra}, {dec}")
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
+    Lager.debug(f"x_sca: {x_sca}, y_sca: {y_sca}")
     bpass = roman.getBandpasses()[band]
 
     num_grid_points = np.size(x_sca)
@@ -336,7 +343,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {num_grid_points}")
-
+        Lager.debug(f"Drawing PSF at x0={x_loc}, y0={y_loc}, x={x}, y={y}")
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()
 
     return psfs
@@ -448,6 +455,7 @@ def find_parquet(ID, path, obj_type="SN"):
         # Should I convert the entire array or is there a smarter way to do
         # this?
         if ID in df.id.values or str(ID) in df.id.values:
+            Lager.debug(f"Found {obj_type} {ID} in {f}")
             return pqfile
 
 
@@ -457,6 +465,7 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     base_name = "{:s}_{}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
+    Lager.debug(f"Opened {file_path}")
     return df
 
 
@@ -1108,7 +1117,9 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     """
     filenum = find_parquet(SNID, sn_path, obj_type="SN")
     file_name = "snana" + "_" + str(filenum) + ".hdf5"
+
     fullpath = os.path.join(sn_path, file_name)
+    Lager.debug(fullpath)
     # Setting locking=False on the next line becasue it seems that you can't
     #   open an h5py file unless you have write access to... something.
     #   Not sure what.  The directory where it exists?  We won't
@@ -1119,7 +1130,10 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     #   think somebody else might change the file
     #   while you're in the middle of reading bits of it.
     sed_table = h5py.File(fullpath, "r", locking=False)
+    Lager.debug(SNID)
     sed_table = sed_table[str(SNID)]
+
+    Lager.debug(f'sed_table_type{type(sed_table)}')
     flambda = sed_table["flambda"]
     lam = sed_table["lambda"]
     mjd = sed_table["mjd"]

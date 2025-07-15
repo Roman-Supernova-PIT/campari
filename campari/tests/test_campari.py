@@ -587,42 +587,42 @@ def test_construct_static_scene(cfg, roman_path):
     config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
+
+    pointing = 5934
+    sca = 3
     size = 9
     band = "Y106"
     truth = "simple_model"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
+    imagepath = roman_path + (f"/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz")
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
 
     wcs = snappl_image.get_wcs()
 
-    ra_grid = np.array([8.0810201,  8.08112403, 8.08122796, 8.08109031])
-    dec_grid = np.array([-44.49317591, -44.49322778, -44.49327965, -44.49310067])
+    ra_grid = np.array([7.47193824, 7.47204612, 7.472154, 7.4718731, 7.47198098])
+    dec_grid = np.array([-44.8280889, -44.82804109, -44.82799327, -44.82801657, -44.82796875])
 
     psf_background = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
                                             stampsize=size, band="Y106", util_ref=util_ref)
 
-    test_psf_background = np.load(pathlib.Path(__file__).parent
-                                  / "testdata/test_psf_bg.npy")
+    test_psf_background = np.load(pathlib.Path(__file__).parent / "testdata/test_psf_bg.npy")
 
-    np.testing.assert_allclose(psf_background, test_psf_background,
-                               atol=1e-7)
+    np.testing.assert_allclose(psf_background, test_psf_background, atol=1e-7)
 
 
 def test_get_weights(roman_path):
-    test_snra = np.array([7.34465537])
-    test_sndec = np.array([-44.91932581])
     size = 7
-    pointing = 111
-    sca = 13
+    test_snra = np.array([7.471881246770769])
+    test_sndec = np.array([-44.82824910386988])
+    pointing = 5934
+    sca = 3
     truth = "simple_model"
     band = "Y106"
-    imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
-                              f"/Roman_TDS_{truth}_{band}_{pointing}_"
+    imagepath = roman_path + (f"/Roman_TDS_{truth}_{band}_{pointing}_"
                               f"{sca}.fits.gz")
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    wcs = snappl_image.get_wcs()
+    Lager.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
