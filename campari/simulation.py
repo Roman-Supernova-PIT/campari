@@ -190,8 +190,8 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
                  band):
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
-    image = fits.open(roman_path + f"/RomanTDS/images/truth/{band}/" +
-                      f"{base_pointing}/Roman_TDS_truth_{band}_{base_pointing}"
+    image = fits.open(roman_path + f"/RomanTDS/images/simple_model/{band}/" +
+                      f"{base_pointing}/Roman_TDS_simple_model_{band}_{base_pointing}"
                       + f"_{base_sca}.fits.gz")
 
     CD_matrix = np.zeros((2, 2))
@@ -215,8 +215,8 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
             "CUNIT2": image[0].header["CUNIT2"],
             "CRVAL1":   image[0].header["CRVAL1"] + x_shift,
             "CRVAL2":  image[0].header["CRVAL2"] + y_shift,
-            "NAXIS1": image[0].header["NAXIS1"],
-            "NAXIS2": image[0].header["NAXIS2"]
+    #        "NAXIS1": image[0].header["NAXIS1"],
+    #        "NAXIS2": image[0].header["NAXIS2"]
         }
 
     return wcs_dict
@@ -246,7 +246,8 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
 
     # Code below copied from galsim largely
     if not source_phot_ops:
-        result = sim_psf.drawImage(roman_bandpasses[band], image=stamp,
+        profile = galsim.Convolve(profile, sim_psf)
+        result = profile.drawImage(roman_bandpasses[band], image=stamp,
                                    wcs=stamp.wcs, method="no_pixel",
                                    center=galsim.PositionD(snx, sny),
                                    use_true_center=True)
