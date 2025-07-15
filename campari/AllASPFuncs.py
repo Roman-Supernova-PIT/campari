@@ -731,10 +731,6 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
         raise ValueError("No pre-detection images found in time range " +
                          "provided, skipping this object.")
 
-    if num_predetection_images == 0:
-        raise ValueError("No detection images found in time range " +
-                         "provided, skipping this object.")
-
     if num_total_images != np.inf and len(exposures) != num_total_images:
         raise ValueError(f"Not Enough Exposures. \
             Found {len(exposures)} out of {num_total_images} requested")
@@ -1130,10 +1126,7 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     #   think somebody else might change the file
     #   while you're in the middle of reading bits of it.
     sed_table = h5py.File(fullpath, "r", locking=False)
-    Lager.debug(SNID)
     sed_table = sed_table[str(SNID)]
-
-    Lager.debug(f'sed_table_type{type(sed_table)}')
     flambda = sed_table["flambda"]
     lam = sed_table["lambda"]
     mjd = sed_table["mjd"]

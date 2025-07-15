@@ -203,7 +203,8 @@ def test_savelightcurve():
 
 def test_run_on_star():
     # Call it as a function first so we can pdb and such
-    args = ["_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+    # "40973149150"
+    args = ["_", "-s", "40973166870", "-f", "Y106", "-t", "20000", "-d", "10000",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
