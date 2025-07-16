@@ -273,10 +273,11 @@ def main():
         columns = ["Pointing", "SCA"]
         image_df = pd.read_csv(args.img_list, header=None, names=columns)
         # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
+        pointing_list = image_df["Pointing"]
         max_no_transient_images = None
         max_transient_images = None
     else:
-        image_df = None
+        pointing_list = None
 
     # PSF for when not using the Roman PSF:
     lam = 1293  # nm
@@ -315,9 +316,9 @@ def main():
                                          maxbg=max_no_transient_images,
                                          maxdet=max_transient_images, return_list=True,
                                          band=band, image_selection_start=image_selection_start,
-                                         image_selection_end=image_selection_end, pointing_list=image_df["Pointing"])
+                                         image_selection_end=image_selection_end, pointing_list=pointing_list)
 
-            if not np.array_equiv(np.sort(exposures["Pointing"]), np.sort(image_df["Pointing"])):
+            if not np.array_equiv(np.sort(exposures["Pointing"]), np.sort(pointing_list)):
                 Lager.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
                               " following pointings were not found: "
                               f"{np.setdiff1d(image_df['Pointing'], exposures['Pointing'])}")

@@ -309,10 +309,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
         least util_ref or band"
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
-    Lager.debug(sca_wcs)
-    Lager.debug(f"input ra and dec {ra}, {dec}")
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
-    Lager.debug(f"x_sca: {x_sca}, y_sca: {y_sca}")
     bpass = roman.getBandpasses()[band]
 
     num_grid_points = np.size(x_sca)
@@ -343,7 +340,6 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {num_grid_points}")
-        Lager.debug(f"Drawing PSF at x0={x_loc}, y0={y_loc}, x={x}, y={y}")
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()
 
     return psfs
@@ -1366,6 +1362,8 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
             "host_ra": df_object_row["host_ra"].values[0].item(),
             "host_dec": df_object_row["host_dec"].values[0].item(),
         }
+    else:
+        meta_dict = None
 
     data_dict = {
         "SIM_realized_flux": sim_realized_flux,

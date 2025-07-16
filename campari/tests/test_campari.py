@@ -201,13 +201,14 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-def test_run_on_star(roman_path):
+def test_run_on_star(roman_path, cfg):
     # Call it as a function first so we can pdb and such
-    # "40973149150"
-    args = ["_", "-s", "40973166870", "-f", "Y106", "-t", "20000", "-d", "10000", "-i",
-            f"{roman_path}/test_image_list.csv",
+
+    args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
+            f"{roman_path}/test_image_list_star.csv",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
+
     try:
         sys.argv = args
         RomanASP.main()
@@ -216,26 +217,27 @@ def test_run_on_star(roman_path):
     finally:
         sys.argv = orig_argv
 
-    # Make sure it runs from the command line
-    err_code = os.system("python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 "
+    err_code = os.system("python ../RomanASP.py -s 40973166870 -f Y106 -i"
+                         f" {roman_path}/test_image_list_star.csv "
                          "--object_type star --photometry-campari-grid_options-type none")
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
-def test_regression_function():
+def test_regression_function(roman_path):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40120913_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1",
+    a = ["_", "-s", "20172782", "-f", "Y106", "-i",
+            f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -320,7 +322,7 @@ def test_regression_function():
         sys.argv = orig_argv
 
 
-def test_regression():
+def test_regression(roman_path):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
@@ -328,13 +330,15 @@ def test_regression():
 
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40120913_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
+    output = os.system("python ../RomanASP.py -s 20172782 -f Y106 "
+                       "-i"
+                       f"{roman_path}/test_image_list.csv "
                        "--photometry-campari-use_roman "
                        "--photometry-campari-use_real_images "
                        "--no-photometry-campari-fetch_SED "
