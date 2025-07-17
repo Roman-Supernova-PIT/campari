@@ -733,3 +733,26 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
         else:
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
+
+
+def test_wcs_regression(roman_path):
+    pointing = 5934  # These numbers are arbitrary for this test.
+    sca = 3
+    band = "Y106"
+    truth = "simple_model"
+    imagepath = roman_path + (
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
+    )
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    wcs = snappl_image.get_wcs()
+
+    x_test, y_test = 2044, 2044
+    ra, dec = wcs.pixel_to_world(x_test, y_test)
+    np.testing.assert_allclose(ra, 7.471881246770769, atol=1e-7)
+    np.testing.assert_allclose(dec, -44.82824910386988, atol=1e-7)
+
+    ra_test, dec_test = 7.471881246770769, -44.82824910386988
+    x, y = wcs.world_to_pixel(ra_test, dec_test)
+    np.testing.assert_allclose(x, x_test, atol=1e-7)
+    np.testing.assert_allclose(y, y_test, atol=1e-7)
