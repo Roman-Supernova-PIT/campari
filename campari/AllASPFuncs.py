@@ -563,11 +563,11 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
 
     Lager.debug(f"truth in construct images: {truth}")
 
-    for indx, i in enumerate(exposures):
+    for indx, exp in enumerate(exposures):
         Lager.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = i["BAND"]
-        pointing = i["pointing"]
-        sca = i["SCA"]
+        band = exp["BAND"]
+        pointing = exp["pointing"]
+        sca = exp["SCA"]
 
         # TODO : replace None with the right thing once Exposure is implemented
 

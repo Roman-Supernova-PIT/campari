@@ -168,9 +168,14 @@ def main():
     # used.  TODO: specify type of image, and adapt the code to handle
     # that.  Right now it will just assume openuniverse 2024.
 
-    parser.add_argument("-i", "--img_list", default=None,
-                        help="File with list of images. Note that if you pass an image list, the max number of images "
-                             "to use will be ignored, and campari will use all the images in the list.")
+    parser.add_argument(
+        "-i",
+        "--img_list",
+        default=None,
+        help="File with list of images. Note that if you pass an image list, the arguments "
+        "--max_no_transient_images and --max_transient_images"
+        " will be ignored, and campari will use all the images in the list.",
+    )
 
     ####################
     # What does it mean to run on stars??????  Assume constant flux? No
