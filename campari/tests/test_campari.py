@@ -736,7 +736,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
 
 
 def test_wcs_regression(roman_path):
-    pointing = 5934  # These numbers are arbitrary for this test.
+    pointing = 5934
     sca = 3
     band = "Y106"
     truth = "simple_model"
