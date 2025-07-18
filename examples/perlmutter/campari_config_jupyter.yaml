@@ -7,7 +7,7 @@ photometry:
   campari:
     cutout_size: 11
     initial_flux_guess: 3000
-    fetch_SED: true
+    fetch_SED: false
     source_phot_ops: true
     use_roman: true
     weighting: true
@@ -16,6 +16,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
+    save_model: true
 
     paths:
       sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
@@ -29,7 +30,7 @@ photometry:
       tds_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
 
     grid_options:
-      type: contour
+      type: regular
       percentiles:
       - 0
       - 90
@@ -49,8 +50,8 @@ photometry:
       make_exact: false
       mismatch_seds: false
       noise: 0
-      sim_gal_dec_offset: 1e-5
-      sim_gal_ra_offset: 1e-5
+      sim_gal_dec_offset: 0.00001
+      sim_gal_ra_offset: 0.00001
       single_grid_point: false
 
 ou24psf:

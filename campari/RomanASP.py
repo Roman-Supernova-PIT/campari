@@ -195,6 +195,7 @@ def main():
     image_selection_start = args.image_selection_start
     image_selection_end = args.image_selection_end
     object_type = args.object_type
+    object_lookup = args.object_lookup
 
     config = Config.get(args.config, setdefault=True)
 
@@ -225,6 +226,8 @@ def main():
     spacing = config.value("photometry.campari.grid_options.spacing")
     percentiles = config.value("photometry.campari.grid_options.percentiles")
     grid_type = config.value("photometry.campari.grid_options.type")
+    save_model = config.value("photometry.campari.save_model")
+
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -258,8 +261,14 @@ def main():
             f"MJD {transient_start} and {transient_end}."
         )
 
-    elif args.object_lookup and (args.SNID is None) and (args.SNID_file is None):
-        raise ValueError("Must specify --SNID, --SNID-file, to run campari with --object_lookup. Note that"
+    # if not use_real_images:
+    #     # Override object lookup if we are not using real images.
+    #     Lager.warning("Not using real images, so object lookup is being overridden to False.")
+    #     object_lookup = False
+    #     SNID = 000000000
+
+    elif object_lookup and (args.SNID is None) and (args.SNID_file is None):
+        raise ValueError("Must specify --SNID or --SNID-file to run campari with --object_lookup. Note that"
                          " --object_lookup is True by default, so if you want to run campari without looking up a SNID,"
                          " you must set --object_lookup=False.")
     else:
@@ -291,7 +300,7 @@ def main():
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
-            if args.object_lookup:
+            if object_lookup:
                 pqfile = find_parquet(ID, sn_path, obj_type=object_type)
                 Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
 
@@ -301,23 +310,22 @@ def main():
                                                                                       obj_type=object_type)
                 Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
 
+            if fetch_SED:
+                sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
+            else:
+                sed_obj = Flat_SED()
+            sedlist = []
             exposures = findAllExposures(ra, dec, transient_start, transient_end,
                                          roman_path=roman_path,
                                          maxbg=num_total_images - num_detect_images,
                                          maxdet=num_detect_images, return_list=True,
                                          band=band, image_selection_start=image_selection_start,
                                          image_selection_end=image_selection_end)
-            if fetch_SED:
-                sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
-            else:
-                sed_obj = Flat_SED()
-
-            sedlist = []
             for date in exposures["date"]:
                 sedlist.append(sed_obj.get_sed(snid=ID, mjd=date))
 
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-                confusion_metric, X, cutout_wcs_list, sim_lc = \
+                confusion_metric, X, cutout_wcs_list, sim_lc, psf_matrix = \
                 run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images, roman_path,
                                sn_path, size, band, fetch_SED, sedlist, use_real_images,
                                use_roman, subtract_background,
@@ -343,7 +351,7 @@ def main():
         if use_real_images:
             identifier = str(ID)
             lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
-            if args.object_lookup:
+            if object_lookup:
                 lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
 
         else:
@@ -379,6 +387,14 @@ def main():
         hdul = fits.HDUList(hdul)
         filepath = debug_dir / f"{identifier}_{band}_{psftype}_wcs.fits"
         hdul.writeto(filepath, overwrite=True)
+
+        # save psfs that generated the scene model
+        if save_model:
+            np.save(debug_dir / f"{identifier}_{band}_{psftype}_psf_scene_model.npy",
+                    psf_matrix)
+        Lager.debug(f"Saved psf scene model to {debug_dir / f'{identifier}_{band}_{psftype}_psf_scene_model.npy'}")
+
+
 
 
 if __name__ == "__main__":

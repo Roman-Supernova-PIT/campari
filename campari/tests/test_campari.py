@@ -111,7 +111,7 @@ def test_simulate_images(roman_path):
                                    getPSF(1, band, pupil_bin=1).aberrations)
     # Fluxes for the simulated supernova, days arbitrary.
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
-    images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
+    images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref, image_list, cutout_image_list = \
         simulate_images(num_total_images=10, num_detect_images=5,
                         ra=7.541534306163982,
                         dec=-44.219205940734625,
@@ -121,10 +121,17 @@ def test_simulate_images(roman_path):
                         noise=0, use_roman=False, band=band,
                         deltafcn_profile=False, roman_path=roman_path, size=11,
                         input_psf=airy, bg_gal_flux=9e5)
+    # images = []
+    # for ci in cutout_image_list:
+    #     images.append(ci.data)
+    # images = np.array(images)
+    # images = images.flatten()
+
 
     compare_images = np.load(pathlib.Path(__file__).parent
-                             / "testdata/images.npy")
-    assert compare_images.all() == np.asarray(images).all()
+                              / "testdata/images.npy")
+    # assert compare_images.all() == np.asarray(images).all()
+    np.testing.assert_equal(np.asarray(images), compare_images)
 
 
 def test_simulate_wcs(roman_path):
@@ -133,7 +140,10 @@ def test_simulate_wcs(roman_path):
                             base_pointing=662, band="F184")
     b = np.load(pathlib.Path(__file__).parent / "testdata/wcs_dict.npz",
                 allow_pickle=True)
-    assert wcs_dict == b, "WCS simulation does not match test example"
+
+    for key in list(wcs_dict.keys()):
+        print(wcs_dict[key], b[key])
+        np.testing.assert_equal(wcs_dict[key], b[key])
 
 
 def test_simulate_galaxy():

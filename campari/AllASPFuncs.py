@@ -893,7 +893,7 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                                                percentiles=percentiles)
     elif grid_type == "regular":
         ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
-                                              size=size, spacing=0.75)
+                                              size=size, spacing=2.0)
 
     if grid_type == "single":
         ra_grid, dec_grid = [ra], [dec]
@@ -1699,7 +1699,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
+        images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref, image_list, cutout_image_list = \
             simulate_images(num_total_images, num_detect_images, ra, dec,
                             sim_gal_ra_offset, sim_gal_dec_offset,
                             do_xshift, do_rotation, noise=noise,
@@ -1708,7 +1708,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
-                            mismatch_seds=mismatch_seds)
+                            mismatch_seds=mismatch_seds, base_pointing=5934, base_sca=3)
         object_type = "SN"
         err = np.ones_like(images)
 
@@ -1927,6 +1927,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     except LinAlgError:
         cov = np.linalg.pinv(inv_cov)
 
+    print("NaN images:", np.where(np.isnan(images)))
+    print("NaN psf matrix:", np.where(np.isnan(psf_matrix)))
+    print("NaN wgt matrix:", np.where(np.isnan(wgt_matrix)))
+
     Lager.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
     sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:])
     Lager.debug(f"sigma flux: {sigma_flux}")
@@ -1955,7 +1959,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         sim_lc = np.zeros(num_detect_images)
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
-        [im.get_wcs() for im in cutout_image_list], sim_lc
+        [im.get_wcs() for im in cutout_image_list], sim_lc, psf_matrix
 
 
 def plot_image_and_grid(image, wcs, ra_grid, dec_grid):

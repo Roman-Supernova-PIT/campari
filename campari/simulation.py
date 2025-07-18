@@ -15,6 +15,8 @@ from roman_imsim.utils import roman_utils
 
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
+from snappl.image import ManualFITSImage
+
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -80,6 +82,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     roman_bandpasses = galsim.roman.getBandpasses()
     psf_storage = []
     sn_storage = []
+    image_list = []
+    cutout_image_list = []
 
     for i in range(num_total_images):
 
@@ -95,9 +99,22 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         else:
             rotation_angle = 0
 
+        Lager.debug(f"Simulating WCS with rotation angle {rotation_angle} and x shift {x_shift} and y shift {y_shift}")
         wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift, roman_path,
                                 base_sca, base_pointing, band)
         imwcs = WCS(wcs_dict)
+
+        imagepath = roman_path + (
+            f"/RomanTDS/images/simple_model/{band}/{base_pointing}/"
+            f"Roman_TDS_simple_model_{band}_{base_pointing}_{base_sca}.fits.gz"
+        )
+        header = fits.open(imagepath)[0].header
+        image_object = ManualFITSImage(header=header, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)),
+                                       flags=np.zeros((4088, 4088)))
+
+        image_object.get_wcs()
+
+        cutout_object = image_object.get_ra_dec_cutout(ra, dec, xsize=size)
 
         # Just using this astropy tool to get the cutout wcs.
         cutoutstamp = Cutout2D(np.zeros((4088, 4088)), SkyCoord(ra=ra*u.degree,
@@ -172,26 +189,32 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                 a += supernova_image
                 sn_storage.append(supernova_image)
 
+        cutout_object.data = a
+
+        # TODO: Decide how error is handled for simulated images.
+        cutout_object.noise = np.ones_like(a)
         cutout_wcs_list.append(cutoutgalwcs)
         imagelist.append(a)
+
+        image_list.append(image_object)
+        cutout_image_list.append(cutout_object)
 
     images = imagelist
     Lager.debug(f"images shape: {images[0].shape}")
     Lager.debug(f"images length {len(images)}")
-    file_path = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
+    file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=file_path,
                            visit=base_pointing, sca=base_sca)
 
-
-    return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref
+    return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref, image_list, cutout_image_list
 
 
 def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
                  band):
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
-    image = fits.open(roman_path + f"/RomanTDS/images/truth/{band}/" +
-                      f"{base_pointing}/Roman_TDS_truth_{band}_{base_pointing}"
+    image = fits.open(roman_path + f"/RomanTDS/images/simple_model/{band}/" +
+                      f"{base_pointing}/Roman_TDS_simple_model_{band}_{base_pointing}"
                       + f"_{base_sca}.fits.gz")
 
     CD_matrix = np.zeros((2, 2))
@@ -214,9 +237,7 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
             "CUNIT1": image[0].header["CUNIT1"],
             "CUNIT2": image[0].header["CUNIT2"],
             "CRVAL1":   image[0].header["CRVAL1"] + x_shift,
-            "CRVAL2":  image[0].header["CRVAL2"] + y_shift,
-            "NAXIS1": image[0].header["NAXIS1"],
-            "NAXIS2": image[0].header["NAXIS2"]
+            "CRVAL2":  image[0].header["CRVAL2"] + y_shift
         }
 
     return wcs_dict
@@ -252,7 +273,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                                    use_true_center=True)
         return result.array
 
-    config_file = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
+    config_file = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=config_file, visit=base_pointing,
                            sca=base_sca)
     photon_ops = [sim_psf] + util_ref.photon_ops
