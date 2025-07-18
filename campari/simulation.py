@@ -215,8 +215,6 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
             "CUNIT2": image[0].header["CUNIT2"],
             "CRVAL1":   image[0].header["CRVAL1"] + x_shift,
             "CRVAL2":  image[0].header["CRVAL2"] + y_shift,
-    #        "NAXIS1": image[0].header["NAXIS1"],
-    #        "NAXIS2": image[0].header["NAXIS2"]
         }
 
     return wcs_dict

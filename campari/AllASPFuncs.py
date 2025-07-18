@@ -1114,7 +1114,6 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     file_name = "snana" + "_" + str(filenum) + ".hdf5"
 
     fullpath = os.path.join(sn_path, file_name)
-    Lager.debug(fullpath)
     # Setting locking=False on the next line becasue it seems that you can't
     #   open an h5py file unless you have write access to... something.
     #   Not sure what.  The directory where it exists?  We won't

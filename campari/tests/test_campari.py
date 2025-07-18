@@ -105,6 +105,10 @@ def test_findAllExposures(roman_path):
 
 def test_simulate_images(roman_path):
     lam = 1293  # nm
+    ra = 7.47193824
+    dec = -44.8280889
+    base_sca = 3
+    base_pointing = 5934
     band = "Y106"
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
@@ -113,14 +117,15 @@ def test_simulate_images(roman_path):
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
     images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
         simulate_images(num_total_images=10, num_detect_images=5,
-                        ra=7.47193824,
-                        dec=-44.8280889,
+                        ra=ra,
+                        dec=dec,
                         sim_gal_ra_offset=1e-5,
                         sim_gal_dec_offset=1e-5, do_xshift=True,
                         do_rotation=True, sim_lc=test_lightcurve,
                         noise=0, use_roman=False, band=band,
                         deltafcn_profile=False, roman_path=roman_path, size=11,
-                        input_psf=airy, bg_gal_flux=9e5, base_sca=3, base_pointing=5934, source_phot_ops=False)
+                        input_psf=airy, bg_gal_flux=9e5, base_sca=base_sca,
+                        base_pointing=base_pointing, source_phot_ops=False)
 
     compare_images = np.load(pathlib.Path(__file__).parent
                              / "testdata/images.npy")
