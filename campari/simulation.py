@@ -261,6 +261,12 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
 def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                        source_phot_ops, base_pointing, base_sca,
                        random_seed=0):
+
+    Lager.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} "
+                f"and band {band}.")
+    Lager.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
+    Lager.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
+
     roman_bandpasses = galsim.roman.getBandpasses()
     profile = galsim.DeltaFunction()*sed
     profile = profile.withFlux(flux, roman_bandpasses[band])

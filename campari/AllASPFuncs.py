@@ -893,7 +893,7 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
                                                percentiles=percentiles)
     elif grid_type == "regular":
         ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
-                                              size=size, spacing=2.0)
+                                              size=size, spacing=10.0)
 
     if grid_type == "single":
         ra_grid, dec_grid = [ra], [dec]

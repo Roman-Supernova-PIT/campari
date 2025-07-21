@@ -30,19 +30,19 @@ photometry:
       tds_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
 
     grid_options:
-      type: regular
+      type: none
       percentiles:
       - 0
       - 90
       - 98
       - 100
-      spacing: 0.75
+      spacing: 10
       turn_grid_off: false
 
     simulations:
       avoid_non_linearity: false
       background_level: 0
-      bg_gal_flux: 100000.0
+      bg_gal_flux: 0.1
       check_perfection: false
       deltafcn_profile: false
       do_rotation: true
