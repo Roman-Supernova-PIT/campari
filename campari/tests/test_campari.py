@@ -34,7 +34,7 @@ from campari.AllASPFuncs import (
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
-    findAllExposures,
+    find_all_exposures,
     get_galsim_SED,
     get_galsim_SED_list,
     get_object_info,
@@ -89,17 +89,17 @@ def test_get_object_info(roman_path, sn_path):
     assert peak[0] == np.float32(62683.98)
 
 
-def test_findAllExposures(roman_path):
-    explist = findAllExposures(7.731890048839705, -44.4589649005717,
-                               62654., 62958., "Y106", maxbg=24,
-                               maxdet=24, return_list=True,
-                               roman_path=roman_path,
-                               pointing_list=None, sca_list=None,
-                               truth="simple_model")
+def test_find_all_exposures(roman_path):
+    explist = find_all_exposures(7.731890048839705, -44.4589649005717,
+                                 62654., 62958., "Y106", maxbg=24,
+                                 maxdet=24, return_list=True,
+                                 roman_path=roman_path,
+                                 pointing_list=None, sca_list=None,
+                                 truth="simple_model")
     compare_table = ascii.read(pathlib.Path(__file__).parent
                                / "testdata/findallexposurestest.dat")
-    assert explist["Pointing"].all() == compare_table["Pointing"].all()
-    assert explist["SCA"].all() == compare_table["SCA"].all()
+    assert explist["pointing"].all() == compare_table["pointing"].all()
+    assert explist["sca"].all() == compare_table["sca"].all()
     assert explist["date"].all() == compare_table["date"].all()
 
 
@@ -693,14 +693,14 @@ def test_extract_id_using_ra_dec(sn_path):
 
 def test_build_lc_and_add_truth(roman_path, sn_path):
     exposures = pd.DataFrame({
-        "Pointing": [111, 38265],
-        "SCA": [13, 15],
+        "pointing": [111, 38265],
+        "sca": [13, 15],
         "date": [62000.40235, 62495.605],
-        "DETECTED": [False, True],
-        "BAND": ["Y106", "Y106"],
+        "detected": [False, True],
+        "band": ["Y106", "Y106"],
     })
     explist = Table.from_pandas(exposures)
-    explist.sort(["DETECTED", "SCA"])
+    explist.sort(["detected", "sca"])
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(40120913, explist, 100, 100, 10, 7, -41)

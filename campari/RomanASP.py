@@ -23,7 +23,7 @@ from campari.AllASPFuncs import (add_truth_to_lc,
                                  banner,
                                  build_lightcurve,
                                  build_lightcurve_sim,
-                                 findAllExposures,
+                                 find_all_exposures,
                                  find_parquet,
                                  get_object_info,
                                  run_one_object,
@@ -301,12 +301,12 @@ def main():
                                                                                       obj_type=object_type)
                 Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
 
-            exposures = findAllExposures(ra, dec, transient_start, transient_end,
-                                         roman_path=roman_path,
-                                         maxbg=num_total_images - num_detect_images,
-                                         maxdet=num_detect_images, return_list=True,
-                                         band=band, image_selection_start=image_selection_start,
-                                         image_selection_end=image_selection_end)
+            exposures = find_all_exposures(ra, dec, transient_start, transient_end,
+                                           roman_path=roman_path,
+                                           maxbg=num_total_images - num_detect_images,
+                                           maxdet=num_detect_images, return_list=True,
+                                           band=band, image_selection_start=image_selection_start,
+                                           image_selection_end=image_selection_end)
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
             else:

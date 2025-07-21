@@ -1,4 +1,4 @@
-filter Pointing SCA date offpeak_time DETECTED zeropoint "true mag" "true flux" "realized flux" BAND
+filter pointing sca date offpeak_time detected zeropoint "true mag" "true flux" "realized flux" band
 Y106 7862 1 62100.665 553.3349999999991 False 15.023547190784024 "" "" "" Y106
 Y106 6703 1 62085.6436 568.3563999999969 False 15.023547190903034 "" "" "" Y106
 Y106 3209 1 62040.4928 613.5072 False 15.023547190784933 "" "" "" Y106
