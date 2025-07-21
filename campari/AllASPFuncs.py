@@ -398,11 +398,10 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         raise RuntimeError(f"Got status code {result.status_code}\n"
                            "{result.text}")
 
-    res = pd.DataFrame(result.json())[["filter", "pointing", "sca", "mjd"]]
+    res = pd.DataFrame(result.json())[["pointing", "sca", "mjd"]]
     res.rename(columns={"mjd": "date", "pointing": "pointing", "sca": "sca"},
                inplace=True)
 
-    res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
     det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
