@@ -1,0 +1,1 @@
+Made functions and table columns lowercase
