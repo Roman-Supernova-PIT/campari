@@ -375,7 +375,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         - date: the MJD of the exposure
         - detected: whether the exposure contains a detection or not.
     """
-    Lager.debug('Running find all exposures')
     f = fits.open(roman_path +
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
