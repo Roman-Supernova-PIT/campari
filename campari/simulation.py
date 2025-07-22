@@ -100,6 +100,9 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         imwcs = WCS(wcs_dict)
 
         # Just using this astropy tool to get the cutout wcs.
+
+        sn_x_sca, sn_y_sca = imwcs.world_to_pixel(SkyCoord(ra=snra*u.degree,
+                                                     dec=sndec*u.degree))
         cutoutstamp = Cutout2D(np.zeros((4088, 4088)), SkyCoord(ra=ra*u.degree,
                                dec=dec*u.degree), size, wcs=imwcs)
         cutoutgalwcs = galsim.AstropyWCS(wcs=cutoutstamp.wcs)
@@ -238,6 +241,15 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
 def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                        source_phot_ops, base_pointing, base_sca,
                        random_seed=0):
+
+
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
+                                    size=stampsize, include_photonOps=photOps)
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+                                     flux=1., seed=None)
+
+    #######
+
     roman_bandpasses = galsim.roman.getBandpasses()
     profile = galsim.DeltaFunction()*sed
     profile = profile.withFlux(flux, roman_bandpasses[band])
@@ -251,7 +263,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                                    use_true_center=True)
         return result.array
 
-    config_file = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
+    config_file = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=config_file, visit=base_pointing,
                            sca=base_sca)
     photon_ops = [sim_psf] + util_ref.photon_ops
