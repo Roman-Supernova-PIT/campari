@@ -15,6 +15,8 @@ from roman_imsim.utils import roman_utils
 
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger as Lager
+from snappl.image import ManualFITSImage
+from snappl.psf import PSF
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -80,6 +82,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     roman_bandpasses = galsim.roman.getBandpasses()
     psf_storage = []
     sn_storage = []
+    image_list = []
+    cutout_image_list = []
 
     for i in range(num_total_images):
 
@@ -99,10 +103,23 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                                 base_sca, base_pointing, band)
         imwcs = WCS(wcs_dict)
 
+        imagepath = roman_path + (
+            f"/RomanTDS/images/simple_model/{band}/{base_pointing}/"
+            f"Roman_TDS_simple_model_{band}_{base_pointing}_{base_sca}.fits.gz"
+        )
+        header = fits.open(imagepath)[0].header
+        image_object = ManualFITSImage(
+            header=header, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
+        )
+
+        image_object.get_wcs()
+
+        cutout_object = image_object.get_ra_dec_cutout(ra, dec, xsize=size)
+
         # Just using this astropy tool to get the cutout wcs.
 
-        sn_x_sca, sn_y_sca = imwcs.world_to_pixel(SkyCoord(ra=snra*u.degree,
-                                                     dec=sndec*u.degree))
+
+        #TODO this needs to be updated too.
         cutoutstamp = Cutout2D(np.zeros((4088, 4088)), SkyCoord(ra=ra*u.degree,
                                dec=dec*u.degree), size, wcs=imwcs)
         cutoutgalwcs = galsim.AstropyWCS(wcs=cutoutstamp.wcs)
@@ -175,9 +192,15 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                 a += supernova_image
                 sn_storage.append(supernova_image)
 
+        cutout_object.data = a
+        # TODO: Decide how error is handled for simulated images.
+        cutout_object.noise = np.ones_like(a)
+
         cutout_wcs_list.append(cutoutgalwcs)
         imagelist.append(a)
 
+        image_list.append(image_object)
+        cutout_image_list.append(cutout_object)
     images = imagelist
     Lager.debug(f"images shape: {images[0].shape}")
     Lager.debug(f"images length {len(images)}")
@@ -185,8 +208,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     util_ref = roman_utils(config_file=file_path,
                            visit=base_pointing, sca=base_sca)
 
-
-    return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref
+    return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref, image_list, cutout_image_list
 
 
 def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
@@ -243,10 +265,10 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                        random_seed=0):
 
 
-    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
-                                    size=stampsize, include_photonOps=photOps)
-    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-                                     flux=1., seed=None)
+    # psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
+    #                                 size=stampsize, include_photonOps=photOps)
+    # psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+    #                                  flux=1., seed=None)
 
     #######
 
