@@ -109,6 +109,8 @@ def test_simulate_images(roman_path):
     dec = -44.8280889
     base_sca = 3
     base_pointing = 5934
+    bg_gal_flux = 9e5
+    size = 11
     band = "Y106"
     airy = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
@@ -123,8 +125,9 @@ def test_simulate_images(roman_path):
                         sim_gal_dec_offset=1e-5, do_xshift=True,
                         do_rotation=True, sim_lc=test_lightcurve,
                         noise=0, use_roman=False, band=band,
-                        deltafcn_profile=False, roman_path=roman_path, size=11,
-                        input_psf=airy, bg_gal_flux=9e5, base_sca=base_sca,
+                        deltafcn_profile=False, roman_path=roman_path,
+                        size=size, input_psf=airy, bg_gal_flux=bg_gal_flux,
+                        base_sca=base_sca,
                         base_pointing=base_pointing, source_phot_ops=False)
 
     compare_images = np.load(pathlib.Path(__file__).parent
