@@ -98,7 +98,7 @@ def test_findAllExposures(roman_path):
                                truth="simple_model")
     compare_table = ascii.read(pathlib.Path(__file__).parent
                                / "testdata/findallexposurestest.dat")
-    assert explist["Pointing"].all() == compare_table["Pointing"].all()
+    assert explist["pointing"].all() == compare_table["pointing"].all()
     assert explist["SCA"].all() == compare_table["SCA"].all()
     assert explist["date"].all() == compare_table["date"].all()
 
@@ -202,7 +202,7 @@ def test_savelightcurve():
 
 def test_run_on_star():
     # Call it as a function first so we can pdb and such
-    args = ["_", "-s", "40973149150", "-f", "Y106", "-t", "1", "-d", "1",
+    args = ["_", "-s", "40973149150", "-f", "Y106", "-n", "1", "-t", "0",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
     try:
@@ -214,7 +214,7 @@ def test_run_on_star():
         sys.argv = orig_argv
 
     # Make sure it runs from the command line
-    err_code = os.system("python ../RomanASP.py -s 40973149150 -f Y106 -t 1 -d 1 "
+    err_code = os.system("python ../RomanASP.py -s 40973149150 -f Y106 -n 1 -t 0 "
                          "--object_type star --photometry-campari-grid_options-type none")
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -232,7 +232,7 @@ def test_regression_function():
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "40120913", "-f", "Y106", "-t", "2", "-d", "1",
+    a = ["_", "-s", "40120913", "-f", "Y106", "-n", "1", "-t", "1",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -331,7 +331,7 @@ def test_regression():
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -t 2 -d 1 "
+    output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -n 1 -t 1 "
                        "--photometry-campari-use_roman "
                        "--photometry-campari-use_real_images "
                        "--no-photometry-campari-fetch_SED "
@@ -693,7 +693,7 @@ def test_extract_id_using_ra_dec(sn_path):
 
 def test_build_lc_and_add_truth(roman_path, sn_path):
     exposures = pd.DataFrame({
-        "Pointing": [111, 38265],
+        "pointing": [111, 38265],
         "SCA": [13, 15],
         "date": [62000.40235, 62495.605],
         "DETECTED": [False, True],
@@ -756,3 +756,35 @@ def test_wcs_regression(roman_path):
     x, y = wcs.world_to_pixel(ra_test, dec_test)
     np.testing.assert_allclose(x, x_test, atol=1e-7)
     np.testing.assert_allclose(y, y_test, atol=1e-7)
+
+    
+def test_findAllExposures_with_img_list(roman_path):
+    band = "Y106"
+    columns = ["pointing", "SCA"]
+    image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
+    Lager.debug(image_df)
+    ra = 7.551093401915147
+    dec = -44.80718106491529
+    transient_start = 62450.
+    transient_end = 62881.
+    max_no_transient_images = None
+    max_transient_images = None
+    image_selection_start = -np.inf
+    image_selection_end = np.inf
+
+    exposures = findAllExposures(ra, dec, transient_start, transient_end,
+                                 roman_path=roman_path,
+                                 maxbg=max_no_transient_images,
+                                 maxdet=max_transient_images, return_list=True,
+                                 band=band, image_selection_start=image_selection_start,
+                                 image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
+
+    exposures = exposures.to_pandas()
+    test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
+    for col in test_exposures.columns:
+        if col == "BAND" or col == "DETECTED" or col == "filter":
+            np.testing.assert_array_equal(exposures[col], test_exposures[col])
+        else:
+            np.testing.assert_allclose(exposures[col], test_exposures[col],
+                                       rtol=1e-7, atol=1e-7)
+
