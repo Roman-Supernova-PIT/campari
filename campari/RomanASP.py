@@ -131,12 +131,15 @@ def main():
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
-    # If you give -t, -d, -b, and/or -e, then campari will decide
+    # If you give -n, -t, -b, and/or -e, then campari will decide
     #  (HOW?) what images to use.
-    parser.add_argument("-t", "--num_total_images", type=int, required=False,
-                        help="Number of images to use", default=np.inf)
-    parser.add_argument("-d", "--num_detect_images", type=int, required=False,
-                        help="Number of images to use with SN detections",
+    parser.add_argument("-n", "--max_no_transient_images", type=int, required=False,
+                        help="Number of images to use that are treated as having no transient."
+                        " Note that this is ignored if img_list is passed.",
+                        default=np.inf)
+    parser.add_argument("-t", "--max_transient_images", type=int, required=False,
+                        help="Number of images to use as having a transient present."
+                        " Note that this is ignored if img_list is passed.",
                         default=np.inf)
     parser.add_argument("-b", "--image_selection_start", type=float, required=False,
                         help="First MJD of images to be selected for use.",
@@ -161,12 +164,18 @@ def main():
                         " If not given but transient_start is, will assume the last detection is at +inf.",
                         default=None)
 
-    # If instead you give imglist, then you expliclty list the images
+    # If instead you give img_list, then you expliclty list the images
     # used.  TODO: specify type of image, and adapt the code to handle
     # that.  Right now it will just assume openuniverse 2024.
 
-    parser.add_argument("-i", "--img-list", default=None,
-                        help="File with list of images")
+    parser.add_argument(
+        "-i",
+        "--img_list",
+        default=None,
+        help="File with list of images. Note that if you pass an image list, the arguments "
+        "--max_no_transient_images and --max_transient_images"
+        " will be ignored, and campari will use all the images in the list.",
+    )
 
     ####################
     # What does it mean to run on stars??????  Assume constant flux? No
@@ -189,9 +198,8 @@ def main():
     cfg.parse_args(args)
 
     band = args.filter
-
-    num_total_images = args.num_total_images
-    num_detect_images = args.num_detect_images
+    max_no_transient_images = args.max_no_transient_images
+    max_transient_images = args.max_transient_images
     image_selection_start = args.image_selection_start
     image_selection_end = args.image_selection_end
     object_type = args.object_type
@@ -231,8 +239,6 @@ def main():
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
 
-    max_no_transient_images = num_total_images - num_detect_images  # This might be refactored in a more intelligent way
-    max_transient_images = num_detect_images                        # later.
 
     # Option 1, user passes a file of SNIDs
     if args.SNID_file is not None:
@@ -270,13 +276,15 @@ def main():
                          "to run campari.")
 
     if args.img_list is not None:
-        columns = ["Pointing", "SCA"]
+        columns = ["pointing", "sca"]
         image_df = pd.read_csv(args.img_list, header=None, names=columns)
         # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
         pointing_list = image_df["Pointing"]
         max_no_transient_images = None
         max_transient_images = None
+        pointing_list = image_df["pointing"].values
     else:
+        image_df = None
         pointing_list = None
 
     # PSF for when not using the Roman PSF:
@@ -289,7 +297,6 @@ def main():
         assert grid_type == "single"
     if avoid_non_linearity:
         assert deltafcn_profile
-    assert num_detect_images <= num_total_images
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
@@ -309,7 +316,8 @@ def main():
                                                                                       snpath=sn_path,
                                                                                       roman_path=roman_path,
                                                                                       obj_type=object_type)
-                Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}")
+                Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
+                            f"transient_end={transient_end}")
 
             exposures = findAllExposures(ra, dec, transient_start, transient_end,
                                          roman_path=roman_path,
@@ -318,10 +326,12 @@ def main():
                                          band=band, image_selection_start=image_selection_start,
                                          image_selection_end=image_selection_end, pointing_list=pointing_list)
 
-            if not np.array_equiv(np.sort(exposures["Pointing"]), np.sort(pointing_list)):
+
+            if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
+                                                                np.sort(pointing_list)):
                 Lager.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
                               " following pointings were not found: "
-                              f"{np.setdiff1d(image_df['Pointing'], exposures['Pointing'])}")
+                              f"{np.setdiff1d(pointing_list, exposures['pointing'])}")
 
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
@@ -332,9 +342,13 @@ def main():
             for date in exposures["date"]:
                 sedlist.append(sed_obj.get_sed(snid=ID, mjd=date))
 
+            # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
+            # actual image counts, not maximum possible.
+            max_images = max_no_transient_images + max_transient_images
+
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
-                run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images, roman_path,
+                run_one_object(ID, ra, dec, object_type, exposures, max_images, max_transient_images, roman_path,
                                sn_path, size, band, fetch_SED, sedlist, use_real_images,
                                use_roman, subtract_background,
                                make_initial_guess, initial_flux_guess,

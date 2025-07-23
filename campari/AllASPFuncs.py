@@ -383,7 +383,7 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
 
-    explist = tb.Table(names=("Pointing", "SCA", "BAND", "date"),
+    explist = tb.Table(names=("pointing", "SCA", "BAND", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
 
     transient_start = np.atleast_1d(transient_start)[0]
@@ -402,7 +402,7 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
                            "{result.text}")
 
     res = pd.DataFrame(result.json())[["filter", "pointing", "sca", "mjd"]]
-    res.rename(columns={"mjd": "date", "pointing": "Pointing", "sca": "SCA"},
+    res.rename(columns={"mjd": "date", "pointing": "pointing", "sca": "SCA"},
                inplace=True)
 
     res = res.loc[res["filter"] == band]
@@ -415,13 +415,13 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
     det["DETECTED"] = True
 
     if pointing_list is not None:
-        det = det.loc[det["Pointing"].isin(pointing_list)]
+        det = det.loc[det["pointing"].isin(pointing_list)]
 
     bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
     bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
 
     if pointing_list is not None:
-        bg = bg.loc[bg["Pointing"].isin(pointing_list)]
+        bg = bg.loc[bg["pointing"].isin(pointing_list)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["DETECTED"] = False
@@ -568,11 +568,11 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
 
     Lager.debug(f"truth in construct images: {truth}")
 
-    for indx, i in enumerate(exposures):
+    for indx, exp in enumerate(exposures):
         Lager.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = i["BAND"]
-        pointing = i["Pointing"]
-        sca = i["SCA"]
+        band = exp["BAND"]
+        pointing = exp["pointing"]
+        sca = exp["SCA"]
 
         # TODO : replace None with the right thing once Exposure is implemented
 
@@ -1333,7 +1333,7 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
 
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, sca in zip(detections["Pointing"], detections["SCA"]):
+    for pointing, sca in zip(detections["pointing"], detections["SCA"]):
         catalogue_path = (
             roman_path + f"/RomanTDS/truth/{band}/{pointing}/" + f"Roman_TDS_index_{band}_{pointing}_{sca}.txt"
         )
@@ -1761,7 +1761,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
         x = int(np.floor(object_x + 0.5))
         y = int(np.floor(object_y + 0.5))
-        pointing, sca = exposures["Pointing"][0], exposures["SCA"][0]
+        pointing, sca = exposures["pointing"][0], exposures["SCA"][0]
         snx = x
         sny = y
         x = int(np.floor(x + 0.5))
@@ -1795,7 +1795,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         if use_real_images:
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
-                                   visit=exposures["Pointing"][i],
+                                   visit=exposures["pointing"][i],
                                    sca=exposures["SCA"][i])
 
         # If no grid, we still need something that can be concatenated in the
@@ -1831,7 +1831,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
            i >= num_total_images - num_detect_images:
             if use_roman:
                 if use_real_images:
-                    pointing = exposures["Pointing"][i]
+                    pointing = exposures["pointing"][i]
                     sca = exposures["SCA"][i]
                 else:
                     pointing = 662
