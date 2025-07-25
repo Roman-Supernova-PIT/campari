@@ -87,7 +87,11 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     """
+    Lager.debug(f'CRPIX1 {wcs.to_fits_header()["CRPIX1"]}')
+    if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
 
+        Lager.warning("This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
+                      "cutout WCS, this is likely not a cutout WCS.")
     if subsize > size:
         Lager.warning("subsize is larger than the image size. " +
                       f"{size} > {subsize}. This would cause model points to" +
@@ -336,7 +340,6 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {num_grid_points}")
-
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()
 
     return psfs
@@ -378,7 +381,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     f = fits.open(roman_path +
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
-
+    
     explist = tb.Table(names=("pointing", "sca", "band", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
 
@@ -412,11 +415,11 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
 
     if pointing_list is not None:
         det = det.loc[det["pointing"].isin(pointing_list)]
-
-    Lager.debug(det)
-
     bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
     bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
+
+    if pointing_list is not None:
+        bg = bg.loc[bg["pointing"].isin(pointing_list)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["detected"] = False
@@ -451,6 +454,7 @@ def find_parquet(ID, path, obj_type="SN"):
         # Should I convert the entire array or is there a smarter way to do
         # this?
         if ID in df.id.values or str(ID) in df.id.values:
+            Lager.debug(f"Found {obj_type} {ID} in {f}")
             return pqfile
 
 
@@ -460,6 +464,7 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     base_name = "{:s}_{}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
+    Lager.debug(f"Opened {file_path}")
     return df
 
 
@@ -563,11 +568,11 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
 
     Lager.debug(f"truth in construct images: {truth}")
 
-    for indx, i in enumerate(exposures):
+    for indx, exp in enumerate(exposures):
         Lager.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = i["band"]
-        pointing = i["pointing"]
-        sca = i["sca"]
+        band = exp["band"]
+        pointing = exp["pointing"]
+        sca = exp["sca"]
 
         # TODO : replace None with the right thing once Exposure is implemented
 
@@ -723,10 +728,6 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
         raise ValueError("No pre-detection images found in time range " +
-                         "provided, skipping this object.")
-
-    if num_predetection_images == 0:
-        raise ValueError("No detection images found in time range " +
                          "provided, skipping this object.")
 
     if num_total_images != np.inf and len(exposures) != num_total_images:
@@ -1111,6 +1112,7 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     """
     filenum = find_parquet(SNID, sn_path, obj_type="SN")
     file_name = "snana" + "_" + str(filenum) + ".hdf5"
+
     fullpath = os.path.join(sn_path, file_name)
     # Setting locking=False on the next line becasue it seems that you can't
     #   open an h5py file unless you have write access to... something.
@@ -1359,6 +1361,8 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
             "host_ra": df_object_row["host_ra"].values[0].item(),
             "host_dec": df_object_row["host_dec"].values[0].item(),
         }
+    else:
+        meta_dict = None
 
     data_dict = {
         "sim_realized_flux": sim_realized_flux,
@@ -1793,6 +1797,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=exposures["pointing"][i],
                                    sca=exposures["sca"][i])
+
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
