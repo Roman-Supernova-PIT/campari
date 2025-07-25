@@ -708,14 +708,6 @@ def test_extract_id_using_ra_dec(sn_path):
 
 
 def test_build_lc_and_add_truth(roman_path, sn_path):
-    # exposures = pd.DataFrame({
-    #     "pointing": [111, 38265],
-    #     "sca": [13, 15],
-    #     "date": [62000.40235, 62495.605],
-    #     "detected": [False, True],
-    #     "band": ["Y106", "Y106"],
-    # })
-
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -812,4 +804,3 @@ def test_find_all_exposures_with_img_list(roman_path):
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],
                                        rtol=1e-7, atol=1e-7)
-

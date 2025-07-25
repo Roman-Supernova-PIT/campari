@@ -481,8 +481,7 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
     pointing_sca_coords = SkyCoord(allRA*u.deg, allDEC*u.deg, frame="icrs")
     search_coord = SkyCoord(RA*u.deg, DEC*u.deg, frame="icrs")
     dist = pointing_sca_coords.separation(search_coord).arcsec
-
-    dist[np.where(f["band"] != filt)] = np.inf
+    dist[np.where(f["filter"] != filt)] = np.inf
     reshaped_array = dist.flatten()
     # Find the indices of the minimum values along the flattened slices
     min_indices = np.argmin(reshaped_array, axis=0)
