@@ -212,7 +212,8 @@ def test_savelightcurve():
 def test_run_on_star(roman_path, cfg):
     # Call it as a function first so we can pdb and such
 
-    args = ["_", "-s", "40973149150", "-f", "Y106", "-n", "1", "-t", "0",
+    args = ["_", "-s", "40973149150", "-f", "Y106", "-i",
+            f"{roman_path}/test_image_list_star.csv",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
     orig_argv = sys.argv
 
@@ -225,8 +226,11 @@ def test_run_on_star(roman_path, cfg):
         sys.argv = orig_argv
 
     # Make sure it runs from the command line
-    err_code = os.system("python ../RomanASP.py -s 40973149150 -f Y106 -n 1 -t 0 "
-                         "--object_type star --photometry-campari-grid_options-type none")
+    err_code = os.system(
+        "python ../RomanASP.py -s 40973166870 -f Y106 -i"
+        f" {roman_path}/test_image_list_star.csv "
+        "--object_type star --photometry-campari-grid_options-type none"
+    )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
 
@@ -243,7 +247,8 @@ def test_regression_function(roman_path):
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "40120913", "-f", "Y106", "-n", "1", "-t", "1",
+    a = ["_", "-s", "20172782", "-f", "Y106", "-i",
+            f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -342,15 +347,17 @@ def test_regression(roman_path):
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    output = os.system("python ../RomanASP.py -s 40120913 -f Y106 -n 1 -t 1 "
-                       "--photometry-campari-use_roman "
-                       "--photometry-campari-use_real_images "
-                       "--no-photometry-campari-fetch_SED "
-                       "--photometry-campari-grid_options-type contour "
-                       "--photometry-campari-cutout_size 19 "
-                       "--photometry-campari-weighting "
-                       "--photometry-campari-subtract_background "
-                       "--no-photometry-campari-source_phot_ops ")
+    output = os.system(
+        f"python ../RomanASP.py -s 20172782 -f Y106 -i {roman_path}/test_image_list.csv "
+        "--photometry-campari-use_roman "
+        "--photometry-campari-use_real_images "
+        "--no-photometry-campari-fetch_SED "
+        "--photometry-campari-grid_options-type contour "
+        "--photometry-campari-cutout_size 19 "
+        "--photometry-campari-weighting "
+        "--photometry-campari-subtract_background "
+        "--no-photometry-campari-source_phot_ops "
+    )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = pd.read_csv(curfile, comment="#", delimiter=" ")
@@ -717,7 +724,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
 
     exposures = pd.DataFrame(
         {
-            "Pointing": [5934, 35198],
+            "pointing": [5934, 35198],
             "SCA": [3, 2],
             "date": [62000.40235, 62495.605],
             "DETECTED": [False, True],
@@ -782,7 +789,7 @@ def test_wcs_regression(roman_path):
     np.testing.assert_allclose(x, x_test, atol=1e-7)
     np.testing.assert_allclose(y, y_test, atol=1e-7)
 
-    
+
 def test_findAllExposures_with_img_list(roman_path):
     band = "Y106"
     columns = ["pointing", "SCA"]

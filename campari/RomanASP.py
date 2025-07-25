@@ -279,7 +279,6 @@ def main():
         columns = ["pointing", "sca"]
         image_df = pd.read_csv(args.img_list, header=None, names=columns)
         # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
-        pointing_list = image_df["Pointing"]
         max_no_transient_images = None
         max_transient_images = None
         pointing_list = image_df["pointing"].values
@@ -344,7 +343,10 @@ def main():
 
             # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
             # actual image counts, not maximum possible.
-            max_images = max_no_transient_images + max_transient_images
+            if max_no_transient_images is None or max_transient_images is None:
+                max_images = None
+            else:
+                max_images = max_no_transient_images + max_transient_images
 
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
