@@ -708,21 +708,21 @@ def test_extract_id_using_ra_dec(sn_path):
 
 
 def test_build_lc_and_add_truth(roman_path, sn_path):
-    exposures = pd.DataFrame({
-        "pointing": [111, 38265],
-        "sca": [13, 15],
-        "date": [62000.40235, 62495.605],
-        "detected": [False, True],
-        "band": ["Y106", "Y106"],
-    })
+    # exposures = pd.DataFrame({
+    #     "pointing": [111, 38265],
+    #     "sca": [13, 15],
+    #     "date": [62000.40235, 62495.605],
+    #     "detected": [False, True],
+    #     "band": ["Y106", "Y106"],
+    # })
 
     exposures = pd.DataFrame(
         {
-            "Pointing": [5934, 35198],
-            "SCA": [3, 2],
+            "pointing": [5934, 35198],
+            "sca": [3, 2],
             "date": [62000.40235, 62495.605],
-            "DETECTED": [False, True],
-            "BAND": ["Y106", "Y106"],
+            "detected": [False, True],
+            "band": ["Y106", "Y106"],
         }
     )
 
@@ -746,7 +746,6 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
 
     # Now add the truth to the lightcurve
     lc = add_truth_to_lc(lc, explist, sn_path, roman_path, "SN")
-
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
@@ -783,8 +782,8 @@ def test_wcs_regression(roman_path):
     np.testing.assert_allclose(x, x_test, atol=1e-7)
     np.testing.assert_allclose(y, y_test, atol=1e-7)
 
-    
-def test_findAllExposures_with_img_list(roman_path):
+
+def test_find_all_exposures_with_img_list(roman_path):
     band = "Y106"
     columns = ["pointing", "SCA"]
     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
@@ -798,17 +797,17 @@ def test_findAllExposures_with_img_list(roman_path):
     image_selection_start = -np.inf
     image_selection_end = np.inf
 
-    exposures = findAllExposures(ra, dec, transient_start, transient_end,
-                                 roman_path=roman_path,
-                                 maxbg=max_no_transient_images,
-                                 maxdet=max_transient_images, return_list=True,
-                                 band=band, image_selection_start=image_selection_start,
-                                 image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
+    exposures = find_all_exposures(ra, dec, transient_start, transient_end,
+                                   roman_path=roman_path,
+                                   maxbg=max_no_transient_images,
+                                   maxdet=max_transient_images, return_list=True,
+                                   band=band, image_selection_start=image_selection_start,
+                                   image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
 
     exposures = exposures.to_pandas()
     test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
     for col in test_exposures.columns:
-        if col == "BAND" or col == "DETECTED" or col == "filter":
+        if col == "band" or col == "detected":
             np.testing.assert_array_equal(exposures[col], test_exposures[col])
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],

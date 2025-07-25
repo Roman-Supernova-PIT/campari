@@ -279,7 +279,6 @@ def main():
         columns = ["pointing", "sca"]
         image_df = pd.read_csv(args.img_list, header=None, names=columns)
         # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
-        pointing_list = image_df["Pointing"]
         max_no_transient_images = None
         max_transient_images = None
         pointing_list = image_df["pointing"].values
@@ -319,13 +318,12 @@ def main():
                 Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
                             f"transient_end={transient_end}")
 
-            exposures = findAllExposures(ra, dec, transient_start, transient_end,
-                                         roman_path=roman_path,
-                                         maxbg=max_no_transient_images,
-                                         maxdet=max_transient_images, return_list=True,
-                                         band=band, image_selection_start=image_selection_start,
-                                         image_selection_end=image_selection_end, pointing_list=pointing_list)
-
+            exposures = find_all_exposures(ra, dec, transient_start, transient_end,
+                                           roman_path=roman_path,
+                                           maxbg=max_no_transient_images,
+                                           maxdet=max_transient_images, return_list=True,
+                                           band=band, image_selection_start=image_selection_start,
+                                           image_selection_end=image_selection_end, pointing_list=pointing_list)
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):
