@@ -401,7 +401,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                            "{result.text}")
 
     res = pd.DataFrame(result.json())[["pointing", "sca", "mjd"]]
-    Lager.debug(res)
     res.rename(columns={"mjd": "date"},
                inplace=True)
 
@@ -424,7 +423,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         bg = bg.iloc[:maxbg]
     bg["detected"] = False
 
-    Lager.debug(bg)
 
     all_images = pd.concat([det, bg])
     all_images["band"] = band
@@ -1375,8 +1373,6 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
         "sim_true_flux": "",
         "sim_true_mag": u.mag,
     }
-
-    Lager.debug(QTable(data=data_dict, meta=meta_dict, units=units).meta)
 
     lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
 
