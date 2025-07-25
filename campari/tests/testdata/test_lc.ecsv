@@ -22,10 +22,10 @@
 # - {host_ra: 7.550449}
 # - {host_dec: -44.8073}
 # - __serialized_columns__:
-#     MJD:
+#     mjd:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
-#       value: !astropy.table.SerializedColumn {name: MJD}
+#       value: !astropy.table.SerializedColumn {name: mjd}
 #     mag:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: &id001 !astropy.units.Unit {unit: mag}
@@ -35,5 +35,5 @@
 #       unit: *id001
 #       value: !astropy.table.SerializedColumn {name: mag_err}
 # schema: astropy-2.0
-MJD flux flux_error mag mag_err band zeropoint SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
+mjd flux flux_error mag mag_err band zeropoint sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
 62455.669 539.5699531743487 122.9102667253891 25.831536360120523 0.2473231241568281 Y106 15.023547191066584 1040.0 1069.10031 25.119072405079763 25.089109614636662

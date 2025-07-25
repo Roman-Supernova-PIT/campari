@@ -238,7 +238,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     return ra_grid, dec_grid
 
 
-def generateGuess(imlist, ra_grid, dec_grid):
+def generate_guess(imlist, ra_grid, dec_grid):
     """ This function initializes the guess for the optimization. For each grid
     point, it finds the average value of the pixel it is sitting in on
     each image. In some cases, this has offered minor improvements but it is
@@ -345,10 +345,10 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     return psfs
 
 
-def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
-                     maxdet=None, return_list=False,
-                     roman_path=None, pointing_list=None, sca_list=None,
-                     truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
+def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None,
+                       maxdet=None, return_list=False,
+                       roman_path=None, pointing_list=None, sca_list=None,
+                       truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
@@ -372,18 +372,17 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
     explist: astropy.table.Table, the table of exposures that contain the
     supernova. The columns are:
-        - Pointing: the pointing of the exposure
+        - pointing: the pointing of the exposure
         - sca: the SCA of the exposure
-        - BAND: the band of the exposure
+        - band: the band of the exposure
         - date: the MJD of the exposure
-        - DETECTED: whether the exposure contains a detection or not.
+        - detected: whether the exposure contains a detection or not.
     """
-
     f = fits.open(roman_path +
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
 
-    explist = tb.Table(names=("pointing", "SCA", "BAND", "date"),
+    explist = tb.Table(names=("pointing", "sca", "band", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
 
     transient_start = np.atleast_1d(transient_start)[0]
@@ -401,22 +400,20 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
         raise RuntimeError(f"Got status code {result.status_code}\n"
                            "{result.text}")
 
-    res = pd.DataFrame(result.json())[["filter", "pointing", "sca", "mjd"]]
-    res.rename(columns={"mjd": "date", "pointing": "pointing", "sca": "SCA"},
+    res = pd.DataFrame(result.json())[["pointing", "sca", "mjd"]]
+    res.rename(columns={"mjd": "date"},
                inplace=True)
 
-    res = res.loc[res["filter"] == band]
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
     det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
     det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
     if maxdet is not None:
         det = det.iloc[:maxdet]
-    det["DETECTED"] = True
+    det["detected"] = True
 
     if pointing_list is not None:
         det = det.loc[det["pointing"].isin(pointing_list)]
-
     bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
     bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
 
@@ -424,13 +421,14 @@ def findAllExposures(ra, dec, transient_start, transient_end, band, maxbg=None,
         bg = bg.loc[bg["pointing"].isin(pointing_list)]
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
-    bg["DETECTED"] = False
+    bg["detected"] = False
+
 
     all_images = pd.concat([det, bg])
-    all_images["BAND"] = band
+    all_images["band"] = band
 
     explist = Table.from_pandas(all_images)
-    explist.sort(["DETECTED", "SCA"])
+    explist.sort(["detected", "sca"])
     Lager.info("\n" + str(explist))
 
     if return_list:
@@ -481,7 +479,6 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
     pointing_sca_coords = SkyCoord(allRA*u.deg, allDEC*u.deg, frame="icrs")
     search_coord = SkyCoord(RA*u.deg, DEC*u.deg, frame="icrs")
     dist = pointing_sca_coords.separation(search_coord).arcsec
-
     dist[np.where(f["filter"] != filt)] = np.inf
     reshaped_array = dist.flatten()
     # Find the indices of the minimum values along the flattened slices
@@ -515,7 +512,7 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
         raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
 
     Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
-                f" Pointing, SCA: {pointing, sca} \n" +
+                f" pointing, sca: {pointing, sca} \n" +
                 f" stamp size: {stampsize} \n" +
                 f" x_center, y_center: {x_center, y_center} \n" +
                 f" sed: {sed} \n" +
@@ -542,14 +539,14 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def constructImages(exposures, ra, dec, size=7, subtract_background=True,
-                    roman_path=None, truth="simple_model"):
+def construct_images(exposures, ra, dec, size=7, subtract_background=True,
+                     roman_path=None, truth="simple_model"):
 
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
     Inputs:
-    exposures is a list of exposures from findAllExposures
+    exposures is a list of exposures from find_all_exposures
     ra,dec: the RA and DEC of the SN
     subtract_background: If False, the background level is fit as a free
         parameter in the forward modelling. Otherwise, we subtract it here.
@@ -570,9 +567,9 @@ def constructImages(exposures, ra, dec, size=7, subtract_background=True,
 
     for indx, exp in enumerate(exposures):
         Lager.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = exp["BAND"]
+        band = exp["band"]
         pointing = exp["pointing"]
-        sca = exp["SCA"]
+        sca = exp["sca"]
 
         # TODO : replace None with the right thing once Exposure is implemented
 
@@ -654,9 +651,9 @@ def calculate_background_level(im):
     return bg
 
 
-def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
-                 y_center=None, pupil_bin=8, sed=None, oversampling_factor=1,
-                 include_photonOps=False, n_phot=1e6, pixel=False, flux=1):
+def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
+                  y_center=None, pupil_bin=8, sed=None, oversampling_factor=1,
+                  include_photonOps=False, n_phot=1e6, pixel=False, flux=1):
 
     if pixel:
         point = galsim.Pixel(1)*sed
@@ -681,7 +678,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
-        Lager.debug(f"in getPSF_Image: {self.bpass}, {x_center}, {y_center}")
+        Lager.debug(f"in get_psf_image: {self.bpass}, {x_center}, {y_center}")
 
         psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
@@ -690,7 +687,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
                              use_true_center=True)
 
     photon_ops = [self.getPSF(x, y, pupil_bin)] + self.photon_ops
-    Lager.debug(f"Using {n_phot:e} photons in getPSF_Image")
+    Lager.debug(f"Using {n_phot:e} photons in get_psf_image")
     result = point.drawImage(self.bpass, wcs=wcs, method="phot",
                              photon_ops=photon_ops, rng=self.rng,
                              n_photons=int(n_phot), maxN=int(n_phot),
@@ -700,7 +697,7 @@ def getPSF_Image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, object_type):
+def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, object_type):
     """This function gets the list of exposures to be used for the analysis.
 
     Inputs:
@@ -708,7 +705,7 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     num_total_images: total images used in analysis (detection + no detection)
     num_detect_images: number of images used in the analysis that contain a
                        detection.
-    size: int, cutout will be of shape (size, size)e
+    size: int, cutout will be of shape (size, size)
     subtract_background: If True, subtract sky bg from images. If false, leave
             bg as a free parameter in the forward modelling.
     roman_path: str, the path to the Roman data
@@ -724,7 +721,7 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
     """
 
     Lager.debug("Saved exposures")
-    num_predetection_images = len(exposures[~exposures["DETECTED"]])
+    num_predetection_images = len(exposures[~exposures["detected"]])
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
         raise ValueError("No pre-detection images found in time range " +
@@ -735,9 +732,9 @@ def fetchImages(exposures, ra, dec, size, subtract_background, roman_path, objec
             Found {len(exposures)} out of {num_total_images} requested")
 
     cutout_image_list, image_list =\
-        constructImages(exposures, ra, dec, size=size,
-                        subtract_background=subtract_background,
-                        roman_path=roman_path)
+        construct_images(exposures, ra, dec, size=size,
+                         subtract_background=subtract_background,
+                         roman_path=roman_path)
 
     return cutout_image_list, image_list
 
@@ -846,8 +843,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     return wgt_matrix
 
 
-def makeGrid(grid_type, images, ra, dec, percentiles=[],
-             make_exact=False):
+def make_grid(grid_type, images, ra, dec, percentiles=[],
+              make_exact=False):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -917,14 +914,14 @@ def makeGrid(grid_type, images, ra, dec, percentiles=[],
 
 def plot_lc(filepath, return_data=False):
     fluxdata = pd.read_csv(filepath, comment="#", delimiter=" ")
-    truth_mag = fluxdata["SIM_true_mag"]
+    truth_mag = fluxdata["sim_true_mag"]
     mag = fluxdata["mag"]
     sigma_mag = fluxdata["mag_err"]
 
     plt.figure(figsize=(10, 10))
     plt.subplot(2, 1, 1)
 
-    dates = fluxdata["MJD"]
+    dates = fluxdata["mjd"]
 
     plt.scatter(dates, truth_mag, color="k", label="Truth")
     plt.errorbar(dates, mag, yerr=sigma_mag,  color="purple", label="Model",
@@ -1303,20 +1300,20 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     """
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
-    band = exposures["BAND"][0]
+    band = exposures["band"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    detections = exposures[np.where(exposures["DETECTED"])]
+    detections = exposures[np.where(exposures["detected"])]
     meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
 
-    data_dict = {"MJD": detections["date"], "flux": flux,
+    data_dict = {"mjd": detections["date"], "flux": flux,
                  "flux_error": sigma_flux, "mag": mag,
                  "mag_err": magerr,
                  "band": np.full(np.size(mag), band),
                  "zeropoint": np.full(np.size(mag), zp)}
 
-    units = {"MJD": u.d,  "flux": "",
+    units = {"mjd": u.d,  "flux": "",
              "flux_error": "", "mag": u.mag,
              "mag_err": u.mag, "band": ""}
 
@@ -1325,15 +1322,15 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
 
 def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
 
-    detections = exposures[np.where(exposures["DETECTED"])]
-    band = exposures["BAND"][0]
+    detections = exposures[np.where(exposures["detected"])]
+    band = exposures["band"][0]
     ID = lc.meta["ID"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
 
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, sca in zip(detections["pointing"], detections["SCA"]):
+    for pointing, sca in zip(detections["pointing"], detections["sca"]):
         catalogue_path = (
             roman_path + f"/RomanTDS/truth/{band}/{pointing}/" + f"Roman_TDS_index_{band}_{pointing}_{sca}.txt"
         )
@@ -1365,19 +1362,17 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
         meta_dict = None
 
     data_dict = {
-        "SIM_realized_flux": sim_realized_flux,
-        "SIM_true_flux": sim_true_flux,
-        "SIM_realized_mag": sim_realized_mag,
-        "SIM_true_mag": sim_true_mag,
+        "sim_realized_flux": sim_realized_flux,
+        "sim_true_flux": sim_true_flux,
+        "sim_realized_mag": sim_realized_mag,
+        "sim_true_mag": sim_true_mag,
     }
     units = {
-        "SIM_realized_flux": "",
-        "SIM_realized_mag": "",
-        "SIM_true_flux": "",
-        "SIM_true_mag": "",
+        "sim_realized_flux": "",
+        "sim_realized_mag": u.mag,
+        "sim_true_flux": "",
+        "sim_true_mag": u.mag,
     }
-
-    Lager.debug(QTable(data=data_dict, meta=meta_dict, units=units).meta)
 
     lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
 
@@ -1396,11 +1391,11 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
-    sim_MJD = np.arange(0, np.size(supernova), 1)
-    data_dict = {"MJD": sim_MJD, "flux": flux,
-                 "flux_error": sigma_flux, "SIM_flux": supernova}
+    sim_mjd = np.arange(0, np.size(supernova), 1)
+    data_dict = {"mjd": sim_mjd, "flux": flux,
+                 "flux_error": sigma_flux, "sim_flux": supernova}
     meta_dict = {}
-    units = {"MJD": u.d, "SIM_flux": "",  "flux": "", "flux_error": ""}
+    units = {"mjd": u.d, "sim_flux": "",  "flux": "", "flux_error": ""}
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
@@ -1450,7 +1445,7 @@ def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
 
     Inputs:
     ID: the ID of the object
-    exposures: the exposure table returned by fetchImages.
+    exposures: the exposure table returned by fetch_images.
     fetch_SED: If true, get the SED from truth tables.
                If false, return a flat SED for each expsoure.
     object_type: the type of object (SN or star)
@@ -1695,13 +1690,13 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list = fetchImages(exposures, ra, dec, size, subtract_background, roman_path,
-                                                    object_type)
+        cutout_image_list, image_list = fetch_images(exposures, ra, dec, size, subtract_background, roman_path,
+                                                     object_type)
 
-        if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["DETECTED"]]):
+        if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["detected"]]):
             Lager.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
             num_total_images = len(exposures)
-            num_detect_images = len(exposures[exposures["DETECTED"]])
+            num_detect_images = len(exposures[exposures["detected"]])
 
     else:
         # Simulate the images of the SN and galaxy.
@@ -1723,8 +1718,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     if not grid_type == "none":
         if object_type == "star":
             Lager.warning("For fitting stars, you probably dont want a grid.")
-        ra_grid, dec_grid = makeGrid(grid_type, cutout_image_list, ra, dec,
-                                     percentiles=percentiles)
+        ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, ra, dec,
+                                      percentiles=percentiles)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
@@ -1735,8 +1730,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     # make sense.
     num_nondetect_images = num_total_images - num_detect_images
     if make_initial_guess and num_nondetect_images != 0:
-        x0test = generateGuess(cutout_image_list[:num_nondetect_images],
-                               ra_grid, dec_grid)
+        x0test = generate_guess(cutout_image_list[:num_nondetect_images],
+                                ra_grid, dec_grid)
         x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
         x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
         Lager.debug(f"setting initial guess to {initial_flux_guess}")
@@ -1761,7 +1756,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
         x = int(np.floor(object_x + 0.5))
         y = int(np.floor(object_y + 0.5))
-        pointing, sca = exposures["pointing"][0], exposures["SCA"][0]
+        pointing, sca = exposures["pointing"][0], exposures["sca"][0]
         snx = x
         sny = y
         x = int(np.floor(x + 0.5))
@@ -1796,7 +1791,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=exposures["pointing"][i],
-                                   sca=exposures["SCA"][i])
+                                   sca=exposures["sca"][i])
+
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
@@ -1832,7 +1828,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
             if use_roman:
                 if use_real_images:
                     pointing = exposures["pointing"][i]
-                    sca = exposures["SCA"][i]
+                    sca = exposures["sca"][i]
                 else:
                     pointing = 662
                     sca = 11
