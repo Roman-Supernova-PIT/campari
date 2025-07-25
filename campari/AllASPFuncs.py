@@ -2009,3 +2009,23 @@ def extract_objects_from_healpix(healpix, nside, object_type='SN', source="OpenU
     -------
     """
     Lager.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
+    if source == "OpenUniverse2024":
+        path = Config.get().value("photometry.campari.paths.sn_path")
+        files = os.listdir(path)
+        file_prefix = {"SN": "snana", "star": "pointsource"}
+        files = [f for f in files if file_prefix[object_type] in f]
+        files = [f for f in files if ".parquet" in f]
+        files = [f for f in files if "flux" not in f]
+
+        ra_array = np.array([])
+        dec_array = np.array([])
+
+        for f in files:
+            pqfile = int(f.split("_")[1].split(".")[0])
+            df = open_parquet(pqfile, path, obj_type=object_type)
+
+            ra_array = np.concatenate([ra_array, df["ra"].values])
+            dec_array = np.concatenate([dec_array, df["dec"].values])
+
+    else:
+        raise NotImplementedError(f"Source {source} not implemented yet.")
