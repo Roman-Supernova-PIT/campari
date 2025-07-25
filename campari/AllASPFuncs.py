@@ -1991,3 +1991,21 @@ def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fpho
                          wave_type=wave_type, flux_type=flux_type)
         sed_list.append(sed)
     return sed_list
+
+
+def extract_objects_from_healpix(healpix, nside, object_type='SN', source="OpenUniverse2024"):
+    """This function takes in a healpix and nside and extracts all of the objects of the requested type in that
+    healpix. Currently, the source the objects are extracted from is hardcoded to OpenUniverse2024 sims, but that will
+    change in the future with real data.
+
+    Parameters
+    ----------
+    healpix: int, the healpix number to extract objects from
+    nside: int, the nside of the healpix to extract objects from
+    object_type: str, the type of object to extract. Can be "SN" or "star". Defaults to "SN".
+    source: str, the source of the table of objects to extract. Defaults to "OpenUniverse2024".
+
+    Returns
+    -------
+    """
+    Lager.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
