@@ -19,6 +19,7 @@ from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
+import healpy as hp
 from matplotlib import pyplot as plt
 from numpy.linalg import LinAlgError
 from roman_imsim.utils import roman_utils
@@ -422,7 +423,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["detected"] = False
-
 
     all_images = pd.concat([det, bg])
     all_images["band"] = band
@@ -1993,7 +1993,7 @@ def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fpho
     return sed_list
 
 
-def extract_objects_from_healpix(healpix, nside, object_type='SN', source="OpenUniverse2024"):
+def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUniverse2024"):
     """This function takes in a healpix and nside and extracts all of the objects of the requested type in that
     healpix. Currently, the source the objects are extracted from is hardcoded to OpenUniverse2024 sims, but that will
     change in the future with real data.
@@ -2005,8 +2005,9 @@ def extract_objects_from_healpix(healpix, nside, object_type='SN', source="OpenU
     object_type: str, the type of object to extract. Can be "SN" or "star". Defaults to "SN".
     source: str, the source of the table of objects to extract. Defaults to "OpenUniverse2024".
 
-    Returns
+    Returns;
     -------
+    id_array: numpy array of int, the IDs of the objects extracted from the healpix.
     """
     Lager.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
     if source == "OpenUniverse2024":
@@ -2019,6 +2020,7 @@ def extract_objects_from_healpix(healpix, nside, object_type='SN', source="OpenU
 
         ra_array = np.array([])
         dec_array = np.array([])
+        id_array = np.array([])
 
         for f in files:
             pqfile = int(f.split("_")[1].split(".")[0])
@@ -2026,6 +2028,13 @@ def extract_objects_from_healpix(healpix, nside, object_type='SN', source="OpenU
 
             ra_array = np.concatenate([ra_array, df["ra"].values])
             dec_array = np.concatenate([dec_array, df["dec"].values])
+            id_array = np.concatenate([id_array, df["id"].values])
 
     else:
         raise NotImplementedError(f"Source {source} not implemented yet.")
+
+    healpix_array = hp.ang2pix(nside, ra_array, dec_array, lonlat=True)
+    mask = healpix_array == healpix
+    id_array = id_array[mask]
+
+    return id_array.astype(int)
