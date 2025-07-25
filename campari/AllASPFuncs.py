@@ -381,7 +381,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     f = fits.open(roman_path +
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
-    
+
     explist = tb.Table(names=("pointing", "sca", "band", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
 
@@ -708,7 +708,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     num_total_images: total images used in analysis (detection + no detection)
     num_detect_images: number of images used in the analysis that contain a
                        detection.
-    size: int, cutout will be of shape (size, size)e
+    size: int, cutout will be of shape (size, size)
     subtract_background: If True, subtract sky bg from images. If false, leave
             bg as a free parameter in the forward modelling.
     roman_path: str, the path to the Roman data
@@ -1372,8 +1372,8 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
     }
     units = {
         "sim_realized_flux": "",
-        "sim_realized_mag": "",
-        "sim_true_flux": u.mag,
+        "sim_realized_mag": u.mag,
+        "sim_true_flux": "",
         "sim_true_mag": u.mag,
     }
 
