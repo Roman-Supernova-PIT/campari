@@ -34,7 +34,7 @@ from campari.AllASPFuncs import (
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
-    findAllExposures,
+    find_all_exposures,
     get_galsim_SED,
     get_galsim_SED_list,
     get_object_info,
@@ -89,17 +89,18 @@ def test_get_object_info(roman_path, sn_path):
     assert peak[0] == np.float32(62683.98)
 
 
-def test_findAllExposures(roman_path):
-    explist = findAllExposures(7.731890048839705, -44.4589649005717,
-                               62654., 62958., "Y106", maxbg=24,
-                               maxdet=24, return_list=True,
-                               roman_path=roman_path,
-                               pointing_list=None, sca_list=None,
-                               truth="simple_model")
+def test_find_all_exposures(roman_path):
+    explist = find_all_exposures(7.731890048839705, -44.4589649005717,
+                                 62654., 62958., "Y106", maxbg=24,
+                                 maxdet=24, return_list=True,
+                                 roman_path=roman_path,
+                                 pointing_list=None, sca_list=None,
+                                 truth="simple_model")
     compare_table = ascii.read(pathlib.Path(__file__).parent
                                / "testdata/findallexposurestest.dat")
     assert explist["pointing"].all() == compare_table["pointing"].all()
-    assert explist["SCA"].all() == compare_table["SCA"].all()
+    assert explist["sca"].all() == compare_table["sca"].all()
+
     assert explist["date"].all() == compare_table["date"].all()
 
 
@@ -714,26 +715,18 @@ def test_extract_id_using_ra_dec(sn_path):
 
 
 def test_build_lc_and_add_truth(roman_path, sn_path):
-    exposures = pd.DataFrame({
-        "pointing": [111, 38265],
-        "SCA": [13, 15],
-        "date": [62000.40235, 62495.605],
-        "DETECTED": [False, True],
-        "BAND": ["Y106", "Y106"],
-    })
-
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
-            "SCA": [3, 2],
+            "sca": [3, 2],
             "date": [62000.40235, 62495.605],
-            "DETECTED": [False, True],
-            "BAND": ["Y106", "Y106"],
+            "detected": [False, True],
+            "band": ["Y106", "Y106"],
         }
     )
 
     explist = Table.from_pandas(exposures)
-    explist.sort(["DETECTED", "SCA"])
+    explist.sort(["detected", "sca"])
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(20172782, explist, 100, 100, 10, 7, -41)
@@ -752,7 +745,6 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
 
     # Now add the truth to the lightcurve
     lc = add_truth_to_lc(lc, explist, sn_path, roman_path, "SN")
-
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
@@ -790,7 +782,7 @@ def test_wcs_regression(roman_path):
     np.testing.assert_allclose(y, y_test, atol=1e-7)
 
 
-def test_findAllExposures_with_img_list(roman_path):
+def test_find_all_exposures_with_img_list(roman_path):
     band = "Y106"
     columns = ["pointing", "SCA"]
     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
@@ -804,19 +796,18 @@ def test_findAllExposures_with_img_list(roman_path):
     image_selection_start = -np.inf
     image_selection_end = np.inf
 
-    exposures = findAllExposures(ra, dec, transient_start, transient_end,
-                                 roman_path=roman_path,
-                                 maxbg=max_no_transient_images,
-                                 maxdet=max_transient_images, return_list=True,
-                                 band=band, image_selection_start=image_selection_start,
-                                 image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
+    exposures = find_all_exposures(ra, dec, transient_start, transient_end,
+                                   roman_path=roman_path,
+                                   maxbg=max_no_transient_images,
+                                   maxdet=max_transient_images, return_list=True,
+                                   band=band, image_selection_start=image_selection_start,
+                                   image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
 
     exposures = exposures.to_pandas()
     test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
     for col in test_exposures.columns:
-        if col == "BAND" or col == "DETECTED" or col == "filter":
+        if col == "band" or col == "detected":
             np.testing.assert_array_equal(exposures[col], test_exposures[col])
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],
                                        rtol=1e-7, atol=1e-7)
-

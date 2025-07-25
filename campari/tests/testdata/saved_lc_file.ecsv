@@ -1,7 +1,7 @@
 # %ECSV 1.0
 # ---
 # datatype:
-# - {name: MJD, unit: d, datatype: float64}
+# - {name: mjd, unit: d, datatype: float64}
 # - {name: flux, datatype: int64}
 # - {name: flux_error, datatype: int64}
 # - {name: mag, unit: mag, datatype: float64}
@@ -14,10 +14,6 @@
 # - {obj_dec: -41}
 # - {confusion_metric: 100}
 # - __serialized_columns__:
-#     MJD:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: d}
-#       value: !astropy.table.SerializedColumn {name: MJD}
 #     mag:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: &id001 !astropy.units.Unit {unit: mag}
@@ -26,6 +22,10 @@
 #       __class__: astropy.units.quantity.Quantity
 #       unit: *id001
 #       value: !astropy.table.SerializedColumn {name: mag_err}
+#     mjd:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: d}
+#       value: !astropy.table.SerializedColumn {name: mjd}
 # schema: astropy-2.0
-MJD flux flux_error mag mag_err band zeropoint
+mjd flux flux_error mag mag_err band zeropoint
 62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584

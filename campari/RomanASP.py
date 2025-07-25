@@ -23,7 +23,7 @@ from campari.AllASPFuncs import (add_truth_to_lc,
                                  banner,
                                  build_lightcurve,
                                  build_lightcurve_sim,
-                                 findAllExposures,
+                                 find_all_exposures,
                                  find_parquet,
                                  get_object_info,
                                  run_one_object,
@@ -318,13 +318,12 @@ def main():
                 Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
                             f"transient_end={transient_end}")
 
-            exposures = findAllExposures(ra, dec, transient_start, transient_end,
-                                         roman_path=roman_path,
-                                         maxbg=max_no_transient_images,
-                                         maxdet=max_transient_images, return_list=True,
-                                         band=band, image_selection_start=image_selection_start,
-                                         image_selection_end=image_selection_end, pointing_list=pointing_list)
-
+            exposures = find_all_exposures(ra, dec, transient_start, transient_end,
+                                           roman_path=roman_path,
+                                           maxbg=max_no_transient_images,
+                                           maxdet=max_transient_images, return_list=True,
+                                           band=band, image_selection_start=image_selection_start,
+                                           image_selection_end=image_selection_end, pointing_list=pointing_list)
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):

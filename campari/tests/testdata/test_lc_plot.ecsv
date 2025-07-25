@@ -24,5 +24,5 @@
 #   sn_dec: -44.91922993380131
 #   sn_ra: 7.344774044463684
 # schema: astropy-2.0
-MJD flux flux_error mag mag_err SIM_realized_flux SIM_true_flux SIM_realized_mag SIM_true_mag
+mjd flux flux_error mag mag_err sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
 62535.424 5323.110200803003 1698.6425856800531 23.34624211038908 0.34646619826480085 6361.0 6295.0702 23.152842264385384 23.164154309471726
