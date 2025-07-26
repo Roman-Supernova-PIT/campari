@@ -264,11 +264,11 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                        source_phot_ops, base_pointing, base_sca,
                        random_seed=0):
 
-
-    # psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
-    #                                 size=stampsize, include_photonOps=photOps)
-    # psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-    #                                  flux=1., seed=None)
+    stampsize = stamp.size
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
+                                    size=stampsize, include_photonOps=source_phot_ops)
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+                                     flux=1., seed=None)
 
     #######
 
@@ -283,6 +283,7 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                                    wcs=stamp.wcs, method="no_pixel",
                                    center=galsim.PositionD(snx, sny),
                                    use_true_center=True)
+        np.testing.assert_allclose(result.array, psf_image, atol = 1e-7)
         return result.array
 
     config_file = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
@@ -298,4 +299,6 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                                maxN=int(1e6), poisson_flux=False,
                                center=galsim.PositionD(snx, sny),
                                use_true_center=True, image=stamp)
+
+
     return result.array

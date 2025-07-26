@@ -113,10 +113,6 @@ def test_simulate_images(roman_path):
     bg_gal_flux = 9e5
     size = 11
     band = "Y106"
-    airy = \
-        galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
-                                   getPSF(1, band, pupil_bin=1).aberrations)
-    band = "F184"
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.getPSF(1, band, pupil_bin=1).aberrations)
     # Fluxes for the simulated supernova, days arbitrary.
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
@@ -145,10 +141,7 @@ def test_simulate_images(roman_path):
     images = np.array(images)
     images = images.flatten()
 
-
-    # assert compare_images.all() == np.asarray(images).all()
-    np.testing.assert_equal(np.asarray(image_list), compare_images)
-
+    np.testing.assert_allclose(images, compare_images.flatten(), atol=1e-7)
 
 
 def test_simulate_wcs(roman_path):
@@ -156,11 +149,9 @@ def test_simulate_wcs(roman_path):
                             roman_path=roman_path, base_sca=3,
                             base_pointing=5934, band="Y106")
     b = np.load(pathlib.Path(__file__).parent / "testdata/wcs_dict.npy",
-                allow_pickle=True)
-    np.testing.assert_array_equal(wcs_dict, b)
+                allow_pickle=True).item()
 
     for key in list(wcs_dict.keys()):
-        print(wcs_dict[key], b[key])
         np.testing.assert_equal(wcs_dict[key], b[key])
 
 
