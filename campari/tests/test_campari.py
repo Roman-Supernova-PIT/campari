@@ -213,9 +213,16 @@ def test_savelightcurve():
 def test_run_on_star(roman_path, cfg):
     # Call it as a function first so we can pdb and such
 
-    args = ["_", "-s", "40973149150", "-f", "Y106", "-i",
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
+
+    args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
             f"{roman_path}/test_image_list_star.csv",
-            "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
+            "--object_type", "star", "--photometry-campari-grid_options-type", "none",
+            "--no-photometry-campari-source_phot_ops"]
     orig_argv = sys.argv
 
     try:
@@ -226,13 +233,54 @@ def test_run_on_star(roman_path, cfg):
     finally:
         sys.argv = orig_argv
 
+    current = pd.read_csv(curfile, comment="#", delimiter=" ")
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", comment="#", delimiter=" ")
+
+    for col in current.columns:
+        Lager.debug(f"Checking col {col}")
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        if col == "band":
+            # band is the only string column, so we check it with array_equal
+            np.testing.assert_array_equal(current[col], comparison[col])
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
     # Make sure it runs from the command line
     err_code = os.system(
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
         f" {roman_path}/test_image_list_star.csv "
-        "--object_type star --photometry-campari-grid_options-type none"
+        "--object_type star --photometry-campari-grid_options-type none "
+        "--no-photometry-campari-source_phot_ops"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
+
+    current = pd.read_csv(curfile, comment="#", delimiter=" ")
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                             comment="#", delimiter=" ")
+
+    for col in current.columns:
+        Lager.debug(f"Checking col {col}")
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        if col == "band":
+            # band is the only string column, so we check it with array_equal
+            np.testing.assert_array_equal(current[col], comparison[col])
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
 
 def test_regression_function(roman_path):
@@ -249,7 +297,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list.csv",
+         f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
