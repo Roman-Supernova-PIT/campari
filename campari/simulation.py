@@ -264,11 +264,11 @@ def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
                        source_phot_ops, base_pointing, base_sca,
                        random_seed=0):
 
-    stampsize = stamp.size
-    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
-                                    size=stampsize, include_photonOps=source_phot_ops)
-    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-                                     flux=1., seed=None)
+    # stampsize = stamp.size
+    # psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
+    #                                 size=stampsize, include_photonOps=source_phot_ops)
+    # psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
+    #                                  flux=1., seed=None)
 
     #######
 
