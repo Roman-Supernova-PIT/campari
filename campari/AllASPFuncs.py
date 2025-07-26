@@ -2031,6 +2031,7 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
             id_array = np.concatenate([id_array, df["id"].values])
 
     else:
+        # With real data, we will have to choose the first detection, as ra/dec might shift slightly.
         raise NotImplementedError(f"Source {source} not implemented yet.")
 
     healpix_array = hp.ang2pix(nside, ra_array, dec_array, lonlat=True)
