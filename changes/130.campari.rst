@@ -1,0 +1,1 @@
+run on star is now a regression test.
