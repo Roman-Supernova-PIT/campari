@@ -250,7 +250,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list.csv",
+         f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -824,10 +824,7 @@ def test_extract_object_from_healpix():
     np.testing.assert_array_equal(id_array, test_id_array), \
         "The IDs extracted from the healpix do not match the expected values."
 
-    healpix = 42924408
-    nside = 2**11
     object_type = "star"
-    source = "OpenUniverse2024"
     id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
     test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
     np.testing.assert_array_equal(id_array, test_id_array), \

@@ -390,7 +390,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     transient_end = np.atleast_1d(transient_end)[0]
     if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
         raise TypeError("maxdet and maxbg must be integers or None, " +
-                        f"not {type(maxdet), type(maxbg)}")
+                        f"not {type(maxdet), type(maxbg)}. Their values are {maxdet, maxbg}")
 
     # Rob's database method! :D
 
@@ -401,9 +401,9 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         raise RuntimeError(f"Got status code {result.status_code}\n"
                            "{result.text}")
 
-    res = pd.DataFrame(result.json())[["pointing", "sca", "mjd"]]
-    res.rename(columns={"mjd": "date"},
-               inplace=True)
+    res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
+    res.rename(columns={"mjd": "date"}, inplace=True)
+    res = res.loc[res["filter"] == band].copy()
 
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
@@ -462,7 +462,6 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     base_name = "{:s}_{}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
-    Lager.debug(f"Opened {file_path}")
     return df
 
 
@@ -1793,7 +1792,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                    visit=exposures["pointing"][i],
                                    sca=exposures["sca"][i])
 
-
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
@@ -2009,6 +2007,8 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
     -------
     id_array: numpy array of int, the IDs of the objects extracted from the healpix.
     """
+    assert isinstance(healpix, int), "Healpix must be an integer."
+    assert isinstance(nside, int), "Nside must be an integer."
     Lager.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
     if source == "OpenUniverse2024":
         path = Config.get().value("photometry.campari.paths.sn_path")
