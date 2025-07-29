@@ -116,7 +116,7 @@ def test_simulate_images(roman_path):
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.getPSF(1, band, pupil_bin=1).aberrations)
     # Fluxes for the simulated supernova, days arbitrary.
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
-    images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref, image_list, cutout_image_list = \
+    sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
         simulate_images(num_total_images=10, num_detect_images=5,
                         ra=ra,
                         dec=dec,
@@ -184,6 +184,7 @@ def test_simulate_supernova():
 
     wcs, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
 
+    stamp.wcs = util_ref.getLocalWCS(2045, 2045)
     stamp = galsim.Image(11, 11, wcs=wcs)
     band = "F184"
     lam = 1293  # nm
@@ -195,7 +196,7 @@ def test_simulate_supernova():
                                    getPSF(1, band, pupil_bin=1).aberrations)
     supernova_image = simulate_supernova(snx=6, sny=6, stamp=stamp,
                                          flux=1000, sed=sed, band=band,
-                                         sim_psf=sim_psf, source_phot_ops=True,
+                                         sim_psf=sim_psf, source_phot_ops=False,
                                          base_pointing=662, base_sca=11,
                                          random_seed=12345)
     test_sn = np.load(pathlib.Path(__file__).parent
