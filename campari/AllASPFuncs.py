@@ -382,7 +382,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
 
-    explist = tb.Table(names=("pointing", "sca", "band", "date"),
+    explist = tb.Table(names=("pointing", "sca", "filter", "date"),
                        dtype=("i8", "i4", "str",  "f8"))
 
     transient_start = np.atleast_1d(transient_start)[0]
@@ -423,9 +423,8 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         bg = bg.iloc[:maxbg]
     bg["detected"] = False
 
-
     all_images = pd.concat([det, bg])
-    all_images["band"] = band
+    all_images["filter"] = band
 
     explist = Table.from_pandas(all_images)
     explist.sort(["detected", "sca"])
@@ -564,10 +563,14 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     cutout_image_list = []
 
     Lager.debug(f"truth in construct images: {truth}")
+    x_list = []
+    y_list = []
+    x_cutout_list = []
+    y_cutout_list = []
 
     for indx, exp in enumerate(exposures):
         Lager.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = exp["band"]
+        band = exp["filter"]
         pointing = exp["pointing"]
         sca = exp["sca"]
 
@@ -579,6 +582,14 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, sca)
         imagedata, errordata, flags = image.get_data(which="all")
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+
+        sca_loc = image.get_wcs().world_to_pixel(ra, dec)
+        cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
+
+        x_list.append(sca_loc[0])
+        y_list.append(sca_loc[1])
+        x_cutout_list.append(cutout_loc[0])
+        y_cutout_list.append(cutout_loc[1])
 
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
@@ -620,7 +631,14 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image_list.append(image)
         cutout_image_list.append(image_cutout)
 
-    return cutout_image_list, image_list
+    exposures["x"] = x_list
+    exposures["y"] = y_list
+    exposures["x_cutout"] = x_cutout_list
+    exposures["y_cutout"] = y_cutout_list
+
+    Lager.debug(f"updated exposures with x, y, x_cutout, y_cutout:")
+    Lager.debug(exposures)
+    return cutout_image_list, image_list, exposures
 
 
 def calculate_background_level(im):
@@ -731,12 +749,12 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
         raise ValueError(f"Not Enough Exposures. \
             Found {len(exposures)} out of {num_total_images} requested")
 
-    cutout_image_list, image_list =\
+    cutout_image_list, image_list, exposures =\
         construct_images(exposures, ra, dec, size=size,
                          subtract_background=subtract_background,
                          roman_path=roman_path)
 
-    return cutout_image_list, image_list
+    return cutout_image_list, image_list, exposures
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
@@ -1300,22 +1318,29 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     """
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
-    band = exposures["band"][0]
+    band = exposures["filter"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     detections = exposures[np.where(exposures["detected"])]
     meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
 
-    data_dict = {"mjd": detections["date"], "flux": flux,
-                 "flux_error": sigma_flux, "mag": mag,
-                 "mag_err": magerr,
-                 "band": np.full(np.size(mag), band),
-                 "zeropoint": np.full(np.size(mag), zp)}
+    data_dict = {"mjd": detections["date"], "flux_fit": flux,
+                 "flux_fit_err": sigma_flux, "mag_fit": mag,
+                 "mag_fit_err": magerr,
+                 "filter": np.full(np.size(mag), band),
+                 "zpt": np.full(np.size(mag), zp),
+                 "pointing": detections["pointing"],
+                 "sca": detections["sca"],
+                 "x": detections["x"],
+                 "y": detections["y"],
+                 "x_cutout": detections["x_cutout"],
+                 "y_cutout": detections["y_cutout"]}
+    Lager.debug(data_dict)
 
-    units = {"mjd": u.d,  "flux": "",
-             "flux_error": "", "mag": u.mag,
-             "mag_err": u.mag, "band": ""}
+    units = {"mjd": u.d,  "flux_fit": "",
+             "flux_fit_err": "", "mag_fit": u.mag,
+             "mag_fit_err": u.mag, "filter": ""}
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
@@ -1323,7 +1348,7 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
 def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
 
     detections = exposures[np.where(exposures["detected"])]
-    band = exposures["band"][0]
+    band = exposures["filter"][0]
     ID = lc.meta["ID"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
@@ -1690,8 +1715,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list = fetch_images(exposures, ra, dec, size, subtract_background, roman_path,
-                                                     object_type)
+        cutout_image_list, image_list, exposures = fetch_images(exposures, ra, dec, size, subtract_background,
+                                                                roman_path, object_type)
 
         if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["detected"]]):
             Lager.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
