@@ -14,8 +14,8 @@ photometry:
 
     paths:
       sims_sed_library: /hpc/home/cfm37/rubin_sim_data/sims_sed_library # CHANGE ME
-      roman_path: /hpc/home/cfm37/campari_test_data # CHANGE ME
-      sn_path: /hpc/home/cfm37/campari_test_data # CHANGE ME
+      roman_path: /hpc/group/cosmology/OpenUniverse2024/
+      sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
       sed_path: /campari_sed_dir
       output_dir: /hpc/home/cfm37/campari_out # CHANGE ME
       debug_dir: /hpc/home/cfm37/campari_debug # CHANGE ME
@@ -52,7 +52,7 @@ photometry:
 ou24:
   config_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml # CHANGE ME
   sn_truth_dir: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
-  sims_sed_library: /hpc/home/cfm37/rubin_sim_data/sims_sed_library # CHANGE ME
+  sims_sed_library: /hpc/home/cfm37/rubin_sim_data/sims_sed_library
 
 ou24psf:
   config_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml # CHANGE ME
