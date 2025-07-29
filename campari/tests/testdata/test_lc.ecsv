@@ -1,4 +1,4 @@
-# %ECSV 1.0More actions
+# %ECSV 1.0
 # ---
 # datatype:
 # - {name: MJD, unit: d, datatype: float64}
