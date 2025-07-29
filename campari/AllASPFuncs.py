@@ -1336,7 +1336,6 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
                  "y": detections["y"],
                  "x_cutout": detections["x_cutout"],
                  "y_cutout": detections["y_cutout"]}
-    Lager.debug(data_dict)
 
     units = {"mjd": u.d,  "flux_fit": "",
              "flux_fit_err": "", "mag_fit": u.mag,
