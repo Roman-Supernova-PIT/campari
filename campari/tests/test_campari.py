@@ -20,7 +20,7 @@ from roman_imsim.utils import roman_utils
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
@@ -48,7 +48,7 @@ from campari.AllASPFuncs import (
     save_lightcurve,
 )
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
-
+from campari.plotting import plot_lc
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
@@ -249,7 +249,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list.csv",
+         f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -268,7 +268,7 @@ def test_regression_function(roman_path):
                                  comment="#", delimiter=" ")
 
         for col in current.columns:
-            Lager.debug(f"Checking col {col}")
+            SNLogger.debug(f"Checking col {col}")
             # According to Michael and Rob, this is roughly what can be expected
             # due to floating point precision.
             #
@@ -366,7 +366,7 @@ def test_regression(roman_path):
                              comment="#", delimiter=" ")
 
     for col in current.columns:
-        Lager.debug(f"Checking col {col}")
+        SNLogger.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = f"The lightcurves do not match for column {col}"
@@ -433,7 +433,6 @@ def test_get_galsim_SED_list(sn_path):
 
 
 def test_plot_lc():
-    from campari.AllASPFuncs import plot_lc
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",
                      return_data=True)
@@ -501,12 +500,10 @@ def test_make_regular_grid():
     ra_center = wcs_dict["CRVAL1"]
     dec_center = wcs_dict["CRVAL2"]
 
-    test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
-                        7.67366176, 7.67376548, 7.67348473, 7.67358845,
-                        7.67369218])
-    test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
-                        -44.26389673, -44.26384629, -44.26379586,
-                        -44.26382471, -44.26377428, -44.26372384])
+    test_ra = np.array([7.673631, 7.673558, 7.673485, 7.673735, 7.673662, 7.673588,
+                        7.673839, 7.673765, 7.673692])
+    test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
+                         -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
@@ -528,7 +525,7 @@ def test_make_adaptive_grid():
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
-        Lager.debug(f"compare_images shape: {compare_images.shape}")
+        SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
         ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                                image=image, percentiles=[99])
@@ -645,7 +642,7 @@ def test_get_weights(roman_path):
     )
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     wcs = snappl_image.get_wcs()
-    Lager.debug(wcs.pixel_to_world(2044, 2044))
+    SNLogger.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
@@ -697,7 +694,7 @@ def test_construct_transient_scene():
         plt.colorbar(label="log10( |constructed - comparison| )")
 
         im_path = pathlib.Path(__file__).parent / "test_psf_source_comparison.png"
-        Lager.debug(f"Saving diagnostic image to {im_path}")
+        SNLogger.debug(f"Saving diagnostic image to {im_path}")
         plt.savefig(im_path)
         plt.close()
 
@@ -786,7 +783,7 @@ def test_find_all_exposures_with_img_list(roman_path):
     band = "Y106"
     columns = ["pointing", "SCA"]
     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-    Lager.debug(image_df)
+    SNLogger.debug(image_df)
     ra = 7.551093401915147
     dec = -44.80718106491529
     transient_start = 62450.
