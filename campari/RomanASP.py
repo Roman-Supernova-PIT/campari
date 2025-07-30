@@ -16,7 +16,7 @@ import snappl
 from snappl.sed import OU2024_Truth_SED
 from snappl.sed import Flat_SED
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 
 # Campari
 from campari.AllASPFuncs import (add_truth_to_lc,
@@ -239,7 +239,6 @@ def main():
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
 
-
     # Option 1, user passes a file of SNIDs
     if args.SNID_file is not None:
         SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
@@ -261,7 +260,7 @@ def main():
             transient_start = -np.inf
         if transient_end is None:
             transient_end = np.inf
-        Lager.debug(
+        SNLogger.debug(
             "Forcing campari to run on the given RA and Dec, "
             f" RA={ra}, Dec={dec} with transient flux fit for between "
             f"MJD {transient_start} and {transient_end}."
@@ -301,22 +300,22 @@ def main():
 
     if not isinstance(SNID, list):
         SNID = [SNID]
-    Lager.debug("Snappl version:")
-    Lager.debug(snappl.__version__)
+    SNLogger.debug("Snappl version:")
+    SNLogger.debug(snappl.__version__)
 
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
             if args.object_lookup:
                 pqfile = find_parquet(ID, sn_path, obj_type=object_type)
-                Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
+                SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
 
                 ra, dec, p, s, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=band,
                                                                                       snpath=sn_path,
                                                                                       roman_path=roman_path,
                                                                                       obj_type=object_type)
-                Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
-                            f"transient_end={transient_end}")
+                SNLogger.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
+                               f"transient_end={transient_end}")
 
             exposures = find_all_exposures(ra, dec, transient_start, transient_end,
                                            roman_path=roman_path,
@@ -327,9 +326,9 @@ def main():
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):
-                Lager.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
-                              " following pointings were not found: "
-                              f"{np.setdiff1d(pointing_list, exposures['pointing'])}")
+                SNLogger.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
+                                 " following pointings were not found: "
+                                 f"{np.setdiff1d(pointing_list, exposures['pointing'])}")
 
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
@@ -364,7 +363,7 @@ def main():
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
         except ValueError as e:
-            Lager.info(f"ValueError: {e}")
+            SNLogger.info(f"ValueError: {e}")
             continue
 
         # Saving the output. The output needs two sections, one where we
@@ -393,7 +392,7 @@ def main():
         images_and_model = np.array([images, sumimages, wgt_matrix])
         debug_dir = pathlib.Path(cfg.value("photometry."
                                  "campari.paths.debug_dir"))
-        Lager.info(f"Saving images to {debug_dir}")
+        SNLogger.info(f"Saving images to {debug_dir}")
         np.save(debug_dir / f"{identifier}_{band}_{psftype}_images.npy",
                 images_and_model)
 
