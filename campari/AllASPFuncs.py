@@ -345,7 +345,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()  # , wcs=sca_wcs
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, wcs=sca_wcs).flatten()
 
     return psfs
 
@@ -532,8 +532,7 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
 
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
                                     size=stampsize, include_photonOps=photOps)
-    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-                                     flux=1., seed=None)  # , input_wcs=sca_wcs
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center, flux=1.0, seed=None, input_wcs=sca_wcs)
 
     return psf_image.flatten()
 
