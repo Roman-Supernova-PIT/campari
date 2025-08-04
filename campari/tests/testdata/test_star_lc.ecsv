@@ -1,0 +1,22 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: mjd, unit: d, datatype: float64}
+# - {name: flux, datatype: float64}
+# - {name: flux_error, datatype: float64}
+# - {name: mag, unit: mag, datatype: float64}
+# - {name: mag_err, unit: mag, datatype: float64}
+# - {name: band, datatype: string}
+# - {name: zeropoint, datatype: float64}
+# - {name: sim_realized_flux, datatype: float64}
+# - {name: sim_true_flux, datatype: float64}
+# - {name: sim_realized_mag, unit: mag, datatype: float64}
+# - {name: sim_true_mag, unit: mag, datatype: float64}
+# meta: !!omap
+# - {ID: 40973166870}
+# - {obj_ra: 7.5833264}
+# - {obj_dec: -44.809659}
+# - {confusion_metric: 0}
+# schema: astropy-2.0
+mjd flux flux_error mag mag_err band zeropoint sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
+62455.669 362914.2324171479 148.49828159608055 18.762145752644635 0.0004442646396074883 Y106 15.023547191066584 394659.0 395234.112 18.67110072552286 18.669519701404422
