@@ -55,9 +55,8 @@ photometry:
       single_grid_point: false
       base_pointing: 276
       base_sca: 10
-      # gaussian_variance: 10
-      # bulge_hlr: 1.5
-      # disk_hlr: 5
+      bulge_hlr: 1.6
+      disk_hlr: 5
 
 ou24psf:
   config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
