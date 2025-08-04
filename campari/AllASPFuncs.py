@@ -19,13 +19,13 @@ from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
+import healpy as hp
 from matplotlib import pyplot as plt
 from numpy.linalg import LinAlgError
 from roman_imsim.utils import roman_utils
 from scipy.interpolate import RegularGridInterpolator
 
 # SN-PIT
-import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -111,7 +111,8 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     yy = yy.flatten()
     SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
-    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
+    # Astropy takes (y, x) order:
+    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
 
     return ra_grid, dec_grid
 
@@ -215,25 +216,24 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
             if num == 0:
                 pass
             elif num == 1:
-                xs.append(y)
-                ys.append(x)  # I know I swap this because Astropy takes (y,x)
-                # order but I'd really like to iron out all the places I do
-                # this rather than doing it so off the cuff. TODO
+                xs.append(x)
+                ys.append(y)
             else:
                 xx = np.linspace(x - subpixel_grid_width/2,
                                  x + subpixel_grid_width/2, num+2)[1:-1]
                 yy = np.linspace(y - subpixel_grid_width/2,
                                  y + subpixel_grid_width/2, num+2)[1:-1]
                 X, Y = np.meshgrid(xx, yy)
-                ys.extend(list(X.flatten()))
-                xs.extend(list(Y.flatten()))  # ...Like here. TODO
+                ys.extend(list(Y.flatten()))
+                xs.extend(list(X.flatten()))
 
     xx = np.array(xs).flatten()
     yy = np.array(ys).flatten()
 
     SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
-    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
+    # Astropy takes (y,x) order:
+    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
 
     return ra_grid, dec_grid
 
@@ -347,6 +347,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, wcs=sca_wcs).flatten()
 
+
     return psfs
 
 
@@ -394,7 +395,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     transient_end = np.atleast_1d(transient_end)[0]
     if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
         raise TypeError("maxdet and maxbg must be integers or None, " +
-                        f"not {type(maxdet), type(maxbg)}")
+                        f"not {type(maxdet), type(maxbg)}. Their values are {maxdet, maxbg}")
 
     # Rob's database method! :D
 
@@ -406,8 +407,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                            "{result.text}")
 
     res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
-    res.rename(columns={"mjd": "date"},
-               inplace=True)
+    res.rename(columns={"mjd": "date"}, inplace=True)
     res = res.loc[res["filter"] == band].copy()
 
     # The first date cut selects images that are detections, the second
@@ -567,10 +567,14 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     cutout_image_list = []
 
     SNLogger.debug(f"truth in construct images: {truth}")
+    x_list = []
+    y_list = []
+    x_cutout_list = []
+    y_cutout_list = []
 
     for indx, exp in enumerate(exposures):
         SNLogger.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = exp["band"]
+        band = exp["filter"]
         pointing = exp["pointing"]
         sca = exp["sca"]
 
@@ -582,6 +586,17 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, sca)
         imagedata, errordata, flags = image.get_data(which="all")
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+
+        image_wcs = image_cutout.get_wcs()
+        cutotut_wcs = image_cutout.get_wcs()
+
+        x, y = image_wcs.world_to_pixel(ra, dec)
+        x_cutout, y_cutout = cutotut_wcs.world_to_pixel(ra, dec)
+
+        x_list.append(x)
+        y_list.append(y)
+        x_cutout_list.append(x_cutout)
+        y_cutout_list.append(y_cutout)
 
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
@@ -614,8 +629,7 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
                 # ....or manually calculating it!
                 bg = calculate_background_level(imagedata)
 
-        bgflux.append(bg)  # This currently isn't returned, but might be a good
-        # thing to put in output? TODO
+        bgflux.append(bg)
 
         image_cutout._data -= bg
         SNLogger.debug(f"Subtracted a background level of {bg}")
@@ -623,7 +637,14 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image_list.append(image)
         cutout_image_list.append(image_cutout)
 
-    return cutout_image_list, image_list
+    exposures["x"] = x_list
+    exposures["y"] = y_list
+    exposures["x_cutout"] = x_cutout_list
+    exposures["y_cutout"] = y_cutout_list
+
+    SNLogger.debug("updated exposures with x, y, x_cutout, y_cutout:")
+    SNLogger.debug(exposures)
+    return cutout_image_list, image_list, exposures
 
 
 def calculate_background_level(im):
@@ -734,7 +755,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
         raise ValueError(f"Not Enough Exposures. \
             Found {len(exposures)} out of {num_total_images} requested")
 
-    cutout_image_list, image_list =\
+    cutout_image_list, image_list, exposures =\
         construct_images(exposures, ra, dec, size=size,
                          subtract_background=subtract_background,
                          roman_path=roman_path)
@@ -840,7 +861,9 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
         if error is None:
             error = np.ones_like(wgt)
         SNLogger.debug(f"wgt before: {np.mean(wgt)}")
-        wgt /= (error[i].flatten())**2  # Define an inv variance TODO
+        inv_var = 1 / (error[i].flatten()) ** 2
+        wgt *= inv_var
+
         SNLogger.debug(f"wgt after: {np.mean(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
@@ -848,6 +871,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
 
 def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
               make_exact=False, sim_galra=None, sim_galdec=None, cut_points_close_to_sn=True):
+
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -892,15 +916,13 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
     if grid_type == "contour":
         ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
 
-    # TODO: de-hardcode spacing and percentiles. These should be passable
-    # options.
     elif grid_type == "adaptive":
         ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs,
                                                image=image_data,
                                                percentiles=percentiles)
     elif grid_type == "regular":
         ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
-                                              size=size, spacing=0.75)
+                                              size=size, spacing=spacing)
 
     if grid_type == "single":
         ra_grid, dec_grid = [sim_galra], [sim_galdec]
@@ -927,132 +949,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
     #     SNLogger.debug(f"New grid size: {len(ra_grid)}")
 
     return ra_grid, dec_grid
-
-
-def plot_lc(filepath, return_data=False):
-    fluxdata = pd.read_csv(filepath, comment="#", delimiter=" ")
-    truth_mag = fluxdata["sim_true_mag"]
-    mag = fluxdata["mag"]
-    sigma_mag = fluxdata["mag_err"]
-
-    plt.figure(figsize=(10, 10))
-    plt.subplot(2, 1, 1)
-
-    dates = fluxdata["mjd"]
-
-    plt.scatter(dates, truth_mag, color="k", label="Truth")
-    plt.errorbar(dates, mag, yerr=sigma_mag,  color="purple", label="Model",
-                 fmt="o")
-
-    plt.ylim(np.max(truth_mag) + 0.2, np.min(truth_mag) - 0.2)
-    plt.ylabel("Magnitude (Uncalibrated)")
-
-    residuals = mag - truth_mag
-    bias = np.mean(residuals)
-    bias *= 1000
-    bias = np.round(bias, 3)
-    scatter = np.std(residuals)
-    scatter *= 1000
-    scatter = np.round(scatter, 3)
-    props = dict(boxstyle="round", facecolor="wheat", alpha=0.8)
-    textstr = "Overall Bias: " + str(bias) + " mmag \n" + \
-        "Overall Scatter: " + str(scatter) + " mmag"
-    plt.text(np.percentile(dates, 60), np.mean(truth_mag), textstr,
-             fontsize=14, verticalalignment="top", bbox=props)
-    plt.legend()
-
-    plt.subplot(2, 1, 2)
-    plt.errorbar(dates, residuals, yerr=sigma_mag, fmt="o", color="k")
-    plt.axhline(0, ls="--", color="k")
-    plt.ylabel("Mag Residuals (Model - Truth)")
-
-    plt.ylabel("Mag Residuals (Model - Truth)")
-    plt.xlabel("MJD")
-    plt.ylim(np.min(residuals) - 0.1, np.max(residuals) + 0.1)
-
-    plt.axhline(0.005, color="r", ls="--")
-    plt.axhline(-0.005, color="r", ls="--", label="5 mmag photometry")
-
-    plt.axhline(0.02, color="b", ls="--")
-    plt.axhline(-0.02, color="b", ls="--", label="20 mmag photometry")
-    plt.legend()
-
-    if return_data:
-        return mag.values, dates.values, \
-            sigma_mag.values, truth_mag.values, bias, scatter
-
-
-def plot_images(file, lc_file, wcs_file, size=11):
-
-    imgdata = np.load(file)
-    num_total_images = imgdata.shape[1]//size**2
-    images = imgdata[0]
-    sumimages = imgdata[1]
-
-    fluxdata = pd.read_csv(lc_file)
-
-    ra, dec = fluxdata["sn_ra"][0], fluxdata["sn_dec"][0]
-    galra, galdec = fluxdata["host_ra"][0], fluxdata["host_dec"][0]
-
-    hdul = fits.open(wcs_file)
-    cutout_wcs_list = []
-    for i, savedwcs in enumerate(hdul):
-        if i == 0:
-            continue
-        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
-        cutout_wcs_list.append(newwcs)
-
-    ra_grid, dec_grid, gridvals = np.load("./results/images/"
-                                          + str(fileroot)+"_grid.npy")
-
-    plt.figure(figsize=(15, 3*num_total_images))
-
-    for i, wcs in enumerate(cutout_wcs_list):
-
-        extent = [-0.5, size-0.5, -0.5, size-0.5]
-        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-        object_x, object_y = wcs.world_to_pixel(ra, dec)
-        galx, galy = wcs.world_to_pixel(galra, galdec)
-
-        plt.subplot(len(cutout_wcs_list), 4, 4*i+1)
-        vmin = np.mean(gridvals) - np.std(gridvals)
-        vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx, yy, s=1, c="k", vmin=vmin, vmax=vmax)
-        plt.title("True Image")
-        plt.scatter(object_x, object_y, c="r", s=8, marker="*")
-        plt.scatter(galx, galy, c="b", s=8, marker="*")
-        imshow = plt.imshow(images[i*size**2:
-                            (i+1)*size**2].reshape(size, size),
-                            origin="lower", extent=extent)
-        plt.colorbar(fraction=0.046, pad=0.04)
-
-        ############################################
-
-        plt.subplot(len(cutout_wcs_list), 4, 4*i+2)
-        plt.title("Model")
-
-        im1 = sumimages[i*size**2:(i+1)*size**2].reshape(size, size)
-        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-
-        vmin = imshow.get_clim()[0]
-        vmax = imshow.get_clim()[1]
-
-        plt.imshow(im1, extent=extent, origin="lower", vmin=vmin, vmax=vmax)
-        plt.colorbar(fraction=0.046, pad=0.04)
-
-        ############################################
-        plt.subplot(len(cutout_wcs_list), 4, 4*i+3)
-        plt.title("Residuals")
-        vmin = np.mean(gridvals) - np.std(gridvals)
-        vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx, yy, s=1, c=gridvals,  vmin=vmin, vmax=vmax)
-        res = images - sumimages
-        current_res = res[i*size**2:(i+1)*size**2].reshape(size, size)
-        plt.imshow(current_res, extent=extent, origin="lower", cmap="seismic",
-                   vmin=-100, vmax=100)
-        plt.colorbar(fraction=0.046, pad=0.14)
-
-    plt.subplots_adjust(wspace=0.4, hspace=0.3)
 
 
 def get_galsim_SED(SNID, date, sn_path, fetch_SED, obj_type="SN"):
@@ -1217,6 +1113,7 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     yg = yg.ravel()
     SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
 
+
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
     else:
@@ -1250,8 +1147,7 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
         x_totalgrid.extend(xg)
         y_totalgrid.extend(yg)
 
-    xx, yy = y_totalgrid, x_totalgrid  # Here is another place I need to flip
-    # x and y. I'd like this to be more rigorous or at least clear.
+    xx, yy = x_totalgrid, y_totalgrid
     xx = np.array(xx)
     yy = np.array(yy)
     xx = xx.flatten()
@@ -1260,7 +1156,8 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     first_n = 5
     SNLogger.debug(f"First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}")
 
-    ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
+    # Astropy takes (y ,x) order:
+    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
 
     return ra_grid, dec_grid
 
@@ -1672,7 +1569,8 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     """
     if not hasattr(radius, "unit") and radius is not None:
         SNLogger.warning("extract_star_from_parquet_file_and_write_to_csv " +
-                      "a radius argument with no units. Assuming degrees.")
+                         "got a radius argument with no units. Assuming degrees.")
+
         radius *= u.deg
 
     df = open_parquet(parquet_file, sn_path, obj_type="star")
@@ -1715,7 +1613,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list = fetch_images(exposures, ra, dec, size, subtract_background, roman_path,
+        cutout_image_list, image_list= fetch_images(exposures, ra, dec, size, subtract_background, roman_path,
                                                      object_type)
 
         if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["detected"]]):
@@ -1806,13 +1704,11 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         SNLogger.debug("Confusion Metric not calculated")
 
     # Build the backgrounds loop
-    # TODO: Zip all the things you index [i] on directly and loop over
-    # them.
-    for i in range(num_total_images):
+    for i, (image, pointing, sca) in enumerate(zip(image_list, exposures["pointing"], exposures["sca"])):
         # Passing in None for the PSF means we use the Roman PSF.
         drawing_psf = None if use_roman else airy
 
-        whole_sca_wcs = image_list[i].get_wcs()
+        whole_sca_wcs = image.get_wcs()
         object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
 
         # Build the model for the background using the correct psf and the
@@ -1822,8 +1718,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         if use_real_images:
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
-                                   visit=exposures["pointing"][i],
-                                   sca=exposures["sca"][i])
+                                   visit=pointing, sca=sca)
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
@@ -1837,8 +1732,12 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                        pixel=pixel,
                                        util_ref=util_ref, band=band)
 
-        # TODO comment this
         if not subtract_background:
+            # If we did not manually subtract the background, we need to fit in the forward model. Since the
+            # background is a constant, we add a term to the model that is all ones. But we only want the background
+            # to be present in the model for the image it is associated with. Therefore, we only add the background
+            # model term when we are on the image that is being modeled, otherwise we add a term that is all zeros.
+            # This is the same as to why we have to make the rest of the SN model zeroes in the other images.
             for j in range(num_total_images):
                 if i == j:
                     bg = np.ones(size**2).reshape(-1, 1)
@@ -1851,13 +1750,18 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # to the matrix of all components of the model.
         psf_matrix.append(background_model_array)
 
-        # TODO make this not bad
-        if num_detect_images != 0 and \
-           i >= num_total_images - num_detect_images:
+        # The arrays below are the length of the number of images that contain the object
+        # Therefore, when we iterate onto the
+        # first object image, we want to be on the first element
+        # of sedlist. Therefore, we subtract by the number of
+        # predetection images: num_total_images - num_detect_images.
+        # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
+        sn_index = i - (num_total_images - num_detect_images)
+        if sn_index >= 0:
             if use_roman:
                 if use_real_images:
-                    pointing = exposures["pointing"][i]
-                    sca = exposures["sca"][i]
+                    pointing = pointing
+                    sca = sca
                 else:
                     pointing = base_pointing
                     sca = base_sca
@@ -1887,6 +1791,9 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                               y_center=object_y, sed=sed,
                                               photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
             else:
+                # NOTE: cutout_wcs_list is not being included in the zip above because in a different branch
+                # I am updating the simulations to use snappl image objects. That will be changed here once that
+                # is done.
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
                 profile = profile.withFlux(1, roman_bandpasses[band])
@@ -1923,6 +1830,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     # Combine the background model and the supernova model into one matrix.
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
+
     # Calculate amount of the PSF cut out by setting a distance cap
     test_sn_matrix = np.copy(sn_matrix)
     test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
@@ -1952,6 +1860,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                        f"r1norm: {r1norm}")
+        
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
@@ -1961,16 +1870,17 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         cov = np.linalg.pinv(inv_cov)
 
     SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
-
     SNLogger.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
     sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
+
     SNLogger.debug(f"sigma flux: {sigma_flux}")
 
     # Using the values found in the fit, construct the model images.
     pred = X*psf_matrix
     sumimages = np.sum(pred, axis=1)
 
-    # TODO: Move this to a separate function
+    # TODO: Move this to a separate function.
+    # NOTE: This todo is being worked on in the simulations branch.
     if check_perfection:
         if avoid_non_linearity:
             f = 1
@@ -1991,13 +1901,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
         [im.get_wcs() for im in cutout_image_list], sim_lc
-
-
-def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
-    SNLogger.debug(f"WCS: {type(wcs)}")
-    fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
-    plt.imshow(image, origin="lower", cmap="gray")
-    plt.scatter(ra_grid, dec_grid)
 
 
 def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
@@ -2023,3 +1926,53 @@ def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fpho
                          wave_type=wave_type, flux_type=flux_type)
         sed_list.append(sed)
     return sed_list
+
+
+def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUniverse2024"):
+    """This function takes in a healpix and nside and extracts all of the objects of the requested type in that
+    healpix. Currently, the source the objects are extracted from is hardcoded to OpenUniverse2024 sims, but that will
+    change in the future with real data.
+
+    Parameters
+    ----------
+    healpix: int, the healpix number to extract objects from
+    nside: int, the nside of the healpix to extract objects from
+    object_type: str, the type of object to extract. Can be "SN" or "star". Defaults to "SN".
+    source: str, the source of the table of objects to extract. Defaults to "OpenUniverse2024".
+
+    Returns;
+    -------
+    id_array: numpy array of int, the IDs of the objects extracted from the healpix.
+    """
+    assert isinstance(healpix, int), "Healpix must be an integer."
+    assert isinstance(nside, int), "Nside must be an integer."
+    SNLogger.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
+    if source == "OpenUniverse2024":
+        path = Config.get().value("photometry.campari.paths.sn_path")
+        files = os.listdir(path)
+        file_prefix = {"SN": "snana", "star": "pointsource"}
+        files = [f for f in files if file_prefix[object_type] in f]
+        files = [f for f in files if ".parquet" in f]
+        files = [f for f in files if "flux" not in f]
+
+        ra_array = np.array([])
+        dec_array = np.array([])
+        id_array = np.array([])
+
+        for f in files:
+            pqfile = int(f.split("_")[1].split(".")[0])
+            df = open_parquet(pqfile, path, obj_type=object_type)
+
+            ra_array = np.concatenate([ra_array, df["ra"].values])
+            dec_array = np.concatenate([dec_array, df["dec"].values])
+            id_array = np.concatenate([id_array, df["id"].values])
+
+    else:
+        # With real data, we will have to choose the first detection, as ra/dec might shift slightly.
+        raise NotImplementedError(f"Source {source} not implemented yet.")
+
+    healpix_array = hp.ang2pix(nside, ra_array, dec_array, lonlat=True)
+    mask = healpix_array == healpix
+    id_array = id_array[mask]
+
+    return id_array.astype(int)

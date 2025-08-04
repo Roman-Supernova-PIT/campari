@@ -31,6 +31,7 @@ from campari.AllASPFuncs import (
     construct_static_scene,
     construct_transient_scene,
     extract_id_using_ra_dec,
+    extract_object_from_healpix,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -47,7 +48,6 @@ from campari.AllASPFuncs import (
     radec2point,
     save_lightcurve,
 )
-
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
@@ -342,7 +342,6 @@ def test_get_galsim_SED_list(sn_path):
 
 
 def test_plot_lc():
-    from campari.AllASPFuncs import plot_lc
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",
                      return_data=True)
@@ -410,12 +409,10 @@ def test_make_regular_grid():
     ra_center = wcs_dict["CRVAL1"]
     dec_center = wcs_dict["CRVAL2"]
 
-    test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
-                        7.67366176, 7.67376548, 7.67348473, 7.67358845,
-                        7.67369218])
-    test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
-                        -44.26389673, -44.26384629, -44.26379586,
-                        -44.26382471, -44.26377428, -44.26372384])
+    test_ra = np.array([7.673631, 7.673558, 7.673485, 7.673735, 7.673662, 7.673588,
+                        7.673839, 7.673765, 7.673692])
+    test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
+                         -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
@@ -720,3 +717,20 @@ def test_find_all_exposures_with_img_list(roman_path):
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],
                                        rtol=1e-7, atol=1e-7)
+
+
+def test_extract_object_from_healpix():
+    healpix = 42924408
+    nside = 2**11
+    object_type = "SN"
+    source = "OpenUniverse2024"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_id_array.npy")
+    np.testing.assert_array_equal(id_array, test_id_array), \
+        "The IDs extracted from the healpix do not match the expected values."
+
+    object_type = "star"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
+    np.testing.assert_array_equal(id_array, test_id_array), \
+        "The IDs extracted from the healpix do not match the expected values."
