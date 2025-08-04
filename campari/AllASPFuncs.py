@@ -28,7 +28,7 @@ from scipy.interpolate import RegularGridInterpolator
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
 
 # Campari
@@ -87,29 +87,29 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     """
-    Lager.debug(f'CRPIX1 {wcs.to_fits_header()["CRPIX1"]}')
+    SNLogger.debug(f'CRPIX1 {wcs.to_fits_header()["CRPIX1"]}')
     if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
 
-        Lager.warning("This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
-                      "cutout WCS, this is likely not a cutout WCS.")
+        SNLogger.warning("This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
+                         "cutout WCS, this is likely not a cutout WCS.")
     if subsize > size:
-        Lager.warning("subsize is larger than the image size. " +
-                      f"{size} > {subsize}. This would cause model points to" +
-                      " be placed outside the image. Reducing subsize to" +
-                      " match the image size.")
+        SNLogger.warning("subsize is larger than the image size. " +
+                         f"{size} > {subsize}. This would cause model points to" +
+                         " be placed outside the image. Reducing subsize to" +
+                         " match the image size.")
         subsize = size
 
-    Lager.debug("Grid type: regularly spaced")
+    SNLogger.debug("Grid type: regularly spaced")
     difference = int((size - subsize)/2)
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
-    Lager.debug(f"Grid spacing: {spacing}")
+    SNLogger.debug(f"Grid spacing: {spacing}")
 
     xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
-    Lager.debug(f"Built a grid with {np.size(xx)} points")
+    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
     ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
@@ -165,14 +165,14 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     """
     size = np.shape(image)[0]
     if subsize > size:
-        Lager.warning("subsize is larger than the image size " +
-                      f"{size} > {subsize}. This would cause model points to" +
-                      " be placed outside the image. Reducing subsize to" +
-                      " match the image size.")
+        SNLogger.warning("subsize is larger than the image size " +
+                         f"{size} > {subsize}. This would cause model points to" +
+                         " be placed outside the image. Reducing subsize to" +
+                         " match the image size.")
         subsize = size
 
-    Lager.debug("image shape: {}".format(np.shape(image)))
-    Lager.debug("Grid type: adaptive")
+    SNLogger.debug("image shape: {}".format(np.shape(image)))
+    SNLogger.debug("Grid type: adaptive")
     # Bin the image in logspace and allocate grid points based on the
     # brightness.
 
@@ -182,9 +182,9 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     y = difference + np.arange(0, subsize, 1)
 
     if percentiles.sort() != percentiles:
-        Lager.warning("Percentiles not in ascending order. Sorting them.")
+        SNLogger.warning("Percentiles not in ascending order. Sorting them.")
         percentiles.sort()
-        Lager.warning(f"Percentiles: {percentiles}")
+        SNLogger.warning(f"Percentiles: {percentiles}")
 
     imcopy = np.copy(image)
     # We need to make sure that the image is not zero, otherwise we get
@@ -194,7 +194,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     bins = [0]
     bins.extend(np.nanpercentile(imcopy, percentiles))
     bins.append(100)
-    Lager.debug(f"BINS: {bins}")
+    SNLogger.debug(f"BINS: {bins}")
 
     brightness_levels = np.digitize(imcopy, bins)
     xs = []
@@ -231,7 +231,7 @@ def make_adaptive_grid(ra_center, dec_center, wcs,
     xx = np.array(xs).flatten()
     yy = np.array(ys).flatten()
 
-    Lager.debug(f"Built a grid with {np.size(xx)} points")
+    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
     ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
@@ -344,8 +344,8 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
-            Lager.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None, wcs = sca_wcs).flatten()
+            SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()  # , wcs=sca_wcs
 
     return psfs
 
@@ -434,7 +434,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
 
     explist = Table.from_pandas(all_images)
     explist.sort(["detected", "sca"])
-    Lager.info("\n" + str(explist))
+    SNLogger.info("\n" + str(explist))
 
     if return_list:
         return explist
@@ -457,7 +457,7 @@ def find_parquet(ID, path, obj_type="SN"):
         # Should I convert the entire array or is there a smarter way to do
         # this?
         if ID in df.id.values or str(ID) in df.id.values:
-            Lager.debug(f"Found {obj_type} {ID} in {f}")
+            SNLogger.debug(f"Found {obj_type} {ID} in {f}")
             return pqfile
 
 
@@ -515,12 +515,12 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
     if not isinstance(x, int) or not isinstance(y, int):
         raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
 
-    Lager.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
-                f" pointing, sca: {pointing, sca} \n" +
-                f" stamp size: {stampsize} \n" +
-                f" x_center, y_center: {x_center, y_center} \n" +
-                f" sed: {sed} \n" +
-                f" flux: {flux}")
+    SNLogger.debug(f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n" +
+                   f" pointing, sca: {pointing, sca} \n" +
+                   f" stamp size: {stampsize} \n" +
+                   f" x_center, y_center: {x_center, y_center} \n" +
+                   f" sed: {sed} \n" +
+                   f" flux: {flux}")
 
     assert sed is not None, "You must provide an SED for the source"
 
@@ -528,12 +528,12 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
         # run, I'd want to know.
-        Lager.warning("NOT USING PHOTON OPS IN PSF SOURCE")
+        SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
                                     size=stampsize, include_photonOps=photOps)
     psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-                                     flux=1., seed=None, input_wcs=sca_wcs)
+                                     flux=1., seed=None)  # , input_wcs=sca_wcs
 
     return psf_image.flatten()
 
@@ -567,10 +567,10 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     image_list = []
     cutout_image_list = []
 
-    Lager.debug(f"truth in construct images: {truth}")
+    SNLogger.debug(f"truth in construct images: {truth}")
 
     for indx, exp in enumerate(exposures):
-        Lager.debug(f"Constructing image {indx} of {len(exposures)}")
+        SNLogger.debug(f"Constructing image {indx} of {len(exposures)}")
         band = exp["band"]
         pointing = exp["pointing"]
         sca = exp["sca"]
@@ -619,7 +619,7 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         # thing to put in output? TODO
 
         image_cutout._data -= bg
-        Lager.debug(f"Subtracted a background level of {bg}")
+        SNLogger.debug(f"Subtracted a background level of {bg}")
 
         image_list.append(image)
         cutout_image_list.append(image_cutout)
@@ -661,7 +661,7 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
 
     if pixel:
         point = galsim.Pixel(1)*sed
-        Lager.debug("Building a Pixel shaped PSF source")
+        SNLogger.debug("Building a Pixel shaped PSF source")
     else:
         point = galsim.DeltaFunction()*sed
 
@@ -682,7 +682,7 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
                          stamp_size*oversampling_factor, wcs=wcs)
 
     if not include_photonOps:
-        Lager.debug(f"in get_psf_image: {self.bpass}, {x_center}, {y_center}")
+        SNLogger.debug(f"in get_psf_image: {self.bpass}, {x_center}, {y_center}")
 
         psf = galsim.Convolve(point, self.getPSF(x, y, pupil_bin))
         return psf.drawImage(self.bpass, image=stamp, wcs=wcs,
@@ -691,7 +691,7 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
                              use_true_center=True)
 
     photon_ops = [self.getPSF(x, y, pupil_bin)] + self.photon_ops
-    Lager.debug(f"Using {n_phot:e} photons in get_psf_image")
+    SNLogger.debug(f"Using {n_phot:e} photons in get_psf_image")
     result = point.drawImage(self.bpass, wcs=wcs, method="phot",
                              photon_ops=photon_ops, rng=self.rng,
                              n_photons=int(n_phot), maxN=int(n_phot),
@@ -724,7 +724,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     image_list: list of snappl.image.Image objects, the full images
     """
 
-    Lager.debug("Saved exposures")
+    SNLogger.debug("Saved exposures")
     num_predetection_images = len(exposures[~exposures["detected"]])
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
@@ -782,7 +782,7 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-def get_weights(images, ra, dec, gaussian_var=4, cutoff=4):
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -810,7 +810,7 @@ def get_weights(images, ra, dec, gaussian_var=4, cutoff=4):
     error = [im.noise for im in images]
 
     wgt_matrix = []
-    Lager.debug(f"Gaussian Variance in get_weights {gaussian_var}")
+    SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var}")
     for i, wcs in enumerate(wcs_list):
         xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
         xx = xx.flatten()
@@ -840,9 +840,9 @@ def get_weights(images, ra, dec, gaussian_var=4, cutoff=4):
         wgt[np.where(dist > cutoff)] = 0
         if error is None:
             error = np.ones_like(wgt)
-        Lager.debug(f"wgt before: {np.mean(wgt)}")
+        SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         wgt /= (error[i].flatten())**2  # Define an inv variance TODO
-        Lager.debug(f"wgt after: {np.mean(wgt)}")
+        SNLogger.debug(f"wgt after: {np.mean(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
 
@@ -886,7 +886,7 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
     snappl_wcs = images[0].get_wcs()
     image_data = images[0].data
 
-    Lager.debug(f"Grid type: {grid_type}")
+    SNLogger.debug(f"Grid type: {grid_type}")
     if grid_type not in ["regular", "adaptive", "contour", "single"]:
         raise ValueError("Grid type must be one of: regular, adaptive, "
                          "contour, single")
@@ -919,14 +919,13 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
 
     # if cut_points_close_to_sn:
     #     min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
-    #     Lager.debug(f"Cutting points closer than {min_distance} from SN")
+    #     SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
     #     distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
-    #     Lager.debug(type(distances[0]))
-    #     Lager.debug(f"Old Grid size: {len(ra_grid)}")
+    #     SNLogger.debug(type(distances[0]))
+    #     SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
     #     ra_grid = ra_grid[distances > min_distance]
     #     dec_grid = dec_grid[distances > min_distance]
-    #     Lager.debug(f"New grid size: {len(ra_grid)}")
-
+    #     SNLogger.debug(f"New grid size: {len(ra_grid)}")
 
     return ra_grid, dec_grid
 
@@ -1144,16 +1143,17 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     flambda = sed_table["flambda"]
     lam = sed_table["lambda"]
     mjd = sed_table["mjd"]
+    SNLogger.debug(f"MJD values in SED: {np.array(mjd)}")
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    closest_days_away = np.min(np.array(mjd) - date)
+    closest_days_away = np.min(np.abs(np.array(mjd) - date))
 
     if np.abs(closest_days_away) > max_days_cutoff:
-        Lager.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
-                      f"date. \n The closest SED is {closest_days_away} days away.")
+        SNLogger.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
+                         f"date. \n The closest SED is {closest_days_away} days away.")
     return np.array(lam), np.array(flambda[bestindex])
 
 
-def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 80, 85, 100],
+def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
                       subsize=4):
     """Construct a "contour grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image. This is
@@ -1216,14 +1216,14 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 80, 85, 100],
     xg, yg = np.meshgrid(x, y, indexing="ij")
     xg = xg.ravel()
     yg = yg.ravel()
-    Lager.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
+    SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
 
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
     else:
         levels = list(np.percentile(image, percentiles))
 
-    Lager.debug(f"Using levels: {levels} in make_contour_grid")
+    SNLogger.debug(f"Using levels: {levels} in make_contour_grid")
 
     interp = RegularGridInterpolator((x, y), image, method="linear",
                                      bounds_error=False, fill_value=None)
@@ -1239,8 +1239,8 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 80, 85, 100],
         # Generate a grid that gets finer each iteration of the loop. For
         # instance, in brightness bin 1, 1 point per pixel, in brightness bin
         # 2, 4 points per pixel (2 in each direction), etc.
-        x = np.arange(0, size, (3/4) * 1/(i+1))
-        y = np.arange(0, size, (3/4) * 1/(i+1))
+        x = np.arange(0, size, 1/(i+1))
+        y = np.arange(0, size, 1/(i+1))
         if i == 0:
             x = x[np.where(np.abs(x - size/2) < subsize)]
             y = y[np.where(np.abs(y - size/2) < subsize)]
@@ -1257,9 +1257,9 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 80, 85, 100],
     yy = np.array(yy)
     xx = xx.flatten()
     yy = yy.flatten()
-    Lager.debug(f"Built a grid with {np.size(xx)} points")
+    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
     first_n = 5
-    Lager.debug(f"First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}")
+    SNLogger.debug(f"First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}")
 
     ra_grid, dec_grid = wcs.pixel_to_world(xx, yy)
 
@@ -1417,7 +1417,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux,
                  "flux_error": sigma_flux, "sim_flux": supernova}
-    Lager.debug(data_dict)
+    SNLogger.debug(data_dict)
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "",  "flux": "", "flux_error": ""}
     return QTable(data=data_dict, meta=meta_dict, units=units)
@@ -1441,7 +1441,7 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
     <output_path>/identifier_band_psftype_lc.ecsv
     """
     if lc is None:
-        Lager.warning("No lightcurve to save, returning.")
+        SNLogger.warning("No lightcurve to save, returning.")
         return
     output_path = Config.get().value("photometry.campari.paths.output_dir") \
         if output_path is None else output_path
@@ -1450,7 +1450,7 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
 
     lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
 
-    Lager.info(f"Saving lightcurve to {lc_file}")
+    SNLogger.info(f"Saving lightcurve to {lc_file}")
     lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
 
 
@@ -1458,7 +1458,7 @@ def banner(text):
     length = len(text) + 8
     message = "\n" + "#" * length + "\n"+"#   " + text + "   # \n" + "#" \
               * length
-    Lager.debug(message)
+    SNLogger.debug(message)
 
 
 def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
@@ -1517,7 +1517,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
                 correct rows and columns, see comment below. Shape (n*s^2, n)
     wgt_matrix: 1D array of weights. Length n*s^2
     """
-    Lager.debug("Prep data for fit")
+    SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0]**2
     tot_num = len(images)
     det_num = len(sn_matrix)
@@ -1577,12 +1577,12 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_
     SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
     # some reason. They only seem to have 1 or 2 images ever. TODO
     SN_ID = np.array(SN_ID, dtype=int)
-    Lager.info(f"Found {np.size(SN_ID)} supernovae in the given range.")
+    SNLogger.info(f"Found {np.size(SN_ID)} supernovae in the given range.")
     if np.size(SN_ID) == 0:
         raise ValueError("No supernovae found in the given range.")
 
     pd.DataFrame(SN_ID).to_csv(output_path, index=False, header=False)
-    Lager.info(f"Saved to {output_path}")
+    SNLogger.info(f"Saved to {output_path}")
 
 
 def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type="SN"):
@@ -1611,7 +1611,7 @@ def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type
     """
 
     if not hasattr(radius, "unit") and radius is not None:
-        Lager.warning("extract_id_using_ra_dec got a radius argument with no units. Assuming degrees.")
+        SNLogger.warning("extract_id_using_ra_dec got a radius argument with no units. Assuming degrees.")
         radius *= u.deg
 
     file_prefix = {"SN": "snana", "star": "pointsource"}
@@ -1619,7 +1619,7 @@ def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type
     parquet_files = sorted(glob.glob(os.path.join(sn_path, f"{file_prefix}_*.parquet")))
     SN_ID_list = []
     dist_list = []
-    Lager.debug(f"Found {len(parquet_files)} parquet files in {sn_path} with prefix {file_prefix}")
+    SNLogger.debug(f"Found {len(parquet_files)} parquet files in {sn_path} with prefix {file_prefix}")
     for file in parquet_files:
         p = file.split(f"{file_prefix}_")[-1].split(".parquet")[0]
         df = open_parquet(p, sn_path, obj_type="SN")
@@ -1636,7 +1636,7 @@ def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type
         SN_ID_list.extend(SN_ID)
     all_SN_ID = np.array(SN_ID_list, dtype=int)
     all_dist = np.array(dist_list, dtype=float)
-    Lager.info(f"Found {np.size(all_SN_ID)} {object_type}s in the given range.")
+    SNLogger.info(f"Found {np.size(all_SN_ID)} {object_type}s in the given range.")
     if np.size(all_SN_ID) == 0:
         raise ValueError(f"No {object_type}s found in the given range.")
 
@@ -1672,7 +1672,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     file that pass location cuts. If none are found, raise a ValueError.
     """
     if not hasattr(radius, "unit") and radius is not None:
-        Lager.warning("extract_star_from_parquet_file_and_write_to_csv " +
+        SNLogger.warning("extract_star_from_parquet_file_and_write_to_csv " +
                       "a radius argument with no units. Assuming degrees.")
         radius *= u.deg
 
@@ -1688,11 +1688,11 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
 
     star_ID = df.id.values
     star_ID = np.array(star_ID, dtype=int)
-    Lager.info(f"Found {np.size(star_ID)} stars in the given range.")
+    SNLogger.info(f"Found {np.size(star_ID)} stars in the given range.")
     if np.size(star_ID) == 0:
         raise ValueError("No stars found in the given range.")
     pd.DataFrame(star_ID).to_csv(output_path, index=False, header=False)
-    Lager.info(f"Saved to {output_path}")
+    SNLogger.info(f"Saved to {output_path}")
 
 
 def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images,
@@ -1720,7 +1720,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                                      object_type)
 
         if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["detected"]]):
-            Lager.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
+            SNLogger.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
             num_total_images = len(exposures)
             num_detect_images = len(exposures[exposures["detected"]])
 
@@ -1747,7 +1747,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     # Build the background grid
     if not grid_type == "none":
         if object_type == "star":
-            Lager.warning("For fitting stars, you probably dont want a grid.")
+            SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, ra, dec,
                                       percentiles=percentiles, sim_galra=sim_galra,
                                       sim_galdec=sim_galdec)
@@ -1762,12 +1762,12 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     # make sense.
     num_nondetect_images = num_total_images - num_detect_images
     if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
-        Lager.debug("Making initial guess for the model")
+        SNLogger.debug("Making initial guess for the model")
         x0test = generate_guess(cutout_image_list[:num_nondetect_images],
                                 ra_grid, dec_grid)
         x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
         x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
-        Lager.debug(f"setting initial guess to {initial_flux_guess}")
+        SNLogger.debug(f"setting initial guess to {initial_flux_guess}")
 
     else:
         x0test = None
@@ -1794,17 +1794,17 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         sny = y
         x = int(np.floor(x + 0.5))
         y = int(np.floor(y + 0.5))
-        Lager.debug(f"x, y, snx, sny, {x, y, snx, sny}")
+        SNLogger.debug(f"x, y, snx, sny, {x, y, snx, sny}")
         psf_source_array = construct_transient_scene(x, y, pointing, sca,
                                                      stampsize=size,
                                                      x_center=object_x, y_center=object_y,
                                                      sed=sed)
         confusion_metric = np.dot(images[0].flatten(), psf_source_array)
 
-        Lager.debug(f"Confusion Metric: {confusion_metric}")
+        SNLogger.debug(f"Confusion Metric: {confusion_metric}")
     else:
         confusion_metric = 0
-        Lager.debug("Confusion Metric not calculated")
+        SNLogger.debug("Confusion Metric not calculated")
 
     # Build the backgrounds loop
     # TODO: Zip all the things you index [i] on directly and loop over
@@ -1829,7 +1829,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
-        Lager.debug("Constructing background model array for image " + str(i) + ' ---------------')
+        SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
         if grid_type != "none":
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
@@ -1868,7 +1868,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                 # of sedlist. Therefore, we subtract by the number of
                 # predetection images: num_total_images - num_detect_images.
                 sn_index = i - (num_total_images - num_detect_images)
-                Lager.debug(f"Using SED #{sn_index}")
+                SNLogger.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
                 # object_x and object_y are the exact coords of the SN in the SCA frame.
                 # x and y are the pixels the image has been cut out on, and
@@ -1881,7 +1881,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                 # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
                 x = int(np.floor(object_x + 0.5))
                 y = int(np.floor(object_y + 0.5))
-                Lager.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
+                SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
                 psf_source_array =\
                     construct_transient_scene(x, y, pointing, sca,
                                               stampsize=size, x_center=object_x,
@@ -1906,7 +1906,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     banner("Lin Alg Section")
     psf_matrix = np.vstack(np.array(psf_matrix))
-    Lager.debug(f"{psf_matrix.shape} psf matrix shape")
+    SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
 
     # Add in the supernova images to the matrix in the appropriate location
     # so that it matches up with the image it represents.
@@ -1914,67 +1914,58 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     # Get the weights
 
-    cutout_images_copy = np.copy(cutout_image_list)
-    sn_matrix_copy = np.copy(sn_matrix)
-    for wi, gv in enumerate([5, 10, 25]):
-        Lager.debug(f"Using Gaussian variance {gv} for weights")
-        # , gaussian_var = gv
-        if weighting:
-            wgt_matrix = get_weights(cutout_image_list, ra, dec, gaussian_var= gv)
-        else:
-            wgt_matrix = np.ones(psf_matrix.shape[1])
+    if weighting:
+        wgt_matrix = get_weights(cutout_image_list, ra, dec)
+    else:
+        wgt_matrix = np.ones(psf_matrix.shape[1])
 
-        if wi == 0:
-            images, err, sn_matrix, wgt_matrix =\
-                prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
-            # Combine the background model and the supernova model into one matrix.
-            psf_matrix = np.hstack([psf_matrix, sn_matrix])
-        else:
-            _, _, _, wgt_matrix =\
-                prep_data_for_fit(cutout_images_copy, sn_matrix_copy, wgt_matrix)
+    images, err, sn_matrix, wgt_matrix =\
+        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+    # Combine the background model and the supernova model into one matrix.
+    psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
-        # Calculate amount of the PSF cut out by setting a distance cap
-        test_sn_matrix = np.copy(sn_matrix)
-        test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
-        Lager.debug(f"SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}")
-        Lager.debug("SN PSF Norms Post Distance Cut:"
-                    f"{np.sum(test_sn_matrix, axis=0)}")
+    # Calculate amount of the PSF cut out by setting a distance cap
+    test_sn_matrix = np.copy(sn_matrix)
+    test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
+    SNLogger.debug(f"SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}")
+    SNLogger.debug("SN PSF Norms Post Distance Cut:"
+                   f"{np.sum(test_sn_matrix, axis=0)}")
 
-        # this is where the hstack was before
+    # this is where the hstack was before
 
-        banner("Solving Photometry")
+    banner("Solving Photometry")
 
-        # These if statements can definitely be written more elegantly.
-        if not make_initial_guess:
-            x0test = np.zeros(psf_matrix.shape[1])
+    # These if statements can definitely be written more elegantly.
+    if not make_initial_guess:
+        x0test = np.zeros(psf_matrix.shape[1])
 
-        if not subtract_background:
-            x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
+    if not subtract_background:
+        x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
-        Lager.debug(f"shape psf_matrix: {psf_matrix.shape}")
-        Lager.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
-        Lager.debug(f"image shape: {images.shape}")
+    SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
+    SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
+    SNLogger.debug(f"image shape: {images.shape}")
 
-        if method == "lsqr":
-            lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                                images*wgt_matrix, x0=x0test, atol=1e-12,
-                                btol=1e-12, iter_lim=300000, conlim=1e10)
-            X, istop, itn, r1norm = lsqr[:4]
-            Lager.debug(f"Stop Condition {istop}, iterations: {itn}," +
-                        f"r1norm: {r1norm}")
-        flux = X[-num_detect_images:] if num_detect_images > 0 else None
-        inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+    if method == "lsqr":
+        lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
+                              images*wgt_matrix, x0=x0test, atol=1e-12,
+                              btol=1e-12, iter_lim=300000, conlim=1e10)
+        X, istop, itn, r1norm = lsqr[:4]
+        SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
+                       f"r1norm: {r1norm}")
+    flux = X[-num_detect_images:] if num_detect_images > 0 else None
+    inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
-        try:
-            cov = np.linalg.inv(inv_cov)
-        except LinAlgError:
-            cov = np.linalg.pinv(inv_cov)
+    try:
+        cov = np.linalg.inv(inv_cov)
+    except LinAlgError:
+        cov = np.linalg.pinv(inv_cov)
 
-        Lager.debug(f"flux: {np.array2string(flux, separator=', ')}")
+    SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
 
-        Lager.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
-        sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
-        Lager.debug(f"sigma flux: {sigma_flux}")
+    SNLogger.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
+    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
+    SNLogger.debug(f"sigma flux: {sigma_flux}")
 
     # Using the values found in the fit, construct the model images.
     pred = X*psf_matrix
@@ -2004,7 +1995,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
 
 def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
-    Lager.debug(f"WCS: {type(wcs)}")
+    SNLogger.debug(f"WCS: {type(wcs)}")
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin="lower", cmap="gray")
     plt.scatter(ra_grid, dec_grid)
@@ -2021,7 +2012,7 @@ def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fpho
     Returns:
     sed_list: list of galsim SED objects. (Temporary until we remove galsim)
     """
-    Lager.debug(f"Loading SEDs from {sed_directory}")
+    SNLogger.debug(f"Loading SEDs from {sed_directory}")
     sed_list = []
     for file in pathlib.Path(sed_directory).glob("*.csv"):
         sed_table = pd.read_csv(file)

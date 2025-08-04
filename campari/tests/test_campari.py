@@ -20,7 +20,7 @@ from roman_imsim.utils import roman_utils
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
@@ -130,17 +130,13 @@ def test_simulate_images(roman_path):
                         base_pointing=base_pointing, source_phot_ops=False)
 
     compare_images = np.load(pathlib.Path(__file__).parent
-                             / "testdata/images.npy")
+                             / "testdata/test_sim_images.npy")
 
-    # np.testing.assert_allclose(images, compare_images, rtol=1e-7)
-    # compare_images = np.load(pathlib.Path(__file__).parent / "testdata/images.npy")
-    # np.testing.assert_equal(np.asarray(images), compare_images)
     images = []
     for ci in cutout_image_list:
         images.append(ci.data)
     images = np.array(images)
     images = images.flatten()
-
     np.testing.assert_allclose(images, compare_images.flatten(), atol=1e-7)
 
 
@@ -172,33 +168,21 @@ def test_simulate_galaxy():
                             use_true_center=True)
     b = np.load(pathlib.Path(__file__).parent
                 / "testdata/test_galaxy.npy")
-    assert (a.array - b).all() == 0, "The two galaxy images are not the same!"
+    np.testing.assert_allclose(a.array, b, rtol=3e-7)
 
 
 def test_simulate_supernova():
-    wcs_data = np.load(pathlib.Path(__file__).parent
-                       / "testdata/wcs_dict.npz", allow_pickle=True)
-    # Loading the data in this way, the data is packaged in an array,
-    # this extracts just the value so that we can build the WCS.
-    wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-
-    wcs, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
-
-    #stamp.wcs = util_ref.getLocalWCS(2045, 2045)
-    stamp = galsim.Image(11, 11, wcs=wcs)
-    band = "F184"
-    lam = 1293  # nm
     sed = galsim.SED(galsim.LookupTable([100, 2600], [1, 1],
                      interpolant="linear"), wave_type="nm",
                      flux_type="fphotons")
-    sim_psf = \
-        galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
-                                   getPSF(1, band, pupil_bin=1).aberrations)
-    supernova_image = simulate_supernova(snx=6, sny=6, stamp=stamp,
-                                         flux=1000, sed=sed, band=band,
-                                         sim_psf=sim_psf, source_phot_ops=False,
+
+    supernova_image = simulate_supernova(snx=2044, sny=2044,
+                                         snx0=2044, sny0=2044, stampsize=11,
+                                         flux=1000, sed=sed,
+                                         source_phot_ops=False,
                                          base_pointing=662, base_sca=11,
                                          random_seed=12345)
+
     test_sn = np.load(pathlib.Path(__file__).parent
                       / "testdata/supernova_image.npy")
     np.testing.assert_allclose(supernova_image, test_sn, rtol=1e-7)
@@ -259,7 +243,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list.csv",
+         f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -278,7 +262,7 @@ def test_regression_function(roman_path):
                                  comment="#", delimiter=" ")
 
         for col in current.columns:
-            Lager.debug(f"Checking col {col}")
+            SNLogger.debug(f"Checking col {col}")
             # According to Michael and Rob, this is roughly what can be expected
             # due to floating point precision.
             #
@@ -376,7 +360,7 @@ def test_regression(roman_path):
                              comment="#", delimiter=" ")
 
     for col in current.columns:
-        Lager.debug(f"Checking col {col}")
+        SNLogger.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = f"The lightcurves do not match for column {col}"
@@ -538,7 +522,7 @@ def test_make_adaptive_grid():
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
-        Lager.debug(f"compare_images shape: {compare_images.shape}")
+        SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
         ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                                image=image, percentiles=[99])
@@ -655,7 +639,7 @@ def test_get_weights(roman_path):
     )
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     wcs = snappl_image.get_wcs()
-    Lager.debug(wcs.pixel_to_world(2044, 2044))
+    SNLogger.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
@@ -707,7 +691,7 @@ def test_construct_transient_scene():
         plt.colorbar(label="log10( |constructed - comparison| )")
 
         im_path = pathlib.Path(__file__).parent / "test_psf_source_comparison.png"
-        Lager.debug(f"Saving diagnostic image to {im_path}")
+        SNLogger.debug(f"Saving diagnostic image to {im_path}")
         plt.savefig(im_path)
         plt.close()
 
@@ -796,7 +780,7 @@ def test_find_all_exposures_with_img_list(roman_path):
     band = "Y106"
     columns = ["pointing", "SCA"]
     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-    Lager.debug(image_df)
+    SNLogger.debug(image_df)
     ra = 7.551093401915147
     dec = -44.80718106491529
     transient_start = 62450.

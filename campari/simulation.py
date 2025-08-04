@@ -4,17 +4,13 @@ import warnings
 import galsim
 import numpy as np
 import pandas as pd
-from astropy import units as u
-from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.nddata import Cutout2D
 from astropy.utils.exceptions import AstropyWarning
-from astropy.wcs import WCS
 from erfa import ErfaWarning
 from roman_imsim.utils import roman_utils
 
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 from snappl.image import ManualFITSImage
 from snappl.psf import PSF
 
@@ -61,7 +57,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     else:
         input_psf = None
 
-    Lager.debug(sim_gal_ra_offset)
+    SNLogger.debug(sim_gal_ra_offset)
     galra = ra + sim_gal_ra_offset
     galdec = dec + sim_gal_dec_offset
 
@@ -84,12 +80,12 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     image_list = []
     cutout_image_list = []
 
-    Lager.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
+    SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
     file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=file_path, visit=base_pointing, sca=base_sca)
 
     for i in range(num_total_images):
-        Lager.debug(f"Simulating image {i+1} of {num_total_images}. -----------------------------")
+        SNLogger.debug(f"Simulating image {i+1} of {num_total_images}. -----------------------------")
 
         if do_xshift:
             x_shift = 1e-5/3 * i
@@ -106,11 +102,6 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift, roman_path,
                                 base_sca, base_pointing, band)
 
-        imagepath = roman_path + (
-            f"/RomanTDS/images/simple_model/{band}/{base_pointing}/"
-            f"Roman_TDS_simple_model_{band}_{base_pointing}_{base_sca}.fits.gz"
-        )
-        header = fits.open(imagepath)[0].header
         image_object = ManualFITSImage(
             header=wcs_dict, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
         )
@@ -118,12 +109,12 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         full_image_wcs = image_object.get_wcs()
 
         cutout_object = image_object.get_ra_dec_cutout(ra, dec, xsize=size)
-        cutoutgalwcs = cutout_object.get_wcs().get_galsim_wcs()  #rename this
+        cutoutgalwcs = cutout_object.get_wcs().get_galsim_wcs()  # rename this
         cutout_loc = full_image_wcs.world_to_pixel(ra, dec)
         cutout_pixel = (int(np.floor(cutout_loc[0] + 0.5)), int(np.floor(cutout_loc[1] + 0.5)))
 
         if mismatch_seds:
-            Lager.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
+            SNLogger.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
             file_path = r"snflux_1a.dat"
             df = pd.read_csv(file_path, sep=r"\s+", header=None, names=["Day",
                              "Wavelength", "Flux"])
@@ -138,27 +129,20 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                              interpolant="linear"), wave_type="nm",
                              flux_type="fphotons")
 
-
         pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units="deg")
 
         if use_roman:
-            # sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
-            #                               wcs=cutoutgalwcs)
             sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
             sim_psf = input_psf
 
         # Draw the galaxy.
-        Lager.debug(f"sim_psf: {sim_psf}")
         convolved = simulate_galaxy(bg_gal_flux, deltafcn_profile, band,
                                     sim_psf, sed)
 
-        Lager.debug(f"Galaxy being drawn at {pointx, pointy} ")
-        #Lager.debug(f"full wcs \n {full_image_wcs.get_galsim_wcs()}")
-        #Lager.debug(f" wcs fetched at: {cutout_pixel[0] + 1, cutout_pixel[1] + 1}")
-        localwcs = full_image_wcs.get_galsim_wcs().local(image_pos=galsim.PositionD(cutout_pixel[0] + 1, cutout_pixel[1] + 1))
-        #Lager.debug(f"localwcs: {localwcs}")
-        Lager.debug
+        SNLogger.debug(f"Galaxy being drawn at {pointx, pointy} ")
+        localwcs = full_image_wcs.get_galsim_wcs().\
+            local(image_pos=galsim.PositionD(cutout_pixel[0] + 1, cutout_pixel[1] + 1))
         stamp = galsim.Image(size, size, wcs=localwcs)
         a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
                                 image=stamp, wcs=localwcs,
@@ -178,11 +162,11 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
             if sn_im_index >= 0:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units="deg")
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
-                Lager.debug(f"sed: {sed}")
+                SNLogger.debug(f"sed: {sed}")
                 supernova_image = \
-                    simulate_supernova(cutout_loc[0], cutout_loc[1], cutout_pixel[0], cutout_pixel[1], stamp,
+                    simulate_supernova(cutout_loc[0], cutout_loc[1], cutout_pixel[0], cutout_pixel[1],
                                        sim_lc[sn_im_index],
-                                       sed, band, sim_psf, source_phot_ops,
+                                       sed, source_phot_ops,
                                        base_pointing, base_sca, stampsize=size, sca_wcs=full_image_wcs)
 
                 a += supernova_image
@@ -199,8 +183,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         image_list.append(image_object)
         cutout_image_list.append(cutout_object)
     images = imagelist
-    Lager.debug(f"images shape: {images[0].shape}")
-    Lager.debug(f"images length {len(images)}")
+    SNLogger.debug(f"images shape: {images[0].shape}")
+    SNLogger.debug(f"images length {len(images)}")
 
     return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec
 
@@ -240,14 +224,14 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
 
 
 def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
-    Lager.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
+    SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     roman_bandpasses = galsim.roman.getBandpasses()
     if deltafcn_profile:
-        Lager.debug("Using delta function profile for galaxy.")
+        SNLogger.debug("Using delta function profile for galaxy.")
         profile = galsim.DeltaFunction()
     else:
-        Lager.debug("Using bulge+disk profile for galaxy.")
-        bulge = galsim.Sersic(n=3, half_light_radius=1.5)
+        SNLogger.debug("Using bulge+disk profile for galaxy.")
+        bulge = galsim.Sersic(n=3, half_light_radius=1.6)
         disk = galsim.Exponential(half_light_radius=5)
         profile = bulge + disk
 
@@ -257,14 +241,13 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
     return convolved
 
 
-def simulate_supernova(snx, sny, snx0, sny0, stamp, flux, sed, band, sim_psf,
+def simulate_supernova(snx, sny, snx0, sny0, flux, sed,
                        source_phot_ops, base_pointing, base_sca, stampsize,
                        random_seed=0, sca_wcs=None):
-
-    Lager.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} "
-                f"and band {band}.")
-    Lager.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
-    Lager.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
+    ###
+    SNLogger.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} ")
+    SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
+    SNLogger.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
 
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
                                     size=stampsize, include_photonOps=source_phot_ops, sed=sed)
@@ -272,52 +255,3 @@ def simulate_supernova(snx, sny, snx0, sny0, stamp, flux, sed, band, sim_psf,
                                      flux=flux, seed=None, input_wcs=sca_wcs)
 
     return psf_image
-
-    #######
-
-    # roman_bandpasses = galsim.roman.getBandpasses()
-    # profile = galsim.DeltaFunction()*sed
-    # profile = profile.withFlux(flux, roman_bandpasses[band])
-
-
-
-    # # Code below copied from galsim largely
-    # if not source_phot_ops:
-    #     profile = galsim.Convolve(profile, sim_psf)
-
-    #     diagnosis_dict = {
-    #         'band': band,
-    #         'base_pointing': base_pointing,
-    #         'base_sca': base_sca,
-    #         'snx': snx,
-    #         'sny': sny,
-    #         'wcs': stamp.wcs,
-    #     }
-
-    #     ddf = pd.DataFrame([diagnosis_dict])
-    #     #ddf = Table.from_pandas(ddf)
-    #     Lager.info("\n" + str(ddf))
-
-    #     result = profile.drawImage(roman_bandpasses[band], image=stamp,
-    #                                wcs=stamp.wcs, method="no_pixel",
-    #                                center=galsim.PositionD(snx, sny),
-    #                                use_true_center=True)
-    #     np.testing.assert_allclose(result.array, psf_image, atol = 1e-7)
-    #     return result.array
-
-    # config_file = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
-    # util_ref = roman_utils(config_file=config_file, visit=base_pointing,
-    #                        sca=base_sca)
-    # photon_ops = [sim_psf] + util_ref.photon_ops
-
-    # # If random_seed is zero, galsim will use the current time to make a seed
-    # rng = galsim.BaseDeviate(random_seed)
-    # result = profile.drawImage(roman_bandpasses[band], wcs=stamp.wcs,
-    #                            method="phot", photon_ops=photon_ops,
-    #                            rng=rng, n_photons=int(1e6),
-    #                            maxN=int(1e6), poisson_flux=False,
-    #                            center=galsim.PositionD(snx, sny),
-    #                            use_true_center=True, image=stamp)
-
-
-    # return result.array
