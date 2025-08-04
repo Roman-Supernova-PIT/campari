@@ -2,30 +2,36 @@
 # ---
 # datatype:
 # - {name: mjd, unit: d, datatype: float64}
-# - {name: flux, datatype: int64}
-# - {name: flux_error, datatype: int64}
-# - {name: mag, unit: mag, datatype: float64}
-# - {name: mag_err, unit: mag, datatype: float64}
-# - {name: band, datatype: string}
-# - {name: zeropoint, datatype: float64}
+# - {name: flux_fit, datatype: int64}
+# - {name: flux_fit_err, datatype: int64}
+# - {name: mag_fit, unit: mag, datatype: float64}
+# - {name: mag_fit_err, unit: mag, datatype: float64}
+# - {name: filter, datatype: string}
+# - {name: zpt, datatype: float64}
+# - {name: pointing, datatype: int64}
+# - {name: sca, datatype: int64}
+# - {name: x, datatype: int64}
+# - {name: y, datatype: int64}
+# - {name: x_cutout, datatype: int64}
+# - {name: y_cutout, datatype: int64}
 # meta: !!omap
 # - {ID: 20172782}
 # - {obj_ra: 7}
 # - {obj_dec: -41}
 # - {confusion_metric: 100}
 # - __serialized_columns__:
-#     mag:
+#     mag_fit:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: &id001 !astropy.units.Unit {unit: mag}
-#       value: !astropy.table.SerializedColumn {name: mag}
-#     mag_err:
+#       value: !astropy.table.SerializedColumn {name: mag_fit}
+#     mag_fit_err:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: mag_err}
+#       value: !astropy.table.SerializedColumn {name: mag_fit_err}
 #     mjd:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
 #       value: !astropy.table.SerializedColumn {name: mjd}
 # schema: astropy-2.0
-mjd flux flux_error mag mag_err band zeropoint
-62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584
+mjd flux_fit flux_fit_err mag_fit mag_fit_err filter zpt pointing sca x y x_cutout y_cutout
+62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 35198 2 2044 2044 5 5

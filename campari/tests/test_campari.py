@@ -364,7 +364,7 @@ def test_regression_function(roman_path):
             # floating point number.)
 
             msg = f"The lightcurves do not match for column {col}"
-            if col == "band":
+            if col == "filter":
                 # band is the only string column, so we check it with array_equal
                 np.testing.assert_array_equal(current[col], comparison[col]), msg
             else:
@@ -419,7 +419,7 @@ def test_regression(roman_path):
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = f"The lightcurves do not match for column {col}"
-        if col == "band":
+        if col == "filter":
             # band is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col]), msg
         else:
@@ -767,7 +767,11 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             "sca": [3, 2],
             "date": [62000.40235, 62495.605],
             "detected": [False, True],
-            "band": ["Y106", "Y106"],
+            "filter": ["Y106", "Y106"],
+            "x": [2044, 2044],
+            "y": [2044, 2044],
+            "x_cutout": [5, 5],
+            "y_cutout": [5, 5]
         }
     )
 
@@ -852,7 +856,7 @@ def test_find_all_exposures_with_img_list(roman_path):
     exposures = exposures.to_pandas()
     test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
     for col in test_exposures.columns:
-        if col == "band" or col == "detected":
+        if col == "filter" or col == "detected":
             np.testing.assert_array_equal(exposures[col], test_exposures[col])
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],
