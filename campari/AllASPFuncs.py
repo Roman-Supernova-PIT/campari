@@ -926,7 +926,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
     if grid_type == "single":
         if sim_galra is None or sim_galdec is None:
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
-
         ra_grid, dec_grid = [sim_galra], [sim_galdec]
 
     if make_exact:
