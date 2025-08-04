@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 import scipy.sparse as sp
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, angular_separation
 from astropy.io import fits
 from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
@@ -345,7 +345,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             Lager.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None, wcs = sca_wcs).flatten()
 
     return psfs
 
@@ -495,7 +495,7 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
 
 
 def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
-                              y_center=None, sed=None, flux=1, photOps=True):
+                              y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
@@ -533,7 +533,7 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
                                     size=stampsize, include_photonOps=photOps)
     psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-                                     flux=1., seed=None)
+                                     flux=1., seed=None, input_wcs=sca_wcs)
 
     return psf_image.flatten()
 
@@ -782,7 +782,7 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
     return ra, dec, pointing, sca, start, end, peak
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
+def get_weights(images, ra, dec, gaussian_var=4, cutoff=4):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -847,8 +847,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     return wgt_matrix
 
 
-def make_grid(grid_type, images, ra, dec, percentiles=[],
-              make_exact=False, sim_galra=None, sim_galdec=None):
+def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
+              make_exact=False, sim_galra=None, sim_galdec=None, cut_points_close_to_sn=True):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -916,6 +916,18 @@ def make_grid(grid_type, images, ra, dec, percentiles=[],
 
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
+
+    # if cut_points_close_to_sn:
+    #     min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
+    #     Lager.debug(f"Cutting points closer than {min_distance} from SN")
+    #     distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
+    #     Lager.debug(type(distances[0]))
+    #     Lager.debug(f"Old Grid size: {len(ra_grid)}")
+    #     ra_grid = ra_grid[distances > min_distance]
+    #     dec_grid = dec_grid[distances > min_distance]
+    #     Lager.debug(f"New grid size: {len(ra_grid)}")
+
+
     return ra_grid, dec_grid
 
 
@@ -1141,7 +1153,7 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     return np.array(lam), np.array(flambda[bestindex])
 
 
-def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
+def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 80, 85, 100],
                       subsize=4):
     """Construct a "contour grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image. This is
@@ -1204,7 +1216,7 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     xg, yg = np.meshgrid(x, y, indexing="ij")
     xg = xg.ravel()
     yg = yg.ravel()
-    Lager.debug("Grid type: contour")
+    Lager.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
 
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
@@ -1227,8 +1239,8 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
         # Generate a grid that gets finer each iteration of the loop. For
         # instance, in brightness bin 1, 1 point per pixel, in brightness bin
         # 2, 4 points per pixel (2 in each direction), etc.
-        x = np.arange(0, size, 1/(i+1))
-        y = np.arange(0, size, 1/(i+1))
+        x = np.arange(0, size, (3/4) * 1/(i+1))
+        y = np.arange(0, size, (3/4) * 1/(i+1))
         if i == 0:
             x = x[np.where(np.abs(x - size/2) < subsize)]
             y = y[np.where(np.abs(y - size/2) < subsize)]
@@ -1743,14 +1755,13 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         ra_grid = np.array([])
         dec_grid = np.array([])
 
-    Lager.debug("Background grid built successfully.")
 
     # Using the images, hazard an initial guess.
     # The num_total_images - num_detect_images check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
     num_nondetect_images = num_total_images - num_detect_images
-    if make_initial_guess and num_nondetect_images != 0:
+    if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
         Lager.debug("Making initial guess for the model")
         x0test = generate_guess(cutout_image_list[:num_nondetect_images],
                                 ra_grid, dec_grid)
@@ -1818,9 +1829,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
-        Lager.debug(f"ra_grid {ra_grid[:5]}")
-        Lager.debug(f"dec_grid {dec_grid[:5]}")
-        Lager.debug("Constructing background model array for image " + str(i))
+        Lager.debug("Constructing background model array for image " + str(i) + ' ---------------')
         if grid_type != "none":
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
@@ -1877,7 +1886,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                     construct_transient_scene(x, y, pointing, sca,
                                               stampsize=size, x_center=object_x,
                                               y_center=object_y, sed=sed,
-                                              photOps=source_phot_ops)
+                                              photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
             else:
                 stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
                 profile = galsim.DeltaFunction()*sed
@@ -1904,56 +1913,68 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     # All others should be zero.
 
     # Get the weights
-    if weighting:
-        wgt_matrix = get_weights(cutout_image_list, ra, dec)
-    else:
-        wgt_matrix = np.ones(psf_matrix.shape[1])
 
-    images, err, sn_matrix, wgt_matrix =\
-        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+    cutout_images_copy = np.copy(cutout_image_list)
+    sn_matrix_copy = np.copy(sn_matrix)
+    for wi, gv in enumerate([5, 10, 25]):
+        Lager.debug(f"Using Gaussian variance {gv} for weights")
+        # , gaussian_var = gv
+        if weighting:
+            wgt_matrix = get_weights(cutout_image_list, ra, dec, gaussian_var= gv)
+        else:
+            wgt_matrix = np.ones(psf_matrix.shape[1])
 
-    # Calculate amount of the PSF cut out by setting a distance cap
-    test_sn_matrix = np.copy(sn_matrix)
-    test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
-    Lager.debug(f"SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}")
-    Lager.debug("SN PSF Norms Post Distance Cut:"
-                f"{np.sum(test_sn_matrix, axis=0)}")
+        if wi == 0:
+            images, err, sn_matrix, wgt_matrix =\
+                prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+            # Combine the background model and the supernova model into one matrix.
+            psf_matrix = np.hstack([psf_matrix, sn_matrix])
+        else:
+            _, _, _, wgt_matrix =\
+                prep_data_for_fit(cutout_images_copy, sn_matrix_copy, wgt_matrix)
 
-    # Combine the background model and the supernova model into one matrix.
+        # Calculate amount of the PSF cut out by setting a distance cap
+        test_sn_matrix = np.copy(sn_matrix)
+        test_sn_matrix[np.where(wgt_matrix == 0), :] = 0
+        Lager.debug(f"SN PSF Norms Pre Distance Cut:{np.sum(sn_matrix, axis=0)}")
+        Lager.debug("SN PSF Norms Post Distance Cut:"
+                    f"{np.sum(test_sn_matrix, axis=0)}")
 
-    psf_matrix = np.hstack([psf_matrix, sn_matrix])
+        # this is where the hstack was before
 
-    banner("Solving Photometry")
+        banner("Solving Photometry")
 
-    # These if statements can definitely be written more elegantly.
-    if not make_initial_guess:
-        x0test = np.zeros(psf_matrix.shape[1])
+        # These if statements can definitely be written more elegantly.
+        if not make_initial_guess:
+            x0test = np.zeros(psf_matrix.shape[1])
 
-    if not subtract_background:
-        x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
+        if not subtract_background:
+            x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
-    Lager.debug(f"shape psf_matrix: {psf_matrix.shape}")
-    Lager.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
-    Lager.debug(f"image shape: {images.shape}")
+        Lager.debug(f"shape psf_matrix: {psf_matrix.shape}")
+        Lager.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
+        Lager.debug(f"image shape: {images.shape}")
 
-    if method == "lsqr":
-        lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix, x0=x0test, atol=1e-12,
-                              btol=1e-12, iter_lim=300000, conlim=1e10)
-        X, istop, itn, r1norm = lsqr[:4]
-        Lager.debug(f"Stop Condition {istop}, iterations: {itn}," +
-                    f"r1norm: {r1norm}")
-    flux = X[-num_detect_images:] if num_detect_images > 0 else None
-    inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+        if method == "lsqr":
+            lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
+                                images*wgt_matrix, x0=x0test, atol=1e-12,
+                                btol=1e-12, iter_lim=300000, conlim=1e10)
+            X, istop, itn, r1norm = lsqr[:4]
+            Lager.debug(f"Stop Condition {istop}, iterations: {itn}," +
+                        f"r1norm: {r1norm}")
+        flux = X[-num_detect_images:] if num_detect_images > 0 else None
+        inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
-    try:
-        cov = np.linalg.inv(inv_cov)
-    except LinAlgError:
-        cov = np.linalg.pinv(inv_cov)
+        try:
+            cov = np.linalg.inv(inv_cov)
+        except LinAlgError:
+            cov = np.linalg.pinv(inv_cov)
 
-    Lager.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
-    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
-    Lager.debug(f"sigma flux: {sigma_flux}")
+        Lager.debug(f"flux: {np.array2string(flux, separator=', ')}")
+
+        Lager.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
+        sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
+        Lager.debug(f"sigma flux: {sigma_flux}")
 
     # Using the values found in the fit, construct the model images.
     pred = X*psf_matrix

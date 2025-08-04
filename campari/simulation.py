@@ -121,7 +121,6 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         cutoutgalwcs = cutout_object.get_wcs().get_galsim_wcs()  #rename this
         cutout_loc = full_image_wcs.world_to_pixel(ra, dec)
         cutout_pixel = (int(np.floor(cutout_loc[0] + 0.5)), int(np.floor(cutout_loc[1] + 0.5)))
-        Lager.debug(f"cutout wcs  {cutoutgalwcs}")
 
         if mismatch_seds:
             Lager.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
@@ -139,24 +138,30 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                              interpolant="linear"), wave_type="nm",
                              flux_type="fphotons")
 
-        stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
+
         pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units="deg")
 
         if use_roman:
             # sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
             #                               wcs=cutoutgalwcs)
-            sim_psf = util_ref.getPSF(cutout_loc[0], cutout_loc[1], pupil_bin=8)
-            Lager.debug(f"Getting PSF at {cutout_loc[0], cutout_loc[1]} ")
+            sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
             sim_psf = input_psf
 
         # Draw the galaxy.
+        Lager.debug(f"sim_psf: {sim_psf}")
         convolved = simulate_galaxy(bg_gal_flux, deltafcn_profile, band,
                                     sim_psf, sed)
 
         Lager.debug(f"Galaxy being drawn at {pointx, pointy} ")
+        #Lager.debug(f"full wcs \n {full_image_wcs.get_galsim_wcs()}")
+        #Lager.debug(f" wcs fetched at: {cutout_pixel[0] + 1, cutout_pixel[1] + 1}")
+        localwcs = full_image_wcs.get_galsim_wcs().local(image_pos=galsim.PositionD(cutout_pixel[0] + 1, cutout_pixel[1] + 1))
+        #Lager.debug(f"localwcs: {localwcs}")
+        Lager.debug
+        stamp = galsim.Image(size, size, wcs=localwcs)
         a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
-                                image=stamp, wcs=cutoutgalwcs,
+                                image=stamp, wcs=localwcs,
                                 center=galsim.PositionD(pointx, pointy),
                                 use_true_center=True).array
 
@@ -178,15 +183,17 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                     simulate_supernova(cutout_loc[0], cutout_loc[1], cutout_pixel[0], cutout_pixel[1], stamp,
                                        sim_lc[sn_im_index],
                                        sed, band, sim_psf, source_phot_ops,
-                                       base_pointing, base_sca, stampsize=size)
+                                       base_pointing, base_sca, stampsize=size, sca_wcs=full_image_wcs)
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
 
         cutout_object.data = a
         # TODO: Decide how error is handled for simulated images.
-        cutout_object.noise = np.ones_like(a)
-
+        if noise > 0:
+            cutout_object.noise = np.ones_like(a) * noise
+        else:
+            cutout_object.noise = np.ones_like(a)
         imagelist.append(a)
 
         image_list.append(image_object)
@@ -240,7 +247,7 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
         profile = galsim.DeltaFunction()
     else:
         Lager.debug("Using bulge+disk profile for galaxy.")
-        bulge = galsim.Sersic(n=3, half_light_radius=1.6)
+        bulge = galsim.Sersic(n=3, half_light_radius=1.5)
         disk = galsim.Exponential(half_light_radius=5)
         profile = bulge + disk
 
@@ -252,7 +259,7 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
 
 def simulate_supernova(snx, sny, snx0, sny0, stamp, flux, sed, band, sim_psf,
                        source_phot_ops, base_pointing, base_sca, stampsize,
-                       random_seed=0):
+                       random_seed=0, sca_wcs=None):
 
     Lager.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} "
                 f"and band {band}.")
@@ -262,7 +269,7 @@ def simulate_supernova(snx, sny, snx0, sny0, stamp, flux, sed, band, sim_psf,
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
                                     size=stampsize, include_photonOps=source_phot_ops, sed=sed)
     psf_image = psf_object.get_stamp(x0=snx0, y0=sny0, x=snx, y=sny,
-                                     flux=flux, seed=None)
+                                     flux=flux, seed=None, input_wcs=sca_wcs)
 
     return psf_image
 
