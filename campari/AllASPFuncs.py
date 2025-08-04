@@ -621,10 +621,14 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image_list.append(image)
         cutout_image_list.append(image_cutout)
 
-    exposures["x"] = x_list
-    exposures["y"] = y_list
-    exposures["x_cutout"] = x_cutout_list
-    exposures["y_cutout"] = y_cutout_list
+    # SNLogger.debug(len(x_list))
+    # SNLogger.debug(len(y_list))
+    # SNLogger.debug(len(x_cutout_list))
+    # SNLogger.debug(len(y_cutout_list))
+    # exposures["x"] = x_list
+    # exposures["y"] = y_list
+    # exposures["x_cutout"] = x_cutout_list
+    # exposures["y_cutout"] = y_cutout_list
 
     SNLogger.debug("updated exposures with x, y, x_cutout, y_cutout:")
     SNLogger.debug(exposures)
@@ -739,7 +743,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
         raise ValueError(f"Not Enough Exposures. \
             Found {len(exposures)} out of {num_total_images} requested")
 
-    cutout_image_list, image_list =\
+    cutout_image_list, image_list, exposures =\
         construct_images(exposures, ra, dec, size=size,
                          subtract_background=subtract_background,
                          roman_path=roman_path)
@@ -1570,7 +1574,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list = fetch_images(exposures, ra, dec, size, subtract_background, roman_path,
+        cutout_image_list, image_list= fetch_images(exposures, ra, dec, size, subtract_background, roman_path,
                                                      object_type)
 
         if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["detected"]]):
@@ -1889,7 +1893,7 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
     """
     assert isinstance(healpix, int), "Healpix must be an integer."
     assert isinstance(nside, int), "Nside must be an integer."
-    Lager.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
+    SNLogger.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
     if source == "OpenUniverse2024":
         path = Config.get().value("photometry.campari.paths.sn_path")
         files = os.listdir(path)

@@ -289,7 +289,7 @@ def main():
 
         SNID = []
         for healpix in healpixes:
-            Lager.debug(f"SNID list: {SNID}")
+            SNLogger.debug(f"SNID list: {SNID}")
             SNID.extend(extract_object_from_healpix(healpix, args.nside,
                                                     object_type=object_type, source="OpenUniverse2024"))
 
