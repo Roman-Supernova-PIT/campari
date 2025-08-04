@@ -238,11 +238,11 @@ def test_run_on_star(roman_path, cfg):
     comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", comment="#", delimiter=" ")
 
     for col in current.columns:
-        Lager.debug(f"Checking col {col}")
+        SNLogger.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
-        if col == "band":
-            # band is the only string column, so we check it with array_equal
+        if col == "filter":
+            # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
             # Switching from one type of WCS to another gave rise in a
@@ -270,11 +270,11 @@ def test_run_on_star(roman_path, cfg):
                              comment="#", delimiter=" ")
 
     for col in current.columns:
-        Lager.debug(f"Checking col {col}")
+        SNLogger.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
-        if col == "band":
-            # band is the only string column, so we check it with array_equal
+        if col == "filter":
+            # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
             # Switching from one type of WCS to another gave rise in a

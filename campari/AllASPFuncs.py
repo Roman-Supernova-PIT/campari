@@ -1318,7 +1318,6 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
     output_path.mkdir(exist_ok=True, parents=True)
 
     lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
-
     SNLogger.info(f"Saving lightcurve to {lc_file}")
     lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
 
