@@ -870,8 +870,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
 
 
 def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
-              make_exact=False, sim_galra=None, sim_galdec=None, cut_points_close_to_sn=True):
-
+              make_exact=False, sim_galra=None, sim_galdec=None, cut_points_close_to_sn=False):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -938,15 +937,15 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
 
-    # if cut_points_close_to_sn:
-    #     min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
-    #     SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
-    #     distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
-    #     SNLogger.debug(type(distances[0]))
-    #     SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
-    #     ra_grid = ra_grid[distances > min_distance]
-    #     dec_grid = dec_grid[distances > min_distance]
-    #     SNLogger.debug(f"New grid size: {len(ra_grid)}")
+    if cut_points_close_to_sn:
+        min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
+        SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
+        distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
+        SNLogger.debug(type(distances[0]))
+        SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
+        ra_grid = ra_grid[distances > min_distance]
+        dec_grid = dec_grid[distances > min_distance]
+        SNLogger.debug(f"New grid size: {len(ra_grid)}")
 
     return ra_grid, dec_grid
 
@@ -1860,7 +1859,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                        f"r1norm: {r1norm}")
-        
+
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
