@@ -19,6 +19,7 @@ from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
+import healpy as hp
 from matplotlib import pyplot as plt
 from numpy.linalg import LinAlgError
 from roman_imsim.utils import roman_utils
@@ -389,7 +390,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     transient_end = np.atleast_1d(transient_end)[0]
     if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
         raise TypeError("maxdet and maxbg must be integers or None, " +
-                        f"not {type(maxdet), type(maxbg)}")
+                        f"not {type(maxdet), type(maxbg)}. Their values are {maxdet, maxbg}")
 
     # Rob's database method! :D
 
@@ -422,7 +423,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     if isinstance(maxbg, int):
         bg = bg.iloc[:maxbg]
     bg["detected"] = False
-
 
     all_images = pd.concat([det, bg])
     all_images["band"] = band
@@ -462,7 +462,6 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     base_name = "{:s}_{}.parquet".format(file_prefix[obj_type], parq)
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
-    Lager.debug(f"Opened {file_path}")
     return df
 
 
@@ -1793,7 +1792,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                    visit=exposures["pointing"][i],
                                    sca=exposures["sca"][i])
 
-
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
@@ -1991,3 +1989,53 @@ def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fpho
                          wave_type=wave_type, flux_type=flux_type)
         sed_list.append(sed)
     return sed_list
+
+
+def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUniverse2024"):
+    """This function takes in a healpix and nside and extracts all of the objects of the requested type in that
+    healpix. Currently, the source the objects are extracted from is hardcoded to OpenUniverse2024 sims, but that will
+    change in the future with real data.
+
+    Parameters
+    ----------
+    healpix: int, the healpix number to extract objects from
+    nside: int, the nside of the healpix to extract objects from
+    object_type: str, the type of object to extract. Can be "SN" or "star". Defaults to "SN".
+    source: str, the source of the table of objects to extract. Defaults to "OpenUniverse2024".
+
+    Returns;
+    -------
+    id_array: numpy array of int, the IDs of the objects extracted from the healpix.
+    """
+    assert isinstance(healpix, int), "Healpix must be an integer."
+    assert isinstance(nside, int), "Nside must be an integer."
+    Lager.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
+    if source == "OpenUniverse2024":
+        path = Config.get().value("photometry.campari.paths.sn_path")
+        files = os.listdir(path)
+        file_prefix = {"SN": "snana", "star": "pointsource"}
+        files = [f for f in files if file_prefix[object_type] in f]
+        files = [f for f in files if ".parquet" in f]
+        files = [f for f in files if "flux" not in f]
+
+        ra_array = np.array([])
+        dec_array = np.array([])
+        id_array = np.array([])
+
+        for f in files:
+            pqfile = int(f.split("_")[1].split(".")[0])
+            df = open_parquet(pqfile, path, obj_type=object_type)
+
+            ra_array = np.concatenate([ra_array, df["ra"].values])
+            dec_array = np.concatenate([dec_array, df["dec"].values])
+            id_array = np.concatenate([id_array, df["id"].values])
+
+    else:
+        # With real data, we will have to choose the first detection, as ra/dec might shift slightly.
+        raise NotImplementedError(f"Source {source} not implemented yet.")
+
+    healpix_array = hp.ang2pix(nside, ra_array, dec_array, lonlat=True)
+    mask = healpix_array == healpix
+    id_array = id_array[mask]
+
+    return id_array.astype(int)

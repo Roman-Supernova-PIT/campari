@@ -31,6 +31,7 @@ from campari.AllASPFuncs import (
     construct_static_scene,
     construct_transient_scene,
     extract_id_using_ra_dec,
+    extract_object_from_healpix,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -249,7 +250,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list.csv",
+         f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -811,3 +812,20 @@ def test_find_all_exposures_with_img_list(roman_path):
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],
                                        rtol=1e-7, atol=1e-7)
+
+
+def test_extract_object_from_healpix():
+    healpix = 42924408
+    nside = 2**11
+    object_type = "SN"
+    source = "OpenUniverse2024"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_id_array.npy")
+    np.testing.assert_array_equal(id_array, test_id_array), \
+        "The IDs extracted from the healpix do not match the expected values."
+
+    object_type = "star"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
+    np.testing.assert_array_equal(id_array, test_id_array), \
+        "The IDs extracted from the healpix do not match the expected values."
