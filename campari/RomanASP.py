@@ -16,13 +16,14 @@ import snappl
 from snappl.sed import OU2024_Truth_SED
 from snappl.sed import Flat_SED
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 
 # Campari
 from campari.AllASPFuncs import (add_truth_to_lc,
                                  banner,
                                  build_lightcurve,
                                  build_lightcurve_sim,
+                                 extract_object_from_healpix,
                                  find_all_exposures,
                                  find_parquet,
                                  get_object_info,
@@ -111,6 +112,18 @@ def main():
                         help="Path to a csv file containing a list of "
                              "OpenUniverse SNIDs to run.")
 
+    parser.add_argument("--healpix", type=int, default=None, required=False, nargs="*",
+                        help="Healpix ID or IDs to run on. If given, will run on all "
+                             "supernovae in that healpix. nside must be specified with the"
+                             "--nside argument.")
+    parser.add_argument("--nside", type=int, default=None, required=False,
+                        help="Nside of the healpix to run on. If given, will run "
+                             "on all supernovae in that healpix. This is a required argument if --healpix is given.")
+    parser.add_argument("--healpix_file", type=str, default=None,  required=False,
+                        help="A file of healpix IDs to run on. If given, "
+                        "will run on all supernovae in those healpixes. nside must be specified with the"
+                        "--nside argument.")
+
     # If instead you give --ra and --dec, it will assume there is a
     # point source at that position and will scene model a stamp around
     # it. (NOT YET SUPPORTED.)
@@ -136,11 +149,11 @@ def main():
     parser.add_argument("-n", "--max_no_transient_images", type=int, required=False,
                         help="Number of images to use that are treated as having no transient."
                         " Note that this is ignored if img_list is passed.",
-                        default=np.inf)
+                        default=None)
     parser.add_argument("-t", "--max_transient_images", type=int, required=False,
                         help="Number of images to use as having a transient present."
                         " Note that this is ignored if img_list is passed.",
-                        default=np.inf)
+                        default=None)
     parser.add_argument("-b", "--image_selection_start", type=float, required=False,
                         help="First MJD of images to be selected for use.",
                         default=-np.inf)
@@ -239,7 +252,6 @@ def main():
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
 
-
     # Option 1, user passes a file of SNIDs
     if args.SNID_file is not None:
         SNID = pd.read_csv(args.SNID_file, header=None).values.flatten().tolist()
@@ -261,18 +273,32 @@ def main():
             transient_start = -np.inf
         if transient_end is None:
             transient_end = np.inf
-        Lager.debug(
+        SNLogger.debug(
             "Forcing campari to run on the given RA and Dec, "
             f" RA={ra}, Dec={dec} with transient flux fit for between "
             f"MJD {transient_start} and {transient_end}."
         )
+
+    # Option 4, user passes a healpix and nside, meaning we search for SNe in healpix via ra/dec.
+    elif args.healpix is not None or args.healpix_file is not None:
+        if args.nside is None:
+            raise ValueError("Must specify --nside if --healpix or --healpix_file is given.")
+
+        healpixes = [args.healpix] if args.healpix is not None\
+            else pd.read_csv(args.healpix_file, header=None).values.flatten().tolist()
+
+        SNID = []
+        for healpix in healpixes:
+            SNLogger.debug(f"SNID list: {SNID}")
+            SNID.extend(extract_object_from_healpix(healpix, args.nside,
+                                                    object_type=object_type, source="OpenUniverse2024"))
 
     elif args.object_lookup and (args.SNID is None) and (args.SNID_file is None):
         raise ValueError("Must specify --SNID, --SNID-file, to run campari with --object_lookup. Note that"
                          " --object_lookup is True by default, so if you want to run campari without looking up a SNID,"
                          " you must set --object_lookup=False.")
     else:
-        raise ValueError("Must specify --SNID, --SNID-file, or --ra and --dec "
+        raise ValueError("Must specify --SNID, --SNID-file, --healpix, --healpix_file, or --ra and --dec "
                          "to run campari.")
 
     if args.img_list is not None:
@@ -301,22 +327,22 @@ def main():
 
     if not isinstance(SNID, list):
         SNID = [SNID]
-    Lager.debug("Snappl version:")
-    Lager.debug(snappl.__version__)
+    SNLogger.debug("Snappl version:")
+    SNLogger.debug(snappl.__version__)
 
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
             if args.object_lookup:
                 pqfile = find_parquet(ID, sn_path, obj_type=object_type)
-                Lager.debug(f"Found parquet file {pqfile} for SN {ID}")
+                SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
 
                 ra, dec, p, s, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=band,
                                                                                       snpath=sn_path,
                                                                                       roman_path=roman_path,
                                                                                       obj_type=object_type)
-                Lager.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
-                            f"transient_end={transient_end}")
+                SNLogger.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
+                               f"transient_end={transient_end}")
 
             exposures = find_all_exposures(ra, dec, transient_start, transient_end,
                                            roman_path=roman_path,
@@ -327,9 +353,9 @@ def main():
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):
-                Lager.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
-                              " following pointings were not found: "
-                              f"{np.setdiff1d(pointing_list, exposures['pointing'])}")
+                SNLogger.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
+                                 " following pointings were not found: "
+                                 f"{np.setdiff1d(pointing_list, exposures['pointing'])}")
 
             if fetch_SED:
                 sed_obj = OU2024_Truth_SED(ID, isstar=(object_type == "star"))
@@ -364,7 +390,7 @@ def main():
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
         except ValueError as e:
-            Lager.info(f"ValueError: {e}")
+            SNLogger.info(f"ValueError: {e}")
             continue
 
         # Saving the output. The output needs two sections, one where we
@@ -393,7 +419,7 @@ def main():
         images_and_model = np.array([images, sumimages, wgt_matrix])
         debug_dir = pathlib.Path(cfg.value("photometry."
                                  "campari.paths.debug_dir"))
-        Lager.info(f"Saving images to {debug_dir}")
+        SNLogger.info(f"Saving images to {debug_dir}")
         np.save(debug_dir / f"{identifier}_{band}_{psftype}_images.npy",
                 images_and_model)
 

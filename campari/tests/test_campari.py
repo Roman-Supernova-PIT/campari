@@ -20,7 +20,7 @@ from roman_imsim.utils import roman_utils
 import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
@@ -31,6 +31,7 @@ from campari.AllASPFuncs import (
     construct_static_scene,
     construct_transient_scene,
     extract_id_using_ra_dec,
+    extract_object_from_healpix,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
@@ -48,7 +49,7 @@ from campari.AllASPFuncs import (
     save_lightcurve,
 )
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
-
+from campari.plotting import plot_lc
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
@@ -213,9 +214,16 @@ def test_savelightcurve():
 def test_run_on_star(roman_path, cfg):
     # Call it as a function first so we can pdb and such
 
-    args = ["_", "-s", "40973149150", "-f", "Y106", "-i",
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
+
+    args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
             f"{roman_path}/test_image_list_star.csv",
-            "--object_type", "star", "--photometry-campari-grid_options-type", "none"]
+            "--object_type", "star", "--photometry-campari-grid_options-type", "none",
+            "--no-photometry-campari-source_phot_ops"]
     orig_argv = sys.argv
 
     try:
@@ -226,13 +234,54 @@ def test_run_on_star(roman_path, cfg):
     finally:
         sys.argv = orig_argv
 
+    current = pd.read_csv(curfile, comment="#", delimiter=" ")
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", comment="#", delimiter=" ")
+
+    for col in current.columns:
+        Lager.debug(f"Checking col {col}")
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        if col == "band":
+            # band is the only string column, so we check it with array_equal
+            np.testing.assert_array_equal(current[col], comparison[col])
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
     # Make sure it runs from the command line
     err_code = os.system(
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
         f" {roman_path}/test_image_list_star.csv "
-        "--object_type star --photometry-campari-grid_options-type none"
+        "--object_type star --photometry-campari-grid_options-type none "
+        "--no-photometry-campari-source_phot_ops"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
+
+    current = pd.read_csv(curfile, comment="#", delimiter=" ")
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                             comment="#", delimiter=" ")
+
+    for col in current.columns:
+        Lager.debug(f"Checking col {col}")
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        if col == "band":
+            # band is the only string column, so we check it with array_equal
+            np.testing.assert_array_equal(current[col], comparison[col])
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
 
 def test_regression_function(roman_path):
@@ -249,7 +298,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list.csv",
+         f"{roman_path}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -268,7 +317,7 @@ def test_regression_function(roman_path):
                                  comment="#", delimiter=" ")
 
         for col in current.columns:
-            Lager.debug(f"Checking col {col}")
+            SNLogger.debug(f"Checking col {col}")
             # According to Michael and Rob, this is roughly what can be expected
             # due to floating point precision.
             #
@@ -366,7 +415,7 @@ def test_regression(roman_path):
                              comment="#", delimiter=" ")
 
     for col in current.columns:
-        Lager.debug(f"Checking col {col}")
+        SNLogger.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
         msg = f"The lightcurves do not match for column {col}"
@@ -433,7 +482,6 @@ def test_get_galsim_SED_list(sn_path):
 
 
 def test_plot_lc():
-    from campari.AllASPFuncs import plot_lc
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",
                      return_data=True)
@@ -501,12 +549,10 @@ def test_make_regular_grid():
     ra_center = wcs_dict["CRVAL1"]
     dec_center = wcs_dict["CRVAL2"]
 
-    test_ra = np.array([7.67363133, 7.67373506, 7.67383878, 7.67355803,
-                        7.67366176, 7.67376548, 7.67348473, 7.67358845,
-                        7.67369218])
-    test_dec = np.array([-44.26396874, -44.26391831, -44.26386787,
-                        -44.26389673, -44.26384629, -44.26379586,
-                        -44.26382471, -44.26377428, -44.26372384])
+    test_ra = np.array([7.673631, 7.673558, 7.673485, 7.673735, 7.673662, 7.673588,
+                        7.673839, 7.673765, 7.673692])
+    test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
+                         -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
@@ -528,7 +574,7 @@ def test_make_adaptive_grid():
                 snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
-        Lager.debug(f"compare_images shape: {compare_images.shape}")
+        SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
         ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
                                                image=image, percentiles=[99])
@@ -645,7 +691,7 @@ def test_get_weights(roman_path):
     )
     snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
     wcs = snappl_image.get_wcs()
-    Lager.debug(wcs.pixel_to_world(2044, 2044))
+    SNLogger.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
@@ -697,7 +743,7 @@ def test_construct_transient_scene():
         plt.colorbar(label="log10( |constructed - comparison| )")
 
         im_path = pathlib.Path(__file__).parent / "test_psf_source_comparison.png"
-        Lager.debug(f"Saving diagnostic image to {im_path}")
+        SNLogger.debug(f"Saving diagnostic image to {im_path}")
         plt.savefig(im_path)
         plt.close()
 
@@ -790,7 +836,7 @@ def test_find_all_exposures_with_img_list(roman_path):
     band = "Y106"
     columns = ["pointing", "SCA"]
     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-    Lager.debug(image_df)
+    SNLogger.debug(image_df)
     ra = 7.551093401915147
     dec = -44.80718106491529
     transient_start = 62450.
@@ -815,3 +861,20 @@ def test_find_all_exposures_with_img_list(roman_path):
         else:
             np.testing.assert_allclose(exposures[col], test_exposures[col],
                                        rtol=1e-7, atol=1e-7)
+
+
+def test_extract_object_from_healpix():
+    healpix = 42924408
+    nside = 2**11
+    object_type = "SN"
+    source = "OpenUniverse2024"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_id_array.npy")
+    np.testing.assert_array_equal(id_array, test_id_array), \
+        "The IDs extracted from the healpix do not match the expected values."
+
+    object_type = "star"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
+    np.testing.assert_array_equal(id_array, test_id_array), \
+        "The IDs extracted from the healpix do not match the expected values."
