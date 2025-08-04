@@ -113,7 +113,7 @@ def main():
                              "OpenUniverse SNIDs to run.")
 
     parser.add_argument("--healpix", type=int, default=None, required=False, nargs="*",
-                        help="Healpix ID to run on. If given, will run on all "
+                        help="Healpix ID or IDs to run on. If given, will run on all "
                              "supernovae in that healpix. nside must be specified with the"
                              "--nside argument.")
     parser.add_argument("--nside", type=int, default=None, required=False,

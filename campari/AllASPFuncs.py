@@ -582,6 +582,17 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         imagedata, errordata, flags = image.get_data(which="all")
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
 
+        image_wcs = image_cutout.get_wcs()
+        cutotut_wcs = image_cutout.get_wcs()
+
+        x, y = image_wcs.world_to_pixel(ra, dec)
+        x_cutout, y_cutout = cutotut_wcs.world_to_pixel(ra, dec)
+
+        x_list.append(x)
+        y_list.append(y)
+        x_cutout_list.append(x_cutout)
+        y_cutout_list.append(y_cutout)
+
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
             # In the future, I'd like to manually insert an array of ones for
@@ -621,14 +632,10 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image_list.append(image)
         cutout_image_list.append(image_cutout)
 
-    # SNLogger.debug(len(x_list))
-    # SNLogger.debug(len(y_list))
-    # SNLogger.debug(len(x_cutout_list))
-    # SNLogger.debug(len(y_cutout_list))
-    # exposures["x"] = x_list
-    # exposures["y"] = y_list
-    # exposures["x_cutout"] = x_cutout_list
-    # exposures["y_cutout"] = y_cutout_list
+    exposures["x"] = x_list
+    exposures["y"] = y_list
+    exposures["x_cutout"] = x_cutout_list
+    exposures["y_cutout"] = y_cutout_list
 
     SNLogger.debug("updated exposures with x, y, x_cutout, y_cutout:")
     SNLogger.debug(exposures)
