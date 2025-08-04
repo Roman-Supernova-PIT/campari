@@ -251,6 +251,11 @@ def main():
     bulge_hlr = config.value("photometry.campari.simulations.bulge_hlr")
     disk_hlr = config.value("photometry.campari.simulations.disk_hlr")
 
+    if grid_type == "single" and not deltafcn_profile:
+        SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
+                         "The goal of using a single point is to run an exact fit for testing purposes, which requires"
+                         "the galaxy be a delta function.")
+
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
     assert grid_type in ["regular", "adaptive", "contour",
@@ -405,24 +410,25 @@ def main():
         # create a lightcurve compared to true values, and one where we save
         # the images.
 
-        if use_real_images:
-            identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
-            if args.object_lookup:
-                lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
-
-        else:
-            identifier = "simulated"
-            lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
-
         if use_roman:
             psftype = "romanpsf"
         else:
             psftype = "analyticpsf"
 
-        output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
-        save_lightcurve(lc, identifier, band, psftype,
-                        output_path=output_dir)
+        if flux is not None:
+            if use_real_images:
+                identifier = str(ID)
+                lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
+                if args.object_lookup:
+                    lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
+
+            else:
+                identifier = "simulated"
+                lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
+
+            output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
+            save_lightcurve(lc, identifier, band, psftype,
+                            output_path=output_dir)
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])

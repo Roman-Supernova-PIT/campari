@@ -924,6 +924,9 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
                                               size=size, spacing=spacing)
 
     if grid_type == "single":
+        if sim_galra is None or sim_galdec is None:
+            raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
+
         ra_grid, dec_grid = [sim_galra], [sim_galdec]
 
     if make_exact:
@@ -1210,9 +1213,8 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     Returns:
     lc: a QTable containing the lightcurve data
     """
-    # If running without a detection, don't build a lightcurve.
-    if flux is None:
-        return None
+
+
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
     band = exposures["band"][0]
@@ -1306,9 +1308,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
-    # If running without a detection, don't build a lightcurve.
-    if flux is None:
-        return None
+
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux,
                  "flux_error": sigma_flux, "sim_flux": supernova}
@@ -1335,9 +1335,6 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None,
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
-    if lc is None:
-        SNLogger.warning("No lightcurve to save, returning.")
-        return
     output_path = Config.get().value("photometry.campari.paths.output_dir") \
         if output_path is None else output_path
     output_path = pathlib.Path(output_path)
