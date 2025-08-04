@@ -248,6 +248,8 @@ def main():
     grid_type = config.value("photometry.campari.grid_options.type")
     base_pointing = config.value("photometry.campari.simulations.base_pointing")
     base_sca = config.value("photometry.campari.simulations.base_sca")
+    bulge_hlr = config.value("photometry.campari.simulations.bulge_hlr")
+    disk_hlr = config.value("photometry.campari.simulations.disk_hlr")
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -390,7 +392,8 @@ def main():
                                do_rotation, airy, mismatch_seds, deltafcn_profile,
                                noise, check_perfection, avoid_non_linearity,
                                sim_gal_ra_offset, sim_gal_dec_offset,
-                               spacing, percentiles, base_pointing=base_pointing, base_sca=base_sca)
+                               spacing, percentiles, base_pointing=base_pointing, base_sca=base_sca,
+                               bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.

@@ -27,7 +27,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                     do_rotation, noise, use_roman, band, deltafcn_profile,
                     roman_path, size=11, input_psf=None, constant_imgs=False,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
-                    mismatch_seds=False, base_pointing=662, base_sca=11):
+                    mismatch_seds=False, base_pointing=662, base_sca=11,
+                    bulge_hlr=1.6, disk_hlr=5):
     """This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
@@ -138,7 +139,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
 
         # Draw the galaxy.
         convolved = simulate_galaxy(bg_gal_flux, deltafcn_profile, band,
-                                    sim_psf, sed)
+                                    sim_psf, sed, bulge_hlr=bulge_hlr,
+                                    disk_hlr=disk_hlr)
 
         SNLogger.debug(f"Galaxy being drawn at {pointx, pointy} ")
         localwcs = full_image_wcs.get_galsim_wcs().\
@@ -223,16 +225,17 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     return wcs_dict
 
 
-def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
+def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed, bulge_hlr=1.6, disk_hlr=5):
     SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     roman_bandpasses = galsim.roman.getBandpasses()
     if deltafcn_profile:
         SNLogger.debug("Using delta function profile for galaxy.")
         profile = galsim.DeltaFunction()
     else:
-        SNLogger.debug("Using bulge+disk profile for galaxy.")
-        bulge = galsim.Sersic(n=3, half_light_radius=1.6)
-        disk = galsim.Exponential(half_light_radius=5)
+        SNLogger.debug("Using bulge+disk profile for galaxy. The bulge has a half-light radius of "
+                          f"{bulge_hlr} and the disk has a half-light radius of {disk_hlr}.")
+        bulge = galsim.Sersic(n=3, half_light_radius=bulge_hlr)
+        disk = galsim.Exponential(half_light_radius=disk_hlr)
         profile = bulge + disk
 
     profile *= sed

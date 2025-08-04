@@ -1600,7 +1600,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
                    spacing, percentiles,
-                   draw_method_for_non_roman_psf="no_pixel", base_pointing=None, base_sca=None):
+                   draw_method_for_non_roman_psf="no_pixel", base_pointing=None, base_sca=None, bulge_hlr=1.5,
+                   disk_hlr=5):
     psf_matrix = []
     sn_matrix = []
 
@@ -1637,7 +1638,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
-                            base_sca=base_sca)
+                            base_sca=base_sca, bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
         object_type = "SN"
 
     # Build the background grid
