@@ -246,6 +246,15 @@ def main():
     spacing = config.value("photometry.campari.grid_options.spacing")
     percentiles = config.value("photometry.campari.grid_options.percentiles")
     grid_type = config.value("photometry.campari.grid_options.type")
+    base_pointing = config.value("photometry.campari.simulations.base_pointing")
+    base_sca = config.value("photometry.campari.simulations.base_sca")
+    bulge_hlr = config.value("photometry.campari.simulations.bulge_hlr")
+    disk_hlr = config.value("photometry.campari.simulations.disk_hlr")
+
+    if grid_type == "single" and not deltafcn_profile:
+        SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
+                         "The goal of using a single point is to run an exact fit for testing purposes, which requires"
+                         "the galaxy be a delta function.")
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -333,6 +342,13 @@ def main():
     for ID in SNID:
         banner(f"Running SN {ID}")
         try:
+            # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
+            # actual image counts, not maximum possible.
+            if max_no_transient_images is None or max_transient_images is None:
+                max_images = None
+            else:
+                max_images = max_no_transient_images + max_transient_images
+
             if args.object_lookup:
                 pqfile = find_parquet(ID, sn_path, obj_type=object_type)
                 SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
@@ -343,13 +359,16 @@ def main():
                                                                                       obj_type=object_type)
                 SNLogger.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
                                f"transient_end={transient_end}")
-
-            exposures = find_all_exposures(ra, dec, transient_start, transient_end,
-                                           roman_path=roman_path,
-                                           maxbg=max_no_transient_images,
-                                           maxdet=max_transient_images, return_list=True,
-                                           band=band, image_selection_start=image_selection_start,
-                                           image_selection_end=image_selection_end, pointing_list=pointing_list)
+            if use_real_images:
+                exposures = find_all_exposures(ra, dec, transient_start, transient_end,
+                                               roman_path=roman_path,
+                                               maxbg=max_no_transient_images,
+                                               maxdet=max_transient_images, return_list=True,
+                                               band=band, image_selection_start=image_selection_start,
+                                               image_selection_end=image_selection_end, pointing_list=pointing_list)
+            else:
+                faux_dates = np.linspace(0, 10, max_images) + 60000  # fake dates for simulated images
+                exposures = pd.DataFrame({"date": faux_dates})
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):
@@ -366,13 +385,6 @@ def main():
             for date in exposures["date"]:
                 sedlist.append(sed_obj.get_sed(snid=ID, mjd=date))
 
-            # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
-            # actual image counts, not maximum possible.
-            if max_no_transient_images is None or max_transient_images is None:
-                max_images = None
-            else:
-                max_images = max_no_transient_images + max_transient_images
-
             flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
                 confusion_metric, X, cutout_wcs_list, sim_lc = \
                 run_one_object(ID, ra, dec, object_type, exposures, max_images, max_transient_images, roman_path,
@@ -385,7 +397,8 @@ def main():
                                do_rotation, airy, mismatch_seds, deltafcn_profile,
                                noise, check_perfection, avoid_non_linearity,
                                sim_gal_ra_offset, sim_gal_dec_offset,
-                               spacing, percentiles)
+                               spacing, percentiles, base_pointing=base_pointing, base_sca=base_sca,
+                               bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
@@ -397,23 +410,25 @@ def main():
         # create a lightcurve compared to true values, and one where we save
         # the images.
 
-        if use_real_images:
-            identifier = str(ID)
-            lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
-            if args.object_lookup:
-                lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
-
-        else:
-            identifier = "simulated"
-            lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
         if use_roman:
             psftype = "romanpsf"
         else:
             psftype = "analyticpsf"
 
-        output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
-        save_lightcurve(lc, identifier, band, psftype,
-                        output_path=output_dir)
+        if flux is not None:
+            if use_real_images:
+                identifier = str(ID)
+                lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
+                if args.object_lookup:
+                    lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
+
+            else:
+                identifier = "simulated"
+                lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
+
+            output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
+            save_lightcurve(lc, identifier, band, psftype,
+                            output_path=output_dir)
 
         # Now, save the images
         images_and_model = np.array([images, sumimages, wgt_matrix])

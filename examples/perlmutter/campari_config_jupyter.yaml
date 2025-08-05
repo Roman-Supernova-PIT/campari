@@ -16,6 +16,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
+    save_model: true
 
     paths:
       sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
@@ -32,8 +33,8 @@ photometry:
       type: contour
       percentiles:
       - 0
-      - 90
-      - 98
+      - 88
+      - 95
       - 100
       spacing: 0.75
       turn_grid_off: false
@@ -41,17 +42,21 @@ photometry:
     simulations:
       avoid_non_linearity: false
       background_level: 0
-      bg_gal_flux: 100000.0
+      bg_gal_flux: 10000000
       check_perfection: false
       deltafcn_profile: false
       do_rotation: true
       do_xshift: true
       make_exact: false
       mismatch_seds: false
-      noise: 0
-      sim_gal_dec_offset: 1e-5
-      sim_gal_ra_offset: 1e-5
+      noise: 50
+      sim_gal_dec_offset: 0.00005
+      sim_gal_ra_offset: 0.00005
       single_grid_point: false
+      base_pointing: 276
+      base_sca: 10
+      bulge_hlr: 1.6
+      disk_hlr: 5
 
 ou24psf:
   config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml

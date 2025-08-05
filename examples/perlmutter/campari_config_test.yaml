@@ -45,9 +45,13 @@ photometry:
       make_exact: false
       mismatch_seds: false
       noise: 0
-      sim_gal_dec_offset: 1e-5
-      sim_gal_ra_offset: 1e-5
+      sim_gal_dec_offset: 0.00001
+      sim_gal_ra_offset: 0.00001
       single_grid_point: false
+      base_pointing: 276
+      base_sca: 10
+      bulge_hlr: 1.6
+      disk_hlr: 5
 
 ou24:
   config_file: /sn_info_dir/tds.yaml

@@ -13,7 +13,7 @@ import pandas as pd
 import requests
 import scipy.sparse as sp
 from astropy import units as u
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, angular_separation
 from astropy.io import fits
 from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
@@ -263,11 +263,13 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
     wcslist = [im.get_wcs() for im in imlist]
     imdata = [im.data.flatten() for im in imlist]
-
     for i, imwcs in enumerate(zip(imdata, wcslist)):
         im, wcs = imwcs
         xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
-        grid_point_vals = np.zeros_like(xx)
+        grid_point_vals = np.atleast_1d(np.zeros_like(xx))
+        # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
+        xx = np.atleast_1d(xx)
+        yy = np.atleast_1d(yy)
         for imval, imxval, imyval in zip(im.flatten(),
                                          imx.flatten(), imy.flatten()):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) &
@@ -303,13 +305,14 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     (stampsize*stampsize, npoints)
     """
 
-    assert util_ref is not None or psf is not None, "you must provide at \
-        least util_ref or psf"
-    assert util_ref is not None or band is not None, "you must provide at \
-        least util_ref or band"
+    assert util_ref is not None or psf is not None, "you must provide at least util_ref or psf"
+    assert util_ref is not None or band is not None, "you must provide at least util_ref or band"
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
+    # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
+    x_sca = np.atleast_1d(x_sca)
+    y_sca = np.atleast_1d(y_sca)
     bpass = roman.getBandpasses()[band]
 
     num_grid_points = np.size(x_sca)
@@ -340,7 +343,8 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1., seed=None).flatten()
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, wcs=sca_wcs).flatten()
+
 
     return psfs
 
@@ -489,7 +493,7 @@ def radec2point(RA, DEC, filt, path, start=None, end=None):
 
 
 def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
-                              y_center=None, sed=None, flux=1, photOps=True):
+                              y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
     Inputs:
@@ -526,8 +530,7 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
 
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=pointing, sca=sca,
                                     size=stampsize, include_photonOps=photOps)
-    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center,
-                                     flux=1., seed=None)
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center, flux=1.0, seed=None, input_wcs=sca_wcs)
 
     return psf_image.flatten()
 
@@ -857,13 +860,14 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
         SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         inv_var = 1 / (error[i].flatten()) ** 2
         wgt *= inv_var
+
         SNLogger.debug(f"wgt after: {np.mean(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
 
 
-def make_grid(grid_type, images, ra, dec, percentiles=[], spacing=0.75,
-              make_exact=False):
+def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
+              make_exact=False, single_ra=None, single_dec=None, cut_points_close_to_sn=False, spacing = 0.75):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -888,6 +892,10 @@ def make_grid(grid_type, images, ra, dec, percentiles=[], spacing=0.75,
     make_exact: Currently not implemented, but will construct the grid in such
                 a way on a simulated image that the recovered model is accurate
                 to machine precision. TODO
+    sim_galra, sim_galdec: floats, the RA and DEC of a single simulated galaxy, only
+                used if grid_type is "single". This is used to place a single
+                grid point at the location of the simulated galaxy, for sanity
+                checking that the algorithm is drawing points where expected.
 
     Returns:
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
@@ -913,7 +921,9 @@ def make_grid(grid_type, images, ra, dec, percentiles=[], spacing=0.75,
                                               size=size, spacing=spacing)
 
     if grid_type == "single":
-        ra_grid, dec_grid = [ra], [dec]
+        if single_ra is None or single_dec is None:
+            raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
+        ra_grid, dec_grid = [single_ra], [single_dec]
 
     if make_exact:
         if grid_type == "single":
@@ -925,6 +935,17 @@ def make_grid(grid_type, images, ra, dec, percentiles=[], spacing=0.75,
 
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
+
+    if cut_points_close_to_sn:
+        min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
+        SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
+        distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
+        SNLogger.debug(type(distances[0]))
+        SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
+        ra_grid = ra_grid[distances > min_distance]
+        dec_grid = dec_grid[distances > min_distance]
+        SNLogger.debug(f"New grid size: {len(ra_grid)}")
+
     return ra_grid, dec_grid
 
 
@@ -1015,8 +1036,9 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
     flambda = sed_table["flambda"]
     lam = sed_table["lambda"]
     mjd = sed_table["mjd"]
+    SNLogger.debug(f"MJD values in SED: {np.array(mjd)}")
     bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    closest_days_away = np.min(np.array(mjd) - date)
+    closest_days_away = np.min(np.abs(np.array(mjd) - date))
 
     if np.abs(closest_days_away) > max_days_cutoff:
         SNLogger.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
@@ -1087,7 +1109,8 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     xg, yg = np.meshgrid(x, y, indexing="ij")
     xg = xg.ravel()
     yg = yg.ravel()
-    SNLogger.debug("Grid type: contour")
+    SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
+
 
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
@@ -1177,17 +1200,17 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     Input:
     ID (int): supernova ID
     exposures (table): table of exposures used in the SMP algorithm
-    sn_path (str): path to supernova data
     confusion_metric (float): the confusion metric derived in the SMP algorithm
-    num_detect_images (int): number of detection images in the lightcurve
-    X (array): the output of the SMP algorithm
-    use_roman (bool): whether or not the lightcurve was built using Roman PSF
-    band (str): the bandpass of the images used
+    flux (array): the output flux of the SMP algorithm. If no flux is received,
+                    then no lightcurve is built.
+    sigma_flux (array): the output flux error of the SMP algorithm
     ra, dec (float): the RA and DEC of the object.
 
     Returns:
     lc: a QTable containing the lightcurve data
     """
+
+
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
     band = exposures["filter"][0]
@@ -1287,9 +1310,11 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
+
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux,
                  "flux_error": sigma_flux, "sim_flux": supernova}
+    SNLogger.debug(data_dict)
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "",  "flux": "", "flux_error": ""}
     return QTable(data=data_dict, meta=meta_dict, units=units)
@@ -1541,7 +1566,8 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     """
     if not hasattr(radius, "unit") and radius is not None:
         SNLogger.warning("extract_star_from_parquet_file_and_write_to_csv " +
-                         "a radius argument with no units. Assuming degrees.")
+                         "got a radius argument with no units. Assuming degrees.")
+
         radius *= u.deg
 
     df = open_parquet(parquet_file, sn_path, obj_type="star")
@@ -1572,8 +1598,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
                    spacing, percentiles,
-                   draw_method_for_non_roman_psf="no_pixel"):
-    SNLogger.debug(f"ID: {ID}")
+                   draw_method_for_non_roman_psf="no_pixel", base_pointing=None, base_sca=None, bulge_hlr=1.5,
+                   disk_hlr=5):
     psf_matrix = []
     sn_matrix = []
 
@@ -1594,10 +1620,14 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
             num_total_images = len(exposures)
             num_detect_images = len(exposures[exposures["detected"]])
 
+        # We didn't simulate anything, so set these simulation only vars to none.
+        sim_galra = None
+        sim_galdec = None
+
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
+        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
             simulate_images(num_total_images, num_detect_images, ra, dec,
                             sim_gal_ra_offset, sim_gal_dec_offset,
                             do_xshift, do_rotation, noise=noise,
@@ -1606,26 +1636,29 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
-                            mismatch_seds=mismatch_seds)
+                            mismatch_seds=mismatch_seds, base_pointing=base_pointing,
+                            base_sca=base_sca, bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
         object_type = "SN"
-        err = np.ones_like(images)
 
     # Build the background grid
     if not grid_type == "none":
         if object_type == "star":
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, ra, dec,
-                                      percentiles=percentiles, spacing=spacing)
+                                      percentiles=percentiles, sim_galra=sim_galra,
+                                      sim_galdec=sim_galdec)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
+
 
     # Using the images, hazard an initial guess.
     # The num_total_images - num_detect_images check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
     num_nondetect_images = num_total_images - num_detect_images
-    if make_initial_guess and num_nondetect_images != 0:
+    if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
+        SNLogger.debug("Making initial guess for the model")
         x0test = generate_guess(cutout_image_list[:num_nondetect_images],
                                 ra_grid, dec_grid)
         x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
@@ -1686,12 +1719,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=pointing, sca=sca)
 
-
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
-        SNLogger.debug(f"ra_grid {ra_grid[:5]}")
-        SNLogger.debug(f"dec_grid {dec_grid[:5]}")
+        SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
         if grid_type != "none":
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
@@ -1731,10 +1762,14 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                     pointing = pointing
                     sca = sca
                 else:
-                    # NOTE: I have updated this to be not hardcoded in a simulations PR I am working on.
-                    pointing = 662
-                    sca = 11
-
+                    pointing = base_pointing
+                    sca = base_sca
+                # sedlist is the length of the number of supernova
+                # detection images. Therefore, when we iterate onto the
+                # first supernova image, we want to be on the first element
+                # of sedlist. Therefore, we subtract by the number of
+                # predetection images: num_total_images - num_detect_images.
+                sn_index = i - (num_total_images - num_detect_images)
                 SNLogger.debug(f"Using SED #{sn_index}")
                 sed = sedlist[sn_index]
                 # object_x and object_y are the exact coords of the SN in the SCA frame.
@@ -1753,7 +1788,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                     construct_transient_scene(x, y, pointing, sca,
                                               stampsize=size, x_center=object_x,
                                               y_center=object_y, sed=sed,
-                                              photOps=source_phot_ops)
+                                              photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
             else:
                 # NOTE: cutout_wcs_list is not being included in the zip above because in a different branch
                 # I am updating the simulations to use snappl image objects. That will be changed here once that
@@ -1783,13 +1818,17 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     # All others should be zero.
 
     # Get the weights
+
     if weighting:
         wgt_matrix = get_weights(cutout_image_list, ra, dec)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[1])
 
-    # Restructure the arrays into the form that we need to linear algebra.
-    images, err, sn_matrix, wgt_matrix = prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+    images, err, sn_matrix, wgt_matrix =\
+        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+    # Combine the background model and the supernova model into one matrix.
+    psf_matrix = np.hstack([psf_matrix, sn_matrix])
+
 
     # Calculate amount of the PSF cut out by setting a distance cap
     test_sn_matrix = np.copy(sn_matrix)
@@ -1798,9 +1837,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     SNLogger.debug("SN PSF Norms Post Distance Cut:"
                    f"{np.sum(test_sn_matrix, axis=0)}")
 
-    # Combine the background model and the supernova model into one matrix.
-
-    psf_matrix = np.hstack([psf_matrix, sn_matrix])
+    # this is where the hstack was before
 
     banner("Solving Photometry")
 
@@ -1822,7 +1859,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                        f"r1norm: {r1norm}")
-    flux = X[-num_detect_images:]
+
+    flux = X[-num_detect_images:] if num_detect_images > 0 else None
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
     try:
@@ -1830,8 +1868,10 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     except LinAlgError:
         cov = np.linalg.pinv(inv_cov)
 
+    SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
     SNLogger.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
-    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:])
+    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
+
     SNLogger.debug(f"sigma flux: {sigma_flux}")
 
     # Using the values found in the fit, construct the model images.
