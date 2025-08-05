@@ -305,10 +305,8 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     (stampsize*stampsize, npoints)
     """
 
-    assert util_ref is not None or psf is not None, "you must provide at \
-        least util_ref or psf"
-    assert util_ref is not None or band is not None, "you must provide at \
-        least util_ref or band"
+    assert util_ref is not None or psf is not None, "you must provide at least util_ref or psf"
+    assert util_ref is not None or band is not None, "you must provide at least util_ref or band"
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
@@ -870,7 +868,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
 
 
 def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
-              make_exact=False, sim_galra=None, sim_galdec=None, cut_points_close_to_sn=False):
+              make_exact=False, single_ra=None, single_dec=None, cut_points_close_to_sn=False, spacing = 0.75):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -924,9 +922,9 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
                                               size=size, spacing=spacing)
 
     if grid_type == "single":
-        if sim_galra is None or sim_galdec is None:
+        if single_ra is None or single_dec is None:
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
-        ra_grid, dec_grid = [sim_galra], [sim_galdec]
+        ra_grid, dec_grid = [single_ra], [single_dec]
 
     if make_exact:
         if grid_type == "single":
