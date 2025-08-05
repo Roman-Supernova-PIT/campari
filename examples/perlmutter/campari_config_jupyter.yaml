@@ -52,6 +52,14 @@ photometry:
       sim_gal_dec_offset: 1e-5
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
+      sim_galaxy_scale:
+      - 1.0
+      - 1.5
+      - 2.0
+      sim_galaxy_offset:
+      - .00001414 # sqrt(2) * 1e-5
+      - .00002121 # sqrt(2) * 1.5e-5
+      - .00002828 # sqrt(2) * 2e-5
 
 ou24psf:
   config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml

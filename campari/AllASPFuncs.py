@@ -1570,8 +1570,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                    grid_type, pixel, source_phot_ops,
                    image_selection_start, image_selection_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
-                   avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
-                   spacing, percentiles,
+                   avoid_non_linearity,
+                   spacing, percentiles, sim_galaxy_scale, sim_galaxy_offset,
                    draw_method_for_non_roman_psf="no_pixel"):
     SNLogger.debug(f"ID: {ID}")
     psf_matrix = []
@@ -1599,7 +1599,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         banner("Simulating Images")
         images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref = \
             simulate_images(num_total_images, num_detect_images, ra, dec,
-                            sim_gal_ra_offset, sim_gal_dec_offset,
+                            sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
                             size=size, band=band,

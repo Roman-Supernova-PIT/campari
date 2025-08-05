@@ -25,11 +25,12 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
 def simulate_images(num_total_images, num_detect_images, ra, dec,
-                    sim_gal_ra_offset, sim_gal_dec_offset, do_xshift,
+                    sim_galaxy_scale, sim_galaxy_offset, do_xshift,
                     do_rotation, noise, use_roman, band, deltafcn_profile,
                     roman_path, size=11, input_psf=None, constant_imgs=False,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
-                    mismatch_seds=False, base_pointing=662, base_sca=11):
+                    mismatch_seds=False, base_pointing=662, base_sca=11,
+                    sim_gal_ra_offset=None, sim_gal_dec_offset=None):
     """This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
@@ -58,8 +59,16 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
              using roman"
     else:
         input_psf = None
-    galra = ra + sim_gal_ra_offset
-    galdec = dec + sim_gal_dec_offset
+
+    if sim_gal_ra_offset is not None and sim_gal_dec_offset is not None:
+        galra = ra + sim_gal_ra_offset
+        galdec = dec + sim_gal_dec_offset
+    elif sim_galaxy_offset is not None:
+        galra = ra + sim_galaxy_offset / np.sqrt(2)
+        galdec = dec + sim_galaxy_offset / np.sqrt(2)
+    else:
+        raise ValueError("You must provide either sim_gal_ra_offset and sim_gal_dec_offset,"
+                         "or sim_galaxy_offset to simulate a galaxy offset.")
 
     if sim_lc is None:
         # Here, if the user has not provided a light curve that they want

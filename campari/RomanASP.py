@@ -241,11 +241,12 @@ def main():
     mismatch_seds = config.value("photometry.campari.simulations.mismatch_seds")
     fetch_SED = config.value("photometry.campari.fetch_SED")
     initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
-    sim_gal_ra_offset = config.value("photometry.campari.simulations.sim_gal_ra_offset")
-    sim_gal_dec_offset = config.value("photometry.campari.simulations.sim_gal_dec_offset")
     spacing = config.value("photometry.campari.grid_options.spacing")
     percentiles = config.value("photometry.campari.grid_options.percentiles")
     grid_type = config.value("photometry.campari.grid_options.type")
+
+    sim_galaxy_scale = config.value("photometry.campari.simulations.sim_galaxy_scale")
+    sim_galaxy_offset = config.value("photometry.campari.simulations.sim_galaxy_offset")
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -325,14 +326,28 @@ def main():
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
+
     if not isinstance(SNID, list):
         SNID = [SNID]
+
+    ### Here we parse the potentially multiple simulation values and make a grid!
+    if not use_real_images:
+        param_names = ["Galaxy Flux", "Galaxy Scale", "Galaxy Offset"]
+        all_params = [bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset]
+        nd_grid = np.meshgrid(*all_params)
+        flat_grid = np.array(nd_grid).reshape(len(all_params), -1)
+
+        SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
+        SNID = SNID * flat_grid.shape[1]  # Repeat the SNID for each combination of parameters
+
     SNLogger.debug("Snappl version:")
     SNLogger.debug(snappl.__version__)
-
-    for ID in SNID:
+    SNLogger.debug(SNID)
+    for index, ID in enumerate(SNID):
         banner(f"Running SN {ID}")
         try:
+            if not use_real_images:
+                SNLogger.debug(f"Simulation parameters: {param_names} = {flat_grid[:, index]}")
             if args.object_lookup:
                 pqfile = find_parquet(ID, sn_path, obj_type=object_type)
                 SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
@@ -384,8 +399,8 @@ def main():
                                image_selection_start, image_selection_end, do_xshift, bg_gal_flux,
                                do_rotation, airy, mismatch_seds, deltafcn_profile,
                                noise, check_perfection, avoid_non_linearity,
-                               sim_gal_ra_offset, sim_gal_dec_offset,
-                               spacing, percentiles)
+                               spacing, percentiles, sim_galaxy_scale,
+                               sim_galaxy_offset)
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
