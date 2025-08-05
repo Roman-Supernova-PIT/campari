@@ -48,6 +48,7 @@ from campari.AllASPFuncs import (
     radec2point,
     save_lightcurve,
 )
+from campari.plotting import plot_lc
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 

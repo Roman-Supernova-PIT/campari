@@ -343,7 +343,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, wcs=sca_wcs).flatten()
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs).flatten()
 
 
     return psfs
@@ -1645,8 +1645,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         if object_type == "star":
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, ra, dec,
-                                      percentiles=percentiles, sim_galra=sim_galra,
-                                      sim_galdec=sim_galdec)
+                                      percentiles=percentiles, single_ra=sim_galra,
+                                      single_dec=sim_galdec)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
