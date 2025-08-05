@@ -4,17 +4,15 @@ import warnings
 import galsim
 import numpy as np
 import pandas as pd
-from astropy import units as u
-from astropy.coordinates import SkyCoord
 from astropy.io import fits
-from astropy.nddata import Cutout2D
 from astropy.utils.exceptions import AstropyWarning
-from astropy.wcs import WCS
 from erfa import ErfaWarning
 from roman_imsim.utils import roman_utils
 
 from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger as Lager
+from snpit_utils.logger import SNLogger
+from snappl.image import ManualFITSImage
+from snappl.psf import PSF
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -27,10 +25,11 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 def simulate_images(num_total_images, num_detect_images, ra, dec,
                     sim_galaxy_scale, sim_galaxy_offset, do_xshift,
                     do_rotation, noise, use_roman, band, deltafcn_profile,
-                    roman_path, size=11, input_psf=None, constant_imgs=False,
+                    roman_path, size=11, input_psf=None,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
                     sim_gal_ra_offset=None, sim_gal_dec_offset=None):
+                    bulge_hlr=None, disk_hlr=None):
     """This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
@@ -38,20 +37,39 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     num_detect_images: int, the number of images to simulate with a supernova
     ra, dec: floats, the RA and DEC of the center of the images to simulate,
         and the RA and DEC of the supernova.
+    sim_gal_ra_offset, sim_gal_dec_offset: floats, the offsets to apply to the
+        RA and DEC of the galaxy in the images.
     do_xshift:, bool whether to shift the images in the x direction (they will
-    still be centered on the same point, this is just to emulate Roman taking a
-    series of images at different locations.)
+        still be centered on the same point, this is just to emulate Roman taking a
+        series of images at different locations.)
     do_rotation: bool, whether to rotate the images
     noise: float, the noise level to add to the images.
     use_roman: bool, whether to use the Roman PSF or a simple airy PSF.
-    size: nt, the size of the images to simulate.
+    band: str, the band to use for the images.
+    deltafcn_profile: bool, whether to use a delta function profile for the galaxy.
+    roman_path: str, the path to the Roman TDS files.
+    size: int, the size of the images to simulate.
+    input_psf: galsim.ChromaticOpticalPSF, the PSF to use if not using Roman.
+    bg_gal_flux: float, the flux of the background galaxy to simulate.
+    source_phot_ops: bool, whether to use photon shooting for the supernova.
+
     sim_lc: list, the light curve of the supernova to simulate. If None,
         a default light curve will be generated.
 
+    mismatch_seds: bool, whether to use a mismatched SED for the supernova, testing purposes only.
+    base_pointing: int, the base pointing to use to simulate the WCS.
+    base_sca: int, the base SCA to use to simulate the WCS.
+    bulge_hlr: float, the half-light radius of the bulge in arcseconds.
+    disk_hlr: float, the half-light radius of the disk in arcseconds.
+
+
     Returns:
-    images: a numpy array of the images, with shape (num_total_images, size, size)
-    im_wcs_list: a list of the wcs objects for each full SCA image
-    cutout_wcs_list: a list of the wcs objects for each cutout image
+    sim_lc: list, the light curve of the supernova.
+    util_ref: roman_utils object, used to get the PSF.
+    image_list: list of ManualFITSImage objects, the full images.
+    cutout_image_list: list of ManualFITSImage objects, the cutout images.
+    galra: float, the RA of the galaxy.
+    galdec: float, the DEC of the galaxy.
     """
 
     if not use_roman:
@@ -70,6 +88,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         raise ValueError("You must provide either sim_gal_ra_offset and sim_gal_dec_offset,"
                          "or sim_galaxy_offset to simulate a galaxy offset.")
 
+
     if sim_lc is None:
         # Here, if the user has not provided a light curve that they want
         # simulated, we generate a default one.
@@ -83,14 +102,18 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
 
     snra = ra
     sndec = dec
-    im_wcs_list = []
-    cutout_wcs_list = []
     imagelist = []
     roman_bandpasses = galsim.roman.getBandpasses()
-    psf_storage = []
     sn_storage = []
+    image_list = []
+    cutout_image_list = []
+
+    SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
+    file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
+    util_ref = roman_utils(config_file=file_path, visit=base_pointing, sca=base_sca)
 
     for i in range(num_total_images):
+        SNLogger.debug(f"Simulating image {i+1} of {num_total_images}. -----------------------------")
 
         if do_xshift:
             x_shift = 1e-5/3 * i
@@ -106,19 +129,20 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
 
         wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift, roman_path,
                                 base_sca, base_pointing, band)
-        imwcs = WCS(wcs_dict)
 
-        # Just using this astropy tool to get the cutout wcs.
-        cutoutstamp = Cutout2D(np.zeros((4088, 4088)), SkyCoord(ra=ra*u.degree,
-                               dec=dec*u.degree), size, wcs=imwcs)
-        cutoutgalwcs = galsim.AstropyWCS(wcs=cutoutstamp.wcs)
+        image_object = ManualFITSImage(
+            header=wcs_dict, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
+        )
 
-        # Overall WCS for the image
-        galwcs, origin = galsim.wcs.readFromFitsHeader(wcs_dict)
-        im_wcs_list.append(galwcs)
+        full_image_wcs = image_object.get_wcs()
+
+        cutout_object = image_object.get_ra_dec_cutout(ra, dec, xsize=size)
+        cutoutgalwcs = cutout_object.get_wcs().get_galsim_wcs()  # rename this
+        cutout_loc = full_image_wcs.world_to_pixel(ra, dec)
+        cutout_pixel = (int(np.floor(cutout_loc[0] + 0.5)), int(np.floor(cutout_loc[1] + 0.5)))
 
         if mismatch_seds:
-            Lager.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
+            SNLogger.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
             file_path = r"snflux_1a.dat"
             df = pd.read_csv(file_path, sep=r"\s+", header=None, names=["Day",
                              "Wavelength", "Flux"])
@@ -133,30 +157,26 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                              interpolant="linear"), wave_type="nm",
                              flux_type="fphotons")
 
-        stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
         pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units="deg")
 
         if use_roman:
-            sim_psf = galsim.roman.getPSF(1, band, pupil_bin=8,
-                                          wcs=cutoutgalwcs)
-
+            sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
-            sim_psf = input_psf
+            raise NotImplementedError("Non-Roman PSF simulation not implemented yet.")
 
         # Draw the galaxy.
         convolved = simulate_galaxy(bg_gal_flux, deltafcn_profile, band,
-                                    sim_psf, sed)
+                                    sim_psf, sed, bulge_hlr=bulge_hlr,
+                                    disk_hlr=disk_hlr)
 
+        SNLogger.debug(f"Galaxy being drawn at {pointx, pointy} ")
+        localwcs = full_image_wcs.get_galsim_wcs().\
+            local(image_pos=galsim.PositionD(cutout_pixel[0] + 1, cutout_pixel[1] + 1))
+        stamp = galsim.Image(size, size, wcs=localwcs)
         a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
-                                image=stamp, wcs=cutoutgalwcs,
+                                image=stamp, wcs=localwcs,
                                 center=galsim.PositionD(pointx, pointy),
-                                use_true_center=True)
-        a = a.array
-
-        stamp2 = galsim.Image(size, size, wcs=cutoutgalwcs)
-        psf_storage.append((sim_psf*sed).drawImage(roman_bandpasses[band],
-                           wcs=cutoutgalwcs, center=(5, 5),
-                           use_true_center=True, image=stamp2).array)
+                                use_true_center=True).array
 
         # Noise it up!
         if noise > 0:
@@ -171,32 +191,49 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
             if sn_im_index >= 0:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units="deg")
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
-                Lager.debug(f"sed: {sed}")
+                SNLogger.debug(f"sed: {sed}")
                 supernova_image = \
-                    simulate_supernova(snx, sny, stamp,
+                    simulate_supernova(cutout_loc[0], cutout_loc[1], cutout_pixel[0], cutout_pixel[1],
                                        sim_lc[sn_im_index],
-                                       sed, band, sim_psf, source_phot_ops,
-                                       base_pointing, base_sca)
+                                       sed, source_phot_ops,
+                                       base_pointing, base_sca, stampsize=size, sca_wcs=full_image_wcs)
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
 
-        cutout_wcs_list.append(cutoutgalwcs)
+        cutout_object.data = a
+        # TODO: Decide how error is handled for simulated images.
+        if noise > 0:
+            cutout_object.noise = np.ones_like(a) * noise
+        else:
+            cutout_object.noise = np.ones_like(a)
         imagelist.append(a)
 
+        image_list.append(image_object)
+        cutout_image_list.append(cutout_object)
     images = imagelist
-    Lager.debug(f"images shape: {images[0].shape}")
-    Lager.debug(f"images length {len(images)}")
-    file_path = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
-    util_ref = roman_utils(config_file=file_path,
-                           visit=base_pointing, sca=base_sca)
+    SNLogger.debug(f"images shape: {images[0].shape}")
+    SNLogger.debug(f"images length {len(images)}")
 
-
-    return images, im_wcs_list, cutout_wcs_list, sim_lc, util_ref
+    return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec
 
 
 def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
                  band):
+    """ This function simulates the WCS for a Roman image given a base pointing / SCA combination to start from,
+    then applying a rotation and shifts to the WCS.
+
+    Inputs:
+    angle: float, the angle to rotate the WCS by in radians.
+    x_shift, y_shift: floats, the shifts, in degrees, to apply to the WCS in the x and y directions.
+    roman_path: str, the path to the Roman TDS files.
+    base_sca: int, the base SCA to use to simulate the WCS.
+    base_pointing: int, the base pointing to use to simulate the WCS.
+    band: str, the band to use for the images.
+
+    Returns:
+    wcs_dict: dict, a dictionary containing the WCS information for the image.
+    """
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
     image = fits.open(roman_path + f"/RomanTDS/images/simple_model/{band}/" +
@@ -229,13 +266,34 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     return wcs_dict
 
 
-def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
+def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed, bulge_hlr=1.6, disk_hlr=5):
+    """This function simulates a galaxy using galsim. It can simulate either a delta function profile or a bulge+disk
+    profile.
+
+    Inputs:
+    bg_gal_flux: float, the flux of the background galaxy to simulate.
+    deltafcn_profile: bool, whether to use a delta function profile for the galaxy, if false, use a bulge+disk profile.
+    band: str, the band to use for the images.
+    sim_psf: galsim.ChromaticOpticalPSF, the PSF to use for the galaxy.
+    sed: galsim.SED, the spectral energy distribution of the galaxy.
+    bulge_hlr: float, the half-light radius of the bulge in arcseconds.
+    disk_hlr: float, the half-light radius of the disk in arcseconds.
+
+    Returns:
+    convolved: galsim.chromatic.ChromaticConvolution, the convolved galaxy profile. This can then be used to draw an
+    image.
+
+    """
+    SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     roman_bandpasses = galsim.roman.getBandpasses()
     if deltafcn_profile:
+        SNLogger.debug("Using delta function profile for galaxy.")
         profile = galsim.DeltaFunction()
     else:
-        bulge = galsim.Sersic(n=3, half_light_radius=1.6)
-        disk = galsim.Exponential(half_light_radius=5)
+        SNLogger.debug("Using bulge+disk profile for galaxy. The bulge has a half-light radius of "
+                       f"{bulge_hlr} and the disk has a half-light radius of {disk_hlr}.")
+        bulge = galsim.Sersic(n=3, half_light_radius=bulge_hlr)
+        disk = galsim.Exponential(half_light_radius=disk_hlr)
         profile = bulge + disk
 
     profile *= sed
@@ -244,33 +302,35 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed):
     return convolved
 
 
-def simulate_supernova(snx, sny, stamp, flux, sed, band, sim_psf,
-                       source_phot_ops, base_pointing, base_sca,
-                       random_seed=0):
-    roman_bandpasses = galsim.roman.getBandpasses()
-    profile = galsim.DeltaFunction()*sed
-    profile = profile.withFlux(flux, roman_bandpasses[band])
+def simulate_supernova(snx, sny, snx0, sny0, flux, sed,
+                       source_phot_ops, base_pointing, base_sca, stampsize,
+                       random_seed=0, sca_wcs=None):
+    """This function simulates a supernova using the ou24PSF_slow PSF.
 
-    # Code below copied from galsim largely
-    if not source_phot_ops:
-        profile = galsim.Convolve(profile, sim_psf)
-        result = profile.drawImage(roman_bandpasses[band], image=stamp,
-                                   wcs=stamp.wcs, method="no_pixel",
-                                   center=galsim.PositionD(snx, sny),
-                                   use_true_center=True)
-        return result.array
+    Inputs:
+    snx, sny: floats, the x and y coordinates of the supernova in the image.\
+    snx0, sny0: ints, the x and y coordinates of pixel the image was cutout on.
+    flux: float, the flux of the supernova.
+    sed: galsim.SED, the spectral energy distribution of the supernova.
+    source_phot_ops: bool, whether to use photon shooting for the supernova.
+    base_pointing: int, the base pointing to use to simulate the WCS.
+    base_sca: int, the base SCA to use to simulate the WCS.
+    stampsize: int, the size of the stamp to draw the supernova on.
+    random_seed: int, the seed to use for the random number generator for the photon shooting.
+    sca_wcs: snappl.BaseWCS, the WCS of the entire SCA image.
 
-    config_file = pathlib.Path( Config.get().value( "photometry.campari.galsim.tds_file" ) )
-    util_ref = roman_utils(config_file=config_file, visit=base_pointing,
-                           sca=base_sca)
-    photon_ops = [sim_psf] + util_ref.photon_ops
+    Returns:
+    psf_image: numpy.ndarray, the image of the supernova convolved with the PSF.
 
-    # If random_seed is zero, galsim will use the current time to make a seed
-    rng = galsim.BaseDeviate(random_seed)
-    result = profile.drawImage(roman_bandpasses[band], wcs=stamp.wcs,
-                               method="phot", photon_ops=photon_ops,
-                               rng=rng, n_photons=int(1e6),
-                               maxN=int(1e6), poisson_flux=False,
-                               center=galsim.PositionD(snx, sny),
-                               use_true_center=True, image=stamp)
-    return result.array
+    """
+
+    SNLogger.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} ")
+    SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
+    SNLogger.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
+
+    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
+                                    size=stampsize, include_photonOps=source_phot_ops, sed=sed)
+    psf_image = psf_object.get_stamp(x0=snx0, y0=sny0, x=snx, y=sny,
+                                     flux=flux, seed=None, input_wcs=sca_wcs)
+    SNLogger.debug(type(psf_image))
+    return psf_image
