@@ -1597,7 +1597,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                    image_selection_start, image_selection_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
                    avoid_non_linearity,
-                   spacing, percentiles, sim_galaxy_scale, sim_galaxy_offset,
+                   spacing, percentiles, sim_galaxy_scale, sim_galaxy_offset, base_pointing=662, base_sca=11,
                    draw_method_for_non_roman_psf="no_pixel"):
     psf_matrix = []
     sn_matrix = []
@@ -1636,7 +1636,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
-                            base_sca=base_sca, bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
+                            base_sca=base_sca)
         object_type = "SN"
 
     # Build the background grid
@@ -1649,7 +1649,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
-
 
     # Using the images, hazard an initial guess.
     # The num_total_images - num_detect_images check is to ensure we have

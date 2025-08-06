@@ -47,7 +47,8 @@ def test_simulate_images(roman_path):
                         deltafcn_profile=False, roman_path=roman_path,
                         size=size, input_psf=airy, bg_gal_flux=bg_gal_flux,
                         base_sca=base_sca,
-                        base_pointing=base_pointing, source_phot_ops=False)
+                        base_pointing=base_pointing, source_phot_ops=False, sim_galaxy_scale=None,
+                        sim_galaxy_offset=None, bulge_hlr=1.6, disk_hlr=5.0)
 
     compare_images = np.load(pathlib.Path(__file__).parent
                              / "testdata/test_sim_images.npy")
@@ -81,7 +82,7 @@ def test_simulate_galaxy():
     sim_psf = \
         galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.
                                    getPSF(1, band, pupil_bin=1).aberrations)
-    convolved = simulate_galaxy(bg_gal_flux=9e5, deltafcn_profile=False,
+    convolved = simulate_galaxy(bg_gal_flux=9e5, sim_galaxy_scale=1, deltafcn_profile=False,
                                 band=band, sim_psf=sim_psf, sed=sed)
 
     a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",

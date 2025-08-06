@@ -236,7 +236,9 @@ def main():
     pixel = config.value("photometry.campari.pixel")
     roman_path = config.value("photometry.campari.paths.roman_path")
     sn_path = config.value("photometry.campari.paths.sn_path")
-    bg_gal_flux = config.value("photometry.campari.simulations.bg_gal_flux")
+    bg_gal_flux_all = config.value("photometry.campari.simulations.bg_gal_flux")
+    sim_galaxy_scale_all = config.value("photometry.campari.simulations.sim_galaxy_scale")
+    sim_galaxy_offset_all = config.value("photometry.campari.simulations.sim_galaxy_offset")
     source_phot_ops = config.value("photometry.campari.source_phot_ops")
     mismatch_seds = config.value("photometry.campari.simulations.mismatch_seds")
     fetch_SED = config.value("photometry.campari.fetch_SED")
@@ -246,16 +248,13 @@ def main():
     grid_type = config.value("photometry.campari.grid_options.type")
     base_pointing = config.value("photometry.campari.simulations.base_pointing")
     base_sca = config.value("photometry.campari.simulations.base_sca")
-    bulge_hlr = config.value("photometry.campari.simulations.bulge_hlr")
-    disk_hlr = config.value("photometry.campari.simulations.disk_hlr")
 
     if grid_type == "single" and not deltafcn_profile:
         SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
                          "The goal of using a single point is to run an exact fit for testing purposes, which requires"
                          "the galaxy be a delta function.")
 
-    sim_galaxy_scale = config.value("photometry.campari.simulations.sim_galaxy_scale")
-    sim_galaxy_offset = config.value("photometry.campari.simulations.sim_galaxy_offset")
+
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -342,12 +341,15 @@ def main():
     ### Here we parse the potentially multiple simulation values and make a grid!
     if not use_real_images:
         param_names = ["Galaxy Flux", "Galaxy Scale", "Galaxy Offset"]
-        all_params = [bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset]
+        all_params = [bg_gal_flux_all, sim_galaxy_scale_all, sim_galaxy_offset_all]
         nd_grid = np.meshgrid(*all_params)
         flat_grid = np.array(nd_grid).reshape(len(all_params), -1)
 
         SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
         SNID = SNID * flat_grid.shape[1]  # Repeat the SNID for each combination of parameters
+
+    else:
+        flat_grid = np.zeros((len(all_params), -1))
 
     SNLogger.debug("Snappl version:")
     SNLogger.debug(snappl.__version__)
@@ -355,8 +357,13 @@ def main():
     for index, ID in enumerate(SNID):
         banner(f"Running SN {ID}")
         try:
+            bg_gal_flux = flat_grid[0, index]
+            sim_galaxy_scale = flat_grid[1, index]
+            sim_galaxy_offset = flat_grid[2, index]  # I feel like there must be a more elegant way to do this
+
             if not use_real_images:
                 SNLogger.debug(f"Simulation parameters: {param_names} = {flat_grid[:, index]}")
+
             # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
             # actual image counts, not maximum possible.
             if max_no_transient_images is None or max_transient_images is None:
@@ -384,6 +391,8 @@ def main():
             else:
                 faux_dates = np.linspace(0, 10, max_images) + 60000  # fake dates for simulated images
                 exposures = pd.DataFrame({"date": faux_dates})
+                exposures["pointing"] = np.full_like(faux_dates, base_pointing)
+                exposures["sca"] = np.full_like(faux_dates, base_sca)
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):
@@ -438,7 +447,8 @@ def main():
                     lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
 
             else:
-                identifier = "simulated"
+                identifier = "simulated" + str(ID) + "_"  + str(sim_galaxy_scale) + "_" + \
+                             str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" + grid_type
                 lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
 
             output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))

@@ -37,21 +37,26 @@ photometry:
     simulations:
       avoid_non_linearity: false
       background_level: 0
-      bg_gal_flux: 100000.0
+      bg_gal_flux:
+      - 10000
+      - 100000
+      - 1000000
       check_perfection: false
       deltafcn_profile: false
       do_rotation: true
       do_xshift: true
       make_exact: false
       mismatch_seds: false
-      noise: 0
-      sim_gal_dec_offset: 0.00001
-      sim_gal_ra_offset: 0.00001
+      noise: 50
       single_grid_point: false
+      sim_galaxy_scale:
+      - 1.0
+      - 1.5
+      sim_galaxy_offset:
+      - .00001414 # sqrt(2) * 1e-5
+      - .00002828 # sqrt(2) * 2e-5
       base_pointing: 276
       base_sca: 10
-      bulge_hlr: 1.6
-      disk_hlr: 5
 
 ou24:
   config_file: /sn_info_dir/tds.yaml
