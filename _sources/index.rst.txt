@@ -11,7 +11,7 @@ This package contains the Python software suite developed for use with the Roman
 
 
 If you have questions or concerns regarding the software, please create an issue in
-the github package repository at https://github.com/Roman-Supernova-PIT/roman-snpit-campari
+the github package repository at https://github.com/Roman-Supernova-PIT/campari.
 
 --------------------------------
 
