@@ -248,6 +248,7 @@ def main():
     grid_type = config.value("photometry.campari.grid_options.type")
     base_pointing = config.value("photometry.campari.simulations.base_pointing")
     base_sca = config.value("photometry.campari.simulations.base_sca")
+    run_name = config.value("photometry.campari.simulations.run_name")
 
     if grid_type == "single" and not deltafcn_profile:
         SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
@@ -343,7 +344,7 @@ def main():
         param_names = ["Galaxy Flux", "Galaxy Scale", "Galaxy Offset"]
         all_params = [bg_gal_flux_all, sim_galaxy_scale_all, sim_galaxy_offset_all]
         nd_grid = np.meshgrid(*all_params)
-        flat_grid = np.array(nd_grid).reshape(len(all_params), -1)
+        flat_grid = np.array(nd_grid, dtype=float).reshape(len(all_params), -1)
 
         SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
         SNID = SNID * flat_grid.shape[1]  # Repeat the SNID for each combination of parameters
@@ -447,7 +448,9 @@ def main():
                     lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
 
             else:
-                identifier = "simulated" + str(ID) + "_"  + str(sim_galaxy_scale) + "_" + \
+                if run_name is None:
+                    run_name = "simulated"
+                identifier = run_name + "_" + str(sim_galaxy_scale) + "_" + \
                              str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" + grid_type
                 lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
 

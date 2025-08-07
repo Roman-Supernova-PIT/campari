@@ -1321,7 +1321,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 
 
 def save_lightcurve(lc, identifier, band, psftype, output_path=None,
-                    overwrite=True):
+                    overwrite=False):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
