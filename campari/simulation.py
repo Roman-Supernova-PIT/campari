@@ -23,12 +23,13 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
 def simulate_images(num_total_images, num_detect_images, ra, dec,
-                    sim_gal_ra_offset, sim_gal_dec_offset, do_xshift,
+                    sim_galaxy_scale, sim_galaxy_offset, do_xshift,
                     do_rotation, noise, use_roman, band, deltafcn_profile,
                     roman_path, size=11, input_psf=None,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
-                    bulge_hlr=1.6, disk_hlr=5):
+                    sim_gal_ra_offset=None, sim_gal_dec_offset=None,
+                    bulge_hlr=None, disk_hlr=None):
     """This function simulates images using galsim for testing purposes. It is not
      used in the main pipeline.
     Inputs:
@@ -77,9 +78,16 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     else:
         input_psf = None
 
-    SNLogger.debug(sim_gal_ra_offset)
-    galra = ra + sim_gal_ra_offset
-    galdec = dec + sim_gal_dec_offset
+    if sim_gal_ra_offset is not None and sim_gal_dec_offset is not None:
+        galra = ra + sim_gal_ra_offset
+        galdec = dec + sim_gal_dec_offset
+    elif sim_galaxy_offset is not None:
+        galra = ra + sim_galaxy_offset / np.sqrt(2)
+        galdec = dec + sim_galaxy_offset / np.sqrt(2)
+    else:
+        raise ValueError("You must provide either sim_gal_ra_offset and sim_gal_dec_offset,"
+                         "or sim_galaxy_offset to simulate a galaxy offset.")
+
 
     if sim_lc is None:
         # Here, if the user has not provided a light curve that they want
@@ -154,10 +162,11 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         if use_roman:
             sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
-            raise NotImplementedError("Non-Roman PSF simulation not implemented yet.")
+            #raise NotImplementedError("Non-Roman PSF simulation not implemented yet.")
+            sim_psf = input_psf
 
         # Draw the galaxy.
-        convolved = simulate_galaxy(bg_gal_flux, deltafcn_profile, band,
+        convolved = simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band,
                                     sim_psf, sed, bulge_hlr=bulge_hlr,
                                     disk_hlr=disk_hlr)
 
@@ -258,7 +267,7 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     return wcs_dict
 
 
-def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed, bulge_hlr=1.6, disk_hlr=5):
+def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_psf, sed, bulge_hlr=None, disk_hlr=None):
     """This function simulates a galaxy using galsim. It can simulate either a delta function profile or a bulge+disk
     profile.
 
@@ -277,16 +286,33 @@ def simulate_galaxy(bg_gal_flux, deltafcn_profile, band, sim_psf, sed, bulge_hlr
 
     """
     SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
+    SNLogger.debug(f"Using sim_galaxy_scale {sim_galaxy_scale}")
     roman_bandpasses = galsim.roman.getBandpasses()
-    if deltafcn_profile:
+
+
+    if not deltafcn_profile:
+        if sim_galaxy_scale is not None:
+            sim_galaxy_scale = float(sim_galaxy_scale)
+            bulge_hlr = sim_galaxy_scale * 1.6
+            disk_hlr = sim_galaxy_scale * 5.0
+
+        if bulge_hlr is None or disk_hlr is None:
+            raise ValueError("You must provide either bulge_hlr and disk_hlr, or sim_galaxy_scale"
+                             " to simulate a galaxy.")
+        else:
+            SNLogger.debug("Using bulge+disk profile for galaxy. The bulge has a half-light radius of "
+                           f"{bulge_hlr} and the disk has a half-light radius of {disk_hlr}.")
+            bulge = galsim.Sersic(n=3, half_light_radius=bulge_hlr)
+            disk = galsim.Exponential(half_light_radius=disk_hlr)
+            profile = bulge + disk
+
+    elif deltafcn_profile:
         SNLogger.debug("Using delta function profile for galaxy.")
         profile = galsim.DeltaFunction()
+
     else:
-        SNLogger.debug("Using bulge+disk profile for galaxy. The bulge has a half-light radius of "
-                       f"{bulge_hlr} and the disk has a half-light radius of {disk_hlr}.")
-        bulge = galsim.Sersic(n=3, half_light_radius=bulge_hlr)
-        disk = galsim.Exponential(half_light_radius=disk_hlr)
-        profile = bulge + disk
+        raise ValueError("You must provide either bulge_hlr and disk_hlr, sim_galaxy_scale, or deltafcn_profile"
+                         " to simulate a galaxy.")
 
     profile *= sed
     profile = profile.withFlux(bg_gal_flux, roman_bandpasses[band])

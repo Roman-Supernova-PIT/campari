@@ -1321,7 +1321,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 
 
 def save_lightcurve(lc, identifier, band, psftype, output_path=None,
-                    overwrite=True):
+                    overwrite=False):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -1596,10 +1596,9 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                    grid_type, pixel, source_phot_ops,
                    image_selection_start, image_selection_end, do_xshift, bg_gal_flux, do_rotation, airy,
                    mismatch_seds, deltafcn_profile, noise, check_perfection,
-                   avoid_non_linearity, sim_gal_ra_offset, sim_gal_dec_offset,
-                   spacing, percentiles,
-                   draw_method_for_non_roman_psf="no_pixel", base_pointing=None, base_sca=None, bulge_hlr=1.5,
-                   disk_hlr=5):
+                   avoid_non_linearity,
+                   spacing, percentiles, sim_galaxy_scale, sim_galaxy_offset, base_pointing=662, base_sca=11,
+                   draw_method_for_non_roman_psf="no_pixel"):
     psf_matrix = []
     sn_matrix = []
 
@@ -1629,7 +1628,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
         banner("Simulating Images")
         sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
             simulate_images(num_total_images, num_detect_images, ra, dec,
-                            sim_gal_ra_offset, sim_gal_dec_offset,
+                            sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
                             size=size, band=band,
@@ -1637,7 +1636,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
-                            base_sca=base_sca, bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
+                            base_sca=base_sca)
         object_type = "SN"
 
     # Build the background grid
@@ -1650,7 +1649,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
-
 
     # Using the images, hazard an initial guess.
     # The num_total_images - num_detect_images check is to ensure we have
