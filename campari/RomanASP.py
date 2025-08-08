@@ -28,6 +28,7 @@ from campari.AllASPFuncs import (add_truth_to_lc,
                                  find_parquet,
                                  get_object_info,
                                  run_one_object,
+                                 read_healpix_file,
                                  save_lightcurve)
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -202,6 +203,11 @@ def main():
                              "assumes supernova.",
                         default="SN")
 
+    parser.add_argument("--fast_debug", type=bool, default=False,
+                        help="If True, will run campari in fast debug mode, "
+                             "which will enforce a very sparse grid. Data collected "
+                             "using this method should not be used. ")
+
     if cfg is not None:
         cfg.augment_argparse(parser)
     args = parser.parse_args(leftovers)
@@ -251,6 +257,15 @@ def main():
     bulge_hlr = config.value("photometry.campari.simulations.bulge_hlr")
     disk_hlr = config.value("photometry.campari.simulations.disk_hlr")
 
+    if args.fast_debug:
+        SNLogger.debug("Overriding config to run in fast debug mode.")
+        grid_type = "regular"
+        spacing = 9
+        size = 11
+        source_phot_ops = False
+        fetch_SED = False
+        make_initial_guess = False
+
     if grid_type == "single" and not deltafcn_profile:
         SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
                          "The goal of using a single point is to run an exact fit for testing purposes, which requires"
@@ -260,6 +275,8 @@ def main():
     er += "regular, adaptive, contour, or single. Details in documentation."
     assert grid_type in ["regular", "adaptive", "contour",
                          "single", "none"], er
+
+    SNLogger.debug(args.healpix_file)
 
     # Option 1, user passes a file of SNIDs
     if args.SNID_file is not None:
@@ -290,16 +307,25 @@ def main():
 
     # Option 4, user passes a healpix and nside, meaning we search for SNe in healpix via ra/dec.
     elif args.healpix is not None or args.healpix_file is not None:
-        if args.nside is None:
-            raise ValueError("Must specify --nside if --healpix or --healpix_file is given.")
 
-        healpixes = [args.healpix] if args.healpix is not None\
-            else pd.read_csv(args.healpix_file, header=None).values.flatten().tolist()
+        if args.healpix is not None:
+            healpixes = [args.healpix]
+            nside = args.nside
+        else:
+            healpixes, nside = read_healpix_file(args.healpix_file)
+
+        if nside is None:
+            if args.nside is not None:
+                nside = args.nside
+            else:
+                raise ValueError("--nside was not passed, and nside was not found in the healpix file. ")
+
+        SNLogger.debug(f"Running on {len(healpixes)} healpixes with nside {nside}.")
 
         SNID = []
         for healpix in healpixes:
             SNLogger.debug(f"SNID list: {SNID}")
-            SNID.extend(extract_object_from_healpix(healpix, args.nside,
+            SNID.extend(extract_object_from_healpix(healpix, nside,
                                                     object_type=object_type, source="OpenUniverse2024"))
 
     elif args.object_lookup and (args.SNID is None) and (args.SNID_file is None):
@@ -438,9 +464,10 @@ def main():
         np.save(debug_dir / f"{identifier}_{band}_{psftype}_images.npy",
                 images_and_model)
 
-        # Save the ra and decgrid
-        np.save(debug_dir / f"{identifier}_{band}_{psftype}_grid.npy",
-                [ra_grid, dec_grid, X[:np.size(ra_grid)]])
+        # Save the ra and
+        ra_grid = np.atleast_1d(ra_grid)
+        dec_grid = np.atleast_1d(dec_grid)
+        np.save(debug_dir / f"{identifier}_{band}_{psftype}_grid.npy", [ra_grid, dec_grid, X[:np.size(ra_grid)]])
 
         # save wcses
         primary_hdu = fits.PrimaryHDU()
