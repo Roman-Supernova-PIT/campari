@@ -345,7 +345,6 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs).flatten()
 
-
     return psfs
 
 

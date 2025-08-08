@@ -346,8 +346,6 @@ def main():
         param_grid = make_sim_param_grid([bg_gal_flux_all, sim_galaxy_scale_all, sim_galaxy_offset_all])
         SNID = SNID * param_grid.shape[1]  # Repeat the SNID for each combination of parameters
 
-    else:
-        param_grid = np.zeros((len(all_params), -1))
 
     SNLogger.debug("Snappl version:")
     SNLogger.debug(snappl.__version__)
