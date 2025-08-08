@@ -27,6 +27,7 @@ from campari.AllASPFuncs import (add_truth_to_lc,
                                  find_all_exposures,
                                  find_parquet,
                                  get_object_info,
+                                 make_sim_param_grid,
                                  run_one_object,
                                  save_lightcurve)
 
@@ -342,15 +343,11 @@ def main():
     ### Here we parse the potentially multiple simulation values and make a grid!
     if not use_real_images:
         param_names = ["Galaxy Flux", "Galaxy Scale", "Galaxy Offset"]
-        all_params = [bg_gal_flux_all, sim_galaxy_scale_all, sim_galaxy_offset_all]
-        nd_grid = np.meshgrid(*all_params)
-        flat_grid = np.array(nd_grid, dtype=float).reshape(len(all_params), -1)
-
-        SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
-        SNID = SNID * flat_grid.shape[1]  # Repeat the SNID for each combination of parameters
+        param_grid = make_sim_param_grid([bg_gal_flux_all, sim_galaxy_scale_all, sim_galaxy_offset_all])
+        SNID = SNID * param_grid.shape[1]  # Repeat the SNID for each combination of parameters
 
     else:
-        flat_grid = np.zeros((len(all_params), -1))
+        param_grid = np.zeros((len(all_params), -1))
 
     SNLogger.debug("Snappl version:")
     SNLogger.debug(snappl.__version__)
@@ -358,12 +355,12 @@ def main():
     for index, ID in enumerate(SNID):
         banner(f"Running SN {ID}")
         try:
-            bg_gal_flux = flat_grid[0, index]
-            sim_galaxy_scale = flat_grid[1, index]
-            sim_galaxy_offset = flat_grid[2, index]  # I feel like there must be a more elegant way to do this
+            bg_gal_flux = param_grid[0, index] if not use_real_images else None
+            sim_galaxy_scale = param_grid[1, index] if not use_real_images else None
+            sim_galaxy_offset = param_grid[2, index] if not use_real_images else None
 
             if not use_real_images:
-                SNLogger.debug(f"Simulation parameters: {param_names} = {flat_grid[:, index]}")
+                SNLogger.debug(f"Simulation parameters: {param_names} = {param_grid[:, index]}")
 
             # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
             # actual image counts, not maximum possible.
