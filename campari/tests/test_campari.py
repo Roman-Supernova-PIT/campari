@@ -44,6 +44,7 @@ from campari.AllASPFuncs import (
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
+    make_sim_param_grid,
     open_parquet,
     radec2point,
     save_lightcurve,
@@ -787,3 +788,18 @@ def test_extract_object_from_healpix():
     test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
     np.testing.assert_array_equal(id_array, test_id_array), \
         "The IDs extracted from the healpix do not match the expected values."
+
+
+def test_make_sim_param_grid():
+    param1 = [1, 2, 3]
+    param2 = [4, 5]
+    param3 = 9
+
+    grid = make_sim_param_grid([param1, param2, param3])
+
+    grid = np.array(grid)
+
+    testgrid = np.array([[1.0, 2.0, 3.0, 1.0, 2.0, 3.0],
+                         [4.0, 4.0, 4.0, 5.0, 5.0, 5.0],
+                         [9.0, 9.0, 9.0, 9.0, 9.0, 9.0]])
+    np.testing.assert_array_equal(grid, testgrid), "The parameter grid does not match the expected values."

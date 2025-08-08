@@ -52,6 +52,7 @@ photometry:
       sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
       base_pointing: 276
       base_sca: 10
+      run_name: whatever
 
 ou24:
   config_file: /sn_info_dir/tds.yaml

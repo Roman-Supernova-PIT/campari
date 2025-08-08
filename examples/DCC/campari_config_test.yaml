@@ -48,6 +48,7 @@ photometry:
       sim_gal_dec_offset: 1e-5
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
+      run_name: whatever
 
 ou24:
   config_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml # CHANGE ME
