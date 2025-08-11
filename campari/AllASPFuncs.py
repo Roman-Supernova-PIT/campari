@@ -345,7 +345,6 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs).flatten()
 
-
     return psfs
 
 
@@ -1973,3 +1972,10 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
     id_array = id_array[mask]
 
     return id_array.astype(int)
+
+
+def make_sim_param_grid(params):
+    nd_grid = np.meshgrid(*params)
+    flat_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
+    SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
+    return flat_grid
