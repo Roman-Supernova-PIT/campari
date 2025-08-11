@@ -257,7 +257,6 @@ def main():
                          "the galaxy be a delta function.")
 
 
-
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
     assert grid_type in ["regular", "adaptive", "contour",
@@ -435,20 +434,23 @@ def main():
         else:
             psftype = "analyticpsf"
 
-        if flux is not None:
-            if use_real_images:
-                identifier = str(ID)
+
+        if use_real_images:
+            identifier = str(ID)
+            if flux is not None:
                 lc = build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
                 if args.object_lookup:
                     lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
 
-            else:
-                if run_name is None:
-                    run_name = "simulated"
-                identifier = run_name + "_" + str(sim_galaxy_scale) + "_" + \
-                             str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" + grid_type
+        else:
+            if run_name is None:
+                run_name = "simulated"
+            identifier = run_name + "_" + str(sim_galaxy_scale) + "_" + \
+                            str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" + grid_type
+            if flux is not None:
                 lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
 
+        if flux is not None:
             output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
             save_lightcurve(lc, identifier, band, psftype,
                             output_path=output_dir)

@@ -56,12 +56,11 @@ photometry:
       single_grid_point: false
       sim_galaxy_scale:
       - 1.0
-      - 1.5
       sim_galaxy_offset:
       - .00001414 # sqrt(2) * 1e-5
-      - .00002828 # sqrt(2) * 2e-5
       base_pointing: 276
       base_sca: 10
+      run_name: whatever
 
 
 ou24psf:

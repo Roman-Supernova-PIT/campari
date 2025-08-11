@@ -1865,7 +1865,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     except LinAlgError:
         cov = np.linalg.pinv(inv_cov)
 
-    SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
+    if num_detect_images > 0:
+        SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
     SNLogger.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
     sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
 
