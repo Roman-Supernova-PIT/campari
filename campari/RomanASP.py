@@ -27,6 +27,7 @@ from campari.AllASPFuncs import (add_truth_to_lc,
                                  find_all_exposures,
                                  find_parquet,
                                  get_object_info,
+                                 make_sim_param_grid,
                                  run_one_object,
                                  read_healpix_file,
                                  save_lightcurve)
@@ -242,20 +243,19 @@ def main():
     pixel = config.value("photometry.campari.pixel")
     roman_path = config.value("photometry.campari.paths.roman_path")
     sn_path = config.value("photometry.campari.paths.sn_path")
-    bg_gal_flux = config.value("photometry.campari.simulations.bg_gal_flux")
+    bg_gal_flux_all = config.value("photometry.campari.simulations.bg_gal_flux")
+    sim_galaxy_scale_all = config.value("photometry.campari.simulations.sim_galaxy_scale")
+    sim_galaxy_offset_all = config.value("photometry.campari.simulations.sim_galaxy_offset")
     source_phot_ops = config.value("photometry.campari.source_phot_ops")
     mismatch_seds = config.value("photometry.campari.simulations.mismatch_seds")
     fetch_SED = config.value("photometry.campari.fetch_SED")
     initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
-    sim_gal_ra_offset = config.value("photometry.campari.simulations.sim_gal_ra_offset")
-    sim_gal_dec_offset = config.value("photometry.campari.simulations.sim_gal_dec_offset")
     spacing = config.value("photometry.campari.grid_options.spacing")
     percentiles = config.value("photometry.campari.grid_options.percentiles")
     grid_type = config.value("photometry.campari.grid_options.type")
     base_pointing = config.value("photometry.campari.simulations.base_pointing")
     base_sca = config.value("photometry.campari.simulations.base_sca")
-    bulge_hlr = config.value("photometry.campari.simulations.bulge_hlr")
-    disk_hlr = config.value("photometry.campari.simulations.disk_hlr")
+    run_name = config.value("photometry.campari.simulations.run_name")
 
     if args.fast_debug:
         SNLogger.debug("Overriding config to run in fast debug mode.")
@@ -270,6 +270,8 @@ def main():
         SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
                          "The goal of using a single point is to run an exact fit for testing purposes, which requires"
                          "the galaxy be a delta function.")
+
+
 
     er = f"{grid_type} is not a recognized grid type. Available options are "
     er += "regular, adaptive, contour, or single. Details in documentation."
@@ -360,14 +362,30 @@ def main():
 
     galsim.roman.roman_psfs._make_aperture.clear()  # clear cache
 
+
     if not isinstance(SNID, list):
         SNID = [SNID]
+
+    ### Here we parse the potentially multiple simulation values and make a grid!
+    if not use_real_images:
+        param_names = ["Galaxy Flux", "Galaxy Scale", "Galaxy Offset"]
+        param_grid = make_sim_param_grid([bg_gal_flux_all, sim_galaxy_scale_all, sim_galaxy_offset_all])
+        SNID = SNID * param_grid.shape[1]  # Repeat the SNID for each combination of parameters
+
+
     SNLogger.debug("Snappl version:")
     SNLogger.debug(snappl.__version__)
-
-    for ID in SNID:
+    SNLogger.debug(SNID)
+    for index, ID in enumerate(SNID):
         banner(f"Running SN {ID}")
         try:
+            bg_gal_flux = param_grid[0, index] if not use_real_images else None
+            sim_galaxy_scale = param_grid[1, index] if not use_real_images else None
+            sim_galaxy_offset = param_grid[2, index] if not use_real_images else None
+
+            if not use_real_images:
+                SNLogger.debug(f"Simulation parameters: {param_names} = {param_grid[:, index]}")
+
             # I think it might be smart to rename this at some point. Run_one_object assumes these mean the
             # actual image counts, not maximum possible.
             if max_no_transient_images is None or max_transient_images is None:
@@ -395,6 +413,8 @@ def main():
             else:
                 faux_dates = np.linspace(0, 10, max_images) + 60000  # fake dates for simulated images
                 exposures = pd.DataFrame({"date": faux_dates})
+                exposures["pointing"] = np.full_like(faux_dates, base_pointing)
+                exposures["sca"] = np.full_like(faux_dates, base_sca)
 
             if args.img_list is not None and not np.array_equiv(np.sort(exposures["pointing"]),
                                                                 np.sort(pointing_list)):
@@ -422,9 +442,9 @@ def main():
                                image_selection_start, image_selection_end, do_xshift, bg_gal_flux,
                                do_rotation, airy, mismatch_seds, deltafcn_profile,
                                noise, check_perfection, avoid_non_linearity,
-                               sim_gal_ra_offset, sim_gal_dec_offset,
-                               spacing, percentiles, base_pointing=base_pointing, base_sca=base_sca,
-                               bulge_hlr=bulge_hlr, disk_hlr=disk_hlr)
+                               spacing, percentiles, sim_galaxy_scale,
+                               sim_galaxy_offset, base_pointing=base_pointing, base_sca=base_sca)
+
         # I don't have a particular error in mind for this, but I think
         # it's worth having a catch just in case that one supernova fails,
         # this way the rest of the code doesn't halt.
@@ -449,7 +469,10 @@ def main():
                     lc = add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type)
 
             else:
-                identifier = "simulated"
+                if run_name is None:
+                    run_name = "simulated"
+                identifier = run_name + "_" + str(sim_galaxy_scale) + "_" + \
+                             str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" + grid_type
                 lc = build_lightcurve_sim(sim_lc, flux, sigma_flux)
 
             output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))

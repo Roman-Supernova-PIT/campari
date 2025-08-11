@@ -44,6 +44,7 @@ from campari.AllASPFuncs import (
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
+    make_sim_param_grid,
     open_parquet,
     radec2point,
     read_healpix_file,
@@ -795,3 +796,18 @@ def test_read_healpix_file():
     healpixes, nside = read_healpix_file(healpix_file)
     assert nside==2048, "The nside of the healpix file does not match the expected value."
     np.testing.assert_array_equal(healpixes, [41152726, 41095375, 41005298, 41210086, 41079022, 41251041])
+
+def test_make_sim_param_grid():
+    param1 = [1, 2, 3]
+    param2 = [4, 5]
+    param3 = 9
+
+    grid = make_sim_param_grid([param1, param2, param3])
+
+    grid = np.array(grid)
+
+    testgrid = np.array([[1.0, 2.0, 3.0, 1.0, 2.0, 3.0],
+                         [4.0, 4.0, 4.0, 5.0, 5.0, 5.0],
+                         [9.0, 9.0, 9.0, 9.0, 9.0, 9.0]])
+    np.testing.assert_array_equal(grid, testgrid), "The parameter grid does not match the expected values."
+
