@@ -47,6 +47,7 @@ from campari.AllASPFuncs import (
     make_sim_param_grid,
     open_parquet,
     radec2point,
+    read_healpix_file,
     save_lightcurve,
 )
 from campari.plotting import plot_lc
@@ -790,6 +791,12 @@ def test_extract_object_from_healpix():
         "The IDs extracted from the healpix do not match the expected values."
 
 
+def test_read_healpix_file():
+    healpix_file = pathlib.Path(__file__).parent / "testdata/test_healpix.dat"
+    healpixes, nside = read_healpix_file(healpix_file)
+    assert nside==2048, "The nside of the healpix file does not match the expected value."
+    np.testing.assert_array_equal(healpixes, [41152726, 41095375, 41005298, 41210086, 41079022, 41251041])
+
 def test_make_sim_param_grid():
     param1 = [1, 2, 3]
     param2 = [4, 5]
@@ -803,3 +810,4 @@ def test_make_sim_param_grid():
                          [4.0, 4.0, 4.0, 5.0, 5.0, 5.0],
                          [9.0, 9.0, 9.0, 9.0, 9.0, 9.0]])
     np.testing.assert_array_equal(grid, testgrid), "The parameter grid does not match the expected values."
+

@@ -24,6 +24,7 @@ from matplotlib import pyplot as plt
 from numpy.linalg import LinAlgError
 from roman_imsim.utils import roman_utils
 from scipy.interpolate import RegularGridInterpolator
+import yaml
 
 # SN-PIT
 from snappl.image import OpenUniverse2024FITSImage
@@ -563,7 +564,6 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     image_list = []
     cutout_image_list = []
 
-
     SNLogger.debug(f"truth in construct images: {truth}")
     x_list = []
     y_list = []
@@ -582,7 +582,8 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
                                   f"/Roman_TDS_{truth}_{band}_{pointing}_"
                                   f"{sca}.fits.gz")
         image = OpenUniverse2024FITSImage(imagepath, None, sca)
-        imagedata, errordata, flags = image.get_data(which="all")
+        imagedata, errordata, flags = image.get_data(which="all", cache=True)
+
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
 
         sca_loc = image.get_wcs().world_to_pixel(ra, dec)
@@ -592,7 +593,6 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         y_list.append(sca_loc[1])
         x_cutout_list.append(cutout_loc[0])
         y_cutout_list.append(cutout_loc[1])
-
 
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
@@ -609,6 +609,7 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
             zero =
         im = cutout * zero
         """
+
 
         # If we are not fitting the background we subtract it here.
         # When subtract_background is False, we are including the background
@@ -866,7 +867,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
 
 
 def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
-              make_exact=False, single_ra=None, single_dec=None, cut_points_close_to_sn=False, spacing = 0.75):
+              make_exact=False, single_ra=None, single_dec=None, cut_points_close_to_sn=False, spacing=0.75):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
     for building the grid, listed below, and this parent function calls the
@@ -1644,7 +1645,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, ra, dec,
                                       percentiles=percentiles, single_ra=sim_galra,
-                                      single_dec=sim_galdec)
+                                      single_dec=sim_galdec, spacing=spacing)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
@@ -1669,7 +1670,8 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     # Calculate the Confusion Metric
 
-    if use_real_images and object_type == "SN" and num_detect_images > 1:
+    #if use_real_images and object_type == "SN" and num_detect_images > 1:
+    if False: # This is a temporary fix to not calculate the confusion metric.
         sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
         object_x, object_y = image_list[0].get_wcs().world_to_pixel(ra, dec)
         # object_x and object_y are the exact coords of the SN in the SCA frame.
@@ -1692,7 +1694,7 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
                                                      stampsize=size,
                                                      x_center=object_x, y_center=object_y,
                                                      sed=sed)
-        confusion_metric = np.dot(images[0].flatten(), psf_source_array)
+        confusion_metric = np.dot(cutout_image_list[0].data.flatten(), psf_source_array)
 
         SNLogger.debug(f"Confusion Metric: {confusion_metric}")
     else:
@@ -1975,8 +1977,33 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
     return id_array.astype(int)
 
 
+def read_healpix_file(healpix_file):
+    """This function reads a healpix file and returns the healpix number and nside
+
+    Parameters
+    ----------
+    healpix_file: str, the path to the healpix file
+
+    Returns
+    -------
+    healpix: numpy array of int, the healpix numbers
+    nside: int, the nside of the healpix
+    """
+    nside = None
+    healpix_file = str(healpix_file)
+    if healpix_file.endswith(".dat") or healpix_file.endswith(".yaml") or healpix_file.endswith(".yml"):
+        with open(healpix_file, "r") as f:
+            data = yaml.safe_load(f)
+        nside = int(data["NSIDE"])
+        healpix_list = data["HEALPIX"]
+    else:
+        healpix_list = pd.read_csv(healpix_file, header=None).values.flatten().tolist()
+
+    return healpix_list, nside
+
 def make_sim_param_grid(params):
     nd_grid = np.meshgrid(*params)
     flat_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
     SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
     return flat_grid
+
