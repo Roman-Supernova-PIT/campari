@@ -50,39 +50,39 @@ class campari_lightcurve_model:
 class campari_runner:
     """This class is used to run the Campari pipeline."""
 
-    def __init__(self, args):
+    def __init__(self, **kwargs):
         """Initialize the Campari runner with all of the variables needed to run the pipeline."""
 
         try:
-            self.cfg = Config.get(args.config, setdefault=True)
+            self.cfg = Config.get(kwargs["config"], setdefault=True)
         except RuntimeError:
             # If it failed to load the config file, just move on with life.  This
             #   may mean that things will fail later, but it may also just mean
             #   that somebody is doing "--help"
             self.cfg = None
 
-        self.band = args.filter
-        self.max_no_transient_images = args.max_no_transient_images
-        self.max_transient_images = args.max_transient_images
-        self.image_selection_start = args.image_selection_start
-        self.image_selection_end = args.image_selection_end
-        self.object_type = args.object_type
-        self.fast_debug = args.fast_debug
-        self.SNID_file = args.SNID_file
-        self.SNID = args.SNID
-        self.img_list = args.img_list
+        self.band = kwargs["filter"]
+        self.max_no_transient_images = kwargs["max_no_transient_images"]
+        self.max_transient_images = kwargs["max_transient_images"]
+        self.image_selection_start = kwargs["image_selection_start"]
+        self.image_selection_end = kwargs["image_selection_end"]
+        self.object_type = kwargs["object_type"]
+        self.fast_debug = kwargs["fast_debug"]
+        self.SNID_file = kwargs["SNID_file"]
+        self.SNID = kwargs["SNID"]
+        self.img_list = kwargs["img_list"]
 
-        self.healpix = args.healpix
-        self.healpix_file = args.healpix_file
-        self.nside = args.nside
-        self.object_lookup = args.object_lookup
-        self.transient_start = args.transient_start
-        self.transient_end = args.transient_end
+        self.healpix = kwargs["healpix"]
+        self.healpix_file = kwargs["healpix_file"]
+        self.nside = kwargs["nside"]
+        self.object_lookup = kwargs["object_lookup"]
+        self.transient_start = kwargs["transient_start"]
+        self.transient_end = kwargs["transient_end"]
 
-        self.ra = args.ra
-        self.dec = args.dec
+        self.ra = kwargs["ra"]
+        self.dec = kwargs["dec"]
 
-        config = Config.get(args.config, setdefault=True)
+        config = Config.get(kwargs["config"], setdefault=True)
 
         self.size = config.value("photometry.campari.cutout_size")
         self.use_real_images = config.value("photometry.campari.use_real_images")
@@ -115,6 +115,7 @@ class campari_runner:
         self.base_sca = config.value("photometry.campari.simulations.base_sca")
         self.run_name = config.value("photometry.campari.simulations.run_name")
         self.param_grid = None
+        self.run_mode = None
 
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
@@ -145,8 +146,6 @@ class campari_runner:
         else:
             self.max_images = self.max_no_transient_images + self.max_transient_images
 
-        SNLogger.debug("Successfully initialized the Campari runner!")
-
     def __call__(self):
         """Run the Campari pipeline."""
         self.decide_run_mode()
@@ -174,13 +173,15 @@ class campari_runner:
         # Option 1, user passes a file of SNIDs
         if self.SNID_file is not None:
             self.SNID = pd.read_csv(self.SNID_file, header=None).values.flatten().tolist()
+            self.run_mode = "SNID File"
 
         # Option 2, user passes a SNID
         elif self.SNID is not None:
-            pass
+            self.run_mode = "Single SNID"
 
         # Option 3, user passes a ra and dec, meaning we don't search for SNID.
         elif (self.ra is not None) or (self.dec is not None):
+            self.run_mode = "RA/Dec"
             if self.transient_start is None and self.transient_end is None:
                 raise ValueError("Must specify --transient_start and --transient_end to run campari at a"
                                  " given RA and Dec.")
@@ -199,8 +200,10 @@ class campari_runner:
         elif self.healpix is not None or self.healpix_file is not None:
             if self.healpix is not None:
                 self.healpixes = [self.healpix]
+                self.run_mode = "Healpix"
             else:
                 self.healpixes, self.nside = read_healpix_file(self.healpix_file)
+                self.run_mode = "Healpix File"
 
             if self.nside is None:
                 if self.nside is not None:
@@ -212,7 +215,6 @@ class campari_runner:
 
             SNID = []
             for healpix in self.healpixes:
-                SNLogger.debug(f"SNID list: {SNID}")
                 SNID.extend(extract_object_from_healpix(healpix, self.nside, object_type=self.object_type,
                             source="OpenUniverse2024"))
 
@@ -240,6 +242,8 @@ class campari_runner:
 
         if not isinstance(self.SNID, list):
             self.SNID = [self.SNID]
+
+        SNLogger.debug(f"Running campari in {self.run_mode} mode with {len(self.SNID)} SNIDs.")
 
     def create_sim_param_grid(self):
         """Create a grid of simulation parameters to run the pipeline on."""
@@ -369,8 +373,9 @@ class campari_runner:
         # save wcses
         primary_hdu = fits.PrimaryHDU()
         hdul = [primary_hdu]
-        for i, wcs in enumerate(lc_model.cutout_wcs_list):
-            hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
-        hdul = fits.HDUList(hdul)
-        filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
-        hdul.writeto(filepath, overwrite=True)
+        if lc_model.cutout_wcs_list is not None:
+            for i, wcs in enumerate(lc_model.cutout_wcs_list):
+                hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
+            hdul = fits.HDUList(hdul)
+            filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
+            hdul.writeto(filepath, overwrite=True)

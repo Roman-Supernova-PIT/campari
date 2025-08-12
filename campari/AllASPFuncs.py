@@ -353,6 +353,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                        maxdet=None, return_list=False,
                        roman_path=None, pointing_list=None, sca_list=None,
                        truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
+    SNLogger.debug((ra,dec,transient_start,transient_end,band,maxbg,maxdet,image_selection_start, image_selection_end))
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
@@ -741,7 +742,6 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     image_list: list of snappl.image.Image objects, the full images
     """
 
-    SNLogger.debug("Saved exposures")
     num_predetection_images = len(exposures[~exposures["detected"]])
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
@@ -1209,13 +1209,11 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     Returns:
     lc: a QTable containing the lightcurve data
     """
-
-
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
     band = exposures["filter"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    detections = exposures[np.where(exposures["detected"])]
+    detections = exposures.iloc[np.where(exposures["detected"])]
     meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
@@ -1241,7 +1239,7 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
 
 def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
 
-    detections = exposures[np.where(exposures["detected"])]
+    detections = exposures.iloc[np.where(exposures["detected"])]
     band = exposures["filter"][0]
     ID = lc.meta["ID"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)

@@ -10,6 +10,7 @@ from erfa import ErfaWarning
 # SN-PIT
 from snpit_utils.config import Config
 from campari.campari_runner import campari_runner
+from snpit_utils.logger import SNLogger
 
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -197,7 +198,8 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
-    runner = campari_runner(args)
+    SNLogger.debug(vars(args))
+    runner = campari_runner(**vars(args))
     runner()
 
 
