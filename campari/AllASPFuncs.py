@@ -353,7 +353,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                        maxdet=None, return_list=False,
                        roman_path=None, pointing_list=None, sca_list=None,
                        truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
-    SNLogger.debug((ra,dec,transient_start,transient_end,band,maxbg,maxdet,image_selection_start, image_selection_end))
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
@@ -940,7 +939,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
         min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
         SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
         distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
-        SNLogger.debug(type(distances[0]))
         SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
@@ -1213,7 +1211,8 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     sigma_flux = np.atleast_1d(sigma_flux)
     band = exposures["filter"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    detections = exposures.iloc[np.where(exposures["detected"])]
+    SNLogger.debug(exposures)
+    detections = exposures[np.where(exposures["detected"])]
     meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
@@ -1239,7 +1238,7 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
 
 def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
 
-    detections = exposures.iloc[np.where(exposures["detected"])]
+    detections = exposures[np.where(exposures["detected"])]
     band = exposures["filter"][0]
     ID = lc.meta["ID"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
@@ -1312,7 +1311,6 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux,
                  "flux_error": sigma_flux, "sim_flux": supernova}
-    SNLogger.debug(data_dict)
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "",  "flux": "", "flux_error": ""}
     return QTable(data=data_dict, meta=meta_dict, units=units)
@@ -1991,6 +1989,7 @@ def read_healpix_file(healpix_file):
         healpix_list = pd.read_csv(healpix_file, header=None).values.flatten().tolist()
 
     return healpix_list, nside
+
 
 def make_sim_param_grid(params):
     nd_grid = np.meshgrid(*params)

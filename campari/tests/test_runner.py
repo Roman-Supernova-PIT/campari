@@ -1,10 +1,12 @@
 import pathlib
-
 from types import SimpleNamespace
 
 import numpy as np
 import pandas as pd
 import pytest
+
+from astropy.table import Table
+
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from campari.campari_runner import campari_runner, campari_lightcurve_model
@@ -12,7 +14,7 @@ from campari.campari_runner import campari_runner, campari_lightcurve_model
 
 def create_default_test_args(cfg):
 
-    test_args = SimpleNamespace(test=3)
+    test_args = SimpleNamespace()
 
     test_args.filter = "Y106"
     test_args.max_no_transient_images = 24
@@ -248,9 +250,11 @@ def test_build_and_save_lc(cfg):
     sigma_flux = np.array([0.1, 0.2, 0.3])
     images = None
     model_images = None
-    exposures = pd.DataFrame({"date": [1, 2, 3], "filter": ["Y106", "Y106", "Y106"], "detected": [True, True, True],
-                              "pointing": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
-                              "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
+    exposures = pd.DataFrame(data={"date": [1, 2, 3], "filter": ["Y106", "Y106", "Y106"],
+                                   "detected": [True, True, True],
+                                   "pointing": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
+                                   "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
+    exposures = Table.from_pandas(exposures)
     ra_grid = np.array([1, 2, 3])
     dec_grid = np.array([1, 2, 3])
     wgt_matrix = None
@@ -274,6 +278,26 @@ def test_build_and_save_lc(cfg):
     filepath = output_dir / filename
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+
+def test_sim_param_grid(cfg):
+    test_args = create_default_test_args(cfg)
+    test_args.use_real_images = False
+    test_args.object_lookup = False
+    test_args.SNID = 20172782
+    runner = campari_runner(**vars(test_args))
+    runner.decide_run_mode()
+    runner.bg_gal_flux_all = [1.0, 2.0]
+    runner.sim_galaxy_scale_all = [1.0, 2.0, 3.0]
+    runner.sim_galaxy_offset_all = 0.0
+    # Create the simulation parameter grid
+    runner.create_sim_param_grid()
+
+    test_grid = np.array([[1., 2.,  1.,  2.,  1. , 2.],
+                         [1., 1.,  2.,  2.,  3. , 3.],
+                         [0., 0.,  0.,  0.,  0. , 0.]])
+    np.testing.assert_array_equal(runner.param_grid, test_grid)
+
 
 # Creating the sim param grid is tested in test_campari.py, so we don't need to test it here.
 # The __call__ method is also tested in test_campari.py, so we don't need to test it here either.
