@@ -1,6 +1,7 @@
 # Standard Library
 import argparse
 import warnings
+import sys
 
 # Common Library
 import numpy as np
@@ -58,11 +59,19 @@ def main():
     desc = "Run the campari pipeline."
     try:
         cfg = Config.get(args.config, setdefault=True)
-    except RuntimeError:
-        # If it failed to load the config file, just move on with life.  This
-        #   may mean that things will fail later, but it may also just mean
-        #   that somebody is doing "--help"
-        cfg = None
+    # except RuntimeError:
+    #     # If it failed to load the config file, just move on with life.  This
+    #     #   may mean that things will fail later, but it may also just mean
+    #     #   that somebody is doing "--help"
+    #     cfg = None
+    except RuntimeError as e:
+        if str(e) == "No default config defined yet; run Config.init(configfile)":
+            sys.stderr.write( "Error, no configuration file defined.\n"
+                              "Either run campari with -c <configfile>\n"
+                              "or set the SNPIT_CONFIG environment varaible.\n")
+            sys.exit(1)
+        else:
+            raise
     desc += (" Include --config <configfile> before --help "
              "(or set SNPIT_CONFIG) for help to show you all config "
              "options that can be passed on the command line.")

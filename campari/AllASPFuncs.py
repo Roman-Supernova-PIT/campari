@@ -1211,7 +1211,6 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     sigma_flux = np.atleast_1d(sigma_flux)
     band = exposures["filter"][0]
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    SNLogger.debug(exposures)
     detections = exposures[np.where(exposures["detected"])]
     meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
     if confusion_metric is not None:
@@ -1584,14 +1583,14 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     SNLogger.info(f"Saved to {output_path}")
 
 
-def run_one_object(ID, ra, dec, object_type, exposures,
-                   roman_path, sn_path, size, band, fetch_SED, sedlist,
-                   use_real_images, use_roman, subtract_background,
-                   make_initial_guess, initial_flux_guess, weighting, method,
-                   grid_type, pixel, source_phot_ops, do_xshift, bg_gal_flux, do_rotation, airy,
-                   mismatch_seds, deltafcn_profile, noise, check_perfection,
-                   avoid_non_linearity,
-                   spacing, percentiles, sim_galaxy_scale, sim_galaxy_offset, base_pointing=662, base_sca=11,
+def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
+                   roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
+                   use_real_images=None, use_roman=None, subtract_background=None,
+                   make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
+                   grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
+                   airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None, check_perfection=None,
+                   avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
+                   sim_galaxy_offset=None, base_pointing=662, base_sca=11,
                    draw_method_for_non_roman_psf="no_pixel"):
     psf_matrix = []
     sn_matrix = []

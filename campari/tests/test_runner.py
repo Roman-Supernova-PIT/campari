@@ -210,8 +210,6 @@ def test_get_exposures(cfg):
     runner.decide_run_mode()
     explist = runner.get_exposures(7.731890048839705, -44.4589649005717, 62654.0, 62958.0)
 
-    np.save("./testdata/findallexposures.npy", explist)
-
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     np.testing.assert_array_equal(explist["date"], compare_table["date"])
 
@@ -229,6 +227,7 @@ def test_get_SED_list(cfg):
 
     test_args.fetch_SED = True
     test_args.object_type = "SN"
+    test_args.fetch_SED = True
 
     runner = campari_runner(**vars(test_args))
     sedlist = runner.get_sedlist(test_args.SNID, exposures)
@@ -259,17 +258,17 @@ def test_build_and_save_lc(cfg):
     dec_grid = np.array([1, 2, 3])
     wgt_matrix = None
     confusion_metric = None
-    best_fit_model_values = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0,  0, 0, 0, 0, 0, 0])
+    best_fit_model_values = np.array([0] * 16, dtype=float)
     cutout_wcs_list = None
     sim_lc = None
     ra = 7.731890048839705
     dec = -44.4589649005717
 
-    lc_model = campari_lightcurve_model(flux, sigma_flux, images, model_images,
-                                        exposures, ra_grid, dec_grid,
-                                        wgt_matrix, confusion_metric,
-                                        best_fit_model_values, cutout_wcs_list,
-                                        sim_lc)
+    lc_model = campari_lightcurve_model(flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
+                                        exposures=exposures, ra_grid=ra_grid, dec_grid=dec_grid,
+                                        wgt_matrix=wgt_matrix, confusion_metric=confusion_metric,
+                                        best_fit_model_values=best_fit_model_values, cutout_wcs_list=cutout_wcs_list,
+                                        sim_lc=sim_lc)
 
     runner.build_and_save_lightcurve(test_args.SNID, lc_model, ra, dec, None)
 

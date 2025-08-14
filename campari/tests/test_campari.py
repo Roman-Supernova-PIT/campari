@@ -98,8 +98,6 @@ def test_find_all_exposures(roman_path):
                                  pointing_list=None, sca_list=None,
                                  truth="simple_model")
 
-    np.save("./testdata/findallexposures.npy", explist)
-
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     np.testing.assert_array_equal(
         explist["date"],
