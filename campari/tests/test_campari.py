@@ -9,7 +9,6 @@ import galsim
 import numpy as np
 import pandas as pd
 import pytest
-from astropy.io import ascii
 from astropy.table import QTable, Table
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -98,12 +97,22 @@ def test_find_all_exposures(roman_path):
                                  roman_path=roman_path,
                                  pointing_list=None, sca_list=None,
                                  truth="simple_model")
-    compare_table = ascii.read(pathlib.Path(__file__).parent
-                               / "testdata/findallexposurestest.dat")
-    assert explist["pointing"].all() == compare_table["pointing"].all()
-    assert explist["sca"].all() == compare_table["sca"].all()
 
-    assert explist["date"].all() == compare_table["date"].all()
+    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
+    np.testing.assert_array_equal(
+        explist["date"],
+        compare_table["date"]
+    )
+
+    np.testing.assert_array_equal(
+        explist["sca"],
+        compare_table["sca"]
+    )
+
+    np.testing.assert_array_equal(
+        explist["pointing"],
+        compare_table["pointing"]
+    )
 
 
 def test_savelightcurve():
@@ -794,8 +803,9 @@ def test_extract_object_from_healpix():
 def test_read_healpix_file():
     healpix_file = pathlib.Path(__file__).parent / "testdata/test_healpix.dat"
     healpixes, nside = read_healpix_file(healpix_file)
-    assert nside==2048, "The nside of the healpix file does not match the expected value."
+    assert nside == 2048, "The nside of the healpix file does not match the expected value."
     np.testing.assert_array_equal(healpixes, [41152726, 41095375, 41005298, 41210086, 41079022, 41251041])
+
 
 def test_make_sim_param_grid():
     param1 = [1, 2, 3]
@@ -810,4 +820,3 @@ def test_make_sim_param_grid():
                          [4.0, 4.0, 4.0, 5.0, 5.0, 5.0],
                          [9.0, 9.0, 9.0, 9.0, 9.0, 9.0]])
     np.testing.assert_array_equal(grid, testgrid), "The parameter grid does not match the expected values."
-
