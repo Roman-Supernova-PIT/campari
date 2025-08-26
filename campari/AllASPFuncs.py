@@ -741,7 +741,6 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     image_list: list of snappl.image.Image objects, the full images
     """
 
-    SNLogger.debug("Saved exposures")
     num_predetection_images = len(exposures[~exposures["detected"]])
     num_total_images = len(exposures)
     if num_predetection_images == 0 and object_type == "SN":
@@ -940,7 +939,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
         min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
         SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
         distances = angular_separation(ra*u.deg, dec*u.deg, ra_grid*u.deg, dec_grid*u.deg)
-        SNLogger.debug(type(distances[0]))
         SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
@@ -1209,8 +1207,6 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     Returns:
     lc: a QTable containing the lightcurve data
     """
-
-
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
     band = exposures["filter"][0]
@@ -1314,14 +1310,12 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux,
                  "flux_error": sigma_flux, "sim_flux": supernova}
-    SNLogger.debug(data_dict)
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "",  "flux": "", "flux_error": ""}
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc, identifier, band, psftype, output_path=None,
-                    overwrite=False):
+def save_lightcurve(lc, identifier, band, psftype, output_path=None, overwrite=True):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -1589,15 +1583,14 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     SNLogger.info(f"Saved to {output_path}")
 
 
-def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_detect_images,
-                   roman_path, sn_path, size, band, fetch_SED, sedlist,
-                   use_real_images, use_roman, subtract_background,
-                   make_initial_guess, initial_flux_guess, weighting, method,
-                   grid_type, pixel, source_phot_ops,
-                   image_selection_start, image_selection_end, do_xshift, bg_gal_flux, do_rotation, airy,
-                   mismatch_seds, deltafcn_profile, noise, check_perfection,
-                   avoid_non_linearity,
-                   spacing, percentiles, sim_galaxy_scale, sim_galaxy_offset, base_pointing=662, base_sca=11,
+def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
+                   roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
+                   use_real_images=None, use_roman=None, subtract_background=None,
+                   make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
+                   grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
+                   airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None, check_perfection=None,
+                   avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
+                   sim_galaxy_offset=None, base_pointing=662, base_sca=11,
                    draw_method_for_non_roman_psf="no_pixel"):
     psf_matrix = []
     sn_matrix = []
@@ -1608,17 +1601,13 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
     percentiles = []
     roman_bandpasses = galsim.roman.getBandpasses()
 
+    num_total_images = len(exposures)
+    num_detect_images = len(exposures[exposures["detected"]])
+
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
         cutout_image_list, image_list, exposures = fetch_images(exposures, ra, dec, size, subtract_background,
                                                                 roman_path, object_type)
-
-
-        if num_total_images != len(exposures) or num_detect_images != len(exposures[exposures["detected"]]):
-            SNLogger.debug(f"Updating image numbers to {num_total_images}" + f" and {num_detect_images}")
-            num_total_images = len(exposures)
-            num_detect_images = len(exposures[exposures["detected"]])
-
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
@@ -1869,7 +1858,6 @@ def run_one_object(ID, ra, dec, object_type, exposures, num_total_images, num_de
 
     if num_detect_images > 0:
         SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
-    SNLogger.debug(f"cov diag: {np.diag(cov)[-num_detect_images:]}")
     sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
 
     SNLogger.debug(f"sigma flux: {sigma_flux}")
@@ -2000,6 +1988,7 @@ def read_healpix_file(healpix_file):
         healpix_list = pd.read_csv(healpix_file, header=None).values.flatten().tolist()
 
     return healpix_list, nside
+
 
 def make_sim_param_grid(params):
     nd_grid = np.meshgrid(*params)
