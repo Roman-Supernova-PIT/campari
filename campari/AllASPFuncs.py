@@ -621,7 +621,7 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
                 # However, if we are subtracting the background, we want to get
                 # rid of it here, either by reading the SKY_MEAN value from the
                 # image header...
-                bg = image_cutout._get_header()["SKY_MEAN"]
+                bg = image_cutout.get_fits_header()["SKY_MEAN"]
             elif truth == "truth":
                 # ....or manually calculating it!
                 bg = calculate_background_level(imagedata)

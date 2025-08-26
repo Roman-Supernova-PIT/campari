@@ -227,9 +227,9 @@ def test_get_SED_list(cfg):
 
     test_args.fetch_SED = True
     test_args.object_type = "SN"
-    test_args.fetch_SED = True
 
     runner = campari_runner(**vars(test_args))
+    runner.decide_run_mode()
     sedlist = runner.get_sedlist(test_args.SNID, exposures)
     assert len(sedlist) == 1, "The length of the SED list is not 1"
     sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
