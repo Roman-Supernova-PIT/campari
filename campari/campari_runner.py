@@ -141,6 +141,7 @@ class campari_runner:
         self.base_pointing = self.cfg.value("photometry.campari.simulations.base_pointing")
         self.base_sca = self.cfg.value("photometry.campari.simulations.base_sca")
         self.run_name = self.cfg.value("photometry.campari.simulations.run_name")
+        self.save_debug = self.cfg.value("photometry.campari.save_debug")
         self.param_grid = None
         self.run_mode = None
 
@@ -391,23 +392,28 @@ class campari_runner:
             save_lightcurve(lc, identifier, self.band, psftype, output_path=output_dir)
 
         # Now, save the images
-        images_and_model = np.array([lc_model.images, lc_model.model_images, lc_model.wgt_matrix])
-        debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
-        SNLogger.info(f"Saving images to {debug_dir}")
-        np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
+        if self.save_debug:
+            images_and_model = np.array([lc_model.images, lc_model.model_images, lc_model.wgt_matrix])
+            debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
+            SNLogger.info(f"Saving images to {debug_dir}")
+            np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
 
-        # Save the ra and dec grids
-        ra_grid = np.atleast_1d(lc_model.ra_grid)
-        dec_grid = np.atleast_1d(lc_model.dec_grid)
-        np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_grid.npy", [ra_grid, dec_grid,
-                lc_model.best_fit_model_values[: np.size(ra_grid)]])
+            # Save the ra and dec grids
+            ra_grid = np.atleast_1d(lc_model.ra_grid)
+            dec_grid = np.atleast_1d(lc_model.dec_grid)
+            SNLogger.info(f"Saving Ra/Dec grid to {debug_dir}")
+            np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_grid.npy", [ra_grid, dec_grid,
+                    lc_model.best_fit_model_values[: np.size(ra_grid)]])
 
-        # save wcses
-        primary_hdu = fits.PrimaryHDU()
-        hdul = [primary_hdu]
-        if lc_model.cutout_wcs_list is not None:
-            for i, wcs in enumerate(lc_model.cutout_wcs_list):
-                hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
-            hdul = fits.HDUList(hdul)
-            filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
-            hdul.writeto(filepath, overwrite=True)
+            # save wcses
+            primary_hdu = fits.PrimaryHDU()
+            hdul = [primary_hdu]
+            SNLogger.info(f"Saving Image WCS headers to {debug_dir}")
+            if lc_model.cutout_wcs_list is not None:
+                for i, wcs in enumerate(lc_model.cutout_wcs_list):
+                    hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
+                hdul = fits.HDUList(hdul)
+                filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
+                hdul.writeto(filepath, overwrite=True)
+        else:
+            SNLogger.info("Not saving debug files.")
