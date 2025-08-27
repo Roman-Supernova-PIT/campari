@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Standard Library
 import argparse
 import warnings

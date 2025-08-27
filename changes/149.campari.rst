@@ -1,0 +1,1 @@
+Made saving debug a toggle-able option.
