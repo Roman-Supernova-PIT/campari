@@ -339,8 +339,8 @@ class campari_runner:
         else:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = None, None, None
 
-        flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-            confusion_metric, X, cutout_wcs_list, sim_lc = \
+        flux, sigma_flux, images, sumimages, galaxy_only_sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
+            confusion_metric, X, cutout_wcs_list, sim_lc, galaxy_images, noise_maps = \
             run_one_object(ID=ID, ra=ra, dec=dec, object_type=self.object_type, exposures=exposures,
                            roman_path=self.roman_path, sn_path=self.sn_path, size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
@@ -360,6 +360,9 @@ class campari_runner:
             exposures=exposures, ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             confusion_metric=confusion_metric, best_fit_model_values=X, cutout_wcs_list=cutout_wcs_list, sim_lc=sim_lc
         )
+        self.noise_maps = noise_maps
+        self.galaxy_images = galaxy_images
+        self.galaxy_only_sumimages = galaxy_only_sumimages
         return lightcurve_model
 
     def build_and_save_lightcurve(self, ID, lc_model, ra, dec, param_grid_row):
@@ -391,7 +394,8 @@ class campari_runner:
             save_lightcurve(lc, identifier, self.band, psftype, output_path=output_dir)
 
         # Now, save the images
-        images_and_model = np.array([lc_model.images, lc_model.model_images, lc_model.wgt_matrix])
+        images_and_model = np.array([lc_model.images, lc_model.model_images,
+                                     lc_model.wgt_matrix, self.galaxy_only_sumimages])
         debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
         SNLogger.info(f"Saving images to {debug_dir}")
         np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
@@ -411,3 +415,9 @@ class campari_runner:
             hdul = fits.HDUList(hdul)
             filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
             hdul.writeto(filepath, overwrite=True)
+
+        # Once merged, this should also check if save_debug is on. XXX TODO
+        if not self.use_real_images:
+            np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_galaxy_images.npy", self.galaxy_images)
+            np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_noise_maps.npy", self.noise_maps)
+            SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")

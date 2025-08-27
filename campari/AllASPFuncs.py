@@ -1611,11 +1611,13 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
+        galaxy_images = None
+        noise_maps = None
 
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
+        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
             simulate_images(num_total_images, num_detect_images, ra, dec,
                             sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
@@ -1866,6 +1868,9 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
     pred = X*psf_matrix
     sumimages = np.sum(pred, axis=1)
 
+    galaxy_only_sumimages = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
+        if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
+
     # TODO: Move this to a separate function.
     # NOTE: This todo is being worked on in the simulations branch.
     if check_perfection:
@@ -1885,9 +1890,9 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
-    return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
+    return flux, sigma_flux, images, sumimages, galaxy_only_sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
-        [im.get_wcs() for im in cutout_image_list], sim_lc
+        [im.get_wcs() for im in cutout_image_list], sim_lc, np.array(galaxy_images), np.array(noise_maps)
 
 
 def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
