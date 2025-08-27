@@ -1866,9 +1866,9 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     # Using the values found in the fit, construct the model images.
     pred = X*psf_matrix
-    sumimages = np.sum(pred, axis=1)
+    model_images = np.sum(pred, axis=1)
 
-    galaxy_only_sumimages = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
+    galaxy_only_model_images = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
         if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
 
     # TODO: Move this to a separate function.
@@ -1890,7 +1890,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
-    return flux, sigma_flux, images, sumimages, galaxy_only_sumimages, exposures, ra_grid, dec_grid, \
+    return flux, sigma_flux, images, model_images, galaxy_only_model_images, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
         [im.get_wcs() for im in cutout_image_list], sim_lc, np.array(galaxy_images), np.array(noise_maps)
 

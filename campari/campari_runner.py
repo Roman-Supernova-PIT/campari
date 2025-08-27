@@ -339,7 +339,7 @@ class campari_runner:
         else:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = None, None, None
 
-        flux, sigma_flux, images, sumimages, galaxy_only_sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
+        flux, sigma_flux, images, model_images, galaxy_only_model_images, exposures, ra_grid, dec_grid, wgt_matrix, \
             confusion_metric, X, cutout_wcs_list, sim_lc, galaxy_images, noise_maps = \
             run_one_object(ID=ID, ra=ra, dec=dec, object_type=self.object_type, exposures=exposures,
                            roman_path=self.roman_path, sn_path=self.sn_path, size=self.size, band=self.band,
@@ -356,13 +356,13 @@ class campari_runner:
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
                            base_sca=self.base_sca)
         lightcurve_model = campari_lightcurve_model(
-            flux=flux, sigma_flux=sigma_flux, images=images, model_images=sumimages,
+            flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             exposures=exposures, ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             confusion_metric=confusion_metric, best_fit_model_values=X, cutout_wcs_list=cutout_wcs_list, sim_lc=sim_lc
         )
         self.noise_maps = noise_maps
         self.galaxy_images = galaxy_images
-        self.galaxy_only_sumimages = galaxy_only_sumimages
+        self.galaxy_only_model_images = galaxy_only_model_images
         return lightcurve_model
 
     def build_and_save_lightcurve(self, ID, lc_model, ra, dec, param_grid_row):
@@ -395,7 +395,7 @@ class campari_runner:
 
         # Now, save the images
         images_and_model = np.array([lc_model.images, lc_model.model_images,
-                                     lc_model.wgt_matrix, self.galaxy_only_sumimages])
+                                     lc_model.wgt_matrix, self.galaxy_only_model_images])
         debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
         SNLogger.info(f"Saving images to {debug_dir}")
         np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
