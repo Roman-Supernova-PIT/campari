@@ -1,6 +1,7 @@
 import numpy as np
 import pandas as pd
 import pathlib
+import yaml
 
 # Astronomy
 from astropy.io import fits
@@ -89,6 +90,7 @@ class campari_runner:
         NOTE: Config must be set before running this function."""
 
         self.cfg = Config.get()
+        SNLogger.debug("Using config file: " + str(self.cfg))
 
         self.band = kwargs["filter"]
         self.max_no_transient_images = kwargs["max_no_transient_images"]
@@ -199,7 +201,13 @@ class campari_runner:
 
         # Option 1, user passes a file of SNIDs
         if self.SNID_file is not None:
-            self.SNID = pd.read_csv(self.SNID_file, header=None).values.flatten().tolist()
+            non_csv_extensions = [".dat", ".yaml", ".yml", ".DAT"]
+            if any(self.SNID_file.endswith(ext) for ext in non_csv_extensions):
+                with open(self.SNID_file, "r") as f:
+                    data = yaml.safe_load(f)
+                self.SNID = data["SNID"]
+            else:
+                self.SNID = pd.read_csv(self.SNID_file, header=None).values.flatten().tolist()
             self.run_mode = "SNID File"
 
         # Option 2, user passes a SNID

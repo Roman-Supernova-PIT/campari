@@ -1611,11 +1611,13 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
+        galaxy_images = None
+        noise_maps = None
 
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
+        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
             simulate_images(num_total_images, num_detect_images, ra, dec,
                             sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
@@ -1864,7 +1866,10 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     # Using the values found in the fit, construct the model images.
     pred = X*psf_matrix
-    sumimages = np.sum(pred, axis=1)
+    model_images = np.sum(pred, axis=1)
+
+    galaxy_only_model_images = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
+        if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
 
     # TODO: Move this to a separate function.
     # NOTE: This todo is being worked on in the simulations branch.
@@ -1885,7 +1890,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
-    return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
+    return flux, sigma_flux, images, model_images, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
         [im.get_wcs() for im in cutout_image_list], sim_lc
 
@@ -1979,7 +1984,8 @@ def read_healpix_file(healpix_file):
     """
     nside = None
     healpix_file = str(healpix_file)
-    if healpix_file.endswith(".dat") or healpix_file.endswith(".yaml") or healpix_file.endswith(".yml"):
+    non_csv_extensions = [".dat", ".yaml", ".yml", ".DAT"]
+    if any(healpix_file.endswith(ext) for ext in non_csv_extensions):
         with open(healpix_file, "r") as f:
             data = yaml.safe_load(f)
         nside = int(data["NSIDE"])

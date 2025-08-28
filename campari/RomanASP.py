@@ -58,6 +58,7 @@ def main():
 
     desc = "Run the campari pipeline."
     try:
+        SNLogger.debug("Loading config file: " + str(args.config))
         cfg = Config.get(args.config, setdefault=True)
     # except RuntimeError:
     #     # If it failed to load the config file, just move on with life.  This
