@@ -143,6 +143,9 @@ class campari_runner:
         self.run_name = self.cfg.value("photometry.campari.simulations.run_name")
         self.param_grid = None
         self.run_mode = None
+        self.noise_maps = None
+        self.galaxy_images = None
+        self.galaxy_only_model_images = None
 
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
