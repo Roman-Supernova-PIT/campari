@@ -58,6 +58,7 @@ ou24:
   config_file: /sn_info_dir/tds.yaml
   sn_truth_dir: /snana_pq_dir
   sims_sed_library: /home/rubin_sim_data/sims_sed_library
+  images: /sims_dir/RomanTDS/images/simple_model
 
 ou24psf:
   config_file: /campari/examples/perlmutter/tds.yaml
