@@ -187,11 +187,11 @@ class campari_runner:
             else:
                 ra, dec, transient_start, transient_end = self.ra, self.dec, self.transient_start, self.transient_end
 
-            exposures = self.get_exposures(ra, dec, transient_start, transient_end)
+            exposures, image_list = self.get_exposures(ra, dec, transient_start, transient_end)
             sedlist = self.get_sedlist(ID, exposures)
             param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
 
-            lightcurve_model = self.call_run_one_object(ID, ra, dec, exposures, sedlist, param_grid_row)
+            lightcurve_model = self.call_run_one_object(ID, ra, dec, exposures, image_list, sedlist, param_grid_row)
             self.build_and_save_lightcurve(ID, lightcurve_model, ra, dec, param_grid_row)
 
     def decide_run_mode(self):
@@ -212,11 +212,6 @@ class campari_runner:
             if self.transient_start is None and self.transient_end is None:
                 raise ValueError("Must specify --transient_start and --transient_end to run campari at a"
                                  " given RA and Dec.")
-            # If only one is specified, we assume that the other is +/- infinity.
-            if self.transient_start is None:
-                self.transient_start = -np.inf
-            if self.transient_end is None:
-                self.transient_end = np.inf
             SNLogger.debug(
                 "Forcing campari to run on the given RA and Dec, "
                 f" RA={self.ra}, Dec={self.dec} with transient flux fit for between "
@@ -297,13 +292,13 @@ class campari_runner:
     def get_exposures(self, ra, dec, transient_start, transient_end):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            exposures = find_all_exposures(ra, dec, transient_start, transient_end,
-                                           roman_path=self.roman_path,
-                                           maxbg=self.max_no_transient_images,
-                                           maxdet=self.max_transient_images, return_list=True,
-                                           band=self.band, image_selection_start=self.image_selection_start,
-                                           image_selection_end=self.image_selection_end,
-                                           pointing_list=self.pointing_list)
+            exposures, image_list = find_all_exposures(ra, dec, transient_start, transient_end,
+                                                       roman_path=self.roman_path,
+                                                       maxbg=self.max_no_transient_images,
+                                                       maxdet=self.max_transient_images, return_list=True,
+                                                       band=self.band, image_selection_start=self.image_selection_start,
+                                                       image_selection_end=self.image_selection_end,
+                                                       pointing_list=self.pointing_list)
         else:
             if self.max_no_transient_images is None or self.max_transient_images is None:
                 raise ValueError("Must specify --max_no_transient_images and --max_transient_images to run campari with"
@@ -322,7 +317,7 @@ class campari_runner:
                              " following pointings were not found: "
                              f"{np.setdiff1d(self.pointing_list, exposures['pointing'])}")
 
-        return exposures
+        return exposures, image_list
 
     def get_sedlist(self, ID, exposures):
         """Create a list of SEDs for the given SNID and exposures."""
@@ -332,7 +327,7 @@ class campari_runner:
             sedlist.append(sed_obj.get_sed(snid=ID, mjd=date))
         return sedlist
 
-    def call_run_one_object(self, ID, ra, dec, exposures, sedlist, param_grid_row):
+    def call_run_one_object(self, ID, ra, dec, exposures, image_list, sedlist, param_grid_row):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
         if not self.use_real_images:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = param_grid_row
@@ -342,6 +337,7 @@ class campari_runner:
         flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
             confusion_metric, X, cutout_wcs_list, sim_lc = \
             run_one_object(ID=ID, ra=ra, dec=dec, object_type=self.object_type, exposures=exposures,
+                           image_list=image_list,
                            roman_path=self.roman_path, sn_path=self.sn_path, size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
                            use_roman=self.use_roman, subtract_background=self.subtract_background,

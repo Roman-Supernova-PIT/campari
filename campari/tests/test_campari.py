@@ -91,7 +91,7 @@ def test_get_object_info(roman_path, sn_path):
 
 
 def test_find_all_exposures(roman_path):
-    explist = find_all_exposures(7.731890048839705, -44.4589649005717,
+    explist, image_list = find_all_exposures(7.731890048839705, -44.4589649005717,
                                  62654., 62958., "Y106", maxbg=24,
                                  maxdet=24, return_list=True,
                                  roman_path=roman_path,
@@ -763,15 +763,16 @@ def test_find_all_exposures_with_img_list(roman_path):
     transient_end = 62881.
     max_no_transient_images = None
     max_transient_images = None
-    image_selection_start = -np.inf
-    image_selection_end = np.inf
+    image_selection_start = None
+    image_selection_end = None
 
-    exposures = find_all_exposures(ra, dec, transient_start, transient_end,
-                                   roman_path=roman_path,
-                                   maxbg=max_no_transient_images,
-                                   maxdet=max_transient_images, return_list=True,
-                                   band=band, image_selection_start=image_selection_start,
-                                   image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
+    exposures, image_list = find_all_exposures(ra, dec, transient_start, transient_end,
+                                               roman_path=roman_path,
+                                               maxbg=max_no_transient_images,
+                                               maxdet=max_transient_images, return_list=True,
+                                               band=band, image_selection_start=image_selection_start,
+                                               image_selection_end=image_selection_end,
+                                               pointing_list=image_df["pointing"])
 
     exposures = exposures.to_pandas()
     test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")

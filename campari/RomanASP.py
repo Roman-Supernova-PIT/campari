@@ -148,10 +148,10 @@ def main():
                         default=None)
     parser.add_argument("-b", "--image_selection_start", type=float, required=False,
                         help="First MJD of images to be selected for use.",
-                        default=-np.inf)
+                        default=None)
     parser.add_argument("-e", "--image_selection_end", type=float, required=False,
                         help="Last MJD of images to be selected for use.",
-                        default=np.inf)
+                        default=None)
 
     parser.add_argument(
         "--transient_start",
@@ -207,7 +207,6 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
-    SNLogger.debug(vars(args))
     runner = campari_runner(**vars(args))
     runner()
 
