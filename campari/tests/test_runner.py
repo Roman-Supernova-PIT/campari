@@ -201,7 +201,6 @@ def test_lookup_object_info(cfg):
     assert end[0] == 62881.0
 
 
-
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.object_lookup = True

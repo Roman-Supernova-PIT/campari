@@ -348,53 +348,6 @@ def test_regression(roman_path):
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
-# def test_get_galsim_SED(sn_path):
-#     sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
-#                          fetch_SED=True)
-#     lam = sed._spec.x
-#     flambda = sed._spec.f
-
-#     star_lam_test = np.load(pathlib.Path(__file__).parent
-#                             / "testdata/star_lam_test.npy")
-#     np.testing.assert_array_equal(lam, star_lam_test)
-#     star_flambda_test = np.load(pathlib.Path(__file__).parent
-#                                 / "testdata/star_flambda_test.npy")
-
-#     np.testing.assert_array_equal(flambda, star_flambda_test)
-
-#     sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type="SN",
-#                          fetch_SED=True)
-#     lam = sed._spec.x
-#     flambda = sed._spec.f
-
-#     sn_lam_test = np.load(pathlib.Path(__file__).parent
-#                           / "testdata/sn_lam_test.npy")
-#     sn_flambda_test = np.load(pathlib.Path(__file__).parent
-#                               / "testdata/sn_flambda_test.npy")
-
-#     np.testing.assert_array_equal(lam, sn_lam_test)
-#     np.testing.assert_array_equal(flambda, sn_flambda_test)
-
-
-# def test_get_galsim_SED_list(sn_path):
-#     dates = 62535.424
-#     fetch_SED = True
-#     object_type = "SN"
-#     ID = 40120913
-#     with tempfile.TemporaryDirectory() as sed_path:
-#         get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
-#                             sed_out_dir=sed_path)
-#         sedlist = load_SED_from_directory(sed_path)
-#         assert len(sedlist) == 1, "The length of the SED list is not 1"
-#         sn_lam_test = np.load(pathlib.Path(__file__).parent
-#                               / "testdata/sn_lam_test.npy")
-#         np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
-#         sn_flambda_test = np.load(pathlib.Path(__file__).parent
-#                                   / "testdata/sn_flambda_test.npy")
-#         np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
-#                                    atol=1e-7)
-
-
 def test_plot_lc():
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",
