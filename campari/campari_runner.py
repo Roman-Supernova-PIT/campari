@@ -12,19 +12,19 @@ from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
 # Campari
-from campari.AllASPFuncs import (
+from campari.io import (
+    find_parquet,
+    get_object_info,
     add_truth_to_lc,
-    banner,
     build_lightcurve,
     build_lightcurve_sim,
     extract_object_from_healpix,
-    find_all_exposures,
-    find_parquet,
-    get_object_info,
     read_healpix_file,
-    run_one_object,
     save_lightcurve,
 )
+from campari.data_construction import find_all_exposures
+from campari.utils import banner
+from campari.AllASPFuncs import run_one_object
 
 
 class campari_lightcurve_model:
@@ -286,10 +286,10 @@ class campari_runner:
         pqfile = find_parquet(ID, self.sn_path, obj_type=self.object_type)
         SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
 
-        ra, dec, _, _, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=self.band,
-                                                                              snpath=self.sn_path,
-                                                                              roman_path=self.roman_path,
-                                                                              obj_type=self.object_type)
+        ra, dec, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=self.band,
+                                                                        snpath=self.sn_path,
+                                                                        roman_path=self.roman_path,
+                                                                        obj_type=self.object_type)
         SNLogger.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
                        f"transient_end={transient_end}, peak={peak}")
         return ra, dec, transient_start, transient_end

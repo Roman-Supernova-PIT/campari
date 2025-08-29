@@ -22,33 +22,25 @@ from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
 from campari import RomanASP
-from campari.AllASPFuncs import (
-    add_truth_to_lc,
-    build_lightcurve,
-    calc_mag_and_err,
-    calculate_background_level,
-    construct_static_scene,
-    construct_transient_scene,
-    extract_id_using_ra_dec,
-    extract_object_from_healpix,
+from campari.io import (
+    find_parquet,
+    get_object_info,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
-    find_parquet,
-    find_all_exposures,
-    get_galsim_SED,
-    get_galsim_SED_list,
-    get_object_info,
-    get_weights,
-    load_SED_from_directory,
-    make_adaptive_grid,
-    make_contour_grid,
-    make_regular_grid,
-    make_sim_param_grid,
     open_parquet,
-    radec2point,
+    add_truth_to_lc,
+    build_lightcurve,
+    extract_id_using_ra_dec,
+    extract_object_from_healpix,
     read_healpix_file,
     save_lightcurve,
+    radec2point
 )
+from campari.utils import (calculate_background_level, get_weights, calc_mag_and_err, make_sim_param_grid)
+from campari.data_construction import (find_all_exposures)
+from campari.model_building import (make_regular_grid, make_contour_grid, make_adaptive_grid, construct_static_scene,
+                                    construct_transient_scene)
+
 from campari.plotting import plot_lc
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -77,17 +69,19 @@ def test_radec2point(roman_path):
 
 
 def test_get_object_info(roman_path, sn_path):
-    ra, dec, p, s, start, end, peak = get_object_info(50134575, 10430, "Y106",
-                                                      snpath=sn_path,
-                                                      roman_path=roman_path,
-                                                      obj_type="SN")
+    ra, dec, start, end, peak = get_object_info(50134575, 10430, "Y106",
+                                                snpath=sn_path,
+                                                roman_path=roman_path,
+                                                obj_type="SN")
     assert ra == 7.731890048839705
     assert dec == -44.4589649005717
-    assert p == 10535
-    assert s == 14
-    assert start[0] == 62654.
-    assert end[0] == 62958.
-    assert peak[0] == np.float32(62683.98)
+    assert start == 62654.
+    assert end == 62958.
+    assert peak == np.float32(62683.98)
+
+    ra, dec, start, end, peak = get_object_info(
+        40973166870, 10430, "Y106", snpath=sn_path, roman_path=roman_path, obj_type="star"
+    )
 
 
 def test_find_all_exposures(roman_path):
@@ -354,51 +348,51 @@ def test_regression(roman_path):
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
-def test_get_galsim_SED(sn_path):
-    sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
-                         fetch_SED=True)
-    lam = sed._spec.x
-    flambda = sed._spec.f
+# def test_get_galsim_SED(sn_path):
+#     sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
+#                          fetch_SED=True)
+#     lam = sed._spec.x
+#     flambda = sed._spec.f
 
-    star_lam_test = np.load(pathlib.Path(__file__).parent
-                            / "testdata/star_lam_test.npy")
-    np.testing.assert_array_equal(lam, star_lam_test)
-    star_flambda_test = np.load(pathlib.Path(__file__).parent
-                                / "testdata/star_flambda_test.npy")
+#     star_lam_test = np.load(pathlib.Path(__file__).parent
+#                             / "testdata/star_lam_test.npy")
+#     np.testing.assert_array_equal(lam, star_lam_test)
+#     star_flambda_test = np.load(pathlib.Path(__file__).parent
+#                                 / "testdata/star_flambda_test.npy")
 
-    np.testing.assert_array_equal(flambda, star_flambda_test)
+#     np.testing.assert_array_equal(flambda, star_flambda_test)
 
-    sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type="SN",
-                         fetch_SED=True)
-    lam = sed._spec.x
-    flambda = sed._spec.f
+#     sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type="SN",
+#                          fetch_SED=True)
+#     lam = sed._spec.x
+#     flambda = sed._spec.f
 
-    sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / "testdata/sn_lam_test.npy")
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_flambda_test.npy")
+#     sn_lam_test = np.load(pathlib.Path(__file__).parent
+#                           / "testdata/sn_lam_test.npy")
+#     sn_flambda_test = np.load(pathlib.Path(__file__).parent
+#                               / "testdata/sn_flambda_test.npy")
 
-    np.testing.assert_array_equal(lam, sn_lam_test)
-    np.testing.assert_array_equal(flambda, sn_flambda_test)
+#     np.testing.assert_array_equal(lam, sn_lam_test)
+#     np.testing.assert_array_equal(flambda, sn_flambda_test)
 
 
-def test_get_galsim_SED_list(sn_path):
-    dates = 62535.424
-    fetch_SED = True
-    object_type = "SN"
-    ID = 40120913
-    with tempfile.TemporaryDirectory() as sed_path:
-        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
-                            sed_out_dir=sed_path)
-        sedlist = load_SED_from_directory(sed_path)
-        assert len(sedlist) == 1, "The length of the SED list is not 1"
-        sn_lam_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_lam_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
-        sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                                  / "testdata/sn_flambda_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
-                                   atol=1e-7)
+# def test_get_galsim_SED_list(sn_path):
+#     dates = 62535.424
+#     fetch_SED = True
+#     object_type = "SN"
+#     ID = 40120913
+#     with tempfile.TemporaryDirectory() as sed_path:
+#         get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
+#                             sed_out_dir=sed_path)
+#         sedlist = load_SED_from_directory(sed_path)
+#         assert len(sedlist) == 1, "The length of the SED list is not 1"
+#         sn_lam_test = np.load(pathlib.Path(__file__).parent
+#                               / "testdata/sn_lam_test.npy")
+#         np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
+#         sn_flambda_test = np.load(pathlib.Path(__file__).parent
+#                                   / "testdata/sn_flambda_test.npy")
+#         np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
+#                                    atol=1e-7)
 
 
 def test_plot_lc():

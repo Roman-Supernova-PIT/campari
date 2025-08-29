@@ -66,9 +66,9 @@ def main():
     #     cfg = None
     except RuntimeError as e:
         if str(e) == "No default config defined yet; run Config.init(configfile)":
-            sys.stderr.write( "Error, no configuration file defined.\n"
-                              "Either run campari with -c <configfile>\n"
-                              "or set the SNPIT_CONFIG environment varaible.\n")
+            sys.stderr.write("Error, no configuration file defined.\n"
+                             "Either run campari with -c <configfile>\n"
+                             "or set the SNPIT_CONFIG environment varaible.\n")
             sys.exit(1)
         else:
             raise
