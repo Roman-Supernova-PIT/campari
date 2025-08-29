@@ -201,6 +201,7 @@ def test_lookup_object_info(cfg):
     assert end[0] == 62881.0
 
 
+
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.object_lookup = True
@@ -297,6 +298,4 @@ def test_sim_param_grid(cfg):
                          [0., 0.,  0.,  0.,  0. , 0.]])
     np.testing.assert_array_equal(runner.param_grid, test_grid)
 
-
-# Creating the sim param grid is tested in test_campari.py, so we don't need to test it here.
-# The __call__ method is also tested in test_campari.py, so we don't need to test it here either.
+# The __call__ method is tested in test_campari.py, so we don't need to test it here.

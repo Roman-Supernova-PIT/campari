@@ -24,7 +24,7 @@ from campari.io import (
 )
 from campari.data_construction import find_all_exposures
 from campari.utils import banner
-from campari.AllASPFuncs import run_one_object
+from campari.run_one_object import run_one_object
 
 
 class campari_lightcurve_model:
