@@ -297,6 +297,4 @@ def test_sim_param_grid(cfg):
                          [0., 0.,  0.,  0.,  0. , 0.]])
     np.testing.assert_array_equal(runner.param_grid, test_grid)
 
-
-# Creating the sim param grid is tested in test_campari.py, so we don't need to test it here.
-# The __call__ method is also tested in test_campari.py, so we don't need to test it here either.
+# The __call__ method is tested in test_campari.py, so we don't need to test it here.
