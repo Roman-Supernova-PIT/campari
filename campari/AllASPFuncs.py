@@ -31,6 +31,7 @@ from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
+from snappl.imagecollection import ImageCollection
 
 # Campari
 from campari.simulation import simulate_images
@@ -352,7 +353,8 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
 def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None,
                        maxdet=None, return_list=False,
                        roman_path=None, pointing_list=None, sca_list=None,
-                       truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
+                       truth="simple_model", image_selection_start=None, image_selection_end=None,
+                       image_source="ou2024"):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them. Utilizes Rob's awesome database method to
     find the exposures. Humongous speed up thanks to this.
@@ -366,7 +368,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
     return_list: whether to return the exposures as a list or not
-    stampsize: the size of the stamp to use
     roman_path: the path to the Roman data
     pointing_list: If this is passed in, only consider these pointings
     sca_list: If this is passed in, only consider these SCAs
@@ -382,60 +383,68 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         - date: the MJD of the exposure
         - detected: whether the exposure contains a detection or not.
     """
-    f = fits.open(roman_path +
-                  "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
-    f = f.data
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection(image_source)
 
-    explist = tb.Table(names=("pointing", "sca", "filter", "date"),
-                       dtype=("i8", "i4", "str",  "f8"))
+    if image_selection_start is None or transient_start > image_selection_start:
+        SNLogger.debug(f"image_selection_start: {image_selection_start}, transient_start: {transient_start}")
 
-    transient_start = np.atleast_1d(transient_start)[0]
-    transient_end = np.atleast_1d(transient_end)[0]
-    if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
-        raise TypeError("maxdet and maxbg must be integers or None, " +
-                        f"not {type(maxdet), type(maxbg)}. Their values are {maxdet, maxbg}")
+        pre_transient_images = img_collection.find_images(mjd_min=image_selection_start, mjd_max=transient_start,
+                                                          ra=ra, dec=dec, filter=band)
+    else:
+        pre_transient_images = []
 
-    # Rob's database method! :D
+    if image_selection_end is None or transient_end < image_selection_end:
+        post_transient_images = img_collection.find_images(mjd_min=transient_end, mjd_max=image_selection_end,
+                                                           ra=ra, dec=dec, filter=band)
+    else:
+        post_transient_images = []
 
-    server_url = "https://roman-desc-simdex.lbl.gov"
-    req = requests.Session()
-    result = req.post(f"{server_url}/findromanimages/containing=({ra},{dec})")
-    if result.status_code != 200:
-        raise RuntimeError(f"Got status code {result.status_code}\n"
-                           "{result.text}")
+    no_transient_images = pre_transient_images + post_transient_images
 
-    res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
-    res.rename(columns={"mjd": "date"}, inplace=True)
-    res = res.loc[res["filter"] == band].copy()
+    SNLogger.debug(transient_start)
+    transient_images = img_collection.find_images(mjd_min=transient_start,
+                                                  mjd_max=transient_end,
+                                                  ra=ra, dec=dec, filter=band)
 
-    # The first date cut selects images that are detections, the second
-    # selects detections within the requested light curve window.
-    det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
-    det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
+    no_transient_images = np.array(no_transient_images)
+    transient_images = np.array(transient_images)
+    if maxbg is not None:
+        no_transient_images = no_transient_images[:maxbg]
     if maxdet is not None:
-        det = det.iloc[:maxdet]
-    det["detected"] = True
+        transient_images = transient_images[:maxdet]
+
+    transient_sca = [img.sca for img in transient_images]
+    transient_pointing = [img.pointing for img in transient_images]
+    transient_mjd = [img.mjd for img in transient_images]
+
+    no_transient_sca = [img.sca for img in no_transient_images]
+    no_transient_pointing = [img.pointing for img in no_transient_images]
+    no_transient_mjd = [img.mjd for img in no_transient_images]
+
+    explist = pd.DataFrame(columns=["pointing", "sca", "filter", "date", "detected"])
+    explist["pointing"] = np.concatenate((transient_pointing, no_transient_pointing))
+    explist["sca"] = np.concatenate((transient_sca, no_transient_sca))
+    SNLogger.debug("band: " + band)
+    explist["filter"] = np.full(len(explist["pointing"]), str(band))
+    explist["date"] = np.concatenate((transient_mjd, no_transient_mjd))
+    explist["detected"] = np.concatenate((np.full_like(transient_sca, True, dtype=bool),
+                                          np.full_like(no_transient_sca, False, dtype=bool)))
+
+    all_images = np.hstack((transient_images, no_transient_images))
+    SNLogger.debug(all_images.shape)
 
     if pointing_list is not None:
-        det = det.loc[det["pointing"].isin(pointing_list)]
-    bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
-    bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
+        all_images = all_images[explist["pointing"].isin(pointing_list)]
+        explist = explist.loc[explist["pointing"].isin(pointing_list)]
 
-    if pointing_list is not None:
-        bg = bg.loc[bg["pointing"].isin(pointing_list)]
-    if isinstance(maxbg, int):
-        bg = bg.iloc[:maxbg]
-    bg["detected"] = False
+    explist = Table.from_pandas(explist)
+    argsort = explist.argsort(["detected", "sca"])
 
-    all_images = pd.concat([det, bg])
-    all_images["filter"] = band
+    explist = explist[argsort]
+    all_images = all_images[argsort]
 
-    explist = Table.from_pandas(all_images)
-    explist.sort(["detected", "sca"])
-    SNLogger.info("\n" + str(explist))
-
-    if return_list:
-        return explist
+    return explist, all_images
 
 
 def find_parquet(ID, path, obj_type="SN"):
@@ -540,8 +549,7 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def construct_images(exposures, ra, dec, size=7, subtract_background=True,
-                     roman_path=None, truth="simple_model"):
+def construct_images(exposures, image_list, ra, dec, size=7, subtract_background=True, truth="simple_model"):
 
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
@@ -561,7 +569,6 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     """
 
     bgflux = []
-    image_list = []
     cutout_image_list = []
 
     SNLogger.debug(f"truth in construct images: {truth}")
@@ -572,16 +579,18 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
 
     for indx, exp in enumerate(exposures):
         SNLogger.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = exp["filter"]
-        pointing = exp["pointing"]
-        sca = exp["sca"]
+        # band = exp["filter"]
+        # pointing = exp["pointing"]
+        # sca = exp["sca"]
 
-        # TODO : replace None with the right thing once Exposure is implemented
+        # # TODO : replace None with the right thing once Exposure is implemented
 
-        imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
-                                  f"/Roman_TDS_{truth}_{band}_{pointing}_"
-                                  f"{sca}.fits.gz")
-        image = OpenUniverse2024FITSImage(imagepath, None, sca)
+        # imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
+        #                           f"/Roman_TDS_{truth}_{band}_{pointing}_"
+        #                           f"{sca}.fits.gz")
+        # image = OpenUniverse2024FITSImage(imagepath, None, sca)
+        SNLogger.debug("length of image list: {}".format(len(image_list)))
+        image = image_list[indx]
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
         image_cutout = image.get_ra_dec_cutout(ra, dec, size)
@@ -631,7 +640,6 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image_cutout._data -= bg
         SNLogger.debug(f"Subtracted a background level of {bg}")
 
-        image_list.append(image)
         cutout_image_list.append(image_cutout)
 
     exposures["x"] = x_list
@@ -718,7 +726,7 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, object_type):
+def fetch_images(exposures, image_list, ra, dec, size, subtract_background, roman_path, object_type):
     """This function gets the list of exposures to be used for the analysis.
 
     Inputs:
@@ -752,9 +760,8 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
             Found {len(exposures)} out of {num_total_images} requested")
 
     cutout_image_list, image_list, exposures =\
-        construct_images(exposures, ra, dec, size=size,
-                         subtract_background=subtract_background,
-                         roman_path=roman_path)
+        construct_images(exposures, image_list, ra, dec, size=size,
+                         subtract_background=subtract_background)
 
     return cutout_image_list, image_list, exposures
 
@@ -789,9 +796,9 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
         end = df.end_mjd.values
         peak = df.peak_mjd.values
     else:
-        start = [0]
-        end = [np.inf]
-        peak = [0]
+        start = None
+        end = None
+        peak = None
 
     pointing, sca = radec2point(ra, dec, band, roman_path)
 
@@ -1583,7 +1590,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     SNLogger.info(f"Saved to {output_path}")
 
 
-def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
+def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None, image_list=None,
                    roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    use_real_images=None, use_roman=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
@@ -1606,7 +1613,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list, exposures = fetch_images(exposures, ra, dec, size, subtract_background,
+        cutout_image_list, image_list, exposures = fetch_images(exposures, image_list, ra, dec, size, subtract_background,
                                                                 roman_path, object_type)
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None

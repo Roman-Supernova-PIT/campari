@@ -19,8 +19,8 @@ def create_default_test_args(cfg):
     test_args.filter = "Y106"
     test_args.max_no_transient_images = 24
     test_args.max_transient_images = 24
-    test_args.image_selection_start = -np.inf
-    test_args.image_selection_end = np.inf
+    test_args.image_selection_start = None
+    test_args.image_selection_end = None
     test_args.object_type = "SN"
     test_args.fast_debug = False
     test_args.SNID_file = None
@@ -208,7 +208,7 @@ def test_get_exposures(cfg):
 
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
-    explist = runner.get_exposures(7.731890048839705, -44.4589649005717, 62654.0, 62958.0)
+    explist, all_images = runner.get_exposures(7.731890048839705, -44.4589649005717, 62654.0, 62958.0)
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     np.testing.assert_array_equal(explist["date"], compare_table["date"])
