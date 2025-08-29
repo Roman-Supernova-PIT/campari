@@ -197,8 +197,8 @@ def test_lookup_object_info(cfg):
     ra, dec, start, end = runner.lookup_object_info(test_args.SNID)
     assert ra == 7.551093401915147
     assert dec == -44.80718106491529
-    assert start[0] == 62450.0
-    assert end[0] == 62881.0
+    assert start == 62450.0
+    assert end == 62881.0
 
 
 def test_get_exposures(cfg):

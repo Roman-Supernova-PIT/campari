@@ -20,7 +20,6 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
 import healpy as hp
-from matplotlib import pyplot as plt
 from numpy.linalg import LinAlgError
 from roman_imsim.utils import roman_utils
 from scipy.interpolate import RegularGridInterpolator
@@ -28,6 +27,7 @@ import yaml
 
 # SN-PIT
 from snappl.image import OpenUniverse2024FITSImage
+from snappl.diaobject import DiaObject
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
@@ -500,6 +500,7 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
     x, y: ints, pixel coordinates where the cutout is centered in the SCA
     pointing, sca: ints, the pointing and SCA of the image
     stampsize = int, size of cutout image used
+    TODO: this defn below isn't correct
     x_center and y_center: floats, x and y location of the object in the SCA.
     sed: galsim.sed.SED object, the SED of the source
     flux: float, If you are using this function to build a model grid point,
@@ -759,7 +760,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     return cutout_image_list, image_list, exposures
 
 
-def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
+def get_object_info(ID, parq, band, snpath, roman_path, obj_type, collection='ou2024'):
 
     """Fetch some info about an object given its ID.
     Inputs:
@@ -795,7 +796,9 @@ def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
 
     pointing, sca = radec2point(ra, dec, band, roman_path)
 
-    return ra, dec, pointing, sca, start, end, peak
+    #### Implementing dia object
+    obj = DiaObject.find_objects(collection=collection, id=ID)[0]
+    return obj.ra, obj.dec, obj.mjd_start, obj.mjd_end, obj.mjd_peak
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
