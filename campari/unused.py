@@ -172,3 +172,29 @@ def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
             f"date. \n The closest SED is {closest_days_away} days away."
         )
     return np.array(lam), np.array(flambda[bestindex])
+
+
+def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
+    """This function loads SEDs from a directory of SED files. The files must be in CSV format with
+    two columns: "lambda" and "flux". The "lambda" column should contain the
+    wavelengths in Angstroms, and the "flux" column should contain the fluxes in
+    the appropriate units for the specified wave_type and flux_type.
+    Inputs:
+    sed_directory: str, the path to the directory containing the SED files.
+
+    Returns:
+    sed_list: list of galsim SED objects. (Temporary until we remove galsim)
+    """
+    SNLogger.debug(f"Loading SEDs from {sed_directory}")
+    sed_list = []
+    for file in pathlib.Path(sed_directory).glob("*.csv"):
+        sed_table = pd.read_csv(file)
+
+        flambda = sed_table["flux"]
+        lam = sed_table["lambda"]
+        # Assuming units are Angstroms how can I check this?
+        sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
+                         wave_type=wave_type, flux_type=flux_type)
+        sed_list.append(sed)
+    return sed_list
+

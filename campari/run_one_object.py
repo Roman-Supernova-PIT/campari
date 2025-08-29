@@ -5,7 +5,6 @@ import warnings
 # Common Library
 import galsim
 import numpy as np
-import pandas as pd
 import scipy.sparse as sp
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -363,28 +362,3 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
     return flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, \
         wgt_matrix, confusion_metric, X, \
         [im.get_wcs() for im in cutout_image_list], sim_lc
-
-
-def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
-    """This function loads SEDs from a directory of SED files. The files must be in CSV format with
-    two columns: "lambda" and "flux". The "lambda" column should contain the
-    wavelengths in Angstroms, and the "flux" column should contain the fluxes in
-    the appropriate units for the specified wave_type and flux_type.
-    Inputs:
-    sed_directory: str, the path to the directory containing the SED files.
-
-    Returns:
-    sed_list: list of galsim SED objects. (Temporary until we remove galsim)
-    """
-    SNLogger.debug(f"Loading SEDs from {sed_directory}")
-    sed_list = []
-    for file in pathlib.Path(sed_directory).glob("*.csv"):
-        sed_table = pd.read_csv(file)
-
-        flambda = sed_table["flux"]
-        lam = sed_table["lambda"]
-        # Assuming units are Angstroms how can I check this?
-        sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
-                         wave_type=wave_type, flux_type=flux_type)
-        sed_list.append(sed)
-    return sed_list
