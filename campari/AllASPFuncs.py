@@ -1811,7 +1811,6 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         wgt_matrix = get_weights(cutout_image_list, ra, dec)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
-        SNLogger.debug(np.shape(wgt_matrix))
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
@@ -1851,8 +1850,6 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
-    SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
-    SNLogger.debug(f"shape wgt_matrix: {np.diag(wgt_matrix).shape}")
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
     try:

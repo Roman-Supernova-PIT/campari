@@ -1,0 +1,1 @@
+Added a test where the galaxy is a dirac delta function and the grid is placed perfectly as a sanity check.
