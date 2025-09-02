@@ -190,18 +190,6 @@ def test_decide_run_mode(cfg):
                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
 
-def test_lookup_object_info(cfg):
-    test_args = create_default_test_args(cfg)
-    test_args.object_lookup = True
-    test_args.SNID = 20172782
-    runner = campari_runner(**vars(test_args))
-    diaobj = runner.lookup_object_info(test_args.SNID)
-    assert diaobj.ra == 7.551093401915147
-    assert diaobj.dec == -44.80718106491529
-    assert diaobj.mjd_start == 62450.0
-    assert diaobj.mjd_end == 62881.0
-
-
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.object_lookup = True

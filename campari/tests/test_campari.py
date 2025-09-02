@@ -38,7 +38,6 @@ from campari.AllASPFuncs import (
     find_all_exposures,
     get_galsim_SED,
     get_galsim_SED_list,
-    get_object_info,
     get_weights,
     load_SED_from_directory,
     make_adaptive_grid,
@@ -75,14 +74,6 @@ def test_radec2point(roman_path):
                        path=roman_path)
     assert p == 10535
     assert s == 14
-
-
-def test_get_object_info():
-    diaobj = DiaObject.find_objects(id=50134575, collection="ou2024")[0]
-    assert diaobj.ra == 7.731890048839705
-    assert diaobj.dec == -44.4589649005717
-    assert diaobj.mjd_start == 62654.
-    assert diaobj.mjd_end == 62958.
 
 
 def test_find_all_exposures(roman_path):

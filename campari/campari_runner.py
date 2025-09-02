@@ -20,8 +20,6 @@ from campari.AllASPFuncs import (
     build_lightcurve_sim,
     extract_object_from_healpix,
     find_all_exposures,
-    find_parquet,
-    get_object_info,
     read_healpix_file,
     run_one_object,
     save_lightcurve,
@@ -293,17 +291,6 @@ class campari_runner:
         SNLogger.debug("Created a grid of simulation parameters with a total of"
                        f" {self.param_grid.shape[1]} combinations.")
         self.SNID = self.SNID * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
-
-    def lookup_object_info(self, ID):
-        # TODO: This function may be deleted now that DiaObject is implemented?
-        """Look up the object information for a given SNID using OpenUniverse2024 Tables."""
-        pqfile = find_parquet(ID, self.sn_path, obj_type=self.object_type)
-        SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
-
-        diaobj = get_object_info(ID, pqfile, band=self.band, snpath=self.sn_path, roman_path=self.roman_path,
-                                 obj_type=self.object_type)
-
-        return diaobj
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""

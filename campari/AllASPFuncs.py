@@ -27,7 +27,6 @@ import yaml
 
 # SN-PIT
 from snappl.image import OpenUniverse2024FITSImage
-from snappl.diaobject import DiaObject
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
@@ -344,7 +343,8 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs).flatten()
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None,
+                                          input_wcs=sca_wcs).flatten()
 
     return psfs
 
@@ -415,7 +415,6 @@ def find_all_exposures(diaobj, band, maxbg=None,
     res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
     res.rename(columns={"mjd": "date"}, inplace=True)
     res = res.loc[res["filter"] == band].copy()
-    SNLogger.debug(f"before cuts: \n{res}")
 
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
@@ -620,7 +619,6 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         im = cutout * zero
         """
 
-
         # If we are not fitting the background we subtract it here.
         # When subtract_background is False, we are including the background
         # level as a free parameter in our fit, so it should not be subtracted
@@ -767,48 +765,6 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
                          roman_path=roman_path)
 
     return cutout_image_list, image_list, exposures
-
-
-def get_object_info(ID, parq, band, snpath, roman_path, obj_type, collection='ou2024'):
-
-    """Fetch some info about an object given its ID.
-    Inputs:
-    ID: the ID of the object
-    parq: the parquet file containing the object
-    band: the band to consider
-    date: whether to return the start end and peak dates of the object
-    snpath: the path to the supernova data
-    roman_path: the path to the Roman data
-    host: whether to return the host RA and DEC
-
-    Returns:
-    ra, dec: the RA and DEC of the object
-    pointing, sca: the pointing and SCA of the object
-    start, end, peak: the start, end, and peak dates of the object
-    """
-
-    df = open_parquet(parq, snpath, obj_type=obj_type)
-    if obj_type == "star":
-        ID = str(ID)
-
-    df = df.loc[df.id == ID]
-    ra, dec = df.ra.values[0], df.dec.values[0]
-    SNLogger.debug(f"RA, DEC of {obj_type} {ID}: {ra, dec}")
-
-    if obj_type == "SN":
-        start = df.start_mjd.values
-        end = df.end_mjd.values
-        peak = df.peak_mjd.values
-    else:
-        start = [0]
-        end = [np.inf]
-        peak = [0]
-
-    pointing, sca = radec2point(ra, dec, band, roman_path)
-
-    #### Implementing dia object
-    obj = DiaObject.find_objects(collection=collection, id=ID)[0]
-    return obj
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
@@ -1121,7 +1077,6 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     xg = xg.ravel()
     yg = yg.ravel()
     SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
-
 
     if numlevels is not None:
         levels = list(np.linspace(np.min(image), np.max(image), numlevels))
@@ -1672,9 +1627,9 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
 
     # Calculate the Confusion Metric
 
-    #if use_real_images and object_type == "SN" and num_detect_images > 1:
-    if False: # This is a temporary fix to not calculate the confusion metric.
-        sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
+    # if use_real_images and object_type == "SN" and num_detect_images > 1:
+    if False:  # This is a temporary fix to not calculate the confusion metric.
+        sed = get_galsim_SED(diaobj.id, exposures, sn_path, fetch_SED=False)
         object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
         # object_x and object_y are the exact coords of the SN in the SCA frame.
         # x and y are the pixels the image has been cut out on, and
@@ -1829,7 +1784,6 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
-
 
     # Calculate amount of the PSF cut out by setting a distance cap
     test_sn_matrix = np.copy(sn_matrix)
