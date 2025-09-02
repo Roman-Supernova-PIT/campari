@@ -36,7 +36,7 @@ photometry:
       - 88
       - 95
       - 100
-      spacing: 0.50
+      spacing: 0.51
       turn_grid_off: false
 
     simulations:

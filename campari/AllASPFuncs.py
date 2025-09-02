@@ -70,7 +70,7 @@ Adapted from code by Pedro Bernardinelli
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
-                      subsize=9):
+                      subsize=9, center_on_galaxy=True):
     """ Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     ra_center, dec_center: floats, coordinate center of the image
@@ -114,6 +114,16 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
 
     # Astropy takes (y, x) order:
     ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+
+    if center_on_galaxy:
+        # Shift the grid so that it is centered on the galaxy.
+        ang_sep = angular_separation(ra_center, dec_center, ra_grid, dec_grid)
+        min_index = np.argmin(ang_sep)
+        ra_shift = ra_grid[min_index] - ra_center
+        dec_shift = dec_grid[min_index] - dec_center
+        ra_grid -= ra_shift
+        dec_grid -= dec_shift
+        SNLogger.debug(f"Centering grid on galaxy, shifting by {ra_shift}, {dec_shift}")
 
     return ra_grid, dec_grid
 
@@ -916,7 +926,7 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
                                                image=image_data,
                                                percentiles=percentiles)
     elif grid_type == "regular":
-        ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs,
+        ra_grid, dec_grid = make_regular_grid(single_ra, single_dec, snappl_wcs,
                                               size=size, spacing=spacing)
 
     if grid_type == "single":

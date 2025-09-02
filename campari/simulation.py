@@ -142,6 +142,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         cutoutgalwcs = cutout_object.get_wcs().get_galsim_wcs()  # rename this
         cutout_loc = full_image_wcs.world_to_pixel(ra, dec)
         cutout_pixel = (int(np.floor(cutout_loc[0] + 0.5)), int(np.floor(cutout_loc[1] + 0.5)))
+        SNLogger.debug(f"Cutout pixel: {cutout_pixel}")
+        SNLogger.debug(f"Cutout loc: {cutout_loc}")
 
         if mismatch_seds:
             SNLogger.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
