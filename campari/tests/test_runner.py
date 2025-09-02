@@ -9,6 +9,7 @@ from astropy.table import Table
 
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
+from snappl.diaobject import DiaObject
 from campari.campari_runner import campari_runner, campari_lightcurve_model
 
 
@@ -194,11 +195,11 @@ def test_lookup_object_info(cfg):
     test_args.object_lookup = True
     test_args.SNID = 20172782
     runner = campari_runner(**vars(test_args))
-    ra, dec, start, end = runner.lookup_object_info(test_args.SNID)
-    assert ra == 7.551093401915147
-    assert dec == -44.80718106491529
-    assert start == 62450.0
-    assert end == 62881.0
+    diaobj = runner.lookup_object_info(test_args.SNID)
+    assert diaobj.ra == 7.551093401915147
+    assert diaobj.dec == -44.80718106491529
+    assert diaobj.mjd_start == 62450.0
+    assert diaobj.mjd_end == 62881.0
 
 
 def test_get_exposures(cfg):
@@ -208,7 +209,9 @@ def test_get_exposures(cfg):
 
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
-    explist = runner.get_exposures(7.731890048839705, -44.4589649005717, 62654.0, 62958.0)
+    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, mjd_start=62654.0,
+                                    mjd_end=62958.0, collection="manual")[0]
+    explist = runner.get_exposures(diaobj)
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     np.testing.assert_array_equal(explist["date"], compare_table["date"])
@@ -270,7 +273,9 @@ def test_build_and_save_lc(cfg):
                                         best_fit_model_values=best_fit_model_values, cutout_wcs_list=cutout_wcs_list,
                                         sim_lc=sim_lc)
 
-    runner.build_and_save_lightcurve(test_args.SNID, lc_model, ra, dec, None)
+    diaobj = DiaObject.find_objects(id=test_args.SNID, ra=ra, dec=dec, mjd_start=None, mjd_end=None,
+                                    collection="manual")[0]
+    runner.build_and_save_lightcurve(diaobj, lc_model, None)
 
     output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"

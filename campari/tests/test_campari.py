@@ -20,6 +20,7 @@ import snappl
 from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
+from snappl.diaobject import DiaObject
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
@@ -76,23 +77,18 @@ def test_radec2point(roman_path):
     assert s == 14
 
 
-def test_get_object_info(roman_path, sn_path):
-    ra, dec, p, s, start, end, peak = get_object_info(50134575, 10430, "Y106",
-                                                      snpath=sn_path,
-                                                      roman_path=roman_path,
-                                                      obj_type="SN")
-    assert ra == 7.731890048839705
-    assert dec == -44.4589649005717
-    assert p == 10535
-    assert s == 14
-    assert start[0] == 62654.
-    assert end[0] == 62958.
-    assert peak[0] == np.float32(62683.98)
+def test_get_object_info():
+    diaobj = DiaObject.find_objects(id=50134575, collection="ou2024")[0]
+    assert diaobj.ra == 7.731890048839705
+    assert diaobj.dec == -44.4589649005717
+    assert diaobj.mjd_start == 62654.
+    assert diaobj.mjd_end == 62958.
 
 
 def test_find_all_exposures(roman_path):
-    explist = find_all_exposures(7.731890048839705, -44.4589649005717,
-                                 62654., 62958., "Y106", maxbg=24,
+    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, mjd_start=62654.,
+                                    mjd_end=62958., collection="manual")[0]
+    explist = find_all_exposures(diaobj, "Y106", maxbg=24,
                                  maxdet=24, return_list=True,
                                  roman_path=roman_path,
                                  pointing_list=None, sca_list=None,
@@ -143,7 +139,7 @@ def test_run_on_star(roman_path, cfg):
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
             f"{roman_path}/test_image_list_star.csv",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
-            "--no-photometry-campari-source_phot_ops"]
+            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
     orig_argv = sys.argv
 
     try:
@@ -181,7 +177,8 @@ def test_run_on_star(roman_path, cfg):
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
         f" {roman_path}/test_image_list_star.csv "
         "--object_type star --photometry-campari-grid_options-type none "
-        "--no-photometry-campari-source_phot_ops"
+        "--no-photometry-campari-source_phot_ops "
+        "--ra 7.5833264 --dec -44.809659"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -766,9 +763,10 @@ def test_find_all_exposures_with_img_list(roman_path):
     image_selection_start = -np.inf
     image_selection_end = np.inf
 
-    exposures = find_all_exposures(ra, dec, transient_start, transient_end,
-                                   roman_path=roman_path,
-                                   maxbg=max_no_transient_images,
+    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, mjd_start=transient_start, mjd_end=transient_end,
+                                    collection="manual")[0]
+
+    exposures = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
                                    maxdet=max_transient_images, return_list=True,
                                    band=band, image_selection_start=image_selection_start,
                                    image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
