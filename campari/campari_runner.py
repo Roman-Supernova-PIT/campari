@@ -114,8 +114,6 @@ class campari_runner:
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
         self.use_roman = self.cfg.value("photometry.campari.use_roman")
-        self.check_perfection = self.cfg.value("photometry.campari.simulations.check_perfection")
-        self.make_exact = self.cfg.value("photometry.campari.simulations.make_exact")
         self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
         self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
@@ -350,7 +348,7 @@ class campari_runner:
                            pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
-                           noise=self.noise, check_perfection=self.check_perfection,
+                           noise=self.noise,
                            avoid_non_linearity=self.avoid_non_linearity,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,

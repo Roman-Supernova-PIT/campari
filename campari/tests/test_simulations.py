@@ -8,7 +8,7 @@ import pytest
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
-from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger
 
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from campari import RomanASP
@@ -136,7 +136,8 @@ def test_deltafcn_galaxy_test(cfg):
          "--photometry-campari-simulations-base_sca", str(base_sca),
          "--photometry-campari-simulations-base_pointing", str(base_pointing),
          "--photometry-campari-simulations-noise", "0",
-         "--photometry-campari-simulations-run_name", "deltafcn_test"]
+         "--photometry-campari-simulations-run_name", "deltafcn_test",
+         "--photometry-campari-simulations-bg_gal_flux", "1"]
     sys.argv = a
     RomanASP.main()
 
@@ -146,4 +147,5 @@ def test_deltafcn_galaxy_test(cfg):
 
     # This tolerance value was chosen empirically. Looking at the actual image output, the fit seems to be essentially
     # perfect.
-    np.testing.assert_allclose(data, model, rtol=4e-5)
+    SNLogger.debug(np.max(np.abs(data - model)/data))
+    np.testing.assert_allclose(data, model, rtol=3e-7)
