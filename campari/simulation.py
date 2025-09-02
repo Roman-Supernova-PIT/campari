@@ -289,7 +289,6 @@ def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_p
     SNLogger.debug(f"Using sim_galaxy_scale {sim_galaxy_scale}")
     roman_bandpasses = galsim.roman.getBandpasses()
 
-
     if not deltafcn_profile:
         if sim_galaxy_scale is not None:
             sim_galaxy_scale = float(sim_galaxy_scale)

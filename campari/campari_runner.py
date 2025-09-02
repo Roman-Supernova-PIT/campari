@@ -379,10 +379,11 @@ class campari_runner:
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
             if self.run_name is None:
-                self.run_name = "simulated"
-            identifier = self.run_name + "_" + str(sim_galaxy_scale) + "_" + \
-                str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
-                + self.grid_type
+                identifier = "simulated_" + str(sim_galaxy_scale) + "_" + \
+                    str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
+                    + self.grid_type
+            else:
+                identifier = self.run_name + "_" + str(ID)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
 
@@ -393,7 +394,7 @@ class campari_runner:
         # Now, save the images
         images_and_model = np.array([lc_model.images, lc_model.model_images, lc_model.wgt_matrix])
         debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
-        SNLogger.info(f"Saving images to {debug_dir}")
+        SNLogger.info(f"Saving images to {debug_dir / f'{identifier}_{self.band}_{psftype}_images.npy'}")
         np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
 
         # Save the ra and dec grids

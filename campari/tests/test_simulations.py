@@ -1,5 +1,6 @@
 import pathlib
 import warnings
+import sys
 
 import galsim
 import numpy as np
@@ -7,8 +8,10 @@ import pytest
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
+from snpit_utils.config import Config
 
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
+from campari import RomanASP
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -107,3 +110,40 @@ def test_simulate_supernova():
     test_sn = np.load(pathlib.Path(__file__).parent
                       / "testdata/supernova_image.npy")
     np.testing.assert_allclose(supernova_image, test_sn, rtol=1e-7)
+
+
+def test_deltafcn_galaxy_test(cfg):
+    """In this test, we generate a galaxy that is a delta function, and fit to it with a grid that is also a single
+    point.  The result should be that the fitted flux is exactly the input flux, to machine precision."""
+
+    base_sca = 3
+    base_pointing = 5934
+
+    curfile = pathlib.Path(pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
+                     "deltafcn_test_20172782_Y106_romanpsf_images.npy")
+    curfile.unlink(missing_ok=True)
+
+    a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
+         "--photometry-campari-use_roman",
+         "--no-photometry-campari-use_real_images",
+         "--no-photometry-campari-fetch_SED",
+         "--photometry-campari-grid_options-type", "single",
+         "--photometry-campari-cutout_size", "19",
+         "--no-photometry-campari-weighting",
+         "--photometry-campari-subtract_background",
+         "--no-photometry-campari-source_phot_ops",
+         "--photometry-campari-simulations-deltafcn_profile",
+         "--photometry-campari-simulations-base_sca", str(base_sca),
+         "--photometry-campari-simulations-base_pointing", str(base_pointing),
+         "--photometry-campari-simulations-noise", "0",
+         "--photometry-campari-simulations-run_name", "deltafcn_test"]
+    sys.argv = a
+    RomanASP.main()
+
+    images = np.load(curfile)
+    data = images[0]
+    model = images[1]
+
+    # This tolerance value was chosen empirically. Looking at the actual image output, the fit seems to be essentially
+    # perfect.
+    np.testing.assert_allclose(data, model, rtol=4e-5)
