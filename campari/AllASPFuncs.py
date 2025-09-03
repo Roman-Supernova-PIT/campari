@@ -408,17 +408,14 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
 
     res.rename(columns={"mjd": "date"}, inplace=True)
     res = res.loc[res["filter"] == band].copy()
-    SNLogger.debug(f"Found before cuts {res}")
     if transient_start is None:
         transient_start = -np.inf
     if transient_end is None:
         transient_end = np.inf
-    SNLogger.debug(f"start/end {transient_start}/{transient_end}")
 
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
     det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
-    SNLogger.debug(f"Found {len(det)} detections before further cuts")
     det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
     if maxdet is not None:
         det = det.iloc[:maxdet]
@@ -593,11 +590,10 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
         image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
-        # I know the fill value being a number is a big hacky, but cutout requires that the fill_value
-        # be the same dtype as the data, so I cannot use np.nan.
         num_nans = np.isnan(image_cutout.data).sum()
         if num_nans > 0:
-            SNLogger.warning(f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the image. These will be given a weight of zero.")
+            SNLogger.warning(f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
+                             " image. These will be given a weight of zero.")
             SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans/size**2:.2%}")
 
         sca_loc = image.get_wcs().world_to_pixel(ra, dec)
@@ -757,9 +753,6 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
 
     num_predetection_images = len(exposures[~exposures["detected"]])
     num_total_images = len(exposures)
-    # if num_predetection_images == 0 and object_type == "SN":
-    #     raise ValueError("No pre-detection images found in time range " +
-    #                      "provided, skipping this object.")
 
     if num_total_images != np.inf and len(exposures) != num_total_images:
         raise ValueError(f"Not Enough Exposures. \

@@ -105,7 +105,6 @@ class campari_runner:
         self.healpix_file = kwargs["healpix_file"]
         self.nside = kwargs["nside"]
         self.object_lookup = kwargs["object_lookup"]
-        SNLogger.debug(f"Object lookup is set to {self.object_lookup}")
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
 
