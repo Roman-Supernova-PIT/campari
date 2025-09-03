@@ -584,7 +584,13 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, sca)
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
-        image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+        # I know the fill value being a number is a big hacky, but cutout requires that the fill_value
+        # be the same dtype as the data, so I cannot use np.nan.
+        num_nans = np.isnan(image_cutout.data).sum()
+        if num_nans > 0:
+            SNLogger.warning(f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the image. These will be given a weight of zero.")
+            SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans/size**2:.2%}")
 
         sca_loc = image.get_wcs().world_to_pixel(ra, dec)
         cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
@@ -1111,9 +1117,9 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
 
 
     if numlevels is not None:
-        levels = list(np.linspace(np.min(image), np.max(image), numlevels))
+        levels = list(np.linspace(np.nanmin(image), np.nanmax(image), numlevels))
     else:
-        levels = list(np.percentile(image, percentiles))
+        levels = list(np.nanpercentile(image, percentiles))
 
     SNLogger.debug(f"Using levels: {levels} in make_contour_grid")
 
@@ -1435,6 +1441,11 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     sn_matrix = np.vstack(psf_zeros)
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
+
+    # Now handle masked pixels:
+    wgt_matrix[np.isnan(image_data)] = 0
+    image_data[np.isnan(image_data)] = 0
+    err[np.isnan(err)] = 1e10  # Give a huge error to masked pixels.
 
     return image_data, err, sn_matrix, wgt_matrix
 
