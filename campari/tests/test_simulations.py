@@ -39,19 +39,32 @@ def test_simulate_images(roman_path):
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.getPSF(1, band, pupil_bin=1).aberrations)
     # Fluxes for the simulated supernova, days arbitrary.
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
-    sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
-        simulate_images(num_total_images=10, num_detect_images=5,
-                        ra=ra,
-                        dec=dec,
-                        sim_gal_ra_offset=1e-5,
-                        sim_gal_dec_offset=1e-5, do_xshift=True,
-                        do_rotation=True, sim_lc=test_lightcurve,
-                        noise=0, use_roman=False, band=band,
-                        deltafcn_profile=False, roman_path=roman_path,
-                        size=size, input_psf=airy, bg_gal_flux=bg_gal_flux,
-                        base_sca=base_sca,
-                        base_pointing=base_pointing, source_phot_ops=False, sim_galaxy_scale=None,
-                        sim_galaxy_offset=None, bulge_hlr=1.6, disk_hlr=5.0)
+    sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = simulate_images(
+        num_total_images=10,
+        num_detect_images=5,
+        ra=ra,
+        dec=dec,
+        sim_gal_ra_offset=1e-5,
+        sim_gal_dec_offset=1e-5,
+        do_xshift=True,
+        do_rotation=True,
+        sim_lc=test_lightcurve,
+        noise=0,
+        use_roman=False,
+        band=band,
+        deltafcn_profile=False,
+        roman_path=roman_path,
+        size=size,
+        input_psf=airy,
+        bg_gal_flux=bg_gal_flux,
+        base_sca=base_sca,
+        base_pointing=base_pointing,
+        source_phot_ops=False,
+        sim_galaxy_scale=None,
+        sim_galaxy_offset=None,
+        bulge_hlr=1.6,
+        disk_hlr=5.0,
+    )
 
     compare_images = np.load(pathlib.Path(__file__).parent
                              / "testdata/test_sim_images.npy")
