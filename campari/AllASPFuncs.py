@@ -405,12 +405,20 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                            "{result.text}")
 
     res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
+
     res.rename(columns={"mjd": "date"}, inplace=True)
     res = res.loc[res["filter"] == band].copy()
+    SNLogger.debug(f"Found before cuts {res}")
+    if transient_start is None:
+        transient_start = -np.inf
+    if transient_end is None:
+        transient_end = np.inf
+    SNLogger.debug(f"start/end {transient_start}/{transient_end}")
 
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
     det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
+    SNLogger.debug(f"Found {len(det)} detections before further cuts")
     det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
     if maxdet is not None:
         det = det.iloc[:maxdet]
@@ -749,9 +757,9 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
 
     num_predetection_images = len(exposures[~exposures["detected"]])
     num_total_images = len(exposures)
-    if num_predetection_images == 0 and object_type == "SN":
-        raise ValueError("No pre-detection images found in time range " +
-                         "provided, skipping this object.")
+    # if num_predetection_images == 0 and object_type == "SN":
+    #     raise ValueError("No pre-detection images found in time range " +
+    #                      "provided, skipping this object.")
 
     if num_total_images != np.inf and len(exposures) != num_total_images:
         raise ValueError(f"Not Enough Exposures. \

@@ -825,7 +825,7 @@ def test_make_sim_param_grid():
 def test_handle_partial_overlap():
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_images.npy"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) / "30617531_Y106_romanpsf_images.npy"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -833,13 +833,16 @@ def test_handle_partial_overlap():
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
-        f"python ../RomanASP.py -s 20172782 -f Y106 -i {image_file} "
+        f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
+        " --ra 7.446894 --dec -44.771605 --no-object_lookup"
         " --photometry-campari-use_roman --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
-        " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 19 "
+        " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = np.load(curfile, allow_pickle=True)
-    SNLogger.debug(f"zeros in image: {np.where(current[0]==0)}")
+    comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+    np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
+        "The weights do not match the expected values."

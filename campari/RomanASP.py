@@ -128,11 +128,16 @@ def main():
                         help="Radius in degrees to search for supernovae "
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
-    parser.add_argument("--object_lookup", type=bool, default=True,
-                        help="If False, will perform the algorithm centered at the ra/dec without searching "
-                             "for supernovae. Therefore, it is possible to run the algorithm on a location that"
-                             " does not have a supernova. If True, the SNID is used to look up the object in some "
-                             "catalog, such as the Open Universe 2024 catalog. Default is True.")
+    parser.add_argument(
+        "--object_lookup",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        required=False,
+        help="If False, will perform the algorithm centered at the ra/dec without searching "
+        "for supernovae. Therefore, it is possible to run the algorithm on a location that"
+        " does not have a supernova. If True, the SNID is used to look up the object in some "
+        "catalog, such as the Open Universe 2024 catalog. Default is True.",
+    )
 
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
@@ -195,7 +200,7 @@ def main():
                              "assumes supernova.",
                         default="SN")
 
-    parser.add_argument("--fast_debug", type=bool, default=False,
+    parser.add_argument("--fast_debug", action=argparse.BooleanOptionalAction, default=False,
                         help="If True, will run campari in fast debug mode, "
                              "which will enforce a very sparse grid. Data collected "
                              "using this method should not be used. ")
