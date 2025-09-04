@@ -834,7 +834,7 @@ def test_handle_partial_overlap():
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
         f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
-        " --ra 7.446894 --dec -44.771605 --no-object_lookup"
+        " --ra 7.446894 --dec -44.771605 --object_collection manual"
         " --photometry-campari-use_roman --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "

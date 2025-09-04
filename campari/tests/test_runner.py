@@ -29,7 +29,7 @@ def create_default_test_args(cfg):
     test_args.healpix = None
     test_args.healpix_file = None
     test_args.nside = None
-    test_args.object_lookup = True
+    test_args.object_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
     test_args.ra = None
@@ -90,7 +90,7 @@ def test_runner_init(cfg):
     assert runner.healpix == test_args.healpix
     assert runner.healpix_file == test_args.healpix_file
     assert runner.nside == test_args.nside
-    assert runner.object_lookup == test_args.object_lookup
+    assert runner.object_collection == test_args.object_collection
     assert runner.transient_start == test_args.transient_start
     assert runner.transient_end == test_args.transient_end
     assert runner.ra == test_args.ra
@@ -163,20 +163,20 @@ def test_decide_run_mode(cfg):
     # Finally, check some cases  that should raise errors
     test_args.healpix_file = None
     test_args.nside = None
-    test_args.object_lookup = True
+    test_args.object_collection = "ou24"
     test_args.SNID = None
     test_args.SNID_file = None
-    with pytest.raises(ValueError, match="Must specify --SNID, --SNID-file, to run campari with --object_lookup."):
+    with pytest.raises(ValueError, match="Must specify --SNID, --SNID-file, to run campari "):
         campari_runner(**vars(test_args)).decide_run_mode()
 
-    test_args.object_lookup = False
+    test_args.object_collection = "manual"
     with pytest.raises(
         ValueError,
         match="Must specify --SNID, --SNID-file, --healpix, --healpix_file, or --ra and --dec to run campari.",
     ):
         campari_runner(**vars(test_args)).decide_run_mode()
 
-    test_args.object_lookup = True
+    test_args.object_collection = "ou24"
     test_args.SNID = 20172782
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
@@ -191,7 +191,7 @@ def test_decide_run_mode(cfg):
 
 def test_lookup_object_info(cfg):
     test_args = create_default_test_args(cfg)
-    test_args.object_lookup = True
+    test_args.object_collection = "ou24"
     test_args.SNID = 20172782
     runner = campari_runner(**vars(test_args))
     ra, dec, start, end = runner.lookup_object_info(test_args.SNID)
@@ -203,7 +203,7 @@ def test_lookup_object_info(cfg):
 
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
-    test_args.object_lookup = True
+    test_args.object_collection = "ou24"
     test_args.SNID = 20172782
 
     runner = campari_runner(**vars(test_args))
@@ -220,7 +220,7 @@ def test_get_exposures(cfg):
 
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
-    test_args.object_lookup = True
+    test_args.object_collection = "ou24"
     test_args.SNID = 40120913
 
     exposures = pd.DataFrame({"date": [62535.424]})
@@ -240,7 +240,7 @@ def test_get_SED_list(cfg):
 
 def test_build_and_save_lc(cfg):
     test_args = create_default_test_args(cfg)
-    test_args.object_lookup = False
+    test_args.object_collection = "manual"
     test_args.SNID = 20172782
 
     runner = campari_runner(**vars(test_args))
@@ -282,7 +282,7 @@ def test_build_and_save_lc(cfg):
 def test_sim_param_grid(cfg):
     test_args = create_default_test_args(cfg)
     test_args.use_real_images = False
-    test_args.object_lookup = False
+    test_args.object_collection = "ou24"
     test_args.SNID = 20172782
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()

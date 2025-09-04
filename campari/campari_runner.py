@@ -104,7 +104,8 @@ class campari_runner:
         self.healpix = kwargs["healpix"]
         self.healpix_file = kwargs["healpix_file"]
         self.nside = kwargs["nside"]
-        self.object_lookup = kwargs["object_lookup"]
+        SNLogger.debug(kwargs)
+        self.object_collection = kwargs["object_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
 
@@ -177,6 +178,10 @@ class campari_runner:
         else:
             self.max_images = self.max_no_transient_images + self.max_transient_images
 
+        if self.object_type == "star":
+            self.max_no_transient_images = 0
+            SNLogger.debug("Running on stars, so setting max_no_transient_images to 0.")
+
     def __call__(self):
         """Run the Campari pipeline."""
         self.decide_run_mode()
@@ -186,7 +191,7 @@ class campari_runner:
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
 
-            if self.object_lookup:
+            if self.object_collection != "manual":
                 SNLogger.debug(f"Looking up object info for SN {ID}")
                 ra, dec, transient_start, transient_end = self.lookup_object_info(ID)
             else:
@@ -250,11 +255,11 @@ class campari_runner:
                 SNID.extend(extract_object_from_healpix(healpix, self.nside, object_type=self.object_type,
                             source="OpenUniverse2024"))
 
-        elif self.object_lookup and (self.SNID is None) and (self.SNID_file is None):
+        elif self.object_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
             raise ValueError(
-                "Must specify --SNID, --SNID-file, to run campari with --object_lookup. Note that"
-                " --object_lookup is True by default, so if you want to run campari without looking up a SNID,"
-                " you must set --object_lookup=False."
+                "Must specify --SNID, --SNID-file, to run campari with a non-manual object collection. Note that"
+                " --object_collection is ou24 by default, so if you want to run campari without looking up a SNID,"
+                " you must set --object_collection to manual and provide --ra and --dec."
             )
         else:
             raise ValueError(
@@ -309,6 +314,15 @@ class campari_runner:
                                            band=self.band, image_selection_start=self.image_selection_start,
                                            image_selection_end=self.image_selection_end,
                                            pointing_list=self.pointing_list)
+            if (
+                self.max_no_transient_images != 0
+                and len(exposures[exposures["detected"] is False]) == 0
+                and self.object_type != "star"
+            ):
+                raise ValueError("No non-detection images were found. This may be because the transient is"
+                                 " detected in all images, or because the transient is outside the date range of"
+                                 " available images. If you are running on stars, this is expected behavior."
+                                 " If you are running on supernovae, consider increasing the date range.")
         else:
             if self.max_no_transient_images is None or self.max_transient_images is None:
                 raise ValueError("Must specify --max_no_transient_images and --max_transient_images to run campari with"
@@ -381,7 +395,7 @@ class campari_runner:
             if lc_model.flux is not None:
                 lc = build_lightcurve(ID, lc_model.exposures, lc_model.confusion_metric, lc_model.flux,
                                       lc_model.sigma_flux, ra, dec)
-                if self.object_lookup:
+                if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, lc_model.exposures, self.sn_path, self.roman_path, self.object_type)
 
         else:

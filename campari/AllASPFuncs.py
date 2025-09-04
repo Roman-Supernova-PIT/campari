@@ -67,6 +67,8 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+# Global variables
+huge_value = 1e32
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
@@ -439,6 +441,12 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     explist.sort(["detected", "sca"])
     SNLogger.info("\n" + str(explist))
 
+    if maxbg != np.inf and maxbg is not None and len(bg) <= maxbg:
+        SNLogger.warning("You requested a number of non-detection images " +
+                         f"of {maxbg}, but {len(bg)} were found. ")
+    if maxdet != np.inf and maxdet is not None and len(det) <= maxdet:
+        SNLogger.warning("You requested a number of detected images " +
+                         f"of {maxdet}, but {len(det)} were found. ")
     if return_list:
         return explist
 
@@ -750,14 +758,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     cutout_image_list: list of snappl.image.Image objects, the cutout images
     image_list: list of snappl.image.Image objects, the full images
     """
-
-    num_predetection_images = len(exposures[~exposures["detected"]])
-    num_total_images = len(exposures)
-
-    if num_total_images != np.inf and len(exposures) != num_total_images:
-        raise ValueError(f"Not Enough Exposures. \
-            Found {len(exposures)} out of {num_total_images} requested")
-
+    # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
     cutout_image_list, image_list, exposures =\
         construct_images(exposures, ra, dec, size=size,
                          subtract_background=subtract_background,
@@ -1446,7 +1447,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # Now handle masked pixels:
     wgt_matrix[np.isnan(image_data)] = 0
     image_data[np.isnan(image_data)] = 0
-    err[np.isnan(err)] = 1e10  # Give a huge error to masked pixels.
+    err[np.isnan(err)] = huge_value  # Give a huge error to masked pixels.
 
     return image_data, err, sn_matrix, wgt_matrix
 
