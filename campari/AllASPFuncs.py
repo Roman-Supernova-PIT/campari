@@ -66,6 +66,8 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+# Global variables
+huge_value = 1e32
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
@@ -413,8 +415,13 @@ def find_all_exposures(diaobj, band, maxbg=None,
                            "{result.text}")
 
     res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
+
     res.rename(columns={"mjd": "date"}, inplace=True)
     res = res.loc[res["filter"] == band].copy()
+    if transient_start is None:
+        transient_start = -np.inf
+    if transient_end is None:
+        transient_end = np.inf
 
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
@@ -442,6 +449,12 @@ def find_all_exposures(diaobj, band, maxbg=None,
     explist.sort(["detected", "sca"])
     SNLogger.info("\n" + str(explist))
 
+    if maxbg != np.inf and maxbg is not None and len(bg) <= maxbg:
+        SNLogger.warning("You requested a number of non-detection images " +
+                         f"of {maxbg}, but {len(bg)} were found. ")
+    if maxdet != np.inf and maxdet is not None and len(det) <= maxdet:
+        SNLogger.warning("You requested a number of detected images " +
+                         f"of {maxdet}, but {len(det)} were found. ")
     if return_list:
         return explist
 
@@ -593,7 +606,12 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, sca)
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
-        image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+        num_nans = np.isnan(image_cutout.data).sum()
+        if num_nans > 0:
+            SNLogger.warning(f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
+                             " image. These will be given a weight of zero.")
+            SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans/size**2:.2%}")
 
         sca_loc = image.get_wcs().world_to_pixel(ra, dec)
         cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
@@ -748,17 +766,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     cutout_image_list: list of snappl.image.Image objects, the cutout images
     image_list: list of snappl.image.Image objects, the full images
     """
-
-    num_predetection_images = len(exposures[~exposures["detected"]])
-    num_total_images = len(exposures)
-    if num_predetection_images == 0 and object_type == "SN":
-        raise ValueError("No pre-detection images found in time range " +
-                         "provided, skipping this object.")
-
-    if num_total_images != np.inf and len(exposures) != num_total_images:
-        raise ValueError(f"Not Enough Exposures. \
-            Found {len(exposures)} out of {num_total_images} requested")
-
+    # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
     cutout_image_list, image_list, exposures =\
         construct_images(exposures, ra, dec, size=size,
                          subtract_background=subtract_background,
@@ -857,9 +865,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
             design the grid.
     ra, dec: floats, the RA and DEC of the supernova.
     percentiles: list of floats, the percentiles to use for the adaptive grid.
-    make_exact: Currently not implemented, but will construct the grid in such
-                a way on a simulated image that the recovered model is accurate
-                to machine precision. TODO
     sim_galra, sim_galdec: floats, the RA and DEC of a single simulated galaxy, only
                 used if grid_type is "single". This is used to place a single
                 grid point at the location of the simulated galaxy, for sanity
@@ -893,13 +898,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
         ra_grid, dec_grid = [single_ra], [single_dec]
 
-    if make_exact:
-        if grid_type == "single":
-            raise NotImplementedError
-            # I need to figure out how to turn the single grid point test
-        else:
-            raise NotImplementedError
-            # I need to figure out how to turn the single grid point test
 
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
@@ -1079,9 +1077,9 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
 
     if numlevels is not None:
-        levels = list(np.linspace(np.min(image), np.max(image), numlevels))
+        levels = list(np.linspace(np.nanmin(image), np.nanmax(image), numlevels))
     else:
-        levels = list(np.percentile(image, percentiles))
+        levels = list(np.nanpercentile(image, percentiles))
 
     SNLogger.debug(f"Using levels: {levels} in make_contour_grid")
 
@@ -1404,6 +1402,11 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
 
+    # Now handle masked pixels:
+    wgt_matrix[np.isnan(image_data)] = 0
+    image_data[np.isnan(image_data)] = 0
+    err[np.isnan(err)] = huge_value  # Give a huge error to masked pixels.
+
     return image_data, err, sn_matrix, wgt_matrix
 
 
@@ -1556,7 +1559,7 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
                    use_real_images=None, use_roman=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
-                   airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None, check_perfection=None,
+                   airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
                    draw_method_for_non_roman_psf="no_pixel"):
@@ -1780,7 +1783,7 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
     if weighting:
         wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
     else:
-        wgt_matrix = np.ones(psf_matrix.shape[1])
+        wgt_matrix = np.ones(psf_matrix.shape[0])
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
@@ -1818,6 +1821,7 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
+
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
 
     try:
@@ -1837,19 +1841,6 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
 
     galaxy_only_model_images = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
         if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
-
-    # TODO: Move this to a separate function.
-    # NOTE: This todo is being worked on in the simulations branch.
-    if check_perfection:
-        if avoid_non_linearity:
-            f = 1
-        else:
-            f = 5000
-        if grid_type == "single":
-            X[0] = f
-        else:
-            X = np.zeros_like(X)
-            X[106] = f
 
     if use_real_images:
         # Eventually I might completely separate out simulated SNe, though I
