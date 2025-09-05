@@ -11,6 +11,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
+    save_debug: true
 
     paths:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
