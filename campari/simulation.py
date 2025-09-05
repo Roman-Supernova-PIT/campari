@@ -107,6 +107,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     sn_storage = []
     image_list = []
     cutout_image_list = []
+    noise_maps = []
+    galaxy_images = []
 
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
     file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
@@ -178,11 +180,16 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
                                 image=stamp, wcs=localwcs,
                                 center=galsim.PositionD(pointx, pointy),
                                 use_true_center=True).array
+        galaxy_images.append(np.copy(a))
 
         # Noise it up!
         if noise > 0:
             rng = np.random.default_rng()
-            a += rng.normal(0, noise, size**2).reshape(size, size)
+            noise_map = rng.normal(0, noise, size**2).reshape(size, size)
+            a += noise_map
+            noise_maps.append(noise_map)
+        else:
+            noise_maps.append(np.zeros((size, size)))
 
         # Inject a supernova! If using.
         if sim_lc != 0:
@@ -216,7 +223,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     SNLogger.debug(f"images shape: {images[0].shape}")
     SNLogger.debug(f"images length {len(images)}")
 
-    return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec
+    return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec, galaxy_images, noise_maps
 
 
 def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
@@ -288,7 +295,6 @@ def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_p
     SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     SNLogger.debug(f"Using sim_galaxy_scale {sim_galaxy_scale}")
     roman_bandpasses = galsim.roman.getBandpasses()
-
 
     if not deltafcn_profile:
         if sim_galaxy_scale is not None:

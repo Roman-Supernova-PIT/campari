@@ -104,7 +104,8 @@ class campari_runner:
         self.healpix = kwargs["healpix"]
         self.healpix_file = kwargs["healpix_file"]
         self.nside = kwargs["nside"]
-        self.object_lookup = kwargs["object_lookup"]
+        SNLogger.debug(kwargs)
+        self.object_collection = kwargs["object_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
 
@@ -114,8 +115,6 @@ class campari_runner:
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
         self.use_roman = self.cfg.value("photometry.campari.use_roman")
-        self.check_perfection = self.cfg.value("photometry.campari.simulations.check_perfection")
-        self.make_exact = self.cfg.value("photometry.campari.simulations.make_exact")
         self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
         self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
@@ -141,8 +140,12 @@ class campari_runner:
         self.base_pointing = self.cfg.value("photometry.campari.simulations.base_pointing")
         self.base_sca = self.cfg.value("photometry.campari.simulations.base_sca")
         self.run_name = self.cfg.value("photometry.campari.simulations.run_name")
+        self.save_debug = self.cfg.value("photometry.campari.save_debug")
         self.param_grid = None
         self.run_mode = None
+        self.noise_maps = None
+        self.galaxy_images = None
+        self.galaxy_only_model_images = None
 
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
@@ -173,6 +176,10 @@ class campari_runner:
         else:
             self.max_images = self.max_no_transient_images + self.max_transient_images
 
+        if self.object_type == "star":
+            self.max_no_transient_images = 0
+            SNLogger.debug("Running on stars, so setting max_no_transient_images to 0.")
+
     def __call__(self):
         """Run the Campari pipeline."""
         self.decide_run_mode()
@@ -182,7 +189,8 @@ class campari_runner:
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
 
-            if self.object_lookup:
+            if self.object_collection != "manual":
+                SNLogger.debug(f"Looking up object info for SN {ID}")
                 ra, dec, transient_start, transient_end = self.lookup_object_info(ID)
             else:
                 ra, dec, transient_start, transient_end = self.ra, self.dec, self.transient_start, self.transient_end
@@ -240,11 +248,11 @@ class campari_runner:
                 SNID.extend(extract_object_from_healpix(healpix, self.nside, object_type=self.object_type,
                             source="OpenUniverse2024"))
 
-        elif self.object_lookup and (self.SNID is None) and (self.SNID_file is None):
+        elif self.object_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
             raise ValueError(
-                "Must specify --SNID, --SNID-file, to run campari with --object_lookup. Note that"
-                " --object_lookup is True by default, so if you want to run campari without looking up a SNID,"
-                " you must set --object_lookup=False."
+                "Must specify --SNID, --SNID-file, to run campari with a non-manual object collection. Note that"
+                " --object_collection is ou24 by default, so if you want to run campari without looking up a SNID,"
+                " you must set --object_collection to manual and provide --ra and --dec."
             )
         else:
             raise ValueError(
@@ -299,6 +307,15 @@ class campari_runner:
                                                        band=self.band, image_selection_start=self.image_selection_start,
                                                        image_selection_end=self.image_selection_end,
                                                        pointing_list=self.pointing_list)
+            if (
+                self.max_no_transient_images != 0
+                and len(exposures[exposures["detected"] is False]) == 0
+                and self.object_type != "star"
+            ):
+                raise ValueError("No non-detection images were found. This may be because the transient is"
+                                 " detected in all images, or because the transient is outside the date range of"
+                                 " available images. If you are running on stars, this is expected behavior."
+                                 " If you are running on supernovae, consider increasing the date range.")
         else:
             if self.max_no_transient_images is None or self.max_transient_images is None:
                 raise ValueError("Must specify --max_no_transient_images and --max_transient_images to run campari with"
@@ -334,8 +351,8 @@ class campari_runner:
         else:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = None, None, None
 
-        flux, sigma_flux, images, sumimages, exposures, ra_grid, dec_grid, wgt_matrix, \
-            confusion_metric, X, cutout_wcs_list, sim_lc = \
+        flux, sigma_flux, images, model_images, galaxy_only_model_images, exposures, ra_grid, dec_grid, wgt_matrix, \
+            confusion_metric, X, cutout_wcs_list, sim_lc, galaxy_images, noise_maps = \
             run_one_object(ID=ID, ra=ra, dec=dec, object_type=self.object_type, exposures=exposures,
                            image_list=image_list,
                            roman_path=self.roman_path, sn_path=self.sn_path, size=self.size, band=self.band,
@@ -346,16 +363,19 @@ class campari_runner:
                            pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
-                           noise=self.noise, check_perfection=self.check_perfection,
+                           noise=self.noise,
                            avoid_non_linearity=self.avoid_non_linearity,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
                            base_sca=self.base_sca)
         lightcurve_model = campari_lightcurve_model(
-            flux=flux, sigma_flux=sigma_flux, images=images, model_images=sumimages,
+            flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             exposures=exposures, ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             confusion_metric=confusion_metric, best_fit_model_values=X, cutout_wcs_list=cutout_wcs_list, sim_lc=sim_lc
         )
+        self.noise_maps = noise_maps
+        self.galaxy_images = galaxy_images
+        self.galaxy_only_model_images = galaxy_only_model_images
         return lightcurve_model
 
     def build_and_save_lightcurve(self, ID, lc_model, ra, dec, param_grid_row):
@@ -369,16 +389,17 @@ class campari_runner:
             if lc_model.flux is not None:
                 lc = build_lightcurve(ID, lc_model.exposures, lc_model.confusion_metric, lc_model.flux,
                                       lc_model.sigma_flux, ra, dec)
-                if self.object_lookup:
+                if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, lc_model.exposures, self.sn_path, self.roman_path, self.object_type)
 
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
             if self.run_name is None:
-                self.run_name = "simulated"
-            identifier = self.run_name + "_" + str(sim_galaxy_scale) + "_" + \
-                str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
-                + self.grid_type
+                identifier = "simulated_" + str(sim_galaxy_scale) + "_" + \
+                    str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
+                    + self.grid_type
+            else:
+                identifier = self.run_name + "_" + str(ID)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
 
@@ -387,23 +408,36 @@ class campari_runner:
             save_lightcurve(lc, identifier, self.band, psftype, output_path=output_dir)
 
         # Now, save the images
-        images_and_model = np.array([lc_model.images, lc_model.model_images, lc_model.wgt_matrix])
-        debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
-        SNLogger.info(f"Saving images to {debug_dir}")
-        np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
 
-        # Save the ra and dec grids
-        ra_grid = np.atleast_1d(lc_model.ra_grid)
-        dec_grid = np.atleast_1d(lc_model.dec_grid)
-        np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_grid.npy", [ra_grid, dec_grid,
-                lc_model.best_fit_model_values[: np.size(ra_grid)]])
+        if self.save_debug:
+            fileroot = f"{identifier}_{self.band}_{psftype}"
+            images_and_model = np.array([lc_model.images, lc_model.model_images,
+                                        lc_model.wgt_matrix, self.galaxy_only_model_images])
+            debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
+            SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
+            np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
 
-        # save wcses
-        primary_hdu = fits.PrimaryHDU()
-        hdul = [primary_hdu]
-        if lc_model.cutout_wcs_list is not None:
-            for i, wcs in enumerate(lc_model.cutout_wcs_list):
-                hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
-            hdul = fits.HDUList(hdul)
-            filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
-            hdul.writeto(filepath, overwrite=True)
+            # Save the ra and dec grids
+            ra_grid = np.atleast_1d(lc_model.ra_grid)
+            dec_grid = np.atleast_1d(lc_model.dec_grid)
+            SNLogger.info(f"Saving Ra/Dec grid to {debug_dir}")
+            np.save(debug_dir / f"{fileroot}_grid.npy", [ra_grid, dec_grid,
+                    lc_model.best_fit_model_values[: np.size(ra_grid)]])
+
+            # save wcses
+            primary_hdu = fits.PrimaryHDU()
+            hdul = [primary_hdu]
+            SNLogger.info(f"Saving Image WCS headers to {debug_dir}")
+            if lc_model.cutout_wcs_list is not None:
+                for i, wcs in enumerate(lc_model.cutout_wcs_list):
+                    hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
+                hdul = fits.HDUList(hdul)
+                filepath = debug_dir / f"{fileroot}_wcs.fits"
+                hdul.writeto(filepath, overwrite=True)
+
+            if not self.use_real_images:
+                np.save(debug_dir / f"{fileroot}_galaxy_images.npy", self.galaxy_images)
+                np.save(debug_dir / f"{fileroot}_noise_maps.npy", self.noise_maps)
+                SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")
+        else:
+            SNLogger.info("Not saving debug files.")
