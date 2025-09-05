@@ -115,8 +115,6 @@ class campari_runner:
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
         self.use_roman = self.cfg.value("photometry.campari.use_roman")
-        self.check_perfection = self.cfg.value("photometry.campari.simulations.check_perfection")
-        self.make_exact = self.cfg.value("photometry.campari.simulations.make_exact")
         self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
         self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
@@ -369,7 +367,7 @@ class campari_runner:
                            pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
-                           noise=self.noise, check_perfection=self.check_perfection,
+                           noise=self.noise,
                            avoid_non_linearity=self.avoid_non_linearity,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
@@ -401,10 +399,11 @@ class campari_runner:
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
             if self.run_name is None:
-                self.run_name = "simulated"
-            identifier = self.run_name + "_" + str(sim_galaxy_scale) + "_" + \
-                str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
-                + self.grid_type
+                identifier = "simulated_" + str(sim_galaxy_scale) + "_" + \
+                    str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
+                    + self.grid_type
+            else:
+                identifier = self.run_name + "_" + str(ID)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
 
@@ -413,18 +412,20 @@ class campari_runner:
             save_lightcurve(lc, identifier, self.band, psftype, output_path=output_dir)
 
         # Now, save the images
+
         if self.save_debug:
+            fileroot = f"{identifier}_{self.band}_{psftype}"
             images_and_model = np.array([lc_model.images, lc_model.model_images,
                                         lc_model.wgt_matrix, self.galaxy_only_model_images])
             debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
-            SNLogger.info(f"Saving images to {debug_dir}")
-            np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_images.npy", images_and_model)
+            SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
+            np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
 
             # Save the ra and dec grids
             ra_grid = np.atleast_1d(lc_model.ra_grid)
             dec_grid = np.atleast_1d(lc_model.dec_grid)
             SNLogger.info(f"Saving Ra/Dec grid to {debug_dir}")
-            np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_grid.npy", [ra_grid, dec_grid,
+            np.save(debug_dir / f"{fileroot}_grid.npy", [ra_grid, dec_grid,
                     lc_model.best_fit_model_values[: np.size(ra_grid)]])
 
             # save wcses
@@ -435,13 +436,12 @@ class campari_runner:
                 for i, wcs in enumerate(lc_model.cutout_wcs_list):
                     hdul.append(fits.ImageHDU(header=wcs.to_fits_header(), name="WCS" + str(i)))
                 hdul = fits.HDUList(hdul)
-                filepath = debug_dir / f"{identifier}_{self.band}_{psftype}_wcs.fits"
+                filepath = debug_dir / f"{fileroot}_wcs.fits"
                 hdul.writeto(filepath, overwrite=True)
 
-            # Once merged, this should also check if save_debug is on. XXX TODO
             if not self.use_real_images:
-                np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_galaxy_images.npy", self.galaxy_images)
-                np.save(debug_dir / f"{identifier}_{self.band}_{psftype}_noise_maps.npy", self.noise_maps)
+                np.save(debug_dir / f"{fileroot}_galaxy_images.npy", self.galaxy_images)
+                np.save(debug_dir / f"{fileroot}_noise_maps.npy", self.noise_maps)
                 SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")
         else:
             SNLogger.info("Not saving debug files.")
