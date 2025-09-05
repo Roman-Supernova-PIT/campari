@@ -11,6 +11,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
+    save_debug: true
 
     paths:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
@@ -41,11 +42,8 @@ photometry:
       - 10000
       - 100000
       - 1000000
-      check_perfection: false
       deltafcn_profile: false
       do_rotation: true
-      do_xshift: true
-      make_exact: false
       mismatch_seds: false
       noise: 50
       single_grid_point: false
@@ -57,6 +55,7 @@ photometry:
       - .00002828 # sqrt(2) * 2e-5
       base_pointing: 276
       base_sca: 10
+      run_name: slurm_run
 
 ou24:
   config_file: /sn_info_dir/tds.yaml

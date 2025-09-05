@@ -11,6 +11,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
+    save_debug: true
 
     paths:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
@@ -38,11 +39,9 @@ photometry:
       avoid_non_linearity: false
       background_level: 0
       bg_gal_flux: 100000.0
-      check_perfection: false
       deltafcn_profile: false
       do_rotation: true
       do_xshift: true
-      make_exact: false
       mismatch_seds: false
       noise: 0
       sim_gal_dec_offset: 0.00001

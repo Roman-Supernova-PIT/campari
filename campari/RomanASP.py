@@ -1,3 +1,4 @@
+#!/usr/bin/env python
 # Standard Library
 import argparse
 import warnings
@@ -94,13 +95,13 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("-s", "--SNID", type=int, default=None,
+    parser.add_argument("-s", "--SNID", "--oid", type=int, default=None,
                         required=False, nargs="*",
-                        help="OpenUniverse2024 Supernova IDs; ignored if"
-                             " --SNID-file is given")
-    parser.add_argument("--SNID-file", type=str, default=None, required=False,
+                        help="Object IDs to run on. Meaning is dependent on the collection used."
+                             "Will be ignored if --SNID-file is given")
+    parser.add_argument("--SNID-file", "--oid_file", type=str, default=None, required=False,
                         help="Path to a csv file containing a list of "
-                             "OpenUniverse SNIDs to run.")
+                             "Object IDs to run on. Meaning of Object ID dependent on the collection used.")
 
     parser.add_argument("--healpix", type=int, default=None, required=False, nargs="*",
                         help="Healpix ID or IDs to run on. If given, will run on all "
@@ -125,12 +126,11 @@ def main():
                         help="Radius in degrees to search for supernovae "
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
-    parser.add_argument("--object_lookup", type=bool, default=True,
-                        help="If False, will perform the algorithm centered at the ra/dec without searching "
-                             "for supernovae. Therefore, it is possible to run the algorithm on a location that"
-                             " does not have a supernova. If True, the SNID is used to look up the object in some "
-                             "catalog, such as the Open Universe 2024 catalog. Default is True.")
 
+    parser.add_argument("--object_collection", type=str, default="ou24", required=False,
+                        help="Which collection of objects to use for lookup. "
+                             "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
+                             "will use the input ra and dec given by the user, and not perform any lookup.")
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
@@ -155,17 +155,20 @@ def main():
         "--transient_start",
         type=float,
         required=False,
-        help="MJD of first epoch of transient. Only used when --object_lookup is False. If --object_lookup is True,"
+        help="MJD of first epoch of transient. Only used when --object_collection is manual. Otherwise, "
         " then the catalog values for transient_start, transient_end will be used."
         "If not given but transient_end is, will assume the first detection is at -inf.",
         default=None,
     )
-    parser.add_argument("--transient_end", type=float, required=False,
-                        help="MJD of last epoch of transient. Only used when --object_lookup is False."
-                        " If --object_lookup is True, then the catalog values for transient_start, transient_end will "
-                        " be used."
-                        " If not given but transient_start is, will assume the last detection is at +inf.",
-                        default=None)
+    parser.add_argument(
+        "--transient_end",
+        type=float,
+        required=False,
+        help="MJD of last epoch of transient. Only used when --object_collection is manual. Otherwise, "
+        " the catalog values for transient_start, transient_end will be used."
+        " If not given but transient_start is, will assume the last detection is at +inf.",
+        default=None,
+    )
 
     # If instead you give img_list, then you expliclty list the images
     # used.  TODO: specify type of image, and adapt the code to handle
@@ -192,7 +195,7 @@ def main():
                              "assumes supernova.",
                         default="SN")
 
-    parser.add_argument("--fast_debug", type=bool, default=False,
+    parser.add_argument("--fast_debug", action=argparse.BooleanOptionalAction, default=False,
                         help="If True, will run campari in fast debug mode, "
                              "which will enforce a very sparse grid. Data collected "
                              "using this method should not be used. ")
