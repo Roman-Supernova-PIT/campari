@@ -187,9 +187,12 @@ class campari_runner:
 
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
-            
-            diaobj = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_start=self.transient_start,
-                                                mjd_end=self.transient_end, collection=collection)[0]
+
+            if self.object_collection == "manual":
+                diaobj = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_start=self.transient_start,
+                                                mjd_end=self.transient_end, collection=self.object_collection)[0]
+            else:
+                diaobj = DiaObject.find_objects(id=ID, collection=self.object_collection)[0]
 
             SNLogger.debug(f"Object info for SN {ID}: ra={diaobj.ra}, dec={diaobj.dec},"
                            f"transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
@@ -261,7 +264,7 @@ class campari_runner:
         elif self.object_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
             raise ValueError(
                 "Must specify --SNID, --SNID-file, to run campari with a non-manual object collection. Note that"
-                " --object_collection is ou24 by default, so if you want to run campari without looking up a SNID,"
+                " --object_collection is ou2024 by default, so if you want to run campari without looking up a SNID,"
                 " you must set --object_collection to manual and provide --ra and --dec."
             )
         else:
@@ -395,7 +398,7 @@ class campari_runner:
                     str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
                     + self.grid_type
             else:
-                identifier = self.run_name + "_" + str(ID)
+                identifier = self.run_name + "_" + str(diaobj.id)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
 

@@ -128,7 +128,7 @@ def test_run_on_star(roman_path, cfg):
     assert not curfile.exists()
 
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list_star.csv",
+            f"{roman_path}/test_image_list_star.csv", "--object_collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
     orig_argv = sys.argv
@@ -166,7 +166,7 @@ def test_run_on_star(roman_path, cfg):
     # Make sure it runs from the command line
     err_code = os.system(
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
-        f" {roman_path}/test_image_list_star.csv "
+        f" {roman_path}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
         "--ra 7.5833264 --dec -44.809659"

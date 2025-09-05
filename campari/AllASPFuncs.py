@@ -1588,7 +1588,7 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec = \
+        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
             simulate_images(num_total_images, num_detect_images, diaobj.ra, diaobj.dec,
                             sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
