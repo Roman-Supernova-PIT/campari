@@ -88,7 +88,6 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         raise ValueError("You must provide either sim_gal_ra_offset and sim_gal_dec_offset,"
                          "or sim_galaxy_offset to simulate a galaxy offset.")
 
-
     if sim_lc is None:
         # Here, if the user has not provided a light curve that they want
         # simulated, we generate a default one.
@@ -162,7 +161,6 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         if use_roman:
             sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
-            #raise NotImplementedError("Non-Roman PSF simulation not implemented yet.")
             sim_psf = input_psf
 
         # Draw the galaxy.
@@ -288,7 +286,6 @@ def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_p
     SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     SNLogger.debug(f"Using sim_galaxy_scale {sim_galaxy_scale}")
     roman_bandpasses = galsim.roman.getBandpasses()
-
 
     if not deltafcn_profile:
         if sim_galaxy_scale is not None:

@@ -4,14 +4,12 @@ import warnings
 import sys
 
 # Common Library
-import numpy as np
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
 from snpit_utils.config import Config
 from campari.campari_runner import campari_runner
-from snpit_utils.logger import SNLogger
 
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -66,9 +64,9 @@ def main():
     #     cfg = None
     except RuntimeError as e:
         if str(e) == "No default config defined yet; run Config.init(configfile)":
-            sys.stderr.write( "Error, no configuration file defined.\n"
-                              "Either run campari with -c <configfile>\n"
-                              "or set the SNPIT_CONFIG environment varaible.\n")
+            sys.stderr.write("Error, no configuration file defined.\n"
+                             "Either run campari with -c <configfile>\n"
+                             "or set the SNPIT_CONFIG environment varaible.\n")
             sys.exit(1)
         else:
             raise
