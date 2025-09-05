@@ -55,6 +55,7 @@ photometry:
       - .00002828 # sqrt(2) * 2e-5
       base_pointing: 276
       base_sca: 10
+      run_name: slurm_run
 
 ou24:
   config_file: /sn_info_dir/tds.yaml

@@ -67,6 +67,8 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+# Global variables
+huge_value = 1e32
 
 
 def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0,
@@ -405,8 +407,13 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                            "{result.text}")
 
     res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
+
     res.rename(columns={"mjd": "date"}, inplace=True)
     res = res.loc[res["filter"] == band].copy()
+    if transient_start is None:
+        transient_start = -np.inf
+    if transient_end is None:
+        transient_end = np.inf
 
     # The first date cut selects images that are detections, the second
     # selects detections within the requested light curve window.
@@ -434,6 +441,12 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     explist.sort(["detected", "sca"])
     SNLogger.info("\n" + str(explist))
 
+    if maxbg != np.inf and maxbg is not None and len(bg) <= maxbg:
+        SNLogger.warning("You requested a number of non-detection images " +
+                         f"of {maxbg}, but {len(bg)} were found. ")
+    if maxdet != np.inf and maxdet is not None and len(det) <= maxdet:
+        SNLogger.warning("You requested a number of detected images " +
+                         f"of {maxdet}, but {len(det)} were found. ")
     if return_list:
         return explist
 
@@ -584,7 +597,12 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image = OpenUniverse2024FITSImage(imagepath, None, sca)
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
-        image_cutout = image.get_ra_dec_cutout(ra, dec, size)
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+        num_nans = np.isnan(image_cutout.data).sum()
+        if num_nans > 0:
+            SNLogger.warning(f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
+                             " image. These will be given a weight of zero.")
+            SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans/size**2:.2%}")
 
         sca_loc = image.get_wcs().world_to_pixel(ra, dec)
         cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
@@ -740,17 +758,7 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
     cutout_image_list: list of snappl.image.Image objects, the cutout images
     image_list: list of snappl.image.Image objects, the full images
     """
-
-    num_predetection_images = len(exposures[~exposures["detected"]])
-    num_total_images = len(exposures)
-    if num_predetection_images == 0 and object_type == "SN":
-        raise ValueError("No pre-detection images found in time range " +
-                         "provided, skipping this object.")
-
-    if num_total_images != np.inf and len(exposures) != num_total_images:
-        raise ValueError(f"Not Enough Exposures. \
-            Found {len(exposures)} out of {num_total_images} requested")
-
+    # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
     cutout_image_list, image_list, exposures =\
         construct_images(exposures, ra, dec, size=size,
                          subtract_background=subtract_background,
@@ -1101,9 +1109,9 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
 
 
     if numlevels is not None:
-        levels = list(np.linspace(np.min(image), np.max(image), numlevels))
+        levels = list(np.linspace(np.nanmin(image), np.nanmax(image), numlevels))
     else:
-        levels = list(np.percentile(image, percentiles))
+        levels = list(np.nanpercentile(image, percentiles))
 
     SNLogger.debug(f"Using levels: {levels} in make_contour_grid")
 
@@ -1425,6 +1433,11 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     sn_matrix = np.vstack(psf_zeros)
     wgt_matrix = np.array(wgt_matrix)
     wgt_matrix = np.hstack(wgt_matrix)
+
+    # Now handle masked pixels:
+    wgt_matrix[np.isnan(image_data)] = 0
+    image_data[np.isnan(image_data)] = 0
+    err[np.isnan(err)] = huge_value  # Give a huge error to masked pixels.
 
     return image_data, err, sn_matrix, wgt_matrix
 
