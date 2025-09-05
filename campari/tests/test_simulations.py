@@ -8,10 +8,9 @@ import pytest
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
-from snpit_utils.logger import SNLogger
-
-from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from campari import RomanASP
+from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
+from snpit_utils.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -158,7 +157,7 @@ def test_deltafcn_galaxy_test(cfg):
     data = images[0]
     model = images[1]
 
-    # This tolerance value was chosen empirically. Looking at the actual image output, the fit seems to be essentially
-    # perfect.
+    # This tolerance value was chosen empirically. Looking at the actual image output, the fit seems to have no biases
+    # or structure.
     SNLogger.debug(np.max(np.abs(data - model)/data))
     np.testing.assert_allclose(data, model, rtol=3e-7)
