@@ -188,14 +188,24 @@ class campari_runner:
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
 
-            if self.object_collection == "manual":
-                diaobj = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_start=self.transient_start,
-                                                mjd_end=self.transient_end, collection=self.object_collection)[0]
-            else:
-                diaobj = DiaObject.find_objects(id=ID, collection=self.object_collection)[0]
+            diaobjs = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
+                                             mjd_discovery_max=self.transient_end, collection=self.object_collection)
+            if len(diaobjs) == 0:
+                raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
+            if len(diaobjs) > 1:
+                raise ValueError(f"Found multiple DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
+            diaobj = diaobjs[0]
+            if self.ra is not None:
+                if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
+                    SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
+                diaobj.ra = self.ra
+            if self.dec is not None:
+                if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
+                    SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
+                diaobj.dec = self.dec
 
-            SNLogger.debug(f"Object info for SN {ID}: ra={diaobj.ra}, dec={diaobj.dec},"
-                           f"transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
+            SNLogger.debug(f"Object info for SN {ID} in collection {self.object_collection}: ra={diaobj.ra},"
+                           f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
             exposures = self.get_exposures(diaobj)
             sedlist = self.get_sedlist(diaobj.id, exposures)
             param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
@@ -205,13 +215,6 @@ class campari_runner:
 
     def decide_run_mode(self):
         """Decide which run mode to use based on the input configuration."""
-
-        if self.object_type == "star":
-            if self.ra is None or self.dec is None:
-                raise ValueError("Must specify --ra and --dec to run campari on stars. Fetching star info "
-                                 "is not currently supported.")
-            self.transient_start = None
-            self.transient_end = None
 
         # Option 1, user passes a file of SNIDs
         if self.SNID_file is not None:
