@@ -358,8 +358,7 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
                        truth="simple_model", image_selection_start=None, image_selection_end=None,
                        image_source="ou2024"):
     """This function finds all the exposures that contain a given supernova,
-    and returns a list of them. Utilizes Rob's awesome database method to
-    find the exposures. Humongous speed up thanks to this.
+    and returns a list of them.
 
     Inputs:
     ra, dec: the RA and DEC of the supernova
@@ -445,7 +444,6 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     all_images = all_images[argsort]
 
     return explist, all_images
-
 
 
 def find_parquet(ID, path, obj_type="SN"):
@@ -578,19 +576,7 @@ def construct_images(exposures, image_list, ra, dec, size=7, subtract_background
     x_cutout_list = []
     y_cutout_list = []
 
-    for indx, exp in enumerate(exposures):
-        SNLogger.debug(f"Constructing image {indx} of {len(exposures)}")
-        # band = exp["filter"]
-        # pointing = exp["pointing"]
-        # sca = exp["sca"]
-
-        # # TODO : replace None with the right thing once Exposure is implemented
-
-        # imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
-        #                           f"/Roman_TDS_{truth}_{band}_{pointing}_"
-        #                           f"{sca}.fits.gz")
-        # image = OpenUniverse2024FITSImage(imagepath, None, sca)
-        SNLogger.debug("length of image list: {}".format(len(image_list)))
+    for indx, exp in enumerate(image_list):
         image = image_list[indx]
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
