@@ -633,14 +633,7 @@ def construct_images(image_list, ra, dec, size=7, subtract_background=True, trut
 
         cutout_image_list.append(image_cutout)
 
-    exposures["x"] = x_list
-    exposures["y"] = y_list
-    exposures["x_cutout"] = x_cutout_list
-    exposures["y_cutout"] = y_cutout_list
-
-    SNLogger.debug("updated exposures with x, y, x_cutout, y_cutout:")
-    SNLogger.debug(exposures)
-    return cutout_image_list, image_list, exposures
+    return cutout_image_list, image_list
 
 
 def calculate_background_level(im):
@@ -1168,7 +1161,7 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     return mag, magerr, zp
 
 
-def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec):
+def build_lightcurve(diaobj, image_list, cutout_image_list, confusion_metric, flux, sigma_flux):
 
     """This code builds a lightcurve datatable from the output of the SMP
        algorithm.
@@ -1187,24 +1180,46 @@ def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec)
     """
     flux = np.atleast_1d(flux)
     sigma_flux = np.atleast_1d(sigma_flux)
-    band = exposures["filter"][0]
+    band = image_list[0].filter
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    detections = exposures[np.where(exposures["detected"])]
-    meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
+    meta_dict = {"ID": diaobj, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
 
-    data_dict = {"mjd": detections["date"], "flux_fit": flux,
+    data_dict = {"mjd": [], "flux_fit": flux,
                  "flux_fit_err": sigma_flux, "mag_fit": mag,
                  "mag_fit_err": magerr,
-                 "filter": np.full(np.size(mag), band),
+                 "filter": [],
                  "zpt": np.full(np.size(mag), zp),
-                 "pointing": detections["pointing"],
-                 "sca": detections["sca"],
-                 "x": detections["x"],
-                 "y": detections["y"],
-                 "x_cutout": detections["x_cutout"],
-                 "y_cutout": detections["y_cutout"]}
+                 "pointing": [],
+                 "sca": [],
+                 "x": [],
+                 "y": [],
+                 "x_cutout": [],
+                 "y_cutout": []}
+
+    for i, img in enumerate(image_list):
+        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+            data_dict["mjd"].append(img.mjd)
+            data_dict["filter"].append(img.filter)
+            data_dict["pointing"].append(img.pointing)
+            data_dict["sca"].append(img.sca)
+            data_dict["x"].append(img.wcs.world_to_pixel(diaobj.ra, diaobj.dec)[0])
+            data_dict["y"].append(img.wcs.world_to_pixel(diaobj.ra, diaobj.dec)[1])
+            data_dict["x_cutout"].append(cutout_image_list[i].wcs.world_to_pixel(diaobj.ra, diaobj.dec)[0])
+            data_dict["y_cutout"].append(cutout_image_list[i].wcs.world_to_pixel(diaobj.ra, diaobj.dec)[1])
+
+    # data_dict = {"mjd": detections["date"], "flux_fit": flux,
+    #              "flux_fit_err": sigma_flux, "mag_fit": mag,
+    #              "mag_fit_err": magerr,
+    #              "filter": np.full(np.size(mag), band),
+    #              "zpt": np.full(np.size(mag), zp),
+    #              "pointing": detections["pointing"],
+    #              "sca": detections["sca"],
+    #              "x": detections["x"],
+    #              "y": detections["y"],
+    #              "x_cutout": detections["x_cutout"],
+    #              "y_cutout": detections["y_cutout"]}
 
     units = {"mjd": u.d,  "flux_fit": "",
              "flux_fit_err": "", "mag_fit": u.mag,
@@ -1589,8 +1604,8 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list, exposures = fetch_images(exposures, image_list, ra, dec, size, subtract_background,
-                                                                roman_path, object_type)
+        cutout_image_list, image_list = fetch_images(image_list, ra, dec, size, subtract_background, roman_path,
+                                                     object_type)
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None

@@ -30,12 +30,14 @@ from campari.AllASPFuncs import (
 class campari_lightcurve_model:
     """This class holds the output of the Campari pipeline for a single SNID."""
 
-    def __init__(self, flux=None, sigma_flux=None, images=None, model_images=None, exposures=None,
+    def __init__(self, diaobj=None, flux=None, sigma_flux=None, images=None, model_images=None, exposures=None,
                  ra_grid=None, dec_grid=None, wgt_matrix=None,
                  confusion_metric=None, best_fit_model_values=None, cutout_wcs_list=None, sim_lc=None):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
         ----------
+        diaobj: snappl.diaobject.DiaObject
+            The DiaObject representing the transient.
         flux : np.ndarray
             The flux values for the lightcurve.
         sigma_flux : np.ndarray
@@ -67,6 +69,7 @@ class campari_lightcurve_model:
         sim_lc : pd.DataFrame
             The simulated lightcurve data, if applicable.
         """
+        self.diaobj = diaobj
         self.flux = flux
         self.sigma_flux = sigma_flux
         self.images = images
@@ -200,7 +203,7 @@ class campari_runner:
             param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
 
             lightcurve_model = self.call_run_one_object(ID, ra, dec, exposures, image_list, sedlist, param_grid_row)
-            self.build_and_save_lightcurve(ID, lightcurve_model, ra, dec, param_grid_row)
+            self.build_and_save_lightcurve(diaobj, lightcurve_model, ra, dec, param_grid_row)
 
     def decide_run_mode(self):
         """Decide which run mode to use based on the input configuration."""
@@ -378,7 +381,7 @@ class campari_runner:
         self.galaxy_only_model_images = galaxy_only_model_images
         return lightcurve_model
 
-    def build_and_save_lightcurve(self, ID, lc_model, ra, dec, param_grid_row):
+    def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
         if self.use_roman:
             psftype = "romanpsf"
         else:
@@ -387,8 +390,8 @@ class campari_runner:
         if self.use_real_images:
             identifier = str(ID)
             if lc_model.flux is not None:
-                lc = build_lightcurve(ID, lc_model.exposures, lc_model.confusion_metric, lc_model.flux,
-                                      lc_model.sigma_flux, ra, dec)
+                lc = build_lightcurve(diaobj, image_list, cutout_image_list, lc_model.confusion_metric, lc_model.flux,
+                                      lc_model.sigma_flux)
                 if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, lc_model.exposures, self.sn_path, self.roman_path, self.object_type)
 
