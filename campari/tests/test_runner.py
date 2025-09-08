@@ -187,7 +187,6 @@ def test_decide_run_mode(cfg):
     np.testing.assert_array_equal(runner.pointing_list,
                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
-    
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.object_collection = "ou24"
@@ -195,8 +194,9 @@ def test_get_exposures(cfg):
 
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
-    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, mjd_start=62654.0,
-                                    mjd_end=62958.0, collection="manual")[0]
+    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    diaobj.mjd_start = 62654.0
+    diaobj.mjd_end = 62958.0
     explist = runner.get_exposures(diaobj)
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")

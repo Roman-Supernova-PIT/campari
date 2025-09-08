@@ -204,14 +204,14 @@ class campari_runner:
                     SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
                 diaobj.dec = self.dec
 
-            if (self.transient_start is not None) and (diaobj.mjd_start is not None):
-                if np.fabs(self.transient_start - diaobj.mjd_start) > .1:
+            if (self.transient_start is not None):
+                if (diaobj.mjd_start is not None) and np.fabs(self.transient_start - diaobj.mjd_start) > .1:
                     SNLogger.warning(f"Given transient_start {self.transient_start} is far from DiaObject "
                                      f"nominal transient_start {diaobj.mjd_start}")
                 diaobj.mjd_start = self.transient_start
 
-            if (self.transient_end is not None) and (diaobj.mjd_end is not None):
-                if np.fabs(self.transient_end - diaobj.mjd_end) > .1:
+            if self.transient_end is not None:
+                if (diaobj.mjd_end is not None) and np.fabs(self.transient_end - diaobj.mjd_end) > .1:
                     SNLogger.warning(f"Given transient_end {self.transient_end} is far from DiaObject "
                                      f"nominal transient_end {diaobj.mjd_end}")
                 diaobj.mjd_end = self.transient_end

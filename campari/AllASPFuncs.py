@@ -384,8 +384,10 @@ def find_all_exposures(diaobj, band, maxbg=None,
         - date: the MJD of the exposure
         - detected: whether the exposure contains a detection or not.
     """
+    SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end
+    SNLogger.debug(f"start and end of transient: {transient_start, transient_end}")
     ra = diaobj.ra
     dec = diaobj.dec
     f = fits.open(roman_path +
@@ -449,10 +451,10 @@ def find_all_exposures(diaobj, band, maxbg=None,
     explist.sort(["detected", "sca"])
     SNLogger.info("\n" + str(explist))
 
-    if maxbg != np.inf and maxbg is not None and len(bg) <= maxbg:
+    if maxbg != np.inf and maxbg is not None and len(bg) < maxbg:
         SNLogger.warning("You requested a number of non-detection images " +
                          f"of {maxbg}, but {len(bg)} were found. ")
-    if maxdet != np.inf and maxdet is not None and len(det) <= maxdet:
+    if maxdet != np.inf and maxdet is not None and len(det) < maxdet:
         SNLogger.warning("You requested a number of detected images " +
                          f"of {maxdet}, but {len(det)} were found. ")
     if return_list:

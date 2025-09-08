@@ -77,8 +77,9 @@ def test_radec2point(roman_path):
 
 
 def test_find_all_exposures(roman_path):
-    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, mjd_start=62654.,
-                                    mjd_end=62958., collection="manual")[0]
+    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    diaobj.mjd_start = 62654.0
+    diaobj.mjd_end = 62958.0
     explist = find_all_exposures(diaobj, "Y106", maxbg=24,
                                  maxdet=24, return_list=True,
                                  roman_path=roman_path,
@@ -754,8 +755,9 @@ def test_find_all_exposures_with_img_list(roman_path):
     image_selection_start = -np.inf
     image_selection_end = np.inf
 
-    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, mjd_start=transient_start, mjd_end=transient_end,
-                                    collection="manual")[0]
+    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
+    diaobj.mjd_start = transient_start
+    diaobj.mjd_end = transient_end
 
     exposures = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
                                    maxdet=max_transient_images, return_list=True,
