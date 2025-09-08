@@ -20,7 +20,6 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
 import healpy as hp
-from matplotlib import pyplot as plt
 from numpy.linalg import LinAlgError
 from roman_imsim.utils import roman_utils
 from scipy.interpolate import RegularGridInterpolator
@@ -346,12 +345,13 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
-        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs).flatten()
+        psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None,
+                                          input_wcs=sca_wcs).flatten()
 
     return psfs
 
 
-def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None,
+def find_all_exposures(diaobj, band, maxbg=None,
                        maxdet=None, return_list=False,
                        roman_path=None, pointing_list=None, sca_list=None,
                        truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
@@ -384,6 +384,12 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
         - date: the MJD of the exposure
         - detected: whether the exposure contains a detection or not.
     """
+    SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
+    transient_start = diaobj.mjd_start
+    transient_end = diaobj.mjd_end
+    SNLogger.debug(f"start and end of transient: {transient_start, transient_end}")
+    ra = diaobj.ra
+    dec = diaobj.dec
     f = fits.open(roman_path +
                   "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
     f = f.data
@@ -396,6 +402,10 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
         raise TypeError("maxdet and maxbg must be integers or None, " +
                         f"not {type(maxdet), type(maxbg)}. Their values are {maxdet, maxbg}")
+    if transient_start is None:
+        transient_start = -np.inf
+    if transient_end is None:
+        transient_end = np.inf
 
     # Rob's database method! :D
 
@@ -441,10 +451,10 @@ def find_all_exposures(ra, dec, transient_start, transient_end, band, maxbg=None
     explist.sort(["detected", "sca"])
     SNLogger.info("\n" + str(explist))
 
-    if maxbg != np.inf and maxbg is not None and len(bg) <= maxbg:
+    if maxbg != np.inf and maxbg is not None and len(bg) < maxbg:
         SNLogger.warning("You requested a number of non-detection images " +
                          f"of {maxbg}, but {len(bg)} were found. ")
-    if maxdet != np.inf and maxdet is not None and len(det) <= maxdet:
+    if maxdet != np.inf and maxdet is not None and len(det) < maxdet:
         SNLogger.warning("You requested a number of detected images " +
                          f"of {maxdet}, but {len(det)} were found. ")
     if return_list:
@@ -513,6 +523,7 @@ def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
     x, y: ints, pixel coordinates where the cutout is centered in the SCA
     pointing, sca: ints, the pointing and SCA of the image
     stampsize = int, size of cutout image used
+    TODO: this defn below isn't correct
     x_center and y_center: floats, x and y location of the object in the SCA.
     sed: galsim.sed.SED object, the SED of the source
     flux: float, If you are using this function to build a model grid point,
@@ -627,7 +638,6 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
             zero =
         im = cutout * zero
         """
-
 
         # If we are not fitting the background we subtract it here.
         # When subtract_background is False, we are including the background
@@ -765,45 +775,6 @@ def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, obje
                          roman_path=roman_path)
 
     return cutout_image_list, image_list, exposures
-
-
-def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
-
-    """Fetch some info about an object given its ID.
-    Inputs:
-    ID: the ID of the object
-    parq: the parquet file containing the object
-    band: the band to consider
-    date: whether to return the start end and peak dates of the object
-    snpath: the path to the supernova data
-    roman_path: the path to the Roman data
-    host: whether to return the host RA and DEC
-
-    Returns:
-    ra, dec: the RA and DEC of the object
-    pointing, sca: the pointing and SCA of the object
-    start, end, peak: the start, end, and peak dates of the object
-    """
-
-    df = open_parquet(parq, snpath, obj_type=obj_type)
-    if obj_type == "star":
-        ID = str(ID)
-
-    df = df.loc[df.id == ID]
-    ra, dec = df.ra.values[0], df.dec.values[0]
-
-    if obj_type == "SN":
-        start = df.start_mjd.values
-        end = df.end_mjd.values
-        peak = df.peak_mjd.values
-    else:
-        start = [0]
-        end = [np.inf]
-        peak = [0]
-
-    pointing, sca = radec2point(ra, dec, band, roman_path)
-
-    return ra, dec, pointing, sca, start, end, peak
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
@@ -1106,7 +1077,6 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
     xg = xg.ravel()
     yg = yg.ravel()
     SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
-
 
     if numlevels is not None:
         levels = list(np.linspace(np.nanmin(image), np.nanmax(image), numlevels))
@@ -1586,7 +1556,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     SNLogger.info(f"Saved to {output_path}")
 
 
-def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
+def run_one_object(diaobj=None, object_type=None, exposures=None,
                    roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    use_real_images=None, use_roman=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
@@ -1609,8 +1579,8 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list, exposures = fetch_images(exposures, ra, dec, size, subtract_background,
-                                                                roman_path, object_type)
+        cutout_image_list, image_list, exposures = fetch_images(exposures, diaobj.ra, diaobj.dec, size,
+                                                                subtract_background, roman_path, object_type)
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
@@ -1621,7 +1591,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
         sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
-            simulate_images(num_total_images, num_detect_images, ra, dec,
+            simulate_images(num_total_images, num_detect_images, diaobj.ra, diaobj.dec,
                             sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
@@ -1637,7 +1607,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
     if not grid_type == "none":
         if object_type == "star":
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
-        ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, ra, dec,
+        ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
                                       percentiles=percentiles, single_ra=sim_galra,
                                       single_dec=sim_galdec, spacing=spacing)
     else:
@@ -1664,10 +1634,10 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
 
     # Calculate the Confusion Metric
 
-    #if use_real_images and object_type == "SN" and num_detect_images > 1:
-    if False: # This is a temporary fix to not calculate the confusion metric.
-        sed = get_galsim_SED(ID, exposures, sn_path, fetch_SED=False)
-        object_x, object_y = image_list[0].get_wcs().world_to_pixel(ra, dec)
+    # if use_real_images and object_type == "SN" and num_detect_images > 1:
+    if False:  # This is a temporary fix to not calculate the confusion metric.
+        sed = get_galsim_SED(diaobj.id, exposures, sn_path, fetch_SED=False)
+        object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
         # object_x and object_y are the exact coords of the SN in the SCA frame.
         # x and y are the pixels the image has been cut out on, and
         # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
@@ -1701,7 +1671,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         drawing_psf = None if use_roman else airy
 
         whole_sca_wcs = image.get_wcs()
-        object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
+        object_x, object_y = whole_sca_wcs.world_to_pixel(diaobj.ra, diaobj.dec)
 
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
@@ -1813,7 +1783,7 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
     # Get the weights
 
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, ra, dec)
+        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
@@ -1821,7 +1791,6 @@ def run_one_object(ID=None, ra=None, dec=None, object_type=None, exposures=None,
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
-
 
     # Calculate amount of the PSF cut out by setting a distance cap
     test_sn_matrix = np.copy(sn_matrix)
@@ -1991,4 +1960,3 @@ def make_sim_param_grid(params):
     flat_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
     SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
     return flat_grid
-

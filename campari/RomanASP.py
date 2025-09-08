@@ -67,9 +67,9 @@ def main():
     #     cfg = None
     except RuntimeError as e:
         if str(e) == "No default config defined yet; run Config.init(configfile)":
-            sys.stderr.write( "Error, no configuration file defined.\n"
-                              "Either run campari with -c <configfile>\n"
-                              "or set the SNPIT_CONFIG environment varaible.\n")
+            sys.stderr.write("Error, no configuration file defined.\n"
+                             "Either run campari with -c <configfile>\n"
+                             "or set the SNPIT_CONFIG environment varaible.\n")
             sys.exit(1)
         else:
             raise
@@ -129,7 +129,7 @@ def main():
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
 
-    parser.add_argument("--object_collection", type=str, default="ou24", required=False,
+    parser.add_argument("--object_collection", type=str, default="ou2024", required=False,
                         help="Which collection of objects to use for lookup. "
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
