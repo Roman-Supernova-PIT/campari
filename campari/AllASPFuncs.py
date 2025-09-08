@@ -548,7 +548,7 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def construct_images(exposures, image_list, ra, dec, size=7, subtract_background=True, truth="simple_model"):
+def construct_images(image_list, ra, dec, size=7, subtract_background=True, truth="simple_model"):
 
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
@@ -610,7 +610,6 @@ def construct_images(exposures, image_list, ra, dec, size=7, subtract_background
             zero =
         im = cutout * zero
         """
-
 
         # If we are not fitting the background we subtract it here.
         # When subtract_background is False, we are including the background
@@ -718,7 +717,7 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-def fetch_images(exposures, image_list, ra, dec, size, subtract_background, roman_path, object_type):
+def fetch_images(image_list, ra, dec, size, subtract_background, roman_path, object_type):
     """This function gets the list of exposures to be used for the analysis.
 
     Inputs:
@@ -741,11 +740,11 @@ def fetch_images(exposures, image_list, ra, dec, size, subtract_background, roma
     image_list: list of snappl.image.Image objects, the full images
     """
     # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
-    cutout_image_list, image_list, exposures =\
-        construct_images(exposures, image_list, ra, dec, size=size,
+    cutout_image_list, image_list =\
+        construct_images(image_list, ra, dec, size=size,
                          subtract_background=subtract_background)
 
-    return cutout_image_list, image_list, exposures
+    return cutout_image_list, image_list
 
 
 def get_object_info(ID, parq, band, snpath, roman_path, obj_type):
