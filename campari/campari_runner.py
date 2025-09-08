@@ -8,6 +8,7 @@ import galsim
 
 # SN-PIT
 from snappl.sed import OU2024_Truth_SED, Flat_SED
+from snappl.diaobject import DiaObject
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -19,8 +20,6 @@ from campari.AllASPFuncs import (
     build_lightcurve_sim,
     extract_object_from_healpix,
     find_all_exposures,
-    find_parquet,
-    get_object_info,
     read_healpix_file,
     run_one_object,
     save_lightcurve,
@@ -192,18 +191,42 @@ class campari_runner:
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
 
-            if self.object_collection != "manual":
-                SNLogger.debug(f"Looking up object info for SN {ID}")
-                ra, dec, transient_start, transient_end = self.lookup_object_info(ID)
-            else:
-                ra, dec, transient_start, transient_end = self.ra, self.dec, self.transient_start, self.transient_end
+            diaobjs = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
+                                             mjd_discovery_max=self.transient_end, collection=self.object_collection)
+            if len(diaobjs) == 0:
+                raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
+            if len(diaobjs) > 1:
+                raise ValueError(f"Found multiple DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
+            diaobj = diaobjs[0]
+            if self.ra is not None:
+                if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
+                    SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
+                diaobj.ra = self.ra
+            if self.dec is not None:
+                if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
+                    SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
+                diaobj.dec = self.dec
 
-            exposures, image_list = self.get_exposures(ra, dec, transient_start, transient_end)
-            sedlist = self.get_sedlist(ID, exposures)
+            if (self.transient_start is not None):
+                if (diaobj.mjd_start is not None) and np.fabs(self.transient_start - diaobj.mjd_start) > .1:
+                    SNLogger.warning(f"Given transient_start {self.transient_start} is far from DiaObject "
+                                     f"nominal transient_start {diaobj.mjd_start}")
+                diaobj.mjd_start = self.transient_start
+
+            if self.transient_end is not None:
+                if (diaobj.mjd_end is not None) and np.fabs(self.transient_end - diaobj.mjd_end) > .1:
+                    SNLogger.warning(f"Given transient_end {self.transient_end} is far from DiaObject "
+                                     f"nominal transient_end {diaobj.mjd_end}")
+                diaobj.mjd_end = self.transient_end
+
+            SNLogger.debug(f"Object info for SN {ID} in collection {self.object_collection}: ra={diaobj.ra},"
+                           f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
+            exposures = self.get_exposures(diaobj)
+            sedlist = self.get_sedlist(diaobj.id, exposures)
             param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
 
-            lightcurve_model = self.call_run_one_object(ID, ra, dec, exposures, image_list, sedlist, param_grid_row)
-            self.build_and_save_lightcurve(diaobj, lightcurve_model, ra, dec, param_grid_row)
+            lightcurve_model = self.call_run_one_object(diaobj, exposures, sedlist, param_grid_row)
+            self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
 
     def decide_run_mode(self):
         """Decide which run mode to use based on the input configuration."""
@@ -254,7 +277,7 @@ class campari_runner:
         elif self.object_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
             raise ValueError(
                 "Must specify --SNID, --SNID-file, to run campari with a non-manual object collection. Note that"
-                " --object_collection is ou24 by default, so if you want to run campari without looking up a SNID,"
+                " --object_collection is ou2024 by default, so if you want to run campari without looking up a SNID,"
                 " you must set --object_collection to manual and provide --ra and --dec."
             )
         else:
@@ -287,29 +310,17 @@ class campari_runner:
                        f" {self.param_grid.shape[1]} combinations.")
         self.SNID = self.SNID * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
 
-    def lookup_object_info(self, ID):
-        """Look up the object information for a given SNID using OpenUniverse2024 Tables."""
-        pqfile = find_parquet(ID, self.sn_path, obj_type=self.object_type)
-        SNLogger.debug(f"Found parquet file {pqfile} for SN {ID}")
-
-        ra, dec, _, _, transient_start, transient_end, peak = get_object_info(ID, pqfile, band=self.band,
-                                                                              snpath=self.sn_path,
-                                                                              roman_path=self.roman_path,
-                                                                              obj_type=self.object_type)
-        SNLogger.debug(f"Object info for SN {ID}: ra={ra}, dec={dec}, transient_start={transient_start},"
-                       f"transient_end={transient_end}, peak={peak}")
-        return ra, dec, transient_start, transient_end
-
-    def get_exposures(self, ra, dec, transient_start, transient_end):
+    def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            exposures, image_list = find_all_exposures(ra, dec, transient_start, transient_end,
+            exposures, image_list = find_all_exposures(diaobj,
                                                        roman_path=self.roman_path,
                                                        maxbg=self.max_no_transient_images,
                                                        maxdet=self.max_transient_images, return_list=True,
                                                        band=self.band, image_selection_start=self.image_selection_start,
                                                        image_selection_end=self.image_selection_end,
                                                        pointing_list=self.pointing_list)
+
             if (
                 self.max_no_transient_images != 0
                 and len(exposures[exposures["detected"] is False]) == 0
@@ -347,7 +358,8 @@ class campari_runner:
             sedlist.append(sed_obj.get_sed(snid=ID, mjd=date))
         return sedlist
 
-    def call_run_one_object(self, ID, ra, dec, exposures, image_list, sedlist, param_grid_row):
+      
+    def call_run_one_object(self, diaobj, exposures, image_list, sedlist, param_grid_row):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
         if not self.use_real_images:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = param_grid_row
@@ -356,7 +368,7 @@ class campari_runner:
 
         flux, sigma_flux, images, model_images, galaxy_only_model_images, exposures, ra_grid, dec_grid, wgt_matrix, \
             confusion_metric, X, cutout_wcs_list, sim_lc, galaxy_images, noise_maps = \
-            run_one_object(ID=ID, ra=ra, dec=dec, object_type=self.object_type, exposures=exposures,
+            run_one_object(diaobj=diaobj, object_type=self.object_type, exposures=exposures,
                            image_list=image_list,
                            roman_path=self.roman_path, sn_path=self.sn_path, size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
@@ -388,7 +400,7 @@ class campari_runner:
             psftype = "analyticpsf"
 
         if self.use_real_images:
-            identifier = str(ID)
+            identifier = str(diaobj.id)
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, image_list, cutout_image_list, lc_model.confusion_metric, lc_model.flux,
                                       lc_model.sigma_flux)
@@ -402,7 +414,7 @@ class campari_runner:
                     str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
                     + self.grid_type
             else:
-                identifier = self.run_name + "_" + str(ID)
+                identifier = self.run_name + "_" + str(diaobj.id)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
 
