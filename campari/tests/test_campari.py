@@ -17,7 +17,7 @@ from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 
 import snappl
-from snappl.image import OpenUniverse2024FITSImage
+from snappl.image import OpenUniverse2024FITSImage, ManualFITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.diaobject import DiaObject
@@ -50,6 +50,7 @@ from campari.AllASPFuncs import (
     save_lightcurve,
 )
 from campari.plotting import plot_lc
+from campari.AllASPFuncs import campari_lightcurve_model
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
@@ -80,25 +81,28 @@ def test_find_all_exposures(roman_path):
     diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    explist = find_all_exposures(diaobj, "Y106", maxbg=24,
-                                 maxdet=24, return_list=True,
-                                 roman_path=roman_path,
-                                 pointing_list=None, sca_list=None,
-                                 truth="simple_model")
+    image_list = find_all_exposures(diaobj, "Y106", maxbg=24,
+                                    maxdet=24,
+                                    roman_path=roman_path,
+                                    pointing_list=None, sca_list=None,
+                                    truth="simple_model")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
+    argsort = np.argsort(compare_table["date"])
+    compare_table = compare_table[argsort]
+
     np.testing.assert_array_equal(
-        explist["date"],
+        np.array([img.mjd for img in image_list]),
         compare_table["date"]
     )
 
     np.testing.assert_array_equal(
-        explist["sca"],
+        np.array([img.sca for img in image_list]),
         compare_table["sca"]
     )
 
     np.testing.assert_array_equal(
-        explist["pointing"],
+        np.array([img.pointing for img in image_list]),
         compare_table["pointing"]
     )
 
@@ -687,12 +691,48 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
     explist = Table.from_pandas(exposures)
     explist.sort(["detected", "sca"])
 
+    # Getting a WCS to use
+    pointing = 5934
+    sca = 3
+    band = "Y106"
+    truth = "simple_model"
+    imagepath = roman_path + (
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
+    )
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    wcs = snappl_image.get_wcs()
+
+    image_list = []
+    cutout_image_list = []
+
+    for i in range(len(explist["date"])):
+        img = ManualFITSImage(
+            header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088)),
+        )
+        img.mjd = explist["date"][i]
+        img.filter = explist["filter"][i]
+        img.pointing = explist["pointing"][i]
+        img.sca = explist["sca"][i]
+        img._wcs = wcs
+        img.band = "Y106"
+        image_list.append(img)
+        cutout_image_list.append(img)
+
+    lc_model = campari_lightcurve_model(flux=100, sigma_flux=10,
+                                        image_list=image_list, cutout_image_list=cutout_image_list)
+
+    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41,  collection="manual")[0]
+    diaobj.mjd_start = 62001.0
+    diaobj.mjd_end = np.inf
+
     # The data values are arbitary, just to check that the lc is constructed properly.
-    lc = build_lightcurve(20172782, explist, 100, 100, 10, 7, -41)
+    lc = build_lightcurve(diaobj, lc_model)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
         if not isinstance(saved_lc[i][0], str):
+            SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
             np.testing.assert_allclose(lc[i].value, saved_lc[i])
         else:
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
@@ -703,7 +743,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
 
     # Now add the truth to the lightcurve
-    lc = add_truth_to_lc(lc, explist, sn_path, roman_path, "SN")
+    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN")
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
@@ -757,26 +797,19 @@ def test_find_all_exposures_with_img_list(roman_path):
     diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
-                                             
-          
 
-    exposures, image_list = find_all_exposures(diaobj, 
-                                               roman_path=roman_path,
-                                               maxbg=max_no_transient_images,
-                                               maxdet=max_transient_images, return_list=True,
-                                               band=band, image_selection_start=image_selection_start,
-                                               image_selection_end=image_selection_end,
-                                               pointing_list=image_df["pointing"])
+    image_list = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
+                                    maxdet=max_transient_images, band=band,
+                                    image_selection_start=image_selection_start,
+                                    image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
 
+    SNLogger.debug(f"Found {len(image_list)} images")
 
-    exposures = exposures.to_pandas()
-    test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
-    for col in test_exposures.columns:
-        if col == "filter" or col == "detected":
-            np.testing.assert_array_equal(exposures[col], test_exposures[col])
-        else:
-            np.testing.assert_allclose(exposures[col], test_exposures[col],
-                                       rtol=1e-7, atol=1e-7)
+    compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
+
+    np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
+    np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
+    np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
 def test_extract_object_from_healpix():

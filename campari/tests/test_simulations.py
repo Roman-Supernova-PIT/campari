@@ -132,7 +132,7 @@ def test_deltafcn_galaxy_test(cfg):
     base_pointing = 5934
 
     curfile = pathlib.Path(pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
-                     "deltafcn_test_20172782_Y106_romanpsf_images.npy")
+                                                  "deltafcn_test_20172782_Y106_romanpsf_images.npy")
     curfile.unlink(missing_ok=True)
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",

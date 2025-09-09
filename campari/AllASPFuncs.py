@@ -4,19 +4,17 @@ import pathlib
 import warnings
 
 # Common Library
-import astropy.table as tb
 import galsim
 import glob
 import h5py
 import numpy as np
 import pandas as pd
-import requests
 import scipy.sparse as sp
 from astropy import units as u
 from astropy.coordinates import SkyCoord, angular_separation
 from astropy.io import fits
-from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
+from astropy.table import hstack, QTable
 from erfa import ErfaWarning
 from galsim import roman
 import healpy as hp
@@ -26,7 +24,6 @@ from scipy.interpolate import RegularGridInterpolator
 import yaml
 
 # SN-PIT
-from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
@@ -352,8 +349,7 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     return psfs
 
 
-def find_all_exposures(diaobj, band, maxbg=None,
-                       maxdet=None, return_list=False,
+def find_all_exposures(diaobj, band, maxbg=None, maxdet=None,
                        roman_path=None, pointing_list=None, sca_list=None,
                        truth="simple_model", image_selection_start=None, image_selection_end=None,
                        image_source="ou2024"):
@@ -368,7 +364,6 @@ def find_all_exposures(diaobj, band, maxbg=None,
         at the location of the transient) and which do not.
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    return_list: whether to return the exposures as a list or not
     roman_path: the path to the Roman data
     pointing_list: If this is passed in, only consider these pointings
     sca_list: If this is passed in, only consider these SCAs
@@ -393,7 +388,7 @@ def find_all_exposures(diaobj, band, maxbg=None,
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection(image_source)
 
-    if image_selection_start is None or transient_start > image_selection_start:
+    if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
         SNLogger.debug(f"image_selection_start: {image_selection_start}, transient_start: {transient_start}")
 
         pre_transient_images = img_collection.find_images(mjd_min=image_selection_start, mjd_max=transient_start,
@@ -401,7 +396,7 @@ def find_all_exposures(diaobj, band, maxbg=None,
     else:
         pre_transient_images = []
 
-    if image_selection_end is None or transient_end < image_selection_end:
+    if (image_selection_end is None or transient_end < image_selection_end) and transient_end is not None:
         post_transient_images = img_collection.find_images(mjd_min=transient_end, mjd_max=image_selection_end,
                                                            ra=ra, dec=dec, filter=band)
     else:
@@ -419,37 +414,15 @@ def find_all_exposures(diaobj, band, maxbg=None,
         no_transient_images = no_transient_images[:maxbg]
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
-
-    transient_sca = [img.sca for img in transient_images]
-    transient_pointing = [img.pointing for img in transient_images]
-    transient_mjd = [img.mjd for img in transient_images]
-
-    no_transient_sca = [img.sca for img in no_transient_images]
-    no_transient_pointing = [img.pointing for img in no_transient_images]
-    no_transient_mjd = [img.mjd for img in no_transient_images]
-
-    explist = pd.DataFrame(columns=["pointing", "sca", "filter", "date", "detected"])
-    explist["pointing"] = np.concatenate((transient_pointing, no_transient_pointing))
-    explist["sca"] = np.concatenate((transient_sca, no_transient_sca))
-    SNLogger.debug("band: " + band)
-    explist["filter"] = np.full(len(explist["pointing"]), str(band))
-    explist["date"] = np.concatenate((transient_mjd, no_transient_mjd))
-    explist["detected"] = np.concatenate((np.full_like(transient_sca, True, dtype=bool),
-                                          np.full_like(no_transient_sca, False, dtype=bool)))
-
     all_images = np.hstack((transient_images, no_transient_images))
 
     if pointing_list is not None:
-        all_images = all_images[explist["pointing"].isin(pointing_list)]
-        explist = explist.loc[explist["pointing"].isin(pointing_list)]
+        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
 
-    explist = Table.from_pandas(explist)
-    argsort = explist.argsort(["detected", "sca"])
-
-    explist = explist[argsort]
+    argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]
-    return explist, all_images
 
+    return all_images
 
 
 def find_parquet(ID, path, obj_type="SN"):
@@ -1128,28 +1101,29 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     return mag, magerr, zp
 
 
-def build_lightcurve(diaobj, image_list, cutout_image_list, confusion_metric, flux, sigma_flux):
+def build_lightcurve(diaobj, lc_model):
 
-    """This code builds a lightcurve datatable from the output of the SMP
-       algorithm.
+    """This code builds a lightcurve datatable from the output of the SMP algorithm.
 
     Input:
-    ID (int): supernova ID
-    exposures (table): table of exposures used in the SMP algorithm
-    confusion_metric (float): the confusion metric derived in the SMP algorithm
-    flux (array): the output flux of the SMP algorithm. If no flux is received,
-                    then no lightcurve is built.
-    sigma_flux (array): the output flux error of the SMP algorithm
-    ra, dec (float): the RA and DEC of the object.
+    Parameters
+    ----------
+    diaobj: snappl.diaobject.DiaObject
+        The DiaObject representing the transient.
+    lc_model: campari.campari_lightcurve_model
+        The lightcurve model output from the SMP algorithm.
 
     Returns:
-    lc: a QTable containing the lightcurve data
+        lc: a QTable containing the lightcurve data
     """
-    flux = np.atleast_1d(flux)
-    sigma_flux = np.atleast_1d(sigma_flux)
-    band = image_list[0].filter
+    flux = np.atleast_1d(lc_model.flux)
+    sigma_flux = np.atleast_1d(lc_model.sigma_flux)
+    confusion_metric = lc_model.confusion_metric
+    image_list = lc_model.image_list
+    cutout_image_list = lc_model.cutout_image_list
+    band = image_list[0].band
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    meta_dict = {"ID": diaobj, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
+    meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
 
@@ -1163,51 +1137,46 @@ def build_lightcurve(diaobj, image_list, cutout_image_list, confusion_metric, fl
                  "x": [],
                  "y": [],
                  "x_cutout": [],
-                 "y_cutout": []}
+                 "y_cutout": []
+                 }
 
     for i, img in enumerate(image_list):
         if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["filter"].append(img.filter)
+            data_dict["filter"].append(img.band)
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
-            data_dict["x"].append(img.wcs.world_to_pixel(diaobj.ra, diaobj.dec)[0])
-            data_dict["y"].append(img.wcs.world_to_pixel(diaobj.ra, diaobj.dec)[1])
-            data_dict["x_cutout"].append(cutout_image_list[i].wcs.world_to_pixel(diaobj.ra, diaobj.dec)[0])
-            data_dict["y_cutout"].append(cutout_image_list[i].wcs.world_to_pixel(diaobj.ra, diaobj.dec)[1])
-
-    # data_dict = {"mjd": detections["date"], "flux_fit": flux,
-    #              "flux_fit_err": sigma_flux, "mag_fit": mag,
-    #              "mag_fit_err": magerr,
-    #              "filter": np.full(np.size(mag), band),
-    #              "zpt": np.full(np.size(mag), zp),
-    #              "pointing": detections["pointing"],
-    #              "sca": detections["sca"],
-    #              "x": detections["x"],
-    #              "y": detections["y"],
-    #              "x_cutout": detections["x_cutout"],
-    #              "y_cutout": detections["y_cutout"]}
+            x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+            data_dict["x"].append(x)
+            data_dict["y"].append(y)
+            x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+            data_dict["x_cutout"].append(x_cutout)
+            data_dict["y_cutout"].append(y_cutout)
 
     units = {"mjd": u.d,  "flux_fit": "",
              "flux_fit_err": "", "mag_fit": u.mag,
              "mag_fit_err": u.mag, "filter": ""}
+    SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
+def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
+    """This code adds the truth flux and magnitude to a lightcurve datatable. """
 
-    detections = exposures[np.where(exposures["detected"])]
-    band = exposures["filter"][0]
     ID = lc.meta["ID"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
 
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, sca in zip(detections["pointing"], detections["sca"]):
+    for img in lc_model.image_list:
+        if img.mjd < diaobj.mjd_start or img.mjd > diaobj.mjd_end:
+            # If the image is outside the time range of the transient, skip it.
+            continue
         catalogue_path = (
-            roman_path + f"/RomanTDS/truth/{band}/{pointing}/" + f"Roman_TDS_index_{band}_{pointing}_{sca}.txt"
+            roman_path + f"/RomanTDS/truth/{img.band}/{img.pointing}/" +
+            f"Roman_TDS_index_{img.band}_{img.pointing}_{img.sca}.txt"
         )
         cat = pd.read_csv(
             catalogue_path,
@@ -1222,8 +1191,8 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
     sim_realized_flux = np.array(sim_realized_flux)
 
     sim_sigma_flux = 0  # These are truth values!
-    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, band)
-    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, band)
+    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, lc_model.image_list[0].band)
+    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, lc_model.image_list[0].band)
 
     if object_type == "SN":
         df_object_row = df.loc[df.id == ID]
@@ -1548,8 +1517,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     SNLogger.info(f"Saved to {output_path}")
 
 
-
-def run_one_object(diaobj=None,object_type=None, exposures=None, image_list=None,
+def run_one_object(diaobj=None, object_type=None, image_list=None,
                    roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    use_real_images=None, use_roman=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
@@ -1567,13 +1535,14 @@ def run_one_object(diaobj=None,object_type=None, exposures=None, image_list=None
     percentiles = []
     roman_bandpasses = galsim.roman.getBandpasses()
 
-    num_total_images = len(exposures)
-    num_detect_images = len(exposures[exposures["detected"]])
+    num_total_images = len(image_list)
+    transient_image_list = [a for a in image_list if a.mjd > diaobj.mjd_start and a.mjd < diaobj.mjd_end]
+    num_detect_images = len(transient_image_list)
 
     if use_real_images:
         # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list = fetch_images(image_list, ra, dec, size, subtract_background, roman_path,
-                                                     object_type)
+        cutout_image_list, image_list = fetch_images(image_list, diaobj.ra, diaobj.dec, size, subtract_background,
+                                                     roman_path, object_type)
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
@@ -1660,9 +1629,10 @@ def run_one_object(diaobj=None,object_type=None, exposures=None, image_list=None
         SNLogger.debug("Confusion Metric not calculated")
 
     # Build the backgrounds loop
-    for i, (image, pointing, sca) in enumerate(zip(image_list, exposures["pointing"], exposures["sca"])):
+    for i, image in enumerate(image_list):
         # Passing in None for the PSF means we use the Roman PSF.
         drawing_psf = None if use_roman else airy
+        pointing, sca = image.pointing, image.sca
 
         whole_sca_wcs = image.get_wcs()
         object_x, object_y = whole_sca_wcs.world_to_pixel(diaobj.ra, diaobj.dec)
@@ -1844,9 +1814,94 @@ def run_one_object(diaobj=None,object_type=None, exposures=None, image_list=None
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
-    return flux, sigma_flux, images, model_images, galaxy_only_model_images, exposures, ra_grid, dec_grid, \
-        wgt_matrix, confusion_metric, X, \
-        [im.get_wcs() for im in cutout_image_list], sim_lc, np.array(galaxy_images), np.array(noise_maps)
+
+    lightcurve_model = campari_lightcurve_model(
+            flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
+            ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
+            galaxy_only_model_images=galaxy_only_model_images,
+            confusion_metric=confusion_metric, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
+            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps)
+        )
+
+    return lightcurve_model
+
+
+class campari_lightcurve_model:
+    """This class holds the output of the Campari pipeline for a single SNID."""
+
+    def __init__(
+        self,
+        diaobj=None,
+        flux=None,
+        sigma_flux=None,
+        images=None,
+        model_images=None,
+        image_list=None,
+        cutout_image_list=None,
+        ra_grid=None,
+        dec_grid=None,
+        wgt_matrix=None,
+        confusion_metric=None,
+        best_fit_model_values=None,
+        sim_lc=None,
+        galaxy_images=None,
+        noise_maps=None,
+        galaxy_only_model_images=None,
+    ):
+        """Initialize the Campari lightcurve model with the SNID and its properties.
+        Parameters
+        ----------
+        diaobj: snappl.diaobject.DiaObject
+            The DiaObject representing the transient.
+        flux : np.ndarray
+            The flux values for the lightcurve.
+        sigma_flux : np.ndarray
+            The uncertainties in the flux values.
+        images : np.ndarray
+            The image data used in the lightcurve analysis.
+        model_images : np.ndarray
+            The model images generated by Campari.
+        image_list : list of snappl.image.Image objects
+            list of images used in the lightcurve analysis.
+        cutout_image_list : list of snappl.image.Image objects
+            list of images used in the lightcurve analysis that have been cutout at transient location.
+        ra_grid : np.ndarray
+            The RA coordinates of the points used to construct the background model.
+        dec_grid : np.ndarray
+            The Dec coordinates of the points used to construct the background model.
+        wgt_matrix : np.ndarray
+            The weight matrix used in the lightcurve analysis.
+        confusion_metric : np.ndarray
+            The confusion metric for the images. Currently defined as the dot product of PSF rendered
+            at the location of the transient and an image of the background galaxy. This is analogous to
+            local surface brightness, so it is possible this will be replaced with local surface brightness
+            in the future.
+        best_fit_model_values : np.ndarray
+            The best fit model values for the lightcurve. The last n values,
+            where n is the number of images considered a transient detection,
+            are the flux values for the transient. All other values are the
+            flux values assigned to the points that make up the background model.
+        cutout_wcs_list : list
+            List of WCS objects for the cutouts used in the lightcurve analysis.
+        sim_lc : pd.DataFrame
+            The simulated lightcurve data, if applicable.
+        """
+        self.diaobj = diaobj
+        self.flux = flux
+        self.sigma_flux = sigma_flux
+        self.images = images
+        self.model_images = model_images
+        self.image_list = image_list
+        self.cutout_image_list = cutout_image_list
+        self.ra_grid = ra_grid
+        self.dec_grid = dec_grid
+        self.wgt_matrix = wgt_matrix
+        self.confusion_metric = confusion_metric
+        self.best_fit_model_values = best_fit_model_values
+        self.sim_lc = sim_lc
+        self.galaxy_images = galaxy_images
+        self.noise_maps = noise_maps
+        self.galaxy_only_model_images = galaxy_only_model_images
 
 
 def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):

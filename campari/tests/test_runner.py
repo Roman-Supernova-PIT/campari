@@ -5,12 +5,12 @@ import numpy as np
 import pandas as pd
 import pytest
 
-from astropy.table import Table
-
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.diaobject import DiaObject
-from campari.campari_runner import campari_runner, campari_lightcurve_model
+from snappl.image import ManualFITSImage, OpenUniverse2024FITSImage
+from campari.campari_runner import campari_runner
+from campari.AllASPFuncs import campari_lightcurve_model
 
 
 def create_default_test_args(cfg):
@@ -187,6 +187,7 @@ def test_decide_run_mode(cfg):
     np.testing.assert_array_equal(runner.pointing_list,
                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
+
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.object_collection = "ou24"
@@ -197,14 +198,15 @@ def test_get_exposures(cfg):
     diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    explist = runner.get_exposures(diaobj)
+    image_list = runner.get_exposures(diaobj)
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
-    np.testing.assert_array_equal(explist["date"], compare_table["date"])
+    argsort = np.argsort(compare_table["date"])
+    compare_table = compare_table[argsort]
 
-    np.testing.assert_array_equal(explist["sca"], compare_table["sca"])
-
-    np.testing.assert_array_equal(explist["pointing"], compare_table["pointing"])
+    np.testing.assert_array_equal([a.mjd for a in image_list], compare_table["date"])
+    np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
+    np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
 
 
 def test_get_SED_list(cfg):
@@ -212,14 +214,19 @@ def test_get_SED_list(cfg):
     test_args.object_collection = "ou24"
     test_args.SNID = 40120913
 
-    exposures = pd.DataFrame({"date": [62535.424]})
+    img = ManualFITSImage(
+        header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
+    )
+    img.mjd = 62535.424
+    img.band = "Y106"
+    image_list = [img]
 
     test_args.fetch_SED = True
     test_args.object_type = "SN"
 
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
-    sedlist = runner.get_sedlist(test_args.SNID, exposures)
+    sedlist = runner.get_sedlist(test_args.SNID, image_list)
     assert len(sedlist) == 1, "The length of the SED list is not 1"
     sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
     np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
@@ -242,25 +249,53 @@ def test_build_and_save_lc(cfg):
                                    "detected": [True, True, True],
                                    "pointing": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
                                    "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
-    exposures = Table.from_pandas(exposures)
+
+    # Getting a WCS to use
+    pointing = 5934
+    sca = 3
+    band = "Y106"
+    truth = "simple_model"
+    imagepath = test_args.roman_path + (
+        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
+    )
+    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    wcs = snappl_image.get_wcs()
+
+    image_list = []
+    cutout_image_list = []
+
+    for i in range(len(exposures["date"])):
+        img = ManualFITSImage(
+            header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
+        )
+        img.mjd = exposures["date"][i]
+        img.band = exposures["filter"][i]
+        img.pointing = exposures["pointing"][i]
+        img.sca = exposures["sca"][i]
+        img._wcs = wcs
+        image_list.append(img)
+        cutout_image_list.append(img)
+
     ra_grid = np.array([1, 2, 3])
     dec_grid = np.array([1, 2, 3])
     wgt_matrix = None
     confusion_metric = None
     best_fit_model_values = np.array([0] * 16, dtype=float)
-    cutout_wcs_list = None
     sim_lc = None
     ra = 7.731890048839705
     dec = -44.4589649005717
 
     lc_model = campari_lightcurve_model(flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
-                                        exposures=exposures, ra_grid=ra_grid, dec_grid=dec_grid,
+                                        image_list=image_list, cutout_image_list=cutout_image_list, ra_grid=ra_grid,
+                                        dec_grid=dec_grid,
                                         wgt_matrix=wgt_matrix, confusion_metric=confusion_metric,
-                                        best_fit_model_values=best_fit_model_values, cutout_wcs_list=cutout_wcs_list,
+                                        best_fit_model_values=best_fit_model_values,
                                         sim_lc=sim_lc)
 
-    diaobj = DiaObject.find_objects(id=test_args.SNID, ra=ra, dec=dec, mjd_start=None, mjd_end=None,
-                                    collection="manual")[0]
+    diaobj = DiaObject.find_objects(id=test_args.SNID, ra=ra, dec=dec, collection="manual")[0]
+    diaobj.mjd_start = -np.inf
+    diaobj.mjd_end = np.inf
     runner.build_and_save_lightcurve(diaobj, lc_model, None)
 
     output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
@@ -268,6 +303,23 @@ def test_build_and_save_lc(cfg):
     filepath = output_dir / filename
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+    current = pd.read_csv(filepath, comment="#", delimiter=" ")
+    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", comment="#", delimiter=" ")
+
+    for col in current.columns:
+        SNLogger.debug(f"Checking col {col}")
+        # According to Michael and Rob, this is roughly what can be expected
+        # due to floating point precision.
+        if col == "filter":
+            # filter is the only string column, so we check it with array_equal
+            np.testing.assert_array_equal(current[col], comparison[col])
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
 
 def test_sim_param_grid(cfg):
