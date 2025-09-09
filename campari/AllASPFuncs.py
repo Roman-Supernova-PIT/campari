@@ -843,7 +843,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
         ra_grid, dec_grid = [single_ra], [single_dec]
 
-
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
 
@@ -1554,11 +1553,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
         sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
-            simulate_images(num_total_images, num_detect_images, diaobj.ra, diaobj.dec,
+            simulate_images(image_list, diaobj,
                             sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
-                            size=size, band=band,
+                            size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
@@ -1599,7 +1598,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
 
     # if use_real_images and object_type == "SN" and num_detect_images > 1:
     if False:  # This is a temporary fix to not calculate the confusion metric.
-        sed = get_galsim_SED(diaobj.id, exposures, sn_path, fetch_SED=False)
+        sed = get_galsim_SED(diaobj.id, image_list, sn_path, fetch_SED=False)
         object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
         # object_x and object_y are the exact coords of the SN in the SCA frame.
         # x and y are the pixels the image has been cut out on, and
@@ -1611,7 +1610,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
         # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
         x = int(np.floor(object_x + 0.5))
         y = int(np.floor(object_y + 0.5))
-        pointing, sca = exposures["pointing"][0], exposures["sca"][0]
+        pointing, sca = image_list[0].pointing, image_list[0].sca
         snx = x
         sny = y
         x = int(np.floor(x + 0.5))

@@ -11,7 +11,6 @@ from roman_imsim.utils import roman_utils
 
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
-from snappl.image import ManualFITSImage
 from snappl.psf import PSF
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -22,9 +21,9 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(num_total_images, num_detect_images, ra, dec,
+def simulate_images(image_list, diaobj,
                     sim_galaxy_scale, sim_galaxy_offset, do_xshift,
-                    do_rotation, noise, use_roman, band, deltafcn_profile,
+                    do_rotation, noise, use_roman, deltafcn_profile,
                     roman_path, size=11, input_psf=None,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
@@ -71,6 +70,9 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
     galra: float, the RA of the galaxy.
     galdec: float, the DEC of the galaxy.
     """
+    ra = diaobj.ra
+    dec = diaobj.dec
+    band = image_list[0].band
 
     if not use_roman:
         assert input_psf is not None, "you must provide an input psf if not \
@@ -88,6 +90,10 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         raise ValueError("You must provide either sim_gal_ra_offset and sim_gal_dec_offset,"
                          "or sim_galaxy_offset to simulate a galaxy offset.")
 
+    num_detect_images = len([a for a in image_list if (a.mjd > diaobj.mjd_start and a.mjd < diaobj.mjd_end)])
+    SNLogger.debug(f"num_detect_images: {num_detect_images}")
+    num_total_images = len(image_list)
+
     if sim_lc is None:
         # Here, if the user has not provided a light curve that they want
         # simulated, we generate a default one.
@@ -101,19 +107,17 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
 
     snra = ra
     sndec = dec
-    imagelist = []
     roman_bandpasses = galsim.roman.getBandpasses()
     sn_storage = []
-    image_list = []
     cutout_image_list = []
     noise_maps = []
     galaxy_images = []
 
-    SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
+    SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}")
     file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
     util_ref = roman_utils(config_file=file_path, visit=base_pointing, sca=base_sca)
-
-    for i in range(num_total_images):
+    SNLogger.debug(f"image list {image_list}")
+    for i, image_object in enumerate(image_list):
         SNLogger.debug(f"Simulating image {i+1} of {num_total_images}. -----------------------------")
 
         if do_xshift:
@@ -131,9 +135,12 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
         wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift, roman_path,
                                 base_sca, base_pointing, band)
 
-        image_object = ManualFITSImage(
-            header=wcs_dict, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
-        )
+        image_object.header = wcs_dict
+
+        # image_object = ManualFITSImage(
+        #     header=wcs_dict, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088)),
+        #     pointing=base_pointing, sca=base_sca, band=band
+        # )
 
         full_image_wcs = image_object.get_wcs()
 
@@ -194,6 +201,7 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
             # Here we want to count which supernova image we are on. The
             # following is zero on the first sn image and counts up:
             sn_im_index = i - num_total_images + num_detect_images
+            SNLogger.debug(f"On image {i+1} of {num_total_images}, sn_im_index is {sn_im_index}")
             if sn_im_index >= 0:
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units="deg")
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
@@ -213,14 +221,8 @@ def simulate_images(num_total_images, num_detect_images, ra, dec,
             cutout_object.noise = np.ones_like(a) * noise
         else:
             cutout_object.noise = np.ones_like(a)
-        imagelist.append(a)
 
-        image_list.append(image_object)
         cutout_image_list.append(cutout_object)
-    images = imagelist
-    SNLogger.debug(f"images shape: {images[0].shape}")
-    SNLogger.debug(f"images length {len(images)}")
-
     return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec, galaxy_images, noise_maps
 
 

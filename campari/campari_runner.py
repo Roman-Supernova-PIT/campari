@@ -291,7 +291,7 @@ class campari_runner:
             num_images = self.max_no_transient_images + self.max_transient_images
 
             faux_dates = np.linspace(60000, diaobj.mjd_start, self.max_no_transient_images).tolist() + \
-                        np.linspace(diaobj.mjd_start, diaobj.mjd_end, self.max_transient_images).tolist()
+                np.linspace(diaobj.mjd_start, diaobj.mjd_end, self.max_transient_images).tolist()
             faux_dates = np.array(faux_dates)
             # fake dates for simulated images
             image_list = []
@@ -302,7 +302,6 @@ class campari_runner:
                     mjd=faux_dates[i]
                 )
                 image_list.append(img)
-                SNLogger.debug(f"image details {img.mjd}, {img.pointing}, {img.sca}")
 
         recovered_pointings = [a.pointing for a in image_list]
         if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
