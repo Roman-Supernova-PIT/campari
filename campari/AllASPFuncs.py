@@ -692,36 +692,6 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-# def fetch_images(image_list, ra, dec, size, subtract_background, roman_path, object_type):
-#     """This function gets the list of exposures to be used for the analysis.
-
-#     Inputs:
-#     exposures: astropy.table.table.Table, the table of exposures to be used.
-#     num_total_images: total images used in analysis (detection + no detection)
-#     num_detect_images: number of images used in the analysis that contain a
-#                        detection.
-#     size: int, cutout will be of shape (size, size)
-#     subtract_background: If True, subtract sky bg from images. If false, leave
-#             bg as a free parameter in the forward modelling.
-#     roman_path: str, the path to the Roman data
-#     object_type: str, the type of object to be used (SN or star)
-
-#     Returns:
-#     ra, dec: floats, the RA and DEC of the supernova, a single float is
-#                          used for both of these as we assume the object is
-#                          not moving between exposures.
-#     exposures: astropy.table.table.Table, table of exposures used
-#     cutout_image_list: list of snappl.image.Image objects, the cutout images
-#     image_list: list of snappl.image.Image objects, the full images
-#     """
-#     # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
-#     cutout_image_list, image_list =\
-#         construct_images(image_list, ra, dec, size=size,
-#                          subtract_background=subtract_background)
-
-#     return cutout_image_list, image_list
-
-
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     """This function calculates the weights for each pixel in the cutout
         images.
