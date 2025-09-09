@@ -528,13 +528,13 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def construct_images(image_list, ra, dec, size=7, subtract_background=True, truth="simple_model"):
+def construct_images(image_list, diaobj, size, subtract_background=True, truth="simple_model"):
 
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
     Inputs:
-    exposures is a list of exposures from find_all_exposures
+    image_list: list of snappl.image.Image objects, the images to be used.
     ra,dec: the RA and DEC of the SN
     subtract_background: If False, the background level is fit as a free
         parameter in the forward modelling. Otherwise, we subtract it here.
@@ -546,6 +546,8 @@ def construct_images(image_list, ra, dec, size=7, subtract_background=True, trut
     image_list: list of snappl.image.Image objects of the entire SCA.
 
     """
+    ra = diaobj.ra
+    dec = diaobj.dec
 
     bgflux = []
     cutout_image_list = []
@@ -556,7 +558,7 @@ def construct_images(image_list, ra, dec, size=7, subtract_background=True, trut
     x_cutout_list = []
     y_cutout_list = []
 
-    for indx, exp in enumerate(image_list):
+    for indx, _ in enumerate(image_list):
         image = image_list[indx]
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
@@ -690,34 +692,34 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
     return result
 
 
-def fetch_images(image_list, ra, dec, size, subtract_background, roman_path, object_type):
-    """This function gets the list of exposures to be used for the analysis.
+# def fetch_images(image_list, ra, dec, size, subtract_background, roman_path, object_type):
+#     """This function gets the list of exposures to be used for the analysis.
 
-    Inputs:
-    exposures: astropy.table.table.Table, the table of exposures to be used.
-    num_total_images: total images used in analysis (detection + no detection)
-    num_detect_images: number of images used in the analysis that contain a
-                       detection.
-    size: int, cutout will be of shape (size, size)
-    subtract_background: If True, subtract sky bg from images. If false, leave
-            bg as a free parameter in the forward modelling.
-    roman_path: str, the path to the Roman data
-    object_type: str, the type of object to be used (SN or star)
+#     Inputs:
+#     exposures: astropy.table.table.Table, the table of exposures to be used.
+#     num_total_images: total images used in analysis (detection + no detection)
+#     num_detect_images: number of images used in the analysis that contain a
+#                        detection.
+#     size: int, cutout will be of shape (size, size)
+#     subtract_background: If True, subtract sky bg from images. If false, leave
+#             bg as a free parameter in the forward modelling.
+#     roman_path: str, the path to the Roman data
+#     object_type: str, the type of object to be used (SN or star)
 
-    Returns:
-    ra, dec: floats, the RA and DEC of the supernova, a single float is
-                         used for both of these as we assume the object is
-                         not moving between exposures.
-    exposures: astropy.table.table.Table, table of exposures used
-    cutout_image_list: list of snappl.image.Image objects, the cutout images
-    image_list: list of snappl.image.Image objects, the full images
-    """
-    # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
-    cutout_image_list, image_list =\
-        construct_images(image_list, ra, dec, size=size,
-                         subtract_background=subtract_background)
+#     Returns:
+#     ra, dec: floats, the RA and DEC of the supernova, a single float is
+#                          used for both of these as we assume the object is
+#                          not moving between exposures.
+#     exposures: astropy.table.table.Table, table of exposures used
+#     cutout_image_list: list of snappl.image.Image objects, the cutout images
+#     image_list: list of snappl.image.Image objects, the full images
+#     """
+#     # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
+#     cutout_image_list, image_list =\
+#         construct_images(image_list, ra, dec, size=size,
+#                          subtract_background=subtract_background)
 
-    return cutout_image_list, image_list
+#     return cutout_image_list, image_list
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
@@ -1287,7 +1289,7 @@ def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
 
     Inputs:
     ID: the ID of the object
-    exposures: the exposure table returned by fetch_images.
+    dates: list of floats, the dates of the observations
     fetch_SED: If true, get the SED from truth tables.
                If false, return a flat SED for each expsoure.
     object_type: the type of object (SN or star)
@@ -1539,9 +1541,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
     num_detect_images = len(transient_image_list)
 
     if use_real_images:
-        # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list = fetch_images(image_list, diaobj.ra, diaobj.dec, size, subtract_background,
-                                                     roman_path, object_type)
+        cutout_image_list, image_list = construct_images(image_list, diaobj, size,
+                                                         subtract_background=subtract_background)
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None

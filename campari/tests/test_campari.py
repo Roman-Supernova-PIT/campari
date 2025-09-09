@@ -708,7 +708,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
 
     for i in range(len(explist["date"])):
         img = ManualFITSImage(
-            header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088)),
+            header=None, data=np.zeros((4085, 4085)), noise=np.zeros((4085, 4085)), flags=np.zeros((4085, 4085)),
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]

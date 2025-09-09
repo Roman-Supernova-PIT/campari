@@ -137,10 +137,6 @@ def simulate_images(image_list, diaobj,
 
         image_object.header = wcs_dict
 
-        # image_object = ManualFITSImage(
-        #     header=wcs_dict, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088)),
-        #     pointing=base_pointing, sca=base_sca, band=band
-        # )
 
         full_image_wcs = image_object.get_wcs()
 
