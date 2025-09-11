@@ -296,6 +296,9 @@ class campari_runner:
             # fake dates for simulated images
             image_list = []
             for i in range(num_images):
+                # These data sizes are arbitary. I just need a data array present in order to perform the cutout,
+                # otherwise snappl throws an error. No data is actually placed into these images until they are
+                # cutout sized and the 4088 is used nowhere.
                 img = ManualFITSImage(
                     header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)),
                     flags=np.zeros((4088, 4088)), pointing=self.base_pointing, sca=self.base_sca, band=self.band,

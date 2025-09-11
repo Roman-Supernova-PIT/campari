@@ -8,7 +8,8 @@ import pytest
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage, OpenUniverse2024FITSImage
+from snappl.image import ManualFITSImage
+from snappl.imagecollection import ImageCollection
 from campari.campari_runner import campari_runner
 from campari.AllASPFuncs import campari_lightcurve_model
 
@@ -256,11 +257,9 @@ def test_build_and_save_lc(cfg):
     pointing = 5934
     sca = 3
     band = "Y106"
-    truth = "simple_model"
-    imagepath = test_args.roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 

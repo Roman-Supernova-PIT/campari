@@ -17,10 +17,11 @@ from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 
 import snappl
-from snappl.image import OpenUniverse2024FITSImage, ManualFITSImage
+from snappl.image import ManualFITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.diaobject import DiaObject
+from snappl.imagecollection import ImageCollection
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
@@ -553,11 +554,11 @@ def test_construct_static_scene(cfg, roman_path):
     sca = 3
     size = 9
     band = "Y106"
-    truth = "simple_model"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
 
     wcs = snappl_image.get_wcs()
@@ -579,12 +580,10 @@ def test_get_weights(roman_path):
     test_sndec = np.array([-44.82824910386988])
     pointing = 5934
     sca = 3
-    truth = "simple_model"
     band = "Y106"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
     wcs = snappl_image.get_wcs()
     SNLogger.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
@@ -677,11 +676,9 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
     pointing = 5934
     sca = 3
     band = "Y106"
-    truth = "simple_model"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 
@@ -725,7 +722,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
 
     # Now add the truth to the lightcurve
-    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN")
+    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN", truth_path="/truth/")
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
@@ -744,11 +741,10 @@ def test_wcs_regression(roman_path):
     pointing = 5934
     sca = 3
     band = "Y106"
-    truth = "simple_model"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 

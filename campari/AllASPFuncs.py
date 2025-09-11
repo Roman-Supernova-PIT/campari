@@ -1098,8 +1098,10 @@ def build_lightcurve(diaobj, lc_model):
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
 
-    data_dict = {"mjd": [], "flux_fit": flux,
-                 "flux_fit_err": sigma_flux, "mag_fit": mag,
+    data_dict = {"mjd": [],
+                 "flux_fit": flux,
+                 "flux_fit_err": sigma_flux,
+                 "mag_fit": mag,
                  "mag_fit_err": magerr,
                  "filter": [],
                  "zpt": np.full(np.size(mag), zp),
@@ -1132,7 +1134,7 @@ def build_lightcurve(diaobj, lc_model):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
+def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type, truth_path="RomanTDS/truth/"):
     """This code adds the truth flux and magnitude to a lightcurve datatable. """
 
     ID = lc.meta["ID"]
@@ -1146,7 +1148,7 @@ def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
             # If the image is outside the time range of the transient, skip it.
             continue
         catalogue_path = (
-            roman_path + f"/RomanTDS/truth/{img.band}/{img.pointing}/" +
+            roman_path + truth_path + f"{img.band}/{img.pointing}/" +
             f"Roman_TDS_index_{img.band}_{img.pointing}_{img.sca}.txt"
         )
         cat = pd.read_csv(
