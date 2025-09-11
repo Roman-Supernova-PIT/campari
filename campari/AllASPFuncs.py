@@ -6,13 +6,11 @@ import warnings
 # Common Library
 import galsim
 import glob
-import h5py
 import numpy as np
 import pandas as pd
 import scipy.sparse as sp
 from astropy import units as u
 from astropy.coordinates import SkyCoord, angular_separation
-from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 from astropy.table import hstack, QTable
 from erfa import ErfaWarning
@@ -455,30 +453,6 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     return df
 
 
-def radec2point(RA, DEC, filt, path, start=None, end=None):
-    """This function takes in RA and DEC and returns the pointing and SCA with
-    center closest to desired RA/DEC
-    """
-    f = fits.open(path+"/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
-    f = f.data
-
-    allRA = f["RA"]
-    allDEC = f["DEC"]
-
-    pointing_sca_coords = SkyCoord(allRA*u.deg, allDEC*u.deg, frame="icrs")
-    search_coord = SkyCoord(RA*u.deg, DEC*u.deg, frame="icrs")
-    dist = pointing_sca_coords.separation(search_coord).arcsec
-    dist[np.where(f["filter"] != filt)] = np.inf
-    reshaped_array = dist.flatten()
-    # Find the indices of the minimum values along the flattened slices
-    min_indices = np.argmin(reshaped_array, axis=0)
-    # Convert the flat indices back to 2D coordinates
-    rows, cols = np.unravel_index(min_indices, dist.shape[:2])
-
-    # The plus 1 is because the SCA numbering starts at 1
-    return rows, cols + 1
-
-
 def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
                               y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None):
     """Constructs the PSF around the point source (x,y) location, allowing for
@@ -830,103 +804,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
     return ra_grid, dec_grid
 
 
-def get_galsim_SED(SNID, date, sn_path, fetch_SED, obj_type="SN"):
-    """Return the appropriate SED for the object on the day. Since SN SEDs
-    are time dependent but stars are not, we need to handle them differently.
-
-    Inputs:
-    SNID: the ID of the object
-    date: the date of the observation
-    sn_path: the path to the supernova data
-    fetch_SED: If true, fetch true SED from the database, otherwise return a
-                flat SED.
-    obj_type: the type of object (SN or star)
-
-    Internal Variables:
-    lam: the wavelength of the SED in Angstrom
-    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
-
-    Returns:
-    sed: galsim.SED object
-    """
-    if fetch_SED:
-        if obj_type == "SN":
-            lam, flambda = get_SN_SED(SNID, date, sn_path)
-        if obj_type == "star":
-            lam, flambda = get_star_SED(SNID, sn_path)
-    else:
-        lam, flambda = [1000, 26000], [1, 1]
-
-    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
-                     wave_type="Angstrom", flux_type="fphotons")
-
-    return sed
-
-
-def get_star_SED(SNID, sn_path):
-    """Return the appropriate SED for the star.
-    Inputs:
-    SNID: the ID of the object
-    sn_path: the path to the supernova data
-
-    Returns:
-    lam: the wavelength of the SED in Angstrom (numpy  array of floats)
-    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
-             (numpy array of floats)
-    """
-    filenum = find_parquet(SNID, sn_path, obj_type="star")
-    pqfile = open_parquet(filenum, sn_path, obj_type="star")
-    file_name = pqfile[pqfile["id"] == str(SNID)]["sed_filepath"].values[0]
-    # SED needs to move out to snappl
-    fullpath = pathlib.Path(Config.get().value("photometry.campari." +
-                            "paths.sims_sed_library")) / file_name
-    sed_table = pd.read_csv(fullpath,  compression="gzip", sep=r"\s+",
-                            comment="#")
-    lam = sed_table.iloc[:, 0]
-    flambda = sed_table.iloc[:, 1]
-    return np.array(lam), np.array(flambda)
-
-
-def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
-    """Return the appropriate SED for the supernova on the given day.
-
-    Inputs:
-    SNID: the ID of the object
-    date: the date of the observation
-    sn_path: the path to the supernova data
-
-    Returns:
-    lam: the wavelength of the SED in Angstrom
-    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
-    """
-    filenum = find_parquet(SNID, sn_path, obj_type="SN")
-    file_name = "snana" + "_" + str(filenum) + ".hdf5"
-
-    fullpath = os.path.join(sn_path, file_name)
-    # Setting locking=False on the next line becasue it seems that you can't
-    #   open an h5py file unless you have write access to... something.
-    #   Not sure what.  The directory where it exists?  We won't
-    #   always have that.  It's scary to set locking to false, because it
-    #   subverts all kinds of safety stuff that hdf5 does.  However,
-    #   because these files were created once in this case, it's not actually
-    #   scary, and we expect them to be static.  Locking only matters if you
-    #   think somebody else might change the file
-    #   while you're in the middle of reading bits of it.
-    sed_table = h5py.File(fullpath, "r", locking=False)
-    sed_table = sed_table[str(SNID)]
-    flambda = sed_table["flambda"]
-    lam = sed_table["lambda"]
-    mjd = sed_table["mjd"]
-    SNLogger.debug(f"MJD values in SED: {np.array(mjd)}")
-    bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    closest_days_away = np.min(np.abs(np.array(mjd) - date))
-
-    if np.abs(closest_days_away) > max_days_cutoff:
-        SNLogger.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
-                         f"date. \n The closest SED is {closest_days_away} days away.")
-    return np.array(lam), np.array(flambda[bestindex])
-
-
 def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
                       subsize=4):
     """Construct a "contour grid" which allocates model grid points to model
@@ -1134,7 +1011,7 @@ def build_lightcurve(diaobj, lc_model):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type, truth_path="RomanTDS/truth/"):
+def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
     """This code adds the truth flux and magnitude to a lightcurve datatable. """
 
     ID = lc.meta["ID"]
@@ -1148,7 +1025,7 @@ def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type, trut
             # If the image is outside the time range of the transient, skip it.
             continue
         catalogue_path = (
-            roman_path + truth_path + f"{img.band}/{img.pointing}/" +
+            roman_path + f"/truth/{img.band}/{img.pointing}/" +
             f"Roman_TDS_index_{img.band}_{img.pointing}_{img.sca}.txt"
         )
         cat = pd.read_csv(
@@ -1248,42 +1125,6 @@ def banner(text):
     message = "\n" + "#" * length + "\n"+"#   " + text + "   # \n" + "#" \
               * length
     SNLogger.debug(message)
-
-
-def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
-                        sed_out_dir=None):
-    """Return the appropriate SED for the object for each observation.
-    If you are getting truth SEDs, this function calls get_SED on each exposure
-    of the object. Then, get_SED calls get_SN_SED or get_star_SED depending on
-    the object type.
-    If you are not getting truth SEDs, this function returns a flat SED for
-    each exposure.
-
-    Inputs:
-    ID: the ID of the object
-    dates: list of floats, the dates of the observations
-    fetch_SED: If true, get the SED from truth tables.
-               If false, return a flat SED for each expsoure.
-    object_type: the type of object (SN or star)
-    sn_path: the path to the supernova data
-
-    Returns:
-    sedlist: list of galsim SED objects, length equal to the number of
-             detection images.
-    """
-    sed_list = []
-    if isinstance(dates, float):
-        dates = [dates]  # If only one date is given, make it a list.
-    for date in dates:
-        sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type,
-                             fetch_SED=fetch_SED)
-        sed_list.append(sed)
-        if sed_out_dir is not None:
-            sed_df = pd.DataFrame({"lambda": sed._spec.x,
-                                   "flux": sed._spec.f})
-            sed_df.to_csv(f"{sed_out_dir}/sed_{ID}_{date}.csv", index=False)
-
-    return sed_list
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
@@ -1571,7 +1412,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
 
     # if use_real_images and object_type == "SN" and num_detect_images > 1:
     if False:  # This is a temporary fix to not calculate the confusion metric.
-        sed = get_galsim_SED(diaobj.id, image_list, sn_path, fetch_SED=False)
         object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
         # object_x and object_y are the exact coords of the SN in the SCA frame.
         # x and y are the pixels the image has been cut out on, and
@@ -1874,31 +1714,6 @@ class campari_lightcurve_model:
         self.galaxy_images = galaxy_images
         self.noise_maps = noise_maps
         self.galaxy_only_model_images = galaxy_only_model_images
-
-
-def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
-    """This function loads SEDs from a directory of SED files. The files must be in CSV format with
-    two columns: "lambda" and "flux". The "lambda" column should contain the
-    wavelengths in Angstroms, and the "flux" column should contain the fluxes in
-    the appropriate units for the specified wave_type and flux_type.
-    Inputs:
-    sed_directory: str, the path to the directory containing the SED files.
-
-    Returns:
-    sed_list: list of galsim SED objects. (Temporary until we remove galsim)
-    """
-    SNLogger.debug(f"Loading SEDs from {sed_directory}")
-    sed_list = []
-    for file in pathlib.Path(sed_directory).glob("*.csv"):
-        sed_table = pd.read_csv(file)
-
-        flambda = sed_table["flux"]
-        lam = sed_table["lambda"]
-        # Assuming units are Angstroms how can I check this?
-        sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
-                         wave_type=wave_type, flux_type=flux_type)
-        sed_list.append(sed)
-    return sed_list
 
 
 def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUniverse2024"):

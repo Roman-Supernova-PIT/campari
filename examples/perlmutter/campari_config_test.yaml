@@ -17,6 +17,7 @@ photometry:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
       roman_path: /photometry_test_data/ou2024
       sn_path: /photometry_test_data/ou2024/snana_truth
+      campari_test_data: /campari_test_data
       sed_path: /campari_sed_dir
       output_dir: /campari_out_dir
       debug_dir: /campari_debug_dir

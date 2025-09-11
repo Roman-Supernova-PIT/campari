@@ -239,7 +239,7 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     """
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
-    image = fits.open(roman_path + f"/RomanTDS/images/simple_model/{band}/" +
+    image = fits.open(roman_path + f"/images/simple_model/{band}/" +
                       f"{base_pointing}/Roman_TDS_simple_model_{band}_{base_pointing}"
                       + f"_{base_sca}.fits.gz")
 

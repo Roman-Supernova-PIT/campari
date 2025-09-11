@@ -37,16 +37,12 @@ from campari.AllASPFuncs import (
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
     find_all_exposures,
-    get_galsim_SED,
-    get_galsim_SED_list,
     get_weights,
-    load_SED_from_directory,
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
     make_sim_param_grid,
     open_parquet,
-    radec2point,
     read_healpix_file,
     save_lightcurve,
 )
@@ -54,6 +50,11 @@ from campari.plotting import plot_lc
 from campari.AllASPFuncs import campari_lightcurve_model
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
+
+
+@pytest.fixture(scope="module")
+def campari_test_data(cfg):
+    return cfg.value("photometry.campari.paths.campari_test_data")
 
 
 @pytest.fixture(scope="module")
@@ -69,13 +70,6 @@ def sn_path(cfg):
 def test_find_parquet(sn_path):
     parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
-
-
-def test_radec2point(roman_path):
-    p, s = radec2point(7.731890048839705, -44.4589649005717, "Y106",
-                       path=roman_path)
-    assert p == 10535
-    assert s == 14
 
 
 def test_find_all_exposures(roman_path):
@@ -124,7 +118,7 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-def test_run_on_star(roman_path, cfg):
+def test_run_on_star(roman_path, campari_test_data, cfg):
     # Call it as a function first so we can pdb and such
 
     curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
@@ -134,7 +128,7 @@ def test_run_on_star(roman_path, cfg):
     assert not curfile.exists()
 
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list_star.csv", "--object_collection", "manual",
+            f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
     orig_argv = sys.argv
@@ -167,7 +161,7 @@ def test_run_on_star(roman_path, cfg):
     # Make sure it runs from the command line
     err_code = os.system(
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
-        f" {roman_path}/test_image_list_star.csv --object_collection manual "
+        f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
         "--ra 7.5833264 --dec -44.809659"
@@ -188,7 +182,7 @@ def test_run_on_star(roman_path, cfg):
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
 
-def test_regression_function(roman_path):
+def test_regression_function(campari_test_data):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
@@ -202,7 +196,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-         f"{roman_path}/test_image_list.csv",
+         f"{campari_test_data}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -284,7 +278,7 @@ def test_regression_function(roman_path):
         sys.argv = orig_argv
 
 
-def test_regression(roman_path):
+def test_regression(campari_test_data):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
@@ -299,7 +293,7 @@ def test_regression(roman_path):
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py -s 20172782 -f Y106 -i {roman_path}/test_image_list.csv "
+        f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
         "--photometry-campari-use_roman "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
@@ -328,53 +322,6 @@ def test_regression(roman_path):
             msg = msg+msg2
             # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
-
-
-def test_get_galsim_SED(sn_path):
-    sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
-                         fetch_SED=True)
-    lam = sed._spec.x
-    flambda = sed._spec.f
-
-    star_lam_test = np.load(pathlib.Path(__file__).parent
-                            / "testdata/star_lam_test.npy")
-    np.testing.assert_array_equal(lam, star_lam_test)
-    star_flambda_test = np.load(pathlib.Path(__file__).parent
-                                / "testdata/star_flambda_test.npy")
-
-    np.testing.assert_array_equal(flambda, star_flambda_test)
-
-    sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type="SN",
-                         fetch_SED=True)
-    lam = sed._spec.x
-    flambda = sed._spec.f
-
-    sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / "testdata/sn_lam_test.npy")
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_flambda_test.npy")
-
-    np.testing.assert_array_equal(lam, sn_lam_test)
-    np.testing.assert_array_equal(flambda, sn_flambda_test)
-
-
-def test_get_galsim_SED_list(sn_path):
-    dates = 62535.424
-    fetch_SED = True
-    object_type = "SN"
-    ID = 40120913
-    with tempfile.TemporaryDirectory() as sed_path:
-        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
-                            sed_out_dir=sed_path)
-        sedlist = load_SED_from_directory(sed_path)
-        assert len(sedlist) == 1, "The length of the SED list is not 1"
-        sn_lam_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_lam_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
-        sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                                  / "testdata/sn_flambda_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
-                                   atol=1e-7)
 
 
 def test_plot_lc():
@@ -722,7 +669,9 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
 
     # Now add the truth to the lightcurve
-    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN", truth_path="/truth/")
+    # NOTE: The truth_path thing is a hacky fix, but since I have another issue raised to remove this from
+    # campari entirely, I'm leaving it for now. It will be gone soon anyway.
+    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN")
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
