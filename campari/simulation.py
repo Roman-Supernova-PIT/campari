@@ -137,7 +137,6 @@ def simulate_images(image_list, diaobj,
 
         image_object.header = wcs_dict
 
-
         full_image_wcs = image_object.get_wcs()
 
         cutout_object = image_object.get_ra_dec_cutout(ra, dec, xsize=size)

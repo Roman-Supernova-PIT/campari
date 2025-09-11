@@ -12,9 +12,10 @@ from snappl.image import ManualFITSImage, OpenUniverse2024FITSImage
 from campari.campari_runner import campari_runner
 from campari.AllASPFuncs import campari_lightcurve_model
 
+ROMAN_IMAGE_SIZE = 4088  # Roman images are 4088x4088 pixels (4096 minus 4 on each edge)
+
 
 def create_default_test_args(cfg):
-
     test_args = SimpleNamespace()
 
     test_args.filter = "Y106"
@@ -215,7 +216,8 @@ def test_get_SED_list(cfg):
     test_args.SNID = 40120913
 
     img = ManualFITSImage(
-        header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
+        header=None, data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+        noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)), flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE))
     )
     img.mjd = 62535.424
     img.band = "Y106"
@@ -267,7 +269,8 @@ def test_build_and_save_lc(cfg):
 
     for i in range(len(exposures["date"])):
         img = ManualFITSImage(
-            header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)), flags=np.zeros((4088, 4088))
+            header=None, data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)), flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE))
         )
         img.mjd = exposures["date"][i]
         img.band = exposures["filter"][i]

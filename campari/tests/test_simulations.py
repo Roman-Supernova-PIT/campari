@@ -46,13 +46,13 @@ def test_simulate_images(roman_path):
     diaobj.mjd_end = 61200
 
     dates = np.linspace(60000, diaobj.mjd_start, 5).tolist() + \
-                np.linspace(diaobj.mjd_start+1, diaobj.mjd_end-1, 5).tolist()
+        np.linspace(diaobj.mjd_start+1, diaobj.mjd_end-1, 5).tolist()
     dates = np.array(dates)
 
     image_list = []
     for i in range(10):
-        img = ManualFITSImage(header=None, data=np.zeros((4096, 4096)), noise=np.ones((4096, 4096)),
-                              flags=np.zeros((4096, 4096)), mjd=dates[i], band=band, pointing=base_pointing,
+        img = ManualFITSImage(header=None, data=np.zeros((4088, 4088)), noise=np.ones((4088, 4088)),
+                              flags=np.zeros((4088, 4088)), mjd=dates[i], band=band, pointing=base_pointing,
                               sca=base_sca)
         image_list.append(img)
 

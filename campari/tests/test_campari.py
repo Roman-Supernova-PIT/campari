@@ -151,16 +151,11 @@ def test_run_on_star(roman_path, cfg):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
         if col == "filter":
             # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
+            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
     curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
@@ -184,16 +179,11 @@ def test_run_on_star(roman_path, cfg):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
         if col == "filter":
             # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
+            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
 
@@ -231,9 +221,6 @@ def test_regression_function(roman_path):
 
         for col in current.columns:
             SNLogger.debug(f"Checking col {col}")
-            # According to Michael and Rob, this is roughly what can be expected
-            # due to floating point precision.
-            #
             # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
             # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
             # roughly log10(2^24)=7 significant figures.  As such,
@@ -329,8 +316,6 @@ def test_regression(roman_path):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
         msg = f"The lightcurves do not match for column {col}"
         if col == "filter":
             # band is the only string column, so we check it with array_equal
@@ -340,10 +325,7 @@ def test_regression(roman_path):
                                    / comparison[col])
             msg2 = f"difference is {percent} %"
             msg = msg+msg2
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
+            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
 
 
