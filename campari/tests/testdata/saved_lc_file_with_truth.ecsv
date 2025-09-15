@@ -10,10 +10,10 @@
 # - {name: zpt, datatype: float64}
 # - {name: pointing, datatype: int64}
 # - {name: sca, datatype: int64}
-# - {name: x, datatype: int64}
-# - {name: y, datatype: int64}
-# - {name: x_cutout, datatype: int64}
-# - {name: y_cutout, datatype: int64}
+# - {name: x, datatype: float64}
+# - {name: y, datatype: float64}
+# - {name: x_cutout, datatype: float64}
+# - {name: y_cutout, datatype: float64}
 # - {name: sim_realized_flux, datatype: float64}
 # - {name: sim_true_flux, datatype: float64}
 # - {name: sim_realized_mag, unit: mag, datatype: float64}
@@ -50,4 +50,4 @@
 #       value: !astropy.table.SerializedColumn {name: sim_true_mag}
 # schema: astropy-2.0
 mjd flux_fit flux_fit_err mag_fit mag_fit_err filter zpt pointing sca x y x_cutout y_cutout sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
-62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 35198 2 2044 2044 5 5 1040.0 1069.10031 25.119072405079763 25.089109614636662
+62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 35198 2 68565.854106 127021.05784706218 68565.854106 127021.05784706218 1040.0 1069.10031 25.119072405079763 25.089109614636662

@@ -5,14 +5,12 @@ import warnings
 import sys
 
 # Common Library
-import numpy as np
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
 from snpit_utils.config import Config
 from campari.campari_runner import campari_runner
-from snpit_utils.logger import SNLogger
 
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -148,10 +146,10 @@ def main():
                         default=None)
     parser.add_argument("-b", "--image_selection_start", type=float, required=False,
                         help="First MJD of images to be selected for use.",
-                        default=-np.inf)
+                        default=None)
     parser.add_argument("-e", "--image_selection_end", type=float, required=False,
                         help="Last MJD of images to be selected for use.",
-                        default=np.inf)
+                        default=None)
 
     parser.add_argument(
         "--transient_start",
@@ -210,7 +208,6 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
-    SNLogger.debug(vars(args))
     runner = campari_runner(**vars(args))
     runner()
 

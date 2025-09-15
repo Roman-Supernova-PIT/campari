@@ -15,8 +15,9 @@ photometry:
 
     paths:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
-      roman_path: /campari_test_data
-      sn_path: /campari_test_data
+      roman_path: /photometry_test_data/ou2024
+      sn_path: /photometry_test_data/ou2024/snana_truth
+      campari_test_data: /campari_test_data
       sed_path: /campari_sed_dir
       output_dir: /campari_out_dir
       debug_dir: /campari_debug_dir
@@ -57,6 +58,7 @@ ou24:
   config_file: /sn_info_dir/tds.yaml
   sn_truth_dir: /snana_pq_dir
   sims_sed_library: /home/rubin_sim_data/sims_sed_library
+  images: /sims_dir/RomanTDS/images/simple_model
 
 ou24psf:
   config_file: /campari/examples/perlmutter/tds.yaml

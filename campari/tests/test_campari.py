@@ -17,10 +17,11 @@ from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
 
 import snappl
-from snappl.image import OpenUniverse2024FITSImage
+from snappl.image import ManualFITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.diaobject import DiaObject
+from snappl.imagecollection import ImageCollection
 
 from campari import RomanASP
 from campari.AllASPFuncs import (
@@ -36,22 +37,24 @@ from campari.AllASPFuncs import (
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
     find_all_exposures,
-    get_galsim_SED,
-    get_galsim_SED_list,
     get_weights,
-    load_SED_from_directory,
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
     make_sim_param_grid,
     open_parquet,
-    radec2point,
     read_healpix_file,
     save_lightcurve,
 )
 from campari.plotting import plot_lc
+from campari.AllASPFuncs import campari_lightcurve_model
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
+
+
+@pytest.fixture(scope="module")
+def campari_test_data(cfg):
+    return cfg.value("photometry.campari.paths.campari_test_data")
 
 
 @pytest.fixture(scope="module")
@@ -69,36 +72,32 @@ def test_find_parquet(sn_path):
     assert parq_file_ID == 10430
 
 
-def test_radec2point(roman_path):
-    p, s = radec2point(7.731890048839705, -44.4589649005717, "Y106",
-                       path=roman_path)
-    assert p == 10535
-    assert s == 14
-
-
 def test_find_all_exposures(roman_path):
     diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    explist = find_all_exposures(diaobj, "Y106", maxbg=24,
-                                 maxdet=24, return_list=True,
-                                 roman_path=roman_path,
-                                 pointing_list=None, sca_list=None,
-                                 truth="simple_model")
+    image_list = find_all_exposures(diaobj, "Y106", maxbg=24,
+                                    maxdet=24,
+                                    roman_path=roman_path,
+                                    pointing_list=None, sca_list=None,
+                                    truth="simple_model")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
+    argsort = np.argsort(compare_table["date"])
+    compare_table = compare_table[argsort]
+
     np.testing.assert_array_equal(
-        explist["date"],
+        np.array([img.mjd for img in image_list]),
         compare_table["date"]
     )
 
     np.testing.assert_array_equal(
-        explist["sca"],
+        np.array([img.sca for img in image_list]),
         compare_table["sca"]
     )
 
     np.testing.assert_array_equal(
-        explist["pointing"],
+        np.array([img.pointing for img in image_list]),
         compare_table["pointing"]
     )
 
@@ -119,7 +118,7 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-def test_run_on_star(roman_path, cfg):
+def test_run_on_star(roman_path, campari_test_data, cfg):
     # Call it as a function first so we can pdb and such
 
     curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
@@ -129,7 +128,7 @@ def test_run_on_star(roman_path, cfg):
     assert not curfile.exists()
 
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
-            f"{roman_path}/test_image_list_star.csv", "--object_collection", "manual",
+            f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
     orig_argv = sys.argv
@@ -147,16 +146,11 @@ def test_run_on_star(roman_path, cfg):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
         if col == "filter":
             # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
+            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
     curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
@@ -167,7 +161,7 @@ def test_run_on_star(roman_path, cfg):
     # Make sure it runs from the command line
     err_code = os.system(
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
-        f" {roman_path}/test_image_list_star.csv --object_collection manual "
+        f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
         "--ra 7.5833264 --dec -44.809659"
@@ -180,20 +174,15 @@ def test_run_on_star(roman_path, cfg):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
         if col == "filter":
             # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
+            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
 
 
-def test_regression_function(roman_path):
+def test_regression_function(campari_test_data):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
@@ -207,7 +196,7 @@ def test_regression_function(roman_path):
     assert not curfile.exists()
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-         f"{roman_path}/test_image_list.csv",
+         f"{campari_test_data}/test_image_list.csv",
          "--photometry-campari-use_roman",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
@@ -227,9 +216,6 @@ def test_regression_function(roman_path):
 
         for col in current.columns:
             SNLogger.debug(f"Checking col {col}")
-            # According to Michael and Rob, this is roughly what can be expected
-            # due to floating point precision.
-            #
             # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
             # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
             # roughly log10(2^24)=7 significant figures.  As such,
@@ -292,7 +278,7 @@ def test_regression_function(roman_path):
         sys.argv = orig_argv
 
 
-def test_regression(roman_path):
+def test_regression(campari_test_data):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
@@ -307,7 +293,7 @@ def test_regression(roman_path):
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py -s 20172782 -f Y106 -i {roman_path}/test_image_list.csv "
+        f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
         "--photometry-campari-use_roman "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
@@ -325,8 +311,6 @@ def test_regression(roman_path):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
         msg = f"The lightcurves do not match for column {col}"
         if col == "filter":
             # band is the only string column, so we check it with array_equal
@@ -336,58 +320,8 @@ def test_regression(roman_path):
                                    / comparison[col])
             msg2 = f"difference is {percent} %"
             msg = msg+msg2
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
+            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
-
-
-def test_get_galsim_SED(sn_path):
-    sed = get_galsim_SED(40973149150, 000, sn_path, obj_type="star",
-                         fetch_SED=True)
-    lam = sed._spec.x
-    flambda = sed._spec.f
-
-    star_lam_test = np.load(pathlib.Path(__file__).parent
-                            / "testdata/star_lam_test.npy")
-    np.testing.assert_array_equal(lam, star_lam_test)
-    star_flambda_test = np.load(pathlib.Path(__file__).parent
-                                / "testdata/star_flambda_test.npy")
-
-    np.testing.assert_array_equal(flambda, star_flambda_test)
-
-    sed = get_galsim_SED(40120913, 62535.424, sn_path, obj_type="SN",
-                         fetch_SED=True)
-    lam = sed._spec.x
-    flambda = sed._spec.f
-
-    sn_lam_test = np.load(pathlib.Path(__file__).parent
-                          / "testdata/sn_lam_test.npy")
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_flambda_test.npy")
-
-    np.testing.assert_array_equal(lam, sn_lam_test)
-    np.testing.assert_array_equal(flambda, sn_flambda_test)
-
-
-def test_get_galsim_SED_list(sn_path):
-    dates = 62535.424
-    fetch_SED = True
-    object_type = "SN"
-    ID = 40120913
-    with tempfile.TemporaryDirectory() as sed_path:
-        get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
-                            sed_out_dir=sed_path)
-        sedlist = load_SED_from_directory(sed_path)
-        assert len(sedlist) == 1, "The length of the SED list is not 1"
-        sn_lam_test = np.load(pathlib.Path(__file__).parent
-                              / "testdata/sn_lam_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
-        sn_flambda_test = np.load(pathlib.Path(__file__).parent
-                                  / "testdata/sn_flambda_test.npy")
-        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test,
-                                   atol=1e-7)
 
 
 def test_plot_lc():
@@ -567,11 +501,11 @@ def test_construct_static_scene(cfg, roman_path):
     sca = 3
     size = 9
     band = "Y106"
-    truth = "simple_model"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+
     util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
 
     wcs = snappl_image.get_wcs()
@@ -593,12 +527,10 @@ def test_get_weights(roman_path):
     test_sndec = np.array([-44.82824910386988])
     pointing = 5934
     sca = 3
-    truth = "simple_model"
     band = "Y106"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
     wcs = snappl_image.get_wcs()
     SNLogger.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
@@ -687,12 +619,46 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
     explist = Table.from_pandas(exposures)
     explist.sort(["detected", "sca"])
 
+    # Getting a WCS to use
+    pointing = 5934
+    sca = 3
+    band = "Y106"
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+
+    wcs = snappl_image.get_wcs()
+
+    image_list = []
+    cutout_image_list = []
+
+    for i in range(len(explist["date"])):
+        img = ManualFITSImage(
+            header=None, data=np.zeros((4085, 4085)), noise=np.zeros((4085, 4085)), flags=np.zeros((4085, 4085)),
+        )
+        img.mjd = explist["date"][i]
+        img.filter = explist["filter"][i]
+        img.pointing = explist["pointing"][i]
+        img.sca = explist["sca"][i]
+        img._wcs = wcs
+        img.band = "Y106"
+        image_list.append(img)
+        cutout_image_list.append(img)
+
+    lc_model = campari_lightcurve_model(flux=100, sigma_flux=10,
+                                        image_list=image_list, cutout_image_list=cutout_image_list)
+
+    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41,  collection="manual")[0]
+    diaobj.mjd_start = 62001.0
+    diaobj.mjd_end = np.inf
+
     # The data values are arbitary, just to check that the lc is constructed properly.
-    lc = build_lightcurve(20172782, explist, 100, 100, 10, 7, -41)
+    lc = build_lightcurve(diaobj, lc_model)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
         if not isinstance(saved_lc[i][0], str):
+            SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
             np.testing.assert_allclose(lc[i].value, saved_lc[i])
         else:
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
@@ -703,7 +669,9 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
 
     # Now add the truth to the lightcurve
-    lc = add_truth_to_lc(lc, explist, sn_path, roman_path, "SN")
+    # NOTE: The truth_path thing is a hacky fix, but since I have another issue raised to remove this from
+    # campari entirely, I'm leaving it for now. It will be gone soon anyway.
+    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN")
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
@@ -722,11 +690,10 @@ def test_wcs_regression(roman_path):
     pointing = 5934
     sca = 3
     band = "Y106"
-    truth = "simple_model"
-    imagepath = roman_path + (
-        f"/RomanTDS/images/{truth}/{band}/{pointing}/Roman_TDS_{truth}_{band}_{pointing}_{sca}.fits.gz"
-    )
-    snappl_image = OpenUniverse2024FITSImage(imagepath, None, sca)
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 
@@ -752,26 +719,24 @@ def test_find_all_exposures_with_img_list(roman_path):
     transient_end = 62881.
     max_no_transient_images = None
     max_transient_images = None
-    image_selection_start = -np.inf
-    image_selection_end = np.inf
-
+    image_selection_start = None
+    image_selection_end = None
     diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
 
-    exposures = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
-                                   maxdet=max_transient_images, return_list=True,
-                                   band=band, image_selection_start=image_selection_start,
-                                   image_selection_end=image_selection_end, pointing_list=image_df["pointing"])
+    image_list = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
+                                    maxdet=max_transient_images, band=band,
+                                    image_selection_start=image_selection_start,
+                                    image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
 
-    exposures = exposures.to_pandas()
-    test_exposures = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
-    for col in test_exposures.columns:
-        if col == "filter" or col == "detected":
-            np.testing.assert_array_equal(exposures[col], test_exposures[col])
-        else:
-            np.testing.assert_allclose(exposures[col], test_exposures[col],
-                                       rtol=1e-7, atol=1e-7)
+    SNLogger.debug(f"Found {len(image_list)} images")
+
+    compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
+
+    np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
+    np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
+    np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
 def test_extract_object_from_healpix():

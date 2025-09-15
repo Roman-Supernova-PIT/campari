@@ -4,19 +4,15 @@ import pathlib
 import warnings
 
 # Common Library
-import astropy.table as tb
 import galsim
 import glob
-import h5py
 import numpy as np
 import pandas as pd
-import requests
 import scipy.sparse as sp
 from astropy import units as u
 from astropy.coordinates import SkyCoord, angular_separation
-from astropy.io import fits
-from astropy.table import QTable, Table, hstack
 from astropy.utils.exceptions import AstropyWarning
+from astropy.table import hstack, QTable
 from erfa import ErfaWarning
 from galsim import roman
 import healpy as hp
@@ -26,10 +22,10 @@ from scipy.interpolate import RegularGridInterpolator
 import yaml
 
 # SN-PIT
-from snappl.image import OpenUniverse2024FITSImage
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
+from snappl.imagecollection import ImageCollection
 
 # Campari
 from campari.simulation import simulate_images
@@ -351,13 +347,12 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     return psfs
 
 
-def find_all_exposures(diaobj, band, maxbg=None,
-                       maxdet=None, return_list=False,
+def find_all_exposures(diaobj, band, maxbg=None, maxdet=None,
                        roman_path=None, pointing_list=None, sca_list=None,
-                       truth="simple_model", image_selection_start=-np.inf, image_selection_end=np.inf):
+                       truth="simple_model", image_selection_start=None, image_selection_end=None,
+                       image_source="ou2024"):
     """This function finds all the exposures that contain a given supernova,
-    and returns a list of them. Utilizes Rob's awesome database method to
-    find the exposures. Humongous speed up thanks to this.
+    and returns a list of them.
 
     Inputs:
     ra, dec: the RA and DEC of the supernova
@@ -367,8 +362,6 @@ def find_all_exposures(diaobj, band, maxbg=None,
         at the location of the transient) and which do not.
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    return_list: whether to return the exposures as a list or not
-    stampsize: the size of the stamp to use
     roman_path: the path to the Roman data
     pointing_list: If this is passed in, only consider these pointings
     sca_list: If this is passed in, only consider these SCAs
@@ -387,78 +380,47 @@ def find_all_exposures(diaobj, band, maxbg=None,
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end
-    SNLogger.debug(f"start and end of transient: {transient_start, transient_end}")
     ra = diaobj.ra
     dec = diaobj.dec
-    f = fits.open(roman_path +
-                  "/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
-    f = f.data
 
-    explist = tb.Table(names=("pointing", "sca", "filter", "date"),
-                       dtype=("i8", "i4", "str",  "f8"))
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection(image_source)
 
-    transient_start = np.atleast_1d(transient_start)[0]
-    transient_end = np.atleast_1d(transient_end)[0]
-    if not (isinstance(maxdet, (int, type(None))) & isinstance(maxbg, (int, type(None)))):
-        raise TypeError("maxdet and maxbg must be integers or None, " +
-                        f"not {type(maxdet), type(maxbg)}. Their values are {maxdet, maxbg}")
-    if transient_start is None:
-        transient_start = -np.inf
-    if transient_end is None:
-        transient_end = np.inf
+    if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
+        SNLogger.debug(f"image_selection_start: {image_selection_start}, transient_start: {transient_start}")
 
-    # Rob's database method! :D
+        pre_transient_images = img_collection.find_images(mjd_min=image_selection_start, mjd_max=transient_start,
+                                                          ra=ra, dec=dec, filter=band)
+    else:
+        pre_transient_images = []
 
-    server_url = "https://roman-desc-simdex.lbl.gov"
-    req = requests.Session()
-    result = req.post(f"{server_url}/findromanimages/containing=({ra},{dec})")
-    if result.status_code != 200:
-        raise RuntimeError(f"Got status code {result.status_code}\n"
-                           "{result.text}")
+    if (image_selection_end is None or transient_end < image_selection_end) and transient_end is not None:
+        post_transient_images = img_collection.find_images(mjd_min=transient_end, mjd_max=image_selection_end,
+                                                           ra=ra, dec=dec, filter=band)
+    else:
+        post_transient_images = []
 
-    res = pd.DataFrame(result.json())[["pointing", "sca", "mjd", "filter"]]
+    no_transient_images = pre_transient_images + post_transient_images
 
-    res.rename(columns={"mjd": "date"}, inplace=True)
-    res = res.loc[res["filter"] == band].copy()
-    if transient_start is None:
-        transient_start = -np.inf
-    if transient_end is None:
-        transient_end = np.inf
+    transient_images = img_collection.find_images(mjd_min=transient_start,
+                                                  mjd_max=transient_end,
+                                                  ra=ra, dec=dec, filter=band)
 
-    # The first date cut selects images that are detections, the second
-    # selects detections within the requested light curve window.
-    det = res.loc[(res["date"] >= transient_start) & (res["date"] <= transient_end)].copy()
-    det = det.loc[(det["date"] >= image_selection_start) & (det["date"] <= image_selection_end)]
+    no_transient_images = np.array(no_transient_images)
+    transient_images = np.array(transient_images)
+    if maxbg is not None:
+        no_transient_images = no_transient_images[:maxbg]
     if maxdet is not None:
-        det = det.iloc[:maxdet]
-    det["detected"] = True
+        transient_images = transient_images[:maxdet]
+    all_images = np.hstack((transient_images, no_transient_images))
 
     if pointing_list is not None:
-        det = det.loc[det["pointing"].isin(pointing_list)]
-    bg = res.loc[(res["date"] < transient_start) | (res["date"] > transient_end)].copy()
-    bg = bg.loc[(bg["date"] >= image_selection_start) & (bg["date"] <= image_selection_end)]
+        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
 
-    if pointing_list is not None:
-        bg = bg.loc[bg["pointing"].isin(pointing_list)]
-    if isinstance(maxbg, int):
-        bg = bg.iloc[:maxbg]
-    bg["detected"] = False
+    argsort = np.argsort([img.pointing for img in all_images])
+    all_images = all_images[argsort]
 
-    all_images = pd.concat([det, bg])
-    all_images["filter"] = band
-
-    explist = Table.from_pandas(all_images)
-    explist.sort(["detected", "sca"])
-    SNLogger.info("\n" + str(explist))
-
-    if maxbg != np.inf and maxbg is not None and len(bg) < maxbg:
-        SNLogger.warning("You requested a number of non-detection images " +
-                         f"of {maxbg}, but {len(bg)} were found. ")
-    if maxdet != np.inf and maxdet is not None and len(det) < maxdet:
-        SNLogger.warning("You requested a number of detected images " +
-                         f"of {maxdet}, but {len(det)} were found. ")
-    if return_list:
-        return explist
+    return all_images
 
 
 def find_parquet(ID, path, obj_type="SN"):
@@ -489,30 +451,6 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     file_path = os.path.join(path, base_name)
     df = pd.read_parquet(file_path, engine=engine)
     return df
-
-
-def radec2point(RA, DEC, filt, path, start=None, end=None):
-    """This function takes in RA and DEC and returns the pointing and SCA with
-    center closest to desired RA/DEC
-    """
-    f = fits.open(path+"/RomanTDS/Roman_TDS_obseq_11_6_23_radec.fits")[1]
-    f = f.data
-
-    allRA = f["RA"]
-    allDEC = f["DEC"]
-
-    pointing_sca_coords = SkyCoord(allRA*u.deg, allDEC*u.deg, frame="icrs")
-    search_coord = SkyCoord(RA*u.deg, DEC*u.deg, frame="icrs")
-    dist = pointing_sca_coords.separation(search_coord).arcsec
-    dist[np.where(f["filter"] != filt)] = np.inf
-    reshaped_array = dist.flatten()
-    # Find the indices of the minimum values along the flattened slices
-    min_indices = np.argmin(reshaped_array, axis=0)
-    # Convert the flat indices back to 2D coordinates
-    rows, cols = np.unravel_index(min_indices, dist.shape[:2])
-
-    # The plus 1 is because the SCA numbering starts at 1
-    return rows, cols + 1
 
 
 def construct_transient_scene(x, y, pointing, sca, stampsize=25, x_center=None,
@@ -564,14 +502,13 @@ def gaussian(x, A, mu, sigma):
     return A*np.exp(-(x-mu)**2/(2*sigma**2))
 
 
-def construct_images(exposures, ra, dec, size=7, subtract_background=True,
-                     roman_path=None, truth="simple_model"):
+def construct_images(image_list, diaobj, size, subtract_background=True, truth="simple_model"):
 
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
     Inputs:
-    exposures is a list of exposures from find_all_exposures
+    image_list: list of snappl.image.Image objects, the images to be used.
     ra,dec: the RA and DEC of the SN
     subtract_background: If False, the background level is fit as a free
         parameter in the forward modelling. Otherwise, we subtract it here.
@@ -583,9 +520,10 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     image_list: list of snappl.image.Image objects of the entire SCA.
 
     """
+    ra = diaobj.ra
+    dec = diaobj.dec
 
     bgflux = []
-    image_list = []
     cutout_image_list = []
 
     SNLogger.debug(f"truth in construct images: {truth}")
@@ -594,18 +532,8 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
     x_cutout_list = []
     y_cutout_list = []
 
-    for indx, exp in enumerate(exposures):
-        SNLogger.debug(f"Constructing image {indx} of {len(exposures)}")
-        band = exp["filter"]
-        pointing = exp["pointing"]
-        sca = exp["sca"]
-
-        # TODO : replace None with the right thing once Exposure is implemented
-
-        imagepath = roman_path + (f"/RomanTDS/images/{truth}/{band}/{pointing}"
-                                  f"/Roman_TDS_{truth}_{band}_{pointing}_"
-                                  f"{sca}.fits.gz")
-        image = OpenUniverse2024FITSImage(imagepath, None, sca)
+    for indx, _ in enumerate(image_list):
+        image = image_list[indx]
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
         image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
@@ -659,17 +587,9 @@ def construct_images(exposures, ra, dec, size=7, subtract_background=True,
         image_cutout._data -= bg
         SNLogger.debug(f"Subtracted a background level of {bg}")
 
-        image_list.append(image)
         cutout_image_list.append(image_cutout)
 
-    exposures["x"] = x_list
-    exposures["y"] = y_list
-    exposures["x_cutout"] = x_cutout_list
-    exposures["y_cutout"] = y_cutout_list
-
-    SNLogger.debug("updated exposures with x, y, x_cutout, y_cutout:")
-    SNLogger.debug(exposures)
-    return cutout_image_list, image_list, exposures
+    return cutout_image_list, image_list
 
 
 def calculate_background_level(im):
@@ -744,37 +664,6 @@ def get_psf_image(self, stamp_size, x=None, y=None, x_center=None,
                              center=galsim.PositionD(x_center, y_center),
                              use_true_center=True, image=stamp)
     return result
-
-
-def fetch_images(exposures, ra, dec, size, subtract_background, roman_path, object_type):
-    """This function gets the list of exposures to be used for the analysis.
-
-    Inputs:
-    exposures: astropy.table.table.Table, the table of exposures to be used.
-    num_total_images: total images used in analysis (detection + no detection)
-    num_detect_images: number of images used in the analysis that contain a
-                       detection.
-    size: int, cutout will be of shape (size, size)
-    subtract_background: If True, subtract sky bg from images. If false, leave
-            bg as a free parameter in the forward modelling.
-    roman_path: str, the path to the Roman data
-    object_type: str, the type of object to be used (SN or star)
-
-    Returns:
-    ra, dec: floats, the RA and DEC of the supernova, a single float is
-                         used for both of these as we assume the object is
-                         not moving between exposures.
-    exposures: astropy.table.table.Table, table of exposures used
-    cutout_image_list: list of snappl.image.Image objects, the cutout images
-    image_list: list of snappl.image.Image objects, the full images
-    """
-    # By moving those warnings, fetch_images is now redundant, I'll fix this in a different PR. TODO
-    cutout_image_list, image_list, exposures =\
-        construct_images(exposures, ra, dec, size=size,
-                         subtract_background=subtract_background,
-                         roman_path=roman_path)
-
-    return cutout_image_list, image_list, exposures
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
@@ -900,7 +789,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
         ra_grid, dec_grid = [single_ra], [single_dec]
 
-
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
 
@@ -914,103 +802,6 @@ def make_grid(grid_type, images, ra, dec, percentiles=[0, 90, 95, 100],
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
 
     return ra_grid, dec_grid
-
-
-def get_galsim_SED(SNID, date, sn_path, fetch_SED, obj_type="SN"):
-    """Return the appropriate SED for the object on the day. Since SN SEDs
-    are time dependent but stars are not, we need to handle them differently.
-
-    Inputs:
-    SNID: the ID of the object
-    date: the date of the observation
-    sn_path: the path to the supernova data
-    fetch_SED: If true, fetch true SED from the database, otherwise return a
-                flat SED.
-    obj_type: the type of object (SN or star)
-
-    Internal Variables:
-    lam: the wavelength of the SED in Angstrom
-    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
-
-    Returns:
-    sed: galsim.SED object
-    """
-    if fetch_SED:
-        if obj_type == "SN":
-            lam, flambda = get_SN_SED(SNID, date, sn_path)
-        if obj_type == "star":
-            lam, flambda = get_star_SED(SNID, sn_path)
-    else:
-        lam, flambda = [1000, 26000], [1, 1]
-
-    sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
-                     wave_type="Angstrom", flux_type="fphotons")
-
-    return sed
-
-
-def get_star_SED(SNID, sn_path):
-    """Return the appropriate SED for the star.
-    Inputs:
-    SNID: the ID of the object
-    sn_path: the path to the supernova data
-
-    Returns:
-    lam: the wavelength of the SED in Angstrom (numpy  array of floats)
-    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
-             (numpy array of floats)
-    """
-    filenum = find_parquet(SNID, sn_path, obj_type="star")
-    pqfile = open_parquet(filenum, sn_path, obj_type="star")
-    file_name = pqfile[pqfile["id"] == str(SNID)]["sed_filepath"].values[0]
-    # SED needs to move out to snappl
-    fullpath = pathlib.Path(Config.get().value("photometry.campari." +
-                            "paths.sims_sed_library")) / file_name
-    sed_table = pd.read_csv(fullpath,  compression="gzip", sep=r"\s+",
-                            comment="#")
-    lam = sed_table.iloc[:, 0]
-    flambda = sed_table.iloc[:, 1]
-    return np.array(lam), np.array(flambda)
-
-
-def get_SN_SED(SNID, date, sn_path, max_days_cutoff=10):
-    """Return the appropriate SED for the supernova on the given day.
-
-    Inputs:
-    SNID: the ID of the object
-    date: the date of the observation
-    sn_path: the path to the supernova data
-
-    Returns:
-    lam: the wavelength of the SED in Angstrom
-    flambda: the flux of the SED units in erg/s/cm^2/Angstrom
-    """
-    filenum = find_parquet(SNID, sn_path, obj_type="SN")
-    file_name = "snana" + "_" + str(filenum) + ".hdf5"
-
-    fullpath = os.path.join(sn_path, file_name)
-    # Setting locking=False on the next line becasue it seems that you can't
-    #   open an h5py file unless you have write access to... something.
-    #   Not sure what.  The directory where it exists?  We won't
-    #   always have that.  It's scary to set locking to false, because it
-    #   subverts all kinds of safety stuff that hdf5 does.  However,
-    #   because these files were created once in this case, it's not actually
-    #   scary, and we expect them to be static.  Locking only matters if you
-    #   think somebody else might change the file
-    #   while you're in the middle of reading bits of it.
-    sed_table = h5py.File(fullpath, "r", locking=False)
-    sed_table = sed_table[str(SNID)]
-    flambda = sed_table["flambda"]
-    lam = sed_table["lambda"]
-    mjd = sed_table["mjd"]
-    SNLogger.debug(f"MJD values in SED: {np.array(mjd)}")
-    bestindex = np.argmin(np.abs(np.array(mjd) - date))
-    closest_days_away = np.min(np.abs(np.array(mjd) - date))
-
-    if np.abs(closest_days_away) > max_days_cutoff:
-        SNLogger.warning(f"WARNING: No SED data within {max_days_cutoff} days of "
-                         f"date. \n The closest SED is {closest_days_away} days away.")
-    return np.array(lam), np.array(flambda[bestindex])
 
 
 def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100],
@@ -1158,64 +949,84 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     return mag, magerr, zp
 
 
-def build_lightcurve(ID, exposures, confusion_metric, flux, sigma_flux, ra, dec):
+def build_lightcurve(diaobj, lc_model):
 
-    """This code builds a lightcurve datatable from the output of the SMP
-       algorithm.
+    """This code builds a lightcurve datatable from the output of the SMP algorithm.
 
     Input:
-    ID (int): supernova ID
-    exposures (table): table of exposures used in the SMP algorithm
-    confusion_metric (float): the confusion metric derived in the SMP algorithm
-    flux (array): the output flux of the SMP algorithm. If no flux is received,
-                    then no lightcurve is built.
-    sigma_flux (array): the output flux error of the SMP algorithm
-    ra, dec (float): the RA and DEC of the object.
+    Parameters
+    ----------
+    diaobj: snappl.diaobject.DiaObject
+        The DiaObject representing the transient.
+    lc_model: campari.campari_lightcurve_model
+        The lightcurve model output from the SMP algorithm.
 
     Returns:
-    lc: a QTable containing the lightcurve data
+        lc: a QTable containing the lightcurve data
     """
-    flux = np.atleast_1d(flux)
-    sigma_flux = np.atleast_1d(sigma_flux)
-    band = exposures["filter"][0]
+    flux = np.atleast_1d(lc_model.flux)
+    sigma_flux = np.atleast_1d(lc_model.sigma_flux)
+    confusion_metric = lc_model.confusion_metric
+    image_list = lc_model.image_list
+    cutout_image_list = lc_model.cutout_image_list
+    band = image_list[0].band
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    detections = exposures[np.where(exposures["detected"])]
-    meta_dict = {"ID": ID, "obj_ra": ra, "obj_dec": dec}
+    meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
     if confusion_metric is not None:
         meta_dict["confusion_metric"] = confusion_metric
 
-    data_dict = {"mjd": detections["date"], "flux_fit": flux,
-                 "flux_fit_err": sigma_flux, "mag_fit": mag,
+    data_dict = {"mjd": [],
+                 "flux_fit": flux,
+                 "flux_fit_err": sigma_flux,
+                 "mag_fit": mag,
                  "mag_fit_err": magerr,
-                 "filter": np.full(np.size(mag), band),
+                 "filter": [],
                  "zpt": np.full(np.size(mag), zp),
-                 "pointing": detections["pointing"],
-                 "sca": detections["sca"],
-                 "x": detections["x"],
-                 "y": detections["y"],
-                 "x_cutout": detections["x_cutout"],
-                 "y_cutout": detections["y_cutout"]}
+                 "pointing": [],
+                 "sca": [],
+                 "x": [],
+                 "y": [],
+                 "x_cutout": [],
+                 "y_cutout": []
+                 }
+
+    for i, img in enumerate(image_list):
+        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+            data_dict["mjd"].append(img.mjd)
+            data_dict["filter"].append(img.band)
+            data_dict["pointing"].append(img.pointing)
+            data_dict["sca"].append(img.sca)
+            x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+            data_dict["x"].append(x)
+            data_dict["y"].append(y)
+            x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+            data_dict["x_cutout"].append(x_cutout)
+            data_dict["y_cutout"].append(y_cutout)
 
     units = {"mjd": u.d,  "flux_fit": "",
              "flux_fit_err": "", "mag_fit": u.mag,
              "mag_fit_err": u.mag, "filter": ""}
+    SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
+def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
+    """This code adds the truth flux and magnitude to a lightcurve datatable. """
 
-    detections = exposures[np.where(exposures["detected"])]
-    band = exposures["filter"][0]
     ID = lc.meta["ID"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
 
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, sca in zip(detections["pointing"], detections["sca"]):
+    for img in lc_model.image_list:
+        if img.mjd < diaobj.mjd_start or img.mjd > diaobj.mjd_end:
+            # If the image is outside the time range of the transient, skip it.
+            continue
         catalogue_path = (
-            roman_path + f"/RomanTDS/truth/{band}/{pointing}/" + f"Roman_TDS_index_{band}_{pointing}_{sca}.txt"
+            roman_path + f"/truth/{img.band}/{img.pointing}/" +
+            f"Roman_TDS_index_{img.band}_{img.pointing}_{img.sca}.txt"
         )
         cat = pd.read_csv(
             catalogue_path,
@@ -1230,8 +1041,8 @@ def add_truth_to_lc(lc, exposures, sn_path, roman_path, object_type):
     sim_realized_flux = np.array(sim_realized_flux)
 
     sim_sigma_flux = 0  # These are truth values!
-    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, band)
-    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, band)
+    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, lc_model.image_list[0].band)
+    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, lc_model.image_list[0].band)
 
     if object_type == "SN":
         df_object_row = df.loc[df.id == ID]
@@ -1314,42 +1125,6 @@ def banner(text):
     message = "\n" + "#" * length + "\n"+"#   " + text + "   # \n" + "#" \
               * length
     SNLogger.debug(message)
-
-
-def get_galsim_SED_list(ID, dates, fetch_SED, object_type, sn_path,
-                        sed_out_dir=None):
-    """Return the appropriate SED for the object for each observation.
-    If you are getting truth SEDs, this function calls get_SED on each exposure
-    of the object. Then, get_SED calls get_SN_SED or get_star_SED depending on
-    the object type.
-    If you are not getting truth SEDs, this function returns a flat SED for
-    each exposure.
-
-    Inputs:
-    ID: the ID of the object
-    exposures: the exposure table returned by fetch_images.
-    fetch_SED: If true, get the SED from truth tables.
-               If false, return a flat SED for each expsoure.
-    object_type: the type of object (SN or star)
-    sn_path: the path to the supernova data
-
-    Returns:
-    sedlist: list of galsim SED objects, length equal to the number of
-             detection images.
-    """
-    sed_list = []
-    if isinstance(dates, float):
-        dates = [dates]  # If only one date is given, make it a list.
-    for date in dates:
-        sed = get_galsim_SED(ID, date, sn_path, obj_type=object_type,
-                             fetch_SED=fetch_SED)
-        sed_list.append(sed)
-        if sed_out_dir is not None:
-            sed_df = pd.DataFrame({"lambda": sed._spec.x,
-                                   "flux": sed._spec.f})
-            sed_df.to_csv(f"{sed_out_dir}/sed_{ID}_{date}.csv", index=False)
-
-    return sed_list
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
@@ -1556,7 +1331,7 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path,
     SNLogger.info(f"Saved to {output_path}")
 
 
-def run_one_object(diaobj=None, object_type=None, exposures=None,
+def run_one_object(diaobj=None, object_type=None, image_list=None,
                    roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    use_real_images=None, use_roman=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
@@ -1574,13 +1349,14 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
     percentiles = []
     roman_bandpasses = galsim.roman.getBandpasses()
 
-    num_total_images = len(exposures)
-    num_detect_images = len(exposures[exposures["detected"]])
+    num_total_images = len(image_list)
+    transient_image_list = [a for a in image_list if a.mjd > diaobj.mjd_start and a.mjd < diaobj.mjd_end]
+    num_detect_images = len(transient_image_list)
 
     if use_real_images:
-        # Using exposures Table, load those Pointing/SCAs as images.
-        cutout_image_list, image_list, exposures = fetch_images(exposures, diaobj.ra, diaobj.dec, size,
-                                                                subtract_background, roman_path, object_type)
+        cutout_image_list, image_list = construct_images(image_list, diaobj, size,
+                                                         subtract_background=subtract_background)
+
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
@@ -1591,11 +1367,11 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
         sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
-            simulate_images(num_total_images, num_detect_images, diaobj.ra, diaobj.dec,
+            simulate_images(image_list, diaobj,
                             sim_galaxy_scale, sim_galaxy_offset,
                             do_xshift, do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
-                            size=size, band=band,
+                            size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
@@ -1636,7 +1412,6 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
 
     # if use_real_images and object_type == "SN" and num_detect_images > 1:
     if False:  # This is a temporary fix to not calculate the confusion metric.
-        sed = get_galsim_SED(diaobj.id, exposures, sn_path, fetch_SED=False)
         object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
         # object_x and object_y are the exact coords of the SN in the SCA frame.
         # x and y are the pixels the image has been cut out on, and
@@ -1648,7 +1423,7 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
         # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
         x = int(np.floor(object_x + 0.5))
         y = int(np.floor(object_y + 0.5))
-        pointing, sca = exposures["pointing"][0], exposures["sca"][0]
+        pointing, sca = image_list[0].pointing, image_list[0].sca
         snx = x
         sny = y
         x = int(np.floor(x + 0.5))
@@ -1666,9 +1441,10 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
         SNLogger.debug("Confusion Metric not calculated")
 
     # Build the backgrounds loop
-    for i, (image, pointing, sca) in enumerate(zip(image_list, exposures["pointing"], exposures["sca"])):
+    for i, image in enumerate(image_list):
         # Passing in None for the PSF means we use the Roman PSF.
         drawing_psf = None if use_roman else airy
+        pointing, sca = image.pointing, image.sca
 
         whole_sca_wcs = image.get_wcs()
         object_x, object_y = whole_sca_wcs.world_to_pixel(diaobj.ra, diaobj.dec)
@@ -1850,34 +1626,94 @@ def run_one_object(diaobj=None, object_type=None, exposures=None,
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
-    return flux, sigma_flux, images, model_images, galaxy_only_model_images, exposures, ra_grid, dec_grid, \
-        wgt_matrix, confusion_metric, X, \
-        [im.get_wcs() for im in cutout_image_list], sim_lc, np.array(galaxy_images), np.array(noise_maps)
+
+    lightcurve_model = campari_lightcurve_model(
+            flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
+            ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
+            galaxy_only_model_images=galaxy_only_model_images,
+            confusion_metric=confusion_metric, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
+            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps)
+        )
+
+    return lightcurve_model
 
 
-def load_SED_from_directory(sed_directory, wave_type="Angstrom", flux_type="fphotons"):
-    """This function loads SEDs from a directory of SED files. The files must be in CSV format with
-    two columns: "lambda" and "flux". The "lambda" column should contain the
-    wavelengths in Angstroms, and the "flux" column should contain the fluxes in
-    the appropriate units for the specified wave_type and flux_type.
-    Inputs:
-    sed_directory: str, the path to the directory containing the SED files.
+class campari_lightcurve_model:
+    """This class holds the output of the Campari pipeline for a single SNID."""
 
-    Returns:
-    sed_list: list of galsim SED objects. (Temporary until we remove galsim)
-    """
-    SNLogger.debug(f"Loading SEDs from {sed_directory}")
-    sed_list = []
-    for file in pathlib.Path(sed_directory).glob("*.csv"):
-        sed_table = pd.read_csv(file)
-
-        flambda = sed_table["flux"]
-        lam = sed_table["lambda"]
-        # Assuming units are Angstroms how can I check this?
-        sed = galsim.SED(galsim.LookupTable(lam, flambda, interpolant="linear"),
-                         wave_type=wave_type, flux_type=flux_type)
-        sed_list.append(sed)
-    return sed_list
+    def __init__(
+        self,
+        diaobj=None,
+        flux=None,
+        sigma_flux=None,
+        images=None,
+        model_images=None,
+        image_list=None,
+        cutout_image_list=None,
+        ra_grid=None,
+        dec_grid=None,
+        wgt_matrix=None,
+        confusion_metric=None,
+        best_fit_model_values=None,
+        sim_lc=None,
+        galaxy_images=None,
+        noise_maps=None,
+        galaxy_only_model_images=None,
+    ):
+        """Initialize the Campari lightcurve model with the SNID and its properties.
+        Parameters
+        ----------
+        diaobj: snappl.diaobject.DiaObject
+            The DiaObject representing the transient.
+        flux : np.ndarray
+            The flux values for the lightcurve.
+        sigma_flux : np.ndarray
+            The uncertainties in the flux values.
+        images : np.ndarray
+            The image data used in the lightcurve analysis.
+        model_images : np.ndarray
+            The model images generated by Campari.
+        image_list : list of snappl.image.Image objects
+            list of images used in the lightcurve analysis.
+        cutout_image_list : list of snappl.image.Image objects
+            list of images used in the lightcurve analysis that have been cutout at transient location.
+        ra_grid : np.ndarray
+            The RA coordinates of the points used to construct the background model.
+        dec_grid : np.ndarray
+            The Dec coordinates of the points used to construct the background model.
+        wgt_matrix : np.ndarray
+            The weight matrix used in the lightcurve analysis.
+        confusion_metric : np.ndarray
+            The confusion metric for the images. Currently defined as the dot product of PSF rendered
+            at the location of the transient and an image of the background galaxy. This is analogous to
+            local surface brightness, so it is possible this will be replaced with local surface brightness
+            in the future.
+        best_fit_model_values : np.ndarray
+            The best fit model values for the lightcurve. The last n values,
+            where n is the number of images considered a transient detection,
+            are the flux values for the transient. All other values are the
+            flux values assigned to the points that make up the background model.
+        cutout_wcs_list : list
+            List of WCS objects for the cutouts used in the lightcurve analysis.
+        sim_lc : pd.DataFrame
+            The simulated lightcurve data, if applicable.
+        """
+        self.diaobj = diaobj
+        self.flux = flux
+        self.sigma_flux = sigma_flux
+        self.images = images
+        self.model_images = model_images
+        self.image_list = image_list
+        self.cutout_image_list = cutout_image_list
+        self.ra_grid = ra_grid
+        self.dec_grid = dec_grid
+        self.wgt_matrix = wgt_matrix
+        self.confusion_metric = confusion_metric
+        self.best_fit_model_values = best_fit_model_values
+        self.sim_lc = sim_lc
+        self.galaxy_images = galaxy_images
+        self.noise_maps = noise_maps
+        self.galaxy_only_model_images = galaxy_only_model_images
 
 
 def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUniverse2024"):

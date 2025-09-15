@@ -10,6 +10,8 @@ from erfa import ErfaWarning
 
 from campari import RomanASP
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
+from snappl.diaobject import DiaObject
+from snappl.image import ManualFITSImage
 from snpit_utils.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
@@ -38,11 +40,25 @@ def test_simulate_images(roman_path):
     airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=galsim.roman.getPSF(1, band, pupil_bin=1).aberrations)
     # Fluxes for the simulated supernova, days arbitrary.
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
+
+    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
+    diaobj.mjd_start = 61000
+    diaobj.mjd_end = 61200
+
+    dates = np.linspace(60000, diaobj.mjd_start, 5).tolist() + \
+        np.linspace(diaobj.mjd_start+1, diaobj.mjd_end-1, 5).tolist()
+    dates = np.array(dates)
+
+    image_list = []
+    for i in range(10):
+        img = ManualFITSImage(header=None, data=np.zeros((4088, 4088)), noise=np.ones((4088, 4088)),
+                              flags=np.zeros((4088, 4088)), mjd=dates[i], band=band, pointing=base_pointing,
+                              sca=base_sca)
+        image_list.append(img)
+
     sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = simulate_images(
-        num_total_images=10,
-        num_detect_images=5,
-        ra=ra,
-        dec=dec,
+        image_list=image_list,
+        diaobj=diaobj,
         sim_gal_ra_offset=1e-5,
         sim_gal_dec_offset=1e-5,
         do_xshift=True,
@@ -50,7 +66,6 @@ def test_simulate_images(roman_path):
         sim_lc=test_lightcurve,
         noise=0,
         use_roman=False,
-        band=band,
         deltafcn_profile=False,
         roman_path=roman_path,
         size=size,
@@ -132,7 +147,7 @@ def test_deltafcn_galaxy_test(cfg):
     base_pointing = 5934
 
     curfile = pathlib.Path(pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
-                     "deltafcn_test_20172782_Y106_romanpsf_images.npy")
+                           "deltafcn_test_20172782_Y106_romanpsf_images.npy")
     curfile.unlink(missing_ok=True)
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
