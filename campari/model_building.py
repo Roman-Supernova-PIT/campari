@@ -1,0 +1,539 @@
+# Standard Library
+import warnings
+
+# Common Library
+import numpy as np
+from scipy.interpolate import RegularGridInterpolator
+
+# Astronomy Library
+from astropy import units as u
+from astropy.coordinates import angular_separation
+from astropy.utils.exceptions import AstropyWarning
+from erfa import ErfaWarning
+import galsim
+from galsim import roman
+
+# SN-PIT
+from snappl.psf import PSF
+from snpit_utils.logger import SNLogger
+
+# This supresses a warning because the Open Universe Simulations dates are not
+# FITS compliant.
+warnings.simplefilter("ignore", category=AstropyWarning)
+# Because the Open Universe Sims have dates from the future, we supress a
+# warning about using future dates.
+warnings.filterwarnings("ignore", category=ErfaWarning)
+
+
+def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0, subsize=9):
+    """Generates a regular grid around a (RA, Dec) center, choosing step size.
+
+    ra_center, dec_center: floats, coordinate center of the image
+    wcs: the WCS of the image, snappl.wcs.BaseWCS object
+    spacing: int, spacing of grid points in pixels.
+    subsize: int, width of the grid in pixels.
+             Specify the width of the grid, which can be smaller than the
+             image. For instance I could have an image that is 11x11 but a grid
+             that is only 9x9.
+             This is useful and different from making a smaller image because
+             when the image rotates, model points near the corners of the image
+             may be rotated out. By taking a smaller grid, we can avoid this.
+
+
+    Returns:
+    ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
+    """
+    SNLogger.debug(f"CRPIX1 {wcs.to_fits_header()['CRPIX1']}")
+    if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
+        SNLogger.warning(
+            "This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
+            "cutout WCS, this is likely not a cutout WCS."
+        )
+    if subsize > size:
+        SNLogger.warning(
+            "subsize is larger than the image size. "
+            + f"{size} > {subsize}. This would cause model points to"
+            + " be placed outside the image. Reducing subsize to"
+            + " match the image size."
+        )
+        subsize = size
+
+    SNLogger.debug("Grid type: regularly spaced")
+    difference = int((size - subsize) / 2)
+
+    x = difference + np.arange(0, subsize, spacing)
+    y = difference + np.arange(0, subsize, spacing)
+    SNLogger.debug(f"Grid spacing: {spacing}")
+
+    xx, yy = np.meshgrid(x, y)
+    xx = xx.flatten()
+    yy = yy.flatten()
+    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
+
+    # Astropy takes (y, x) order:
+    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+
+    return ra_grid, dec_grid
+
+
+def make_adaptive_grid(ra_center, dec_center, wcs, image, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
+    """Construct an "adaptive grid" which allocates model grid points to model
+    the background galaxy according to the brightness of the image.
+
+    Inputs:
+    ra_center, dec_center: floats, coordinate center of the image
+    wcs: the WCS of the image, snappl.wcs.BaseWCS
+    image: 2D numpy array of floats of shape (size x size), the image to build
+    the grid on. This is used to determine the size of the grid, and once we
+                switch to snappl Image objects, will also determine the wcs.
+    percentiles: list of floats, the percentiles to use to bin the image. The
+                more bins, the more possible grid points could be placed in
+                that pixel. For instance, say if you had bins [45, 90],
+                as is default. A pixel that lies in the 30th percentile for
+                brightness would get 1 point. A pixel at the 50th percentiile
+                for brightness would get a 2x2 grid of points.
+                A pixel above the 90th percentile would get a 3x3 grid of
+                points. If you have more bins, you could go even higher to
+                4x4 and 5x5 etc. These points are evenly spaced within the
+                pixel.
+    subsize: int, width of the grid in pixels.
+             Specify the width of the grid, which can be smaller than the
+             image. For instance I could have an image that is 11x11 but a grid
+             that is only 9x9.
+             This is useful and different from making a smaller image because
+             when the image rotates, model points near the corners of the image
+             may be rotated out. By taking a smaller grid, we can avoid this.
+    subpixel_grid_width: When we place the model points in a pixel, we place
+                        them on a small range of locations within the pixel.
+                        For instance, 0.25, 0.5, and 0.75 for x values. However
+                        I've found this leads to awkward gaps in grid points
+                        between pixels. For instance, the point at 0.25 would
+                        be half a pixel from the point located at 0.75 in the
+                        next lower pixel, and only 0.25 from the point at 0.5
+                        in the same pixel.
+                        Therefore, subpixel_grid_width can be
+                        set to something larger than 1 so that the evenly
+                        spaced points are spaced out more, reducing these gaps.
+                        For instance, if you set to 1.2, the x values of the
+                        pixels would be [0.2, 0.5, 0.8] instead, reducing
+                        inter-pixel gaps.
+
+    Returns:
+    ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
+    """
+    size = np.shape(image)[0]
+    if subsize > size:
+        SNLogger.warning(
+            "subsize is larger than the image size "
+            + f"{size} > {subsize}. This would cause model points to"
+            + " be placed outside the image. Reducing subsize to"
+            + " match the image size."
+        )
+        subsize = size
+
+    SNLogger.debug("image shape: {}".format(np.shape(image)))
+    SNLogger.debug("Grid type: adaptive")
+    # Bin the image in logspace and allocate grid points based on the
+    # brightness.
+
+    difference = int((size - subsize) / 2)
+
+    x = difference + np.arange(0, subsize, 1)
+    y = difference + np.arange(0, subsize, 1)
+
+    if percentiles.sort() != percentiles:
+        SNLogger.warning("Percentiles not in ascending order. Sorting them.")
+        percentiles.sort()
+        SNLogger.warning(f"Percentiles: {percentiles}")
+
+    imcopy = np.copy(image)
+    # We need to make sure that the image is not zero, otherwise we get
+    # infinities in the log space.
+    imcopy[imcopy <= 0] = 1e-10
+    imcopy = np.log(imcopy)
+    bins = [0]
+    bins.extend(np.nanpercentile(imcopy, percentiles))
+    bins.append(100)
+    SNLogger.debug(f"BINS: {bins}")
+
+    brightness_levels = np.digitize(imcopy, bins)
+    xs = []
+    ys = []
+    # Round y and x locations to the nearest pixel. This is necessary because
+    # we want to check the brightness for each pixel within the grid, and by
+    # rounding we can index the brightness_levels array.
+    yvals = np.rint(y).astype(int)
+    xvals = np.rint(x).astype(int)
+    for xindex in xvals:
+        x = xindex
+        for yindex in yvals:
+            y = yindex
+            # xindex and yindex are the indices within the numpy array, while
+            # x and y are the actual locations in pixel space.
+            # This used to be x and y in here:
+            num = int(brightness_levels[xindex][yindex])
+            if num == 0:
+                pass
+            elif num == 1:
+                xs.append(x)
+                ys.append(y)
+            else:
+                xx = np.linspace(x - subpixel_grid_width / 2, x + subpixel_grid_width / 2, num + 2)[1:-1]
+                yy = np.linspace(y - subpixel_grid_width / 2, y + subpixel_grid_width / 2, num + 2)[1:-1]
+                X, Y = np.meshgrid(xx, yy)
+                ys.extend(list(Y.flatten()))
+                xs.extend(list(X.flatten()))
+
+    xx = np.array(xs).flatten()
+    yy = np.array(ys).flatten()
+
+    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
+
+    # Astropy takes (y,x) order:
+    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+
+    return ra_grid, dec_grid
+
+
+def generate_guess(imlist, ra_grid, dec_grid):
+    """This function initializes the guess for the optimization. For each grid
+    point, it finds the average value of the pixel it is sitting in on
+    each image. In some cases, this has offered minor improvements but it is
+    not make or break for the algorithm.
+
+    Inputs:
+    imlist: list of snappl.image.Image objects, the images to use for the
+            guess.
+    ra_grid, dec_grid: numpy arrays of floats, the RA and DEC of the
+                       grid points.
+
+    Outputs:
+    all_vals: numpy array of floats, the proposed initial guess for each model
+                point.
+
+    """
+    size = imlist[0].image_shape[0]
+    imx = np.arange(0, size, 1)
+    imy = np.arange(0, size, 1)
+    imx, imy = np.meshgrid(imx, imy)
+    all_vals = np.zeros_like(ra_grid)
+
+    wcslist = [im.get_wcs() for im in imlist]
+    imdata = [im.data.flatten() for im in imlist]
+    for i, imwcs in enumerate(zip(imdata, wcslist)):
+        im, wcs = imwcs
+        xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
+        grid_point_vals = np.atleast_1d(np.zeros_like(xx))
+        # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
+        xx = np.atleast_1d(xx)
+        yy = np.atleast_1d(yy)
+        for imval, imxval, imyval in zip(im.flatten(), imx.flatten(), imy.flatten()):
+            grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
+        all_vals += grid_point_vals
+    return all_vals / len(wcslist)
+
+
+def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, pixel=False, util_ref=None, band=None):
+    """Constructs the background model around a certain image (x,y) location
+    and a given array of RA and DECs.
+    Inputs:
+    ra, dec: arrays of floats, RA and DEC values for the grid
+    sca_wcs: the wcs of the entire image, i.e. the entire SCA. A snappl.wcs.BaseWCS object.
+    x_loc, y_loc: floats,the pixel location of the object in the FULL image,
+        i.e. x y location in the SCA.
+    stampsize: int, the size of the stamp being used
+    band: str, the bandpass being used
+    psf: Here you can provide a PSF to use, if you don't provide one, you must
+        provide a util_ref, and this function will calculate the Roman PSF
+        instead.
+    pixel: bool, If True, use a pixel tophat function to convolve the PSF with,
+        otherwise use a delta function. Does not seem to hugely affect results.
+    util_ref: A roman_imsim.utils.roman_utils object, which is used to
+        calculate the PSF. If you provide this, you don't need to provide a PSF
+        and the Roman PSF will be calculated. Note
+        that this needs to be for the correct SCA/Pointing combination.
+
+    Returns:
+    A numpy array of the PSFs at each grid point, with the shape
+    (stampsize*stampsize, npoints)
+    """
+
+    assert util_ref is not None or psf is not None, "you must provide at least util_ref or psf"
+    assert util_ref is not None or band is not None, "you must provide at least util_ref or band"
+
+    # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
+    x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
+    # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
+    x_sca = np.atleast_1d(x_sca)
+    y_sca = np.atleast_1d(y_sca)
+    bpass = roman.getBandpasses()[band]
+
+    num_grid_points = np.size(x_sca)
+
+    psfs = np.zeros((stampsize * stampsize, num_grid_points))
+
+    sed = galsim.SED(
+        galsim.LookupTable([100, 2600], [1, 1], interpolant="linear"), wave_type="nm", flux_type="fphotons"
+    )
+
+    if pixel:
+        point = galsim.Pixel(0.1) * sed
+    else:
+        point = galsim.DeltaFunction()
+        point *= sed
+
+    point = point.withFlux(1, bpass)
+
+    pointing = util_ref.visit
+    sca = util_ref.sca
+
+    psf_object = PSF.get_psf_object("ou24PSF", pointing=pointing, sca=sca, size=stampsize, include_photonOps=False)
+    # See run_one_object documentation to explain this pixel coordinate conversion.
+    x_loc = int(np.floor(x_loc + 0.5))
+    y_loc = int(np.floor(y_loc + 0.5))
+
+    # Loop over the grid points, draw a PSF at each one, and append to a list.
+    for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
+        if a % 50 == 0:
+            SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
+        psfs[:, a] = psf_object.get_stamp(
+            x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs
+        ).flatten()
+
+    return psfs
+
+
+def construct_transient_scene(
+    x, y, pointing, sca, stampsize=25, x_center=None, y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None
+):
+    """Constructs the PSF around the point source (x,y) location, allowing for
+        some offset from the center.
+    Inputs:
+    x, y: ints, pixel coordinates where the cutout is centered in the SCA
+    pointing, sca: ints, the pointing and SCA of the image
+    stampsize = int, size of cutout image used
+    TODO: this defn below isn't correct
+    x_center and y_center: floats, x and y location of the object in the SCA.
+    sed: galsim.sed.SED object, the SED of the source
+    flux: float, If you are using this function to build a model grid point,
+        this should be 1. If you are using this function to build a model of
+        a source, this should be the flux of the source.
+    Outputs:
+    psf_image: numpy array of floats of size stampsize**2, the image
+                of the PSF at the (x,y) location.
+    """
+
+    if not isinstance(x, int) or not isinstance(y, int):
+        raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
+
+    SNLogger.debug(
+        f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n"
+        + f" pointing, sca: {pointing, sca} \n"
+        + f" stamp size: {stampsize} \n"
+        + f" x_center, y_center: {x_center, y_center} \n"
+        + f" sed: {sed} \n"
+        + f" flux: {flux}"
+    )
+
+    assert sed is not None, "You must provide an SED for the source"
+
+    if not photOps:
+        # While I want to do this sometimes, it is very rare that you actually
+        # want to do this. Thus if it was accidentally on while doing a normal
+        # run, I'd want to know.
+        SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
+
+    psf_object = PSF.get_psf_object(
+        "ou24PSF_slow", pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps
+    )
+    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center, flux=1.0, seed=None, input_wcs=sca_wcs)
+
+    return psf_image.flatten()
+
+
+def make_grid(
+    grid_type,
+    images,
+    ra,
+    dec,
+    percentiles=[0, 90, 95, 100],
+    make_exact=False,
+    single_ra=None,
+    single_dec=None,
+    cut_points_close_to_sn=False,
+    spacing=0.75,
+):
+    """This is a function that returns the locations for the model grid points
+    used to model the background galaxy. There are several different methods
+    for building the grid, listed below, and this parent function calls the
+    correct function for which type of grid you wish to construct.
+
+    Inputs:
+    grid_type: str, type of grid method to use.
+              regular: A regularly spaced grid.
+              adaptive: Points are placed in the image based on the brightness
+                        in each pixel.
+              contour: Points are placed by placing finer and finer regularly
+                        spaced grids in different contour levels of a linear
+                        interpolation of the image. See make_contour_grid for
+                        a more detailed explanation.
+              single: Place a single grid point. This is for sanity checking
+                      that the algroithm is drawing points where expected.
+    images: list of snappl.image.Image objects, the images to be used for the
+            grid. The first image in the list is used to get the WCS and
+            design the grid.
+    ra, dec: floats, the RA and DEC of the supernova.
+    percentiles: list of floats, the percentiles to use for the adaptive grid.
+    sim_galra, sim_galdec: floats, the RA and DEC of a single simulated galaxy, only
+                used if grid_type is "single". This is used to place a single
+                grid point at the location of the simulated galaxy, for sanity
+                checking that the algorithm is drawing points where expected.
+
+    Returns:
+    ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
+                    model grid points.
+    """
+    size = images[0].image_shape[0]
+    snappl_wcs = images[0].get_wcs()
+    image_data = images[0].data
+
+    SNLogger.debug(f"Grid type: {grid_type}")
+    if grid_type not in ["regular", "adaptive", "contour", "single"]:
+        raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
+    if grid_type == "contour":
+        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
+
+    elif grid_type == "adaptive":
+        ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs, image=image_data, percentiles=percentiles)
+    elif grid_type == "regular":
+        ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs, size=size, spacing=spacing)
+
+    if grid_type == "single":
+        if single_ra is None or single_dec is None:
+            raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
+        ra_grid, dec_grid = [single_ra], [single_dec]
+
+    ra_grid = np.array(ra_grid)
+    dec_grid = np.array(dec_grid)
+
+    if cut_points_close_to_sn:
+        min_distance = 0.5 * 0.11 * u.arcsec  # 0.11 arcsec is the pixel scale of Roman, so this is 1/2 a pixel
+        SNLogger.debug(f"Cutting points closer than {min_distance} from SN")
+        distances = angular_separation(ra * u.deg, dec * u.deg, ra_grid * u.deg, dec_grid * u.deg)
+        SNLogger.debug(f"Old Grid size: {len(ra_grid)}")
+        ra_grid = ra_grid[distances > min_distance]
+        dec_grid = dec_grid[distances > min_distance]
+        SNLogger.debug(f"New grid size: {len(ra_grid)}")
+
+    return ra_grid, dec_grid
+
+
+def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100], subsize=4):
+    """Construct a "contour grid" which allocates model grid points to model
+    the background galaxy according to the brightness of the image. This is
+    an alternate version of make_adaptive_grid that results in a more
+    continuous model grid point layout than make_adaptive_grid.
+    While make_adaptive_grid visits each pixel and places a certain number of
+    points, this function creates a smooth interpolation of the image to choose
+    model point locations more densely in brighter regions.
+
+    It does this as follows:
+        1. Create a linear interoplation of the image.
+        Start a loop:
+        2. Create a grid of points that are evenly spaced in pixel space.
+        3. For each of these points, check which brightness bin they fall into,
+           using the linear interpolation.
+        4. If this point is in the correct brightness bin, add it to the grid.
+            If not, it does not get added.
+        5. Increase the point density, and move to the next higher brightness
+            bin.
+
+    Here's a schematic:
+    Our Image:  Binned by brightness:
+                          ───────          ·····              ·····
+            ░░░░░░        │     │          ·   ·              ·:::·
+            ░▒▒▒▒░        │ ┌─┐ │          ·   ·              ·:::·
+            ░▒██▒░        │ │ │ │          ·   ·              ·:::·
+            ░▒██▒░        │ └─┘ │          ·   ·              ·:::·
+            ░▒▒▒▒░        │     │          ·   ·              ·:::·
+            ░░░░░░        │     │          ·····              ·····
+                          ───────            ^                 ^
+                            Add sparse model points, then dense model points.
+
+
+    This model allows for the grid density to change smoothly across pixels,
+    and avoids the problem of awkward gaps between model points across pixels.
+
+    Inputs:
+    image: 2D numpy array of floats of shape (size x size), the image to build
+    the grid on.
+    wcs: snappl.wcs.BaseWCS object
+
+    percentiles: list of floats, the percentiles to use to bin the image. The
+                more bins, the more possible grid points could be placed in
+                that pixel.
+
+    subsize: int, width of the grid in pixels.
+             Specify the width of the grid, which can be smaller than the
+             image. For instance I could have an image that is 11x11 but a grid
+             that is only 9x9.
+             This is useful and different from making a smaller image because
+             when the image rotates, model points near the corners of the image
+             may be rotated out. By taking a smaller grid, we can avoid this.
+
+    Returns:
+    ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
+    """
+    size = image.shape[0]
+    x = np.arange(0, size, 1.0)
+    y = np.arange(0, size, 1.0)
+    xg, yg = np.meshgrid(x, y, indexing="ij")
+    xg = xg.ravel()
+    yg = yg.ravel()
+    SNLogger.debug(f"Grid type: contour, with percentiles: {percentiles} and subsize: {subsize}")
+
+    if numlevels is not None:
+        levels = list(np.linspace(np.nanmin(image), np.nanmax(image), numlevels))
+    else:
+        levels = list(np.nanpercentile(image, percentiles))
+
+    SNLogger.debug(f"Using levels: {levels} in make_contour_grid")
+
+    interp = RegularGridInterpolator((x, y), image, method="linear", bounds_error=False, fill_value=None)
+
+    aa = interp((xg, yg))
+
+    x_totalgrid = []
+    y_totalgrid = []
+
+    for i in range(len(levels) - 1):
+        zmin = levels[i]
+        zmax = levels[i + 1]
+        # Generate a grid that gets finer each iteration of the loop. For
+        # instance, in brightness bin 1, 1 point per pixel, in brightness bin
+        # 2, 4 points per pixel (2 in each direction), etc.
+        x = np.arange(0, size, 1 / (i + 1))
+        y = np.arange(0, size, 1 / (i + 1))
+        if i == 0:
+            x = x[np.where(np.abs(x - size / 2) < subsize)]
+            y = y[np.where(np.abs(y - size / 2) < subsize)]
+        xg, yg = np.meshgrid(x, y, indexing="ij")
+        aa = interp((xg, yg))
+        xg = xg[np.where((aa > zmin) & (aa <= zmax))]
+        yg = yg[np.where((aa > zmin) & (aa <= zmax))]
+        x_totalgrid.extend(xg)
+        y_totalgrid.extend(yg)
+
+    xx, yy = x_totalgrid, y_totalgrid
+    xx = np.array(xx)
+    yy = np.array(yy)
+    xx = xx.flatten()
+    yy = yy.flatten()
+    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
+    first_n = 5
+    SNLogger.debug(f"First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}")
+
+    # Astropy takes (y ,x) order:
+    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+
+    return ra_grid, dec_grid
