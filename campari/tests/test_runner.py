@@ -1,6 +1,5 @@
 # Standard Library
 import pathlib
-
 from types import SimpleNamespace
 
 # Common Library

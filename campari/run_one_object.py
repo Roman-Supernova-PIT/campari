@@ -1,6 +1,5 @@
 # Standard Library
 import pathlib
-
 import warnings
 
 # Common Library

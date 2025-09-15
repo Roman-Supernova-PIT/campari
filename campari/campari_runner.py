@@ -5,8 +5,9 @@ import numpy as np
 import pandas as pd
 
 # Astronomy
-import galsim
 from astropy.io import fits
+import galsim
+
 
 # SN-PIT
 from snappl.diaobject import DiaObject
