@@ -122,10 +122,12 @@ def build_lightcurve(diaobj, lc_model):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
+def add_truth_to_lc(lc, lc_model, sn_path, roman_path):
     """This code adds the truth flux and magnitude to a lightcurve datatable."""
 
     ID = lc.meta["ID"]
+    diaobj = lc_model.diaobj
+    object_type = lc_model.object_type
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
 
@@ -205,7 +207,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc, identifier, band, psftype, output_path=None, overwrite=True):
+def save_lightcurve(lc, identifier, psftype, output_path=None, overwrite=True):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -221,6 +223,7 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None, overwrite=T
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
+    band = lc["filter"][0]
     output_path = Config.get().value("photometry.campari.paths.output_dir") if output_path is None else output_path
     output_path = pathlib.Path(output_path)
     output_path.mkdir(exist_ok=True, parents=True)
@@ -263,7 +266,7 @@ def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_
     SNLogger.info(f"Saved to {output_path}")
 
 
-def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type="SN"):
+def extract_id_using_ra_dec(sn_path=None, ra=None, dec=None, radius=None, object_type="SN"):
     """Convenience function for getting a list of SN RA and Dec that can be
     cone-searched for by passing a central coordinate and a radius. For now, this solely
     pulls objects from the OpenUniverse simulations.
@@ -287,6 +290,9 @@ def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type
     all_dist: numpy array of float, the distances of the objects found in the
                 given range, in arcseconds.
     """
+    if sn_path is None:
+        SNLogger.warning("No sn_path provided, using config value photometry.campari.paths.sn_path")
+        sn_path = Config.get().value("photometry.campari.paths.sn_path")
 
     if not hasattr(radius, "unit") and radius is not None:
         SNLogger.warning("extract_id_using_ra_dec got a radius argument with no units. Assuming degrees.")
@@ -321,7 +327,8 @@ def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type
     return all_SN_ID, all_dist
 
 
-def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_path, ra=None, dec=None, radius=None):
+def extract_star_from_parquet_file_and_write_to_csv(parquet_file=None, sn_path=None, output_path=None,
+                                                    ra=None, dec=None, radius=None):
     """Convenience function for getting a list of star IDs
     from a parquet file. The stars can be cone-searched for by passing a
     central coordinate and a radius.
@@ -345,6 +352,16 @@ def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path, outpu
     Saves a csv file to output_path of the IDs of stars from the parquet
     file that pass location cuts. If none are found, raise a ValueError.
     """
+    if parquet_file is None:
+        raise ValueError("No parquet_file provided to extract_star_from_parquet_file_and_write_to_csv")
+    if sn_path is None:
+        SNLogger.warning("No sn_path provided, using config value photometry.campari.paths.sn_path")
+        sn_path = Config.get().value("photometry.campari.paths.sn_path")
+    if output_path is None:
+        SNLogger.warning("No sn_path provided, using config value photometry.campari.paths.sn_path")
+        output_path = Config.get().value("photometry.campari.paths.output_dir")
+        SNLogger.warning(f"Using {output_path} as output_path")
+
     if not hasattr(radius, "unit") and radius is not None:
         SNLogger.warning(
             "extract_star_from_parquet_file_and_write_to_csv "
