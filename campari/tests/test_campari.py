@@ -1,27 +1,27 @@
+# Standard Libary
 import os
 import pathlib
 import sys
 import tempfile
 import warnings
 
-import astropy.units as u
-import galsim
+# Common Library
 import matplotlib
+from matplotlib import pyplot as plt
 import numpy as np
 import pandas as pd
 import pytest
-import snappl
+
+# Astronomy Library
 from astropy.table import QTable, Table
+import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-from matplotlib import pyplot as plt
+import galsim
 from roman_imsim.utils import roman_utils
-from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
-from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
 
+
+# SNPIT
 from campari import RomanASP
 from campari.data_construction import find_all_exposures
 from campari.io import (
@@ -46,6 +46,12 @@ from campari.model_building import (
 from campari.plotting import plot_lc
 from campari.run_one_object import campari_lightcurve_model
 from campari.utils import calc_mag_and_err, calculate_background_level, get_weights, make_sim_param_grid
+import snappl
+from snappl.diaobject import DiaObject
+from snappl.image import ManualFITSImage
+from snappl.imagecollection import ImageCollection
+from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)

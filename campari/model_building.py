@@ -2,17 +2,19 @@
 import warnings
 
 # Common Library
-import galsim
 import numpy as np
+from scipy.interpolate import RegularGridInterpolator
+
+# Astronomy Library
 from astropy import units as u
 from astropy.coordinates import angular_separation
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+import galsim
 from galsim import roman
-from scipy.interpolate import RegularGridInterpolator
-from snappl.psf import PSF
 
 # SN-PIT
+from snappl.psf import PSF
 from snpit_utils.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not

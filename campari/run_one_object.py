@@ -1,26 +1,27 @@
 # Standard Library
 import pathlib
+
 import warnings
 
 # Common Library
-import galsim
+
 import numpy as np
+from numpy.linalg import LinAlgError
 import scipy.sparse as sp
+
+# Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-from numpy.linalg import LinAlgError
+import galsim
 from roman_imsim.utils import roman_utils
 
 # SN-PIT
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
-
 from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
-
-# Campari
 from campari.simulation import simulate_images
 from campari.utils import banner, get_weights
+from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -30,7 +31,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 r"""
-Cole Meldorf 2024
+Cole Meldorf 2025
 Adapted from code by Pedro Bernardinelli
 
                     ___

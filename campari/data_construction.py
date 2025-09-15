@@ -2,9 +2,9 @@
 import warnings
 
 # Common Library
-import numpy as np
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+import numpy as np
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
