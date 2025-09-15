@@ -4,14 +4,14 @@ from types import SimpleNamespace
 import numpy as np
 import pandas as pd
 import pytest
-
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
 from snappl.diaobject import DiaObject
 from snappl.image import ManualFITSImage
 from snappl.imagecollection import ImageCollection
+from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger
+
 from campari.campari_runner import campari_runner
-from campari.AllASPFuncs import campari_lightcurve_model
+from campari.run_one_object import campari_lightcurve_model
 
 ROMAN_IMAGE_SIZE = 4088  # Roman images are 4088x4088 pixels (4096 minus 4 on each edge)
 

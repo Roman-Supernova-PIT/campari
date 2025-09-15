@@ -6,48 +6,47 @@ import warnings
 
 import astropy.units as u
 import galsim
+import matplotlib
 import numpy as np
 import pandas as pd
 import pytest
+import snappl
 from astropy.table import QTable, Table
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-import matplotlib
 from matplotlib import pyplot as plt
 from roman_imsim.utils import roman_utils
-
-import snappl
+from snappl.diaobject import DiaObject
 from snappl.image import ManualFITSImage
+from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
-from snappl.diaobject import DiaObject
-from snappl.imagecollection import ImageCollection
 
 from campari import RomanASP
-from campari.AllASPFuncs import (
+from campari.data_construction import find_all_exposures
+from campari.io import (
     add_truth_to_lc,
     build_lightcurve,
-    calc_mag_and_err,
-    calculate_background_level,
-    construct_static_scene,
-    construct_transient_scene,
     extract_id_using_ra_dec,
     extract_object_from_healpix,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
     find_parquet,
-    find_all_exposures,
-    get_weights,
-    make_adaptive_grid,
-    make_contour_grid,
-    make_regular_grid,
-    make_sim_param_grid,
     open_parquet,
     read_healpix_file,
     save_lightcurve,
 )
+from campari.model_building import (
+    construct_static_scene,
+    construct_transient_scene,
+    make_adaptive_grid,
+    make_contour_grid,
+    make_regular_grid,
+)
 from campari.plotting import plot_lc
-from campari.AllASPFuncs import campari_lightcurve_model
+from campari.run_one_object import campari_lightcurve_model
+from campari.utils import calc_mag_and_err, calculate_background_level, get_weights, make_sim_param_grid
+
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
