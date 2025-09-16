@@ -94,9 +94,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
         sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
-            simulate_images(image_list, diaobj,
-                            sim_galaxy_scale, sim_galaxy_offset,
-                            do_xshift, do_rotation, noise=noise,
+            simulate_images(image_list=image_list, diaobj=diaobj,
+                            sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
+                            do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
                             size=size,
                             deltafcn_profile=deltafcn_profile,

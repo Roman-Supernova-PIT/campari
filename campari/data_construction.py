@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 huge_value = 1e32
 
 
-def construct_images(image_list, diaobj, size, subtract_background=True, truth="simple_model"):
+def construct_images(image_list, diaobj, size, subtract_background=True):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -33,7 +33,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
     ra,dec: the RA and DEC of the SN
     subtract_background: If False, the background level is fit as a free
         parameter in the forward modelling. Otherwise, we subtract it here.
-    roman_path: the path to the Roman data
 
     Returns:
     cutout_image_list: list of snappl.image.Image objects, cutouts on the
@@ -43,11 +42,11 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
     """
     ra = diaobj.ra
     dec = diaobj.dec
+    truth = "simple_model"
 
     bgflux = []
     cutout_image_list = []
 
-    SNLogger.debug(f"truth in construct images: {truth}")
     x_list = []
     y_list = []
     x_cutout_list = []
@@ -177,8 +176,8 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
 
 
 def find_all_exposures(
-    diaobj,
-    band,
+    diaobj=None,
+    band=None,
     maxbg=None,
     maxdet=None,
     roman_path=None,
@@ -215,6 +214,8 @@ def find_all_exposures(
         - date: the MJD of the exposure
         - detected: whether the exposure contains a detection or not.
     """
+    assert band is not None, "You must pass in a band."
+    assert diaobj is not None, "You must pass in a diaobj."
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end

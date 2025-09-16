@@ -265,7 +265,7 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            image_list = find_all_exposures(diaobj, roman_path=self.roman_path,
+            image_list = find_all_exposures(diaobj=diaobj, roman_path=self.roman_path,
                                             maxbg=self.max_no_transient_images,
                                             maxdet=self.max_transient_images,
                                             band=self.band, image_selection_start=self.image_selection_start,
@@ -376,7 +376,7 @@ class campari_runner:
 
         if lc_model.flux is not None:
             output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
-            save_lightcurve(lc, identifier, psftype, output_path=output_dir)
+            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir)
 
         # Now, save the images
 

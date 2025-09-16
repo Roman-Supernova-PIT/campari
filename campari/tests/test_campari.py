@@ -81,7 +81,7 @@ def test_find_all_exposures(roman_path):
     diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    image_list = find_all_exposures(diaobj, "Y106", maxbg=24,
+    image_list = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                     maxdet=24,
                                     roman_path=roman_path,
                                     pointing_list=None, sca_list=None,
@@ -119,7 +119,7 @@ def test_savelightcurve():
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
         lc["filter"] = "test"
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
-        save_lightcurve(lc, "test", "test", output_path=output_dir)
+        save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir)
         assert lc_file.is_file()
         # TODO: look at contents?
 
@@ -448,7 +448,7 @@ def test_make_contour_grid():
     atol = 1e-9
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
-                                    / "testdata/images.npy")
+                                 / "testdata/images.npy")
         image = compare_images[0].reshape(11, 11)
         img_obj = ManualFITSImage(header=wcs_dict, data=image)
         ra_grid, dec_grid = make_contour_grid(img_obj)
@@ -729,7 +729,7 @@ def test_find_all_exposures_with_img_list(roman_path):
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
 
-    image_list = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
+    image_list = find_all_exposures(diaobj=diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
                                     maxdet=max_transient_images, band=band,
                                     image_selection_start=image_selection_start,
                                     image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)

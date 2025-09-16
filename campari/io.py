@@ -207,7 +207,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc, identifier, psftype, output_path=None, overwrite=True):
+def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:

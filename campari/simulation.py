@@ -21,10 +21,10 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def simulate_images(image_list, diaobj,
-                    sim_galaxy_scale, sim_galaxy_offset, do_xshift,
-                    do_rotation, noise, use_roman, deltafcn_profile,
-                    roman_path, size=11, input_psf=None,
+def simulate_images(image_list=None, diaobj=None,
+                    sim_galaxy_scale=None, sim_galaxy_offset=None, do_xshift=None,
+                    do_rotation=None, noise=None, use_roman=None, deltafcn_profile=None,
+                    roman_path=None, size=11, input_psf=None,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
                     sim_gal_ra_offset=None, sim_gal_dec_offset=None,
@@ -70,6 +70,16 @@ def simulate_images(image_list, diaobj,
     galra: float, the RA of the galaxy.
     galdec: float, the DEC of the galaxy.
     """
+    assert image_list is not None, "You must provide a list of images to simulate."
+    assert diaobj is not None, "You must provide a diaobj to simulate."
+    assert len(image_list) > 0, "You must provide at least one image to simulate."
+    assert bg_gal_flux is not None, "You must provide a background galaxy flux to simulate."
+    assert roman_path is not None, "You must provide a path to the Roman TDS files."
+    assert do_xshift is not None, "You must provide a value for do_xshift."
+    assert do_rotation is not None, "You must provide a value for do_rotation."
+    assert use_roman is not None, "You must provide a value for use_roman."
+    assert deltafcn_profile is not None, "You must provide a value for deltafcn_profile."
+    assert noise is not None, "You must provide a value for noise."
     ra = diaobj.ra
     dec = diaobj.dec
     band = image_list[0].band
@@ -132,8 +142,8 @@ def simulate_images(image_list, diaobj,
         else:
             rotation_angle = 0
 
-        wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift, roman_path,
-                                base_sca, base_pointing, band)
+        wcs_dict = simulate_wcs(angle=rotation_angle, x_shift=x_shift, y_shift=y_shift, roman_path=roman_path,
+                                base_sca=base_sca, base_pointing=base_pointing, band=band)
 
         image_object.header = wcs_dict
 
@@ -168,8 +178,9 @@ def simulate_images(image_list, diaobj,
             sim_psf = input_psf
 
         # Draw the galaxy.
-        convolved = simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band,
-                                    sim_psf, sed, bulge_hlr=bulge_hlr,
+        convolved = simulate_galaxy(bg_gal_flux=bg_gal_flux, sim_galaxy_scale=sim_galaxy_scale,
+                                    deltafcn_profile=deltafcn_profile, band=band,
+                                    sim_psf=sim_psf, sed=sed, bulge_hlr=bulge_hlr,
                                     disk_hlr=disk_hlr)
 
         SNLogger.debug(f"Galaxy being drawn at {pointx, pointy} ")
@@ -202,10 +213,10 @@ def simulate_images(image_list, diaobj,
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
                 SNLogger.debug(f"sed: {sed}")
                 supernova_image = \
-                    simulate_supernova(cutout_loc[0], cutout_loc[1], cutout_pixel[0], cutout_pixel[1],
-                                       sim_lc[sn_im_index],
-                                       sed, source_phot_ops,
-                                       base_pointing, base_sca, stampsize=size, sca_wcs=full_image_wcs)
+                    simulate_supernova(snx=cutout_loc[0], sny=cutout_loc[1], snx0=cutout_pixel[0], sny0=cutout_pixel[1],
+                                       flux=sim_lc[sn_im_index], sed=sed, source_phot_ops=source_phot_ops,
+                                       base_pointing=base_pointing, base_sca=base_sca, stampsize=size,
+                                       sca_wcs=full_image_wcs)
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
@@ -221,8 +232,7 @@ def simulate_images(image_list, diaobj,
     return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec, galaxy_images, noise_maps
 
 
-def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
-                 band):
+def simulate_wcs(angle=None, x_shift=None, y_shift=None, roman_path=None, base_sca=None, base_pointing=None, band=None):
     """ This function simulates the WCS for a Roman image given a base pointing / SCA combination to start from,
     then applying a rotation and shifts to the WCS.
 
@@ -237,6 +247,13 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     Returns:
     wcs_dict: dict, a dictionary containing the WCS information for the image.
     """
+    assert angle is not None, "You must provide an angle to rotate the WCS by."
+    assert x_shift is not None, "You must provide an x shift to apply to the WCS."
+    assert y_shift is not None, "You must provide a y shift to apply to the WCS."
+    assert roman_path is not None, "You must provide a path to the Roman TDS files."
+    assert base_sca is not None, "You must provide a base SCA to simulate the WCS."
+    assert base_pointing is not None, "You must provide a base pointing to simulate the WCS."
+    assert band is not None, "You must provide a band to simulate the WCS."
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
     image = fits.open(roman_path + f"/images/simple_model/{band}/" +
@@ -269,7 +286,8 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     return wcs_dict
 
 
-def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_psf, sed, bulge_hlr=None, disk_hlr=None):
+def simulate_galaxy(bg_gal_flux=None, sim_galaxy_scale=None, deltafcn_profile=None, band=None,
+                    sim_psf=None, sed=None, bulge_hlr=None, disk_hlr=None):
     """This function simulates a galaxy using galsim. It can simulate either a delta function profile or a bulge+disk
     profile.
 
@@ -287,6 +305,12 @@ def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_p
     image.
 
     """
+    assert bg_gal_flux is not None, "You must provide a background galaxy flux to simulate."
+    assert deltafcn_profile is not None, "You must provide a value for deltafcn_profile."
+    assert band is not None, "You must provide a band to simulate the galaxy in."
+    assert sim_psf is not None, "You must provide a PSF to simulate the galaxy with."
+    assert sed is not None, "You must provide a SED to simulate the galaxy with."
+
     SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     SNLogger.debug(f"Using sim_galaxy_scale {sim_galaxy_scale}")
     roman_bandpasses = galsim.roman.getBandpasses()
@@ -321,8 +345,8 @@ def simulate_galaxy(bg_gal_flux, sim_galaxy_scale, deltafcn_profile, band, sim_p
     return convolved
 
 
-def simulate_supernova(snx, sny, snx0, sny0, flux, sed,
-                       source_phot_ops, base_pointing, base_sca, stampsize,
+def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=None,
+                       source_phot_ops=None, base_pointing=None, base_sca=None, stampsize=None,
                        random_seed=0, sca_wcs=None):
     """This function simulates a supernova using the ou24PSF_slow PSF.
 
@@ -342,6 +366,16 @@ def simulate_supernova(snx, sny, snx0, sny0, flux, sed,
     psf_image: numpy.ndarray, the image of the supernova convolved with the PSF.
 
     """
+    assert snx is not None, "You must provide the x coordinate of the supernova."
+    assert sny is not None, "You must provide the y coordinate of the supernova."
+    assert snx0 is not None, "You must provide the x coordinate of the pixel the image was cutout on."
+    assert sny0 is not None, "You must provide the y coordinate of the pixel the image was cutout on."
+    assert flux is not None, "You must provide the flux of the supernova."
+    assert sed is not None, "You must provide a SED for the supernova."
+    assert source_phot_ops is not None, "You must provide a value for source_phot_ops."
+    assert base_pointing is not None, "You must provide a base pointing to simulate the PSF."
+    assert base_sca is not None, "You must provide a base SCA to simulate the PSF."
+    assert stampsize is not None, "You must provide a stamp size to simulate the PSF."
 
     SNLogger.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} ")
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")

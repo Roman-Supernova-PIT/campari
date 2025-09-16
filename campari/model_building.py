@@ -81,7 +81,6 @@ def make_regular_grid(image_object, spacing=1.0, subsize=9):
     return ra_grid, dec_grid
 
 
-#def make_adaptive_grid(image_object, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
 def make_adaptive_grid(image_object, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
     """Construct an "adaptive grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image.
