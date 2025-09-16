@@ -29,7 +29,6 @@ from campari.io import (
 from campari.run_one_object import run_one_object
 from campari.utils import banner
 
-
 class campari_runner:
     """This class is used to run the Campari pipeline."""
 
