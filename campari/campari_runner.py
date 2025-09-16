@@ -3,6 +3,7 @@ import pathlib
 
 import numpy as np
 import pandas as pd
+import yaml
 
 # Astronomy
 from astropy.io import fits
@@ -186,7 +187,11 @@ class campari_runner:
 
         # Option 1, user passes a file of SNIDs
         if self.SNID_file is not None:
-            self.SNID = pd.read_csv(self.SNID_file, header=None).values.flatten().tolist()
+            if ".dat" not in self.SNID_file and ".DAT" not in self.SNID_file:
+                self.SNID = pd.read_csv(self.SNID_file, header=None, comment="#").values.flatten().tolist()
+            else:
+                self.SNID = list(yaml.safe_load(open(self.SNID_file, "r")).values())[0]
+
             self.run_mode = "SNID File"
 
         # Option 2, user passes a SNID
