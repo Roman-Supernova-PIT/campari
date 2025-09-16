@@ -11,7 +11,9 @@ from roman_imsim.utils import roman_utils
 
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
+from snappl.imagecollection import ImageCollection
 from snappl.psf import PSF
+
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -23,8 +25,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 def simulate_images(image_list, diaobj,
                     sim_galaxy_scale, sim_galaxy_offset, do_xshift,
-                    do_rotation, noise, use_roman, deltafcn_profile,
-                    roman_path, size=11, input_psf=None,
+                    do_rotation, noise, use_roman, deltafcn_profile, size=11, input_psf=None,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
                     sim_gal_ra_offset=None, sim_gal_dec_offset=None,
@@ -46,7 +47,6 @@ def simulate_images(image_list, diaobj,
     use_roman: bool, whether to use the Roman PSF or a simple airy PSF.
     band: str, the band to use for the images.
     deltafcn_profile: bool, whether to use a delta function profile for the galaxy.
-    roman_path: str, the path to the Roman TDS files.
     size: int, the size of the images to simulate.
     input_psf: galsim.ChromaticOpticalPSF, the PSF to use if not using Roman.
     bg_gal_flux: float, the flux of the background galaxy to simulate.
@@ -132,7 +132,7 @@ def simulate_images(image_list, diaobj,
         else:
             rotation_angle = 0
 
-        wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift, roman_path,
+        wcs_dict = simulate_wcs(rotation_angle, x_shift, y_shift,
                                 base_sca, base_pointing, band)
 
         image_object.header = wcs_dict
@@ -221,15 +221,13 @@ def simulate_images(image_list, diaobj,
     return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec, galaxy_images, noise_maps
 
 
-def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
-                 band):
+def simulate_wcs(angle, x_shift, y_shift, base_sca, base_pointing, band):
     """ This function simulates the WCS for a Roman image given a base pointing / SCA combination to start from,
     then applying a rotation and shifts to the WCS.
 
     Inputs:
     angle: float, the angle to rotate the WCS by in radians.
     x_shift, y_shift: floats, the shifts, in degrees, to apply to the WCS in the x and y directions.
-    roman_path: str, the path to the Roman TDS files.
     base_sca: int, the base SCA to use to simulate the WCS.
     base_pointing: int, the base pointing to use to simulate the WCS.
     band: str, the band to use for the images.
@@ -239,31 +237,33 @@ def simulate_wcs(angle, x_shift, y_shift, roman_path, base_sca, base_pointing,
     """
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
-    image = fits.open(roman_path + f"/images/simple_model/{band}/" +
-                      f"{base_pointing}/Roman_TDS_simple_model_{band}_{base_pointing}"
-                      + f"_{base_sca}.fits.gz")
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    image = img_collection.get_image(pointing=base_pointing, sca=base_sca, band=band)
+    header = image.get_fits_header()
 
     CD_matrix = np.zeros((2, 2))
-    CD_matrix[0, 0] = image[0].header["CD1_1"]
-    CD_matrix[0, 1] = image[0].header["CD1_2"]
-    CD_matrix[1, 0] = image[0].header["CD2_1"]
-    CD_matrix[1, 1] = image[0].header["CD2_2"]
+    CD_matrix[0, 0] = header["CD1_1"]
+    CD_matrix[0, 1] = header["CD1_2"]
+    CD_matrix[1, 0] = header["CD2_1"]
+    CD_matrix[1, 1] = header["CD2_2"]
 
     CD_matrix_rotated = CD_matrix @ rotation_matrix
 
     wcs_dict = {
-            "CTYPE1": image[0].header["CTYPE1"],
-            "CTYPE2": image[0].header["CTYPE2"],
-            "CRPIX1": image[0].header["CRPIX1"],
-            "CRPIX2": image[0].header["CRPIX2"],
+            "CTYPE1": header["CTYPE1"],
+            "CTYPE2": header["CTYPE2"],
+            "CRPIX1": header["CRPIX1"],
+            "CRPIX2": header["CRPIX2"],
             "CD1_1": CD_matrix_rotated[0, 0],
             "CD1_2": CD_matrix_rotated[0, 1],
             "CD2_1": CD_matrix_rotated[1, 0],
             "CD2_2": CD_matrix_rotated[1, 1],
-            "CUNIT1": image[0].header["CUNIT1"],
-            "CUNIT2": image[0].header["CUNIT2"],
-            "CRVAL1":   image[0].header["CRVAL1"] + x_shift,
-            "CRVAL2":  image[0].header["CRVAL2"] + y_shift,
+            "CUNIT1": header["CUNIT1"],
+            "CUNIT2": header["CUNIT2"],
+            "CRVAL1":   header["CRVAL1"] + x_shift,
+            "CRVAL2":  header["CRVAL2"] + y_shift,
         }
 
     return wcs_dict

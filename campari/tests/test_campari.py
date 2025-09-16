@@ -63,11 +63,6 @@ def campari_test_data(cfg):
 
 
 @pytest.fixture(scope="module")
-def roman_path(cfg):
-    return cfg.value("photometry.campari.paths.roman_path")
-
-
-@pytest.fixture(scope="module")
 def sn_path(cfg):
     return cfg.value("photometry.campari.paths.sn_path")
 
@@ -77,13 +72,12 @@ def test_find_parquet(sn_path):
     assert parq_file_ID == 10430
 
 
-def test_find_all_exposures(roman_path):
+def test_find_all_exposures():
     diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
     image_list = find_all_exposures(diaobj, "Y106", maxbg=24,
                                     maxdet=24,
-                                    roman_path=roman_path,
                                     pointing_list=None, sca_list=None,
                                     truth="simple_model")
 
@@ -123,7 +117,7 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-def test_run_on_star(roman_path, campari_test_data, cfg):
+def test_run_on_star(campari_test_data, cfg):
     # Call it as a function first so we can pdb and such
 
     curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
@@ -497,7 +491,7 @@ def test_calc_mag_and_err():
         "The zeropoint does not match"
 
 
-def test_construct_static_scene(cfg, roman_path):
+def test_construct_static_scene(cfg):
     config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
@@ -526,7 +520,7 @@ def test_construct_static_scene(cfg, roman_path):
     np.testing.assert_allclose(psf_background, test_psf_background, atol=1e-7)
 
 
-def test_get_weights(roman_path):
+def test_get_weights():
     size = 7
     test_snra = np.array([7.471881246770769])
     test_sndec = np.array([-44.82824910386988])
@@ -606,7 +600,7 @@ def test_extract_id_using_ra_dec(sn_path):
         "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec."
 
 
-def test_build_lc_and_add_truth(roman_path, sn_path):
+def test_build_lc_and_add_truth(sn_path):
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -676,7 +670,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
     # Now add the truth to the lightcurve
     # NOTE: The truth_path thing is a hacky fix, but since I have another issue raised to remove this from
     # campari entirely, I'm leaving it for now. It will be gone soon anyway.
-    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, "SN")
+    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, "SN")
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
@@ -691,7 +685,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
 
 
-def test_wcs_regression(roman_path):
+def test_wcs_regression():
     pointing = 5934
     sca = 3
     band = "Y106"
@@ -713,7 +707,7 @@ def test_wcs_regression(roman_path):
     np.testing.assert_allclose(y, y_test, atol=1e-7)
 
 
-def test_find_all_exposures_with_img_list(roman_path):
+def test_find_all_exposures_with_img_list():
     band = "Y106"
     columns = ["pointing", "SCA"]
     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
@@ -730,7 +724,7 @@ def test_find_all_exposures_with_img_list(roman_path):
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
 
-    image_list = find_all_exposures(diaobj, roman_path=roman_path, maxbg=max_no_transient_images,
+    image_list = find_all_exposures(diaobj, maxbg=max_no_transient_images,
                                     maxdet=max_transient_images, band=band,
                                     image_selection_start=image_selection_start,
                                     image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)

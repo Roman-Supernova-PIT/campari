@@ -33,7 +33,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
     ra,dec: the RA and DEC of the SN
     subtract_background: If False, the background level is fit as a free
         parameter in the forward modelling. Otherwise, we subtract it here.
-    roman_path: the path to the Roman data
 
     Returns:
     cutout_image_list: list of snappl.image.Image objects, cutouts on the
@@ -181,7 +180,6 @@ def find_all_exposures(
     band,
     maxbg=None,
     maxdet=None,
-    roman_path=None,
     pointing_list=None,
     sca_list=None,
     truth="simple_model",
@@ -200,7 +198,6 @@ def find_all_exposures(
         at the location of the transient) and which do not.
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    roman_path: the path to the Roman data
     pointing_list: If this is passed in, only consider these pointings
     sca_list: If this is passed in, only consider these SCAs
     truth: If "truth" use truth images, if "simple_model" use simple model

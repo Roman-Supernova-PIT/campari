@@ -266,7 +266,7 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            image_list = find_all_exposures(diaobj, roman_path=self.roman_path,
+            image_list = find_all_exposures(diaobj,
                                             maxbg=self.max_no_transient_images,
                                             maxdet=self.max_transient_images,
                                             band=self.band, image_selection_start=self.image_selection_start,
@@ -335,7 +335,7 @@ class campari_runner:
 
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
-                           roman_path=self.roman_path, sn_path=self.sn_path, size=self.size, band=self.band,
+                           roman_path=self.roman_path, size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
                            use_roman=self.use_roman, subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,

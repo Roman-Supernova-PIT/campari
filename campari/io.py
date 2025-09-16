@@ -18,6 +18,7 @@ from erfa import ErfaWarning
 import healpy as hp
 
 # SN-PIT
+from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -135,11 +136,15 @@ def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
         if img.mjd < diaobj.mjd_start or img.mjd > diaobj.mjd_end:
             # If the image is outside the time range of the transient, skip it.
             continue
-        catalogue_path = (
-            roman_path
-            + f"/truth/{img.band}/{img.pointing}/"
-            + f"Roman_TDS_index_{img.band}_{img.pointing}_{img.sca}.txt"
-        )
+        try:
+            catalogue_path = img.truthpath
+        except AttributeError:
+            # If using a ManualFITSImage, load the truthpath for a OU24 Image with that pointing and SCA
+            img_collection = ImageCollection()
+            img_collection = img_collection.get_collection("ou2024")
+            dummy_image = img_collection.get_image(pointing=img.pointing, sca=img.sca, band=img.band)
+            catalogue_path = dummy_image.truthpath
+
         cat = pd.read_csv(
             catalogue_path,
             sep=r"\s+",
