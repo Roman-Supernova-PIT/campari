@@ -49,7 +49,6 @@ def make_regular_grid(image_object, spacing=1.0, subsize=9):
     """
     wcs = image_object.get_wcs()
     size = image_object.image_shape[0]
-    SNLogger.debug(f"CRPIX1 {wcs.to_fits_header()['CRPIX1']}")
     if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
         SNLogger.warning(
             "This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
@@ -82,6 +81,7 @@ def make_regular_grid(image_object, spacing=1.0, subsize=9):
     return ra_grid, dec_grid
 
 
+#def make_adaptive_grid(image_object, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
 def make_adaptive_grid(image_object, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
     """Construct an "adaptive grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image.
@@ -417,14 +417,11 @@ def make_grid(
     assert ra is not None, "You must provide the RA of the SN"
     assert dec is not None, "You must provide the DEC of the SN"
 
-    snappl_wcs = images[0].get_wcs()
-    image_data = images[0].data
-
     SNLogger.debug(f"Grid type: {grid_type}")
     if grid_type not in ["regular", "adaptive", "contour", "single"]:
         raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
     if grid_type == "contour":
-        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
+        ra_grid, dec_grid = make_contour_grid(images[0])
 
     elif grid_type == "adaptive":
         ra_grid, dec_grid = make_adaptive_grid(images[0], percentiles=percentiles)
@@ -451,7 +448,7 @@ def make_grid(
     return ra_grid, dec_grid
 
 
-def make_contour_grid(image_object, numlevels=None, percentiles=[0, 90, 98, 100], subsize=9):
+def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], subsize=4):
     """Construct a "contour grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image. This is
     an alternate version of make_adaptive_grid that results in a more
@@ -507,11 +504,10 @@ def make_contour_grid(image_object, numlevels=None, percentiles=[0, 90, 98, 100]
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     """
-    wcs = image_object.get_wcs()
-    size = image_object.image_shape[0]
-    SNLogger.debug("size of image: {}".format(size))
-    image = image_object.data
-
+    wcs = img_obj.get_wcs()
+    size = img_obj.image_shape[0]
+    image = img_obj.data
+    size = image.shape[0]
     x = np.arange(0, size, 1.0)
     y = np.arange(0, size, 1.0)
     xg, yg = np.meshgrid(x, y, indexing="ij")

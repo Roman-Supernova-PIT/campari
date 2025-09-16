@@ -359,7 +359,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
             confusion_metric=confusion_metric, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
-            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps)
+            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
+            diaobj=diaobj, object_type=object_type
         )
 
     return lightcurve_model
@@ -386,6 +387,7 @@ class campari_lightcurve_model:
         galaxy_images=None,
         noise_maps=None,
         galaxy_only_model_images=None,
+        object_type="SN",
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -424,6 +426,8 @@ class campari_lightcurve_model:
             List of WCS objects for the cutouts used in the lightcurve analysis.
         sim_lc : pd.DataFrame
             The simulated lightcurve data, if applicable.
+        object_type : str
+            The type of object being analyzed. Default is "SN", can also be "star".
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -441,3 +445,4 @@ class campari_lightcurve_model:
         self.galaxy_images = galaxy_images
         self.noise_maps = noise_maps
         self.galaxy_only_model_images = galaxy_only_model_images
+        self.object_type = object_type

@@ -361,7 +361,7 @@ class campari_runner:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model)
                 if self.object_collection != "manual":
-                    lc = add_truth_to_lc(lc, lc_model, diaobj, self.sn_path, self.roman_path, self.object_type)
+                    lc = add_truth_to_lc(lc, lc_model,  self.sn_path, self.roman_path)
 
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
@@ -376,7 +376,7 @@ class campari_runner:
 
         if lc_model.flux is not None:
             output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
-            save_lightcurve(lc, identifier, self.band, psftype, output_path=output_dir)
+            save_lightcurve(lc, identifier, psftype, output_path=output_dir)
 
         # Now, save the images
 
