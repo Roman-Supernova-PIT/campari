@@ -11,7 +11,7 @@ from snappl.imagecollection import ImageCollection
 from snpit_utils.logger import SNLogger
 
 # Campari
-from campari.utils import calculate_background_level
+from campari.utils import calculate_background_level, calculate_local_surface_brightness
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -52,9 +52,10 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
     y_list = []
     x_cutout_list = []
     y_cutout_list = []
+    LSB_list = []
 
-    for indx, _ in enumerate(image_list):
-        image = image_list[indx]
+    for indx, image in enumerate(image_list):
+
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
         image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
@@ -73,6 +74,8 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
         y_list.append(sca_loc[1])
         x_cutout_list.append(cutout_loc[0])
         y_cutout_list.append(cutout_loc[1])
+
+        LSB_list.append(calculate_local_surface_brightness(image, cutout_pix=2))
 
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
@@ -112,7 +115,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
 
         cutout_image_list.append(image_cutout)
 
-    return cutout_image_list, image_list
+    return cutout_image_list, image_list, LSB_list
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
@@ -230,6 +233,7 @@ def find_all_exposures(
         pre_transient_images = img_collection.find_images(
             mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, filter=band
         )
+        SNLogger.debug(f"Pre transient images found: {len(pre_transient_images)}")
     else:
         pre_transient_images = []
 
@@ -237,19 +241,23 @@ def find_all_exposures(
         post_transient_images = img_collection.find_images(
             mjd_min=transient_end, mjd_max=image_selection_end, ra=ra, dec=dec, filter=band
         )
+        SNLogger.debug(f"Post transient images found: {len(post_transient_images)}")
     else:
         post_transient_images = []
 
     no_transient_images = pre_transient_images + post_transient_images
+    SNLogger.debug(f"Total no transient images found: {len(no_transient_images)}")
 
     transient_images = img_collection.find_images(
         mjd_min=transient_start, mjd_max=transient_end, ra=ra, dec=dec, filter=band
     )
 
     no_transient_images = np.array(no_transient_images)
+    SNLogger.debug(f"Total no transient images found: {len(no_transient_images)}")
     transient_images = np.array(transient_images)
     if maxbg is not None:
         no_transient_images = no_transient_images[:maxbg]
+    SNLogger.debug(f"Total no transient images found: {len(no_transient_images)}")
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
@@ -259,5 +267,4 @@ def find_all_exposures(
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]
-
     return all_images

@@ -19,6 +19,8 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 # warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
+ROMAN_PIXEL_SCALE = 0.11  # arcsec/pixel
+
 
 def gaussian(x, A, mu, sigma):
     """See name of function. :D"""
@@ -149,6 +151,8 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
         "Y106": 302.275,
         "Z087": 101.7,
     }
+    flux = np.atleast_1d(flux)
+    sigma_flux = np.atleast_1d(sigma_flux)
 
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
@@ -169,3 +173,43 @@ def make_sim_param_grid(params):
     flat_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
     SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
     return flat_grid
+
+
+def calculate_local_surface_brightness(image_object, cutout_pix=2):
+    """A function to calculate the local surface brightness in a nondetection image.
+
+    Parameters
+    ----------
+    image_object : snappl.image.Image object
+        The image object to calculate the local surface brightness from.
+    cutout_pix : int, optional
+        The radius in pixels around the center of the image to use for the calculation. Since it must be odd, the
+        total width will be 2*cutout_pix + 1. The default is 2 for a 5x5 cutout.
+    Returns
+    -------
+    LSB : float
+        The local surface brightness in mag/arcsec^2.
+    """
+
+    image = image_object.data
+    band = image_object.band
+
+    cutout_pix = 2
+    imsize = image.shape[0]
+    flux_in_image_center = np.mean(
+            image[
+                imsize // 2 - cutout_pix : imsize // 2 + cutout_pix,
+                imsize // 2 - cutout_pix : imsize // 2 + cutout_pix,
+            ])
+
+    mag_in_image_center, _, _ = calc_mag_and_err(
+        flux_in_image_center, 1, band
+    )
+
+    cutout_width = (2 * cutout_pix + 1) * ROMAN_PIXEL_SCALE
+    cutout_area = cutout_width**2
+
+    LSB = mag_in_image_center + 2.5 * np.log10(cutout_area)
+
+    SNLogger.debug(f"Local Surface Brightness: {LSB} mag/arcsec^2")
+    return LSB

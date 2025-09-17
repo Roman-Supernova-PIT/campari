@@ -18,7 +18,7 @@ from roman_imsim.utils import roman_utils
 from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
-from campari.utils import banner, get_weights
+from campari.utils import banner, calc_mag_and_err, get_weights
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -56,6 +56,7 @@ Adapted from code by Pedro Bernardinelli
 """
 # Global variables
 huge_value = 1e32
+ROMAN_PIXEL_SCALE = 0.11  # arcsec/pixel
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None,
@@ -137,35 +138,36 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
 
     # Calculate the Confusion Metric
 
-    # if use_real_images and object_type == "SN" and num_detect_images > 1:
-    if False:  # This is a temporary fix to not calculate the confusion metric.
-        object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-        # object_x and object_y are the exact coords of the SN in the SCA frame.
-        # x and y are the pixels the image has been cut out on, and
-        # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
-        # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
-        # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
-        # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
-        # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does it.
-        # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
-        x = int(np.floor(object_x + 0.5))
-        y = int(np.floor(object_y + 0.5))
-        pointing, sca = image_list[0].pointing, image_list[0].sca
-        snx = x
-        sny = y
-        x = int(np.floor(x + 0.5))
-        y = int(np.floor(y + 0.5))
-        SNLogger.debug(f"x, y, snx, sny, {x, y, snx, sny}")
-        psf_source_array = construct_transient_scene(x, y, pointing, sca,
-                                                     stampsize=size,
-                                                     x_center=object_x, y_center=object_y,
-                                                     sed=sed)
-        confusion_metric = np.dot(cutout_image_list[0].data.flatten(), psf_source_array)
+    # # if use_real_images and object_type == "SN" and num_detect_images > 1:
+    # if True:  # This is a temporary fix to not calculate the confusion metric.
 
-        SNLogger.debug(f"Confusion Metric: {confusion_metric}")
-    else:
-        confusion_metric = 0
-        SNLogger.debug("Confusion Metric not calculated")
+    #     object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+    #     # object_x and object_y are the exact coords of the SN in the SCA frame.
+    #     # x and y are the pixels the image has been cut out on, and
+    #     # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
+    #     # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+    #     # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+    #     # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+    #     # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does it.
+    #     # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+    #     x = int(np.floor(object_x + 0.5))
+    #     y = int(np.floor(object_y + 0.5))
+    #     pointing, sca = image_list[0].pointing, image_list[0].sca
+    #     snx = x
+    #     sny = y
+    #     x = int(np.floor(x + 0.5))
+    #     y = int(np.floor(y + 0.5))
+    #     SNLogger.debug(f"x, y, snx, sny, {x, y, snx, sny}")
+    #     psf_source_array = construct_transient_scene(x, y, pointing, sca,
+    #                                                  stampsize=size,
+    #                                                  x_center=object_x, y_center=object_y,
+    #                                                  sed=sed)
+    #     confusion_metric = np.dot(cutout_image_list[0].data.flatten(), psf_source_array)
+
+    #     SNLogger.debug(f"Confusion Metric: {confusion_metric}")
+    # else:
+    #     confusion_metric = 0
+    #     SNLogger.debug("Confusion Metric not calculated")
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
