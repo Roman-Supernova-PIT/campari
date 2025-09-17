@@ -225,12 +225,10 @@ def find_all_exposures(
     img_collection = img_collection.get_collection(image_source)
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
-        SNLogger.debug(f"image_selection_start: {image_selection_start}, transient_start: {transient_start}")
 
         pre_transient_images = img_collection.find_images(
             mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, filter=band
         )
-        SNLogger.debug(f"Pre transient images found: {len(pre_transient_images)}")
     else:
         pre_transient_images = []
 
@@ -238,23 +236,19 @@ def find_all_exposures(
         post_transient_images = img_collection.find_images(
             mjd_min=transient_end, mjd_max=image_selection_end, ra=ra, dec=dec, filter=band
         )
-        SNLogger.debug(f"Post transient images found: {len(post_transient_images)}")
     else:
         post_transient_images = []
 
     no_transient_images = pre_transient_images + post_transient_images
-    SNLogger.debug(f"Total no transient images found: {len(no_transient_images)}")
 
     transient_images = img_collection.find_images(
         mjd_min=transient_start, mjd_max=transient_end, ra=ra, dec=dec, filter=band
     )
 
     no_transient_images = np.array(no_transient_images)
-    SNLogger.debug(f"Total no transient images found: {len(no_transient_images)}")
     transient_images = np.array(transient_images)
     if maxbg is not None:
         no_transient_images = no_transient_images[:maxbg]
-    SNLogger.debug(f"Total no transient images found: {len(no_transient_images)}")
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
