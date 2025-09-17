@@ -4,7 +4,6 @@ import warnings
 import galsim
 import numpy as np
 import pandas as pd
-from astropy.io import fits
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from roman_imsim.utils import roman_utils

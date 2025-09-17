@@ -73,7 +73,6 @@ class campari_runner:
         self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
-        self.roman_path = self.cfg.value("photometry.campari.paths.roman_path")
         self.sn_path = self.cfg.value("photometry.campari.paths.sn_path")
         self.bg_gal_flux_all = self.cfg.value("photometry.campari.simulations.bg_gal_flux")
         self.sim_galaxy_scale_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_scale")
@@ -335,7 +334,7 @@ class campari_runner:
 
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
-                           roman_path=self.roman_path, size=self.size, band=self.band,
+                           size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
                            use_roman=self.use_roman, subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
@@ -362,7 +361,7 @@ class campari_runner:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model)
                 if self.object_collection != "manual":
-                    lc = add_truth_to_lc(lc, lc_model, diaobj, self.sn_path, self.roman_path, self.object_type)
+                    lc = add_truth_to_lc(lc, lc_model, diaobj, self.sn_path, self.object_type)
 
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row

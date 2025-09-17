@@ -123,7 +123,7 @@ def build_lightcurve(diaobj, lc_model):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def add_truth_to_lc(lc, lc_model, diaobj, sn_path, roman_path, object_type):
+def add_truth_to_lc(lc, lc_model, diaobj, sn_path, object_type):
     """This code adds the truth flux and magnitude to a lightcurve datatable."""
 
     ID = lc.meta["ID"]
