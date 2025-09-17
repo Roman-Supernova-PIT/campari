@@ -70,16 +70,15 @@ def simulate_images(image_list=None, diaobj=None,
     galra: float, the RA of the galaxy.
     galdec: float, the DEC of the galaxy.
     """
-    assert image_list is not None, "You must provide a list of images to simulate."
-    assert diaobj is not None, "You must provide a diaobj to simulate."
-    assert len(image_list) > 0, "You must provide at least one image to simulate."
-    assert bg_gal_flux is not None, "You must provide a background galaxy flux to simulate."
-    assert roman_path is not None, "You must provide a path to the Roman TDS files."
-    assert do_xshift is not None, "You must provide a value for do_xshift."
-    assert do_rotation is not None, "You must provide a value for do_rotation."
-    assert use_roman is not None, "You must provide a value for use_roman."
-    assert deltafcn_profile is not None, "You must provide a value for deltafcn_profile."
-    assert noise is not None, "You must provide a value for noise."
+    if any(param is None for param in [image_list, diaobj, bg_gal_flux, roman_path,
+                                       do_xshift, do_rotation, use_roman,
+                                       deltafcn_profile, noise]):
+        raise ValueError("You must provide all required parameters to simulate images. These are:"
+                         "image_list, diaobj, bg_gal_flux, roman_path, do_xshift, do_rotation, use_roman,"
+                         "deltafcn_profile, and noise")
+
+
+
     ra = diaobj.ra
     dec = diaobj.dec
     band = image_list[0].band
@@ -247,13 +246,9 @@ def simulate_wcs(angle=None, x_shift=None, y_shift=None, roman_path=None, base_s
     Returns:
     wcs_dict: dict, a dictionary containing the WCS information for the image.
     """
-    assert angle is not None, "You must provide an angle to rotate the WCS by."
-    assert x_shift is not None, "You must provide an x shift to apply to the WCS."
-    assert y_shift is not None, "You must provide a y shift to apply to the WCS."
-    assert roman_path is not None, "You must provide a path to the Roman TDS files."
-    assert base_sca is not None, "You must provide a base SCA to simulate the WCS."
-    assert base_pointing is not None, "You must provide a base pointing to simulate the WCS."
-    assert band is not None, "You must provide a band to simulate the WCS."
+    if any(param is None for param in [angle, x_shift, y_shift, roman_path, base_sca, base_pointing, band]):
+        raise ValueError("You must provide all required parameters to simulate the WCS. These are:"
+                         "angle, x_shift, y_shift, roman_path, base_sca, base_pointing, and band")
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
     image = fits.open(roman_path + f"/images/simple_model/{band}/" +
