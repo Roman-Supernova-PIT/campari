@@ -18,7 +18,7 @@ from roman_imsim.utils import roman_utils
 from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
-from campari.utils import banner, get_weights
+from campari.utils import banner, get_weights, campari_lightcurve_model
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -93,7 +93,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
+        simulated_lightcurve, util_ref =  = \
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
@@ -104,6 +104,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
                             source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
+        sim_lc = simulated_lightcurve.sim_lc
+        image_list = simulated_lightcurve.image_list
+        cutout_image_list = simulated_lightcurve.cutout_image_list
+        galaxy_images = simulated_lightcurve.galaxy_images
+        noise_maps = simulated_lightcurve.noise_maps
+        sim_galra = simulated_lightcurve.galra
+        sim_galdec = simulated_lightcurve.galdec
         object_type = "SN"
 
     # Build the background grid
@@ -365,7 +372,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
 
     return lightcurve_model
 
-
 class campari_lightcurve_model:
     """This class holds the output of the Campari pipeline for a single SNID."""
 
@@ -446,3 +452,4 @@ class campari_lightcurve_model:
         self.noise_maps = noise_maps
         self.galaxy_only_model_images = galaxy_only_model_images
         self.object_type = object_type
+

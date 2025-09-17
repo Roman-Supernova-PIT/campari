@@ -1,0 +1,1 @@
+Changing long tuples of returns into objects

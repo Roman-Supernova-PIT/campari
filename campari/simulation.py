@@ -9,6 +9,7 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from roman_imsim.utils import roman_utils
 
+from campari.utils import campari_lightcurve_model
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 from snappl.psf import PSF
@@ -228,7 +229,18 @@ def simulate_images(image_list=None, diaobj=None,
             cutout_object.noise = np.ones_like(a)
 
         cutout_image_list.append(cutout_object)
-    return sim_lc, util_ref, image_list, cutout_image_list, galra, galdec, galaxy_images, noise_maps
+
+    lightcurve = campari_lightcurve_model(
+        sim_lc=sim_lc,
+        image_list=image_list,
+        cutout_image_list=cutout_image_list,
+        galaxy_images=np.array(galaxy_images),
+        noise_maps=np.array(noise_maps),
+        galra=galra,
+        galdec=galdec
+    )
+
+    return lightcurve, util_ref
 
 
 def simulate_wcs(angle=None, x_shift=None, y_shift=None, roman_path=None, base_sca=None, base_pointing=None, band=None):
