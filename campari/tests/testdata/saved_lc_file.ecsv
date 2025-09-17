@@ -18,7 +18,7 @@
 # - {ID: 20172782}
 # - {obj_ra: 7}
 # - {obj_dec: -41}
-# - {confusion_metric: 100}
+# - {local_surface_brightness: 25.0}
 # - __serialized_columns__:
 #     mag_fit:
 #       __class__: astropy.units.quantity.Quantity

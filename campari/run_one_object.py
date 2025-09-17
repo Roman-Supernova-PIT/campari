@@ -18,7 +18,7 @@ from roman_imsim.utils import roman_utils
 from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
-from campari.utils import banner, calc_mag_and_err, get_weights
+from campari.utils import banner, calculate_local_surface_brightness, get_weights
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -136,38 +136,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
 
     banner("Building Model")
 
-    # Calculate the Confusion Metric
-
-    # # if use_real_images and object_type == "SN" and num_detect_images > 1:
-    # if True:  # This is a temporary fix to not calculate the confusion metric.
-
-    #     object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-    #     # object_x and object_y are the exact coords of the SN in the SCA frame.
-    #     # x and y are the pixels the image has been cut out on, and
-    #     # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
-    #     # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
-    #     # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
-    #     # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
-    #     # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does it.
-    #     # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
-    #     x = int(np.floor(object_x + 0.5))
-    #     y = int(np.floor(object_y + 0.5))
-    #     pointing, sca = image_list[0].pointing, image_list[0].sca
-    #     snx = x
-    #     sny = y
-    #     x = int(np.floor(x + 0.5))
-    #     y = int(np.floor(y + 0.5))
-    #     SNLogger.debug(f"x, y, snx, sny, {x, y, snx, sny}")
-    #     psf_source_array = construct_transient_scene(x, y, pointing, sca,
-    #                                                  stampsize=size,
-    #                                                  x_center=object_x, y_center=object_y,
-    #                                                  sed=sed)
-    #     confusion_metric = np.dot(cutout_image_list[0].data.flatten(), psf_source_array)
-
-    #     SNLogger.debug(f"Confusion Metric: {confusion_metric}")
-    # else:
-    #     confusion_metric = 0
-    #     SNLogger.debug("Confusion Metric not calculated")
+    no_transient_cutouts = [a for a in cutout_image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
+    if len(no_transient_cutouts) > 0:
+        LSB = calculate_local_surface_brightness(no_transient_cutouts, cutout_pix=2)
+    else:
+        LSB = None
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
@@ -360,7 +333,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            confusion_metric=confusion_metric, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
+            LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps)
         )
 
@@ -382,7 +355,7 @@ class campari_lightcurve_model:
         ra_grid=None,
         dec_grid=None,
         wgt_matrix=None,
-        confusion_metric=None,
+        LSB=None,
         best_fit_model_values=None,
         sim_lc=None,
         galaxy_images=None,
@@ -412,11 +385,8 @@ class campari_lightcurve_model:
             The Dec coordinates of the points used to construct the background model.
         wgt_matrix : np.ndarray
             The weight matrix used in the lightcurve analysis.
-        confusion_metric : np.ndarray
-            The confusion metric for the images. Currently defined as the dot product of PSF rendered
-            at the location of the transient and an image of the background galaxy. This is analogous to
-            local surface brightness, so it is possible this will be replaced with local surface brightness
-            in the future.
+        local_surface_brightness : float
+            The local surface brightness around the transient in mag/arcsec^2.
         best_fit_model_values : np.ndarray
             The best fit model values for the lightcurve. The last n values,
             where n is the number of images considered a transient detection,
@@ -437,7 +407,7 @@ class campari_lightcurve_model:
         self.ra_grid = ra_grid
         self.dec_grid = dec_grid
         self.wgt_matrix = wgt_matrix
-        self.confusion_metric = confusion_metric
+        self.LSB = LSB
         self.best_fit_model_values = best_fit_model_values
         self.sim_lc = sim_lc
         self.galaxy_images = galaxy_images

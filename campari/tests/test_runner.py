@@ -284,7 +284,7 @@ def test_build_and_save_lc(cfg):
     ra_grid = np.array([1, 2, 3])
     dec_grid = np.array([1, 2, 3])
     wgt_matrix = None
-    confusion_metric = None
+    LSB = None
     best_fit_model_values = np.array([0] * 16, dtype=float)
     sim_lc = None
     ra = 7.731890048839705
@@ -293,7 +293,7 @@ def test_build_and_save_lc(cfg):
     lc_model = campari_lightcurve_model(flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
                                         image_list=image_list, cutout_image_list=cutout_image_list, ra_grid=ra_grid,
                                         dec_grid=dec_grid,
-                                        wgt_matrix=wgt_matrix, confusion_metric=confusion_metric,
+                                        wgt_matrix=wgt_matrix, LSB=LSB,
                                         best_fit_model_values=best_fit_model_values,
                                         sim_lc=sim_lc)
 

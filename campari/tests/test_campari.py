@@ -651,7 +651,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
         cutout_image_list.append(img)
 
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10,
-                                        image_list=image_list, cutout_image_list=cutout_image_list)
+                                        image_list=image_list, cutout_image_list=cutout_image_list, LSB=25.0,)
 
     diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41,  collection="manual")[0]
     diaobj.mjd_start = 62001.0
@@ -669,6 +669,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
     for key in list(lc.meta.keys()):
         if not isinstance(saved_lc.meta[key], str):
+            SNLogger.debug(f"Checking column {key}, lc: {lc.meta[key]}, saved_lc: {saved_lc.meta[key]}")
             np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
         else:
             np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])

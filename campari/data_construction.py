@@ -11,7 +11,7 @@ from snappl.imagecollection import ImageCollection
 from snpit_utils.logger import SNLogger
 
 # Campari
-from campari.utils import calculate_background_level, calculate_local_surface_brightness
+from campari.utils import calculate_background_level
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -52,7 +52,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
     y_list = []
     x_cutout_list = []
     y_cutout_list = []
-    LSB_list = []
 
     for indx, image in enumerate(image_list):
 
@@ -74,8 +73,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
         y_list.append(sca_loc[1])
         x_cutout_list.append(cutout_loc[0])
         y_cutout_list.append(cutout_loc[1])
-
-        LSB_list.append(calculate_local_surface_brightness(image, cutout_pix=2))
 
         if truth == "truth":
             raise RuntimeError("Truth is broken.")
@@ -115,7 +112,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
 
         cutout_image_list.append(image_cutout)
 
-    return cutout_image_list, image_list, LSB_list
+    return cutout_image_list, image_list
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
