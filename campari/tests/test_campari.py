@@ -395,8 +395,9 @@ def test_make_regular_grid():
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    wcs_dict["NAXIS1"] = 25
-    wcs_dict["NAXIS2"] = 25
+    image_size = 25
+    wcs_dict["NAXIS1"] = image_size
+    wcs_dict["NAXIS2"] = image_size
 
     test_ra = np.array([7.673631, 7.673558, 7.673485, 7.673735, 7.673662, 7.673588,
                         7.673839, 7.673765, 7.673692])
