@@ -11,14 +11,13 @@ import yaml
 
 # Astronomy Library
 from astropy.coordinates import SkyCoord
-from astropy.table import QTable, hstack
+from astropy.table import QTable
 import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import healpy as hp
 
 # SN-PIT
-from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -31,27 +30,6 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 # Because the Open Universe Sims have dates from the future, we supress a
 # warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
-
-
-def find_parquet(ID, path, obj_type="SN"):
-    """Find the parquet file that contains a given supernova ID."""
-
-    files = os.listdir(path)
-    file_prefix = {"SN": "snana", "star": "pointsource"}
-    files = [f for f in files if file_prefix[obj_type] in f]
-    files = [f for f in files if ".parquet" in f]
-    files = [f for f in files if "flux" not in f]
-
-    for f in files:
-        pqfile = int(f.split("_")[1].split(".")[0])
-        df = open_parquet(pqfile, path, obj_type=obj_type)
-        # The issue is SN parquet files store their IDs as ints and star
-        # parquet files as strings.
-        # Should I convert the entire array or is there a smarter way to do
-        # this?
-        if ID in df.id.values or str(ID) in df.id.values:
-            SNLogger.debug(f"Found {obj_type} {ID} in {f}")
-            return pqfile
 
 
 def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
@@ -121,73 +99,6 @@ def build_lightcurve(diaobj, lc_model):
     SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
-
-
-def add_truth_to_lc(lc, lc_model, diaobj, sn_path, object_type):
-    """This code adds the truth flux and magnitude to a lightcurve datatable."""
-
-    ID = lc.meta["ID"]
-    parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
-    df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
-
-    sim_true_flux = []
-    sim_realized_flux = []
-    for img in lc_model.image_list:
-        if img.mjd < diaobj.mjd_start or img.mjd > diaobj.mjd_end:
-            # If the image is outside the time range of the transient, skip it.
-            continue
-        try:
-            catalogue_path = img.truthpath
-        except AttributeError:
-            # If using a ManualFITSImage, load the truthpath for a OU24 Image with that pointing and SCA
-            img_collection = ImageCollection()
-            img_collection = img_collection.get_collection("ou2024")
-            dummy_image = img_collection.get_image(pointing=img.pointing, sca=img.sca, band=img.band)
-            catalogue_path = dummy_image.truthpath
-
-        cat = pd.read_csv(
-            catalogue_path,
-            sep=r"\s+",
-            skiprows=1,
-            names=["object_id", "ra", "dec", "x", "y", "realized_flux", "flux", "mag", "obj_type"],
-        )
-        cat = cat[cat["object_id"] == ID]
-        sim_true_flux.append(cat["flux"].values[0])
-        sim_realized_flux.append(cat["realized_flux"].values[0])
-    sim_true_flux = np.array(sim_true_flux)
-    sim_realized_flux = np.array(sim_realized_flux)
-
-    sim_sigma_flux = 0  # These are truth values!
-    sim_realized_mag, _, _ = calc_mag_and_err(sim_realized_flux, sim_sigma_flux, lc_model.image_list[0].band)
-    sim_true_mag, _, _ = calc_mag_and_err(sim_true_flux, sim_sigma_flux, lc_model.image_list[0].band)
-
-    if object_type == "SN":
-        df_object_row = df.loc[df.id == ID]
-        meta_dict = {
-            "host_sep": df_object_row["host_sn_sep"].values[0].item(),
-            "host_mag_g": df_object_row["host_mag_g"].values[0].item(),
-            "host_ra": df_object_row["host_ra"].values[0].item(),
-            "host_dec": df_object_row["host_dec"].values[0].item(),
-        }
-    else:
-        meta_dict = None
-
-    data_dict = {
-        "sim_realized_flux": sim_realized_flux,
-        "sim_true_flux": sim_true_flux,
-        "sim_realized_mag": sim_realized_mag,
-        "sim_true_mag": sim_true_mag,
-    }
-    units = {
-        "sim_realized_flux": "",
-        "sim_realized_mag": u.mag,
-        "sim_true_flux": "",
-        "sim_true_mag": u.mag,
-    }
-
-    lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
-
-    return lc
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
