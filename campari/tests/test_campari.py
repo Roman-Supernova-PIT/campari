@@ -421,8 +421,9 @@ def test_make_adaptive_grid():
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    wcs_dict["NAXIS1"] = 11
-    wcs_dict["NAXIS2"] = 11
+    image_size = 11
+    wcs_dict["NAXIS1"] = image_size
+    wcs_dict["NAXIS2"] = image_size
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")

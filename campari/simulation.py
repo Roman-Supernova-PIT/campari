@@ -71,14 +71,6 @@ def simulate_images(image_list=None, diaobj=None,
     galra: float, the RA of the galaxy.
     galdec: float, the DEC of the galaxy.
     """
-    if any(param is None for param in [image_list, diaobj, bg_gal_flux, roman_path,
-                                       do_xshift, do_rotation, use_roman,
-                                       deltafcn_profile, noise]):
-        raise ValueError("You must provide all required parameters to simulate images. These are:"
-                         "image_list, diaobj, bg_gal_flux, roman_path, do_xshift, do_rotation, use_roman,"
-                         "deltafcn_profile, and noise")
-
-
 
     ra = diaobj.ra
     dec = diaobj.dec
@@ -258,9 +250,6 @@ def simulate_wcs(angle=None, x_shift=None, y_shift=None, roman_path=None, base_s
     Returns:
     wcs_dict: dict, a dictionary containing the WCS information for the image.
     """
-    if any(param is None for param in [angle, x_shift, y_shift, roman_path, base_sca, base_pointing, band]):
-        raise ValueError("You must provide all required parameters to simulate the WCS. These are:"
-                         "angle, x_shift, y_shift, roman_path, base_sca, base_pointing, and band")
     rotation_matrix = np.array([np.cos(angle), -np.sin(angle), np.sin(angle),
                                np.cos(angle)]).reshape(2, 2)
     image = fits.open(roman_path + f"/images/simple_model/{band}/" +
