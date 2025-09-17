@@ -56,7 +56,7 @@ def test_simulate_images(roman_path):
                               sca=base_sca)
         image_list.append(img)
 
-    sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = simulate_images(
+    simulated_lightcurve, util_ref = simulate_images(
         image_list=image_list,
         diaobj=diaobj,
         sim_gal_ra_offset=1e-5,
@@ -79,6 +79,8 @@ def test_simulate_images(roman_path):
         bulge_hlr=1.6,
         disk_hlr=5.0,
     )
+    image_list = simulated_lightcurve.image_list
+    cutout_image_list = simulated_lightcurve.cutout_image_list
 
     compare_images = np.load(pathlib.Path(__file__).parent
                              / "testdata/test_sim_images.npy")

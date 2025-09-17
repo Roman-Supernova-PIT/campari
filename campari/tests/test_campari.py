@@ -44,14 +44,12 @@ from campari.model_building import (
     make_regular_grid,
 )
 from campari.plotting import plot_lc
-from campari.run_one_object import campari_lightcurve_model
-from campari.utils import (
-    calc_mag_and_err,
-    calculate_background_level,
-    get_weights,
-    make_sim_param_grid,
-    calculate_local_surface_brightness
-)
+from campari.utils import (calc_mag_and_err,
+                           calculate_background_level,
+                           calculate_local_surface_brightness,
+                           get_weights,
+                           make_sim_param_grid,
+                           campari_lightcurve_model)
 import snappl
 from snappl.diaobject import DiaObject
 from snappl.image import ManualFITSImage

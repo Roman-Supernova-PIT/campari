@@ -9,7 +9,7 @@ import pytest
 
 # SNPIT
 from campari.campari_runner import campari_runner
-from campari.run_one_object import campari_lightcurve_model
+from campari.utils import campari_lightcurve_model
 from snappl.diaobject import DiaObject
 from snappl.image import ManualFITSImage
 from snappl.imagecollection import ImageCollection
