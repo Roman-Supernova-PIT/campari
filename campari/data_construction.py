@@ -214,8 +214,6 @@ def find_all_exposures(
         - date: the MJD of the exposure
         - detected: whether the exposure contains a detection or not.
     """
-    assert band is not None, "You must pass in a band."
-    assert diaobj is not None, "You must pass in a diaobj."
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end

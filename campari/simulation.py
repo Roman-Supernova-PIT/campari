@@ -76,10 +76,7 @@ def simulate_images(image_list=None, diaobj=None,
     dec = diaobj.dec
     band = image_list[0].band
 
-    if not use_roman:
-        assert input_psf is not None, "you must provide an input psf if not \
-             using roman"
-    else:
+    if use_roman:
         input_psf = None
 
     if sim_gal_ra_offset is not None and sim_gal_dec_offset is not None:
@@ -301,11 +298,6 @@ def simulate_galaxy(bg_gal_flux=None, sim_galaxy_scale=None, deltafcn_profile=No
     image.
 
     """
-    assert bg_gal_flux is not None, "You must provide a background galaxy flux to simulate."
-    assert deltafcn_profile is not None, "You must provide a value for deltafcn_profile."
-    assert band is not None, "You must provide a band to simulate the galaxy in."
-    assert sim_psf is not None, "You must provide a PSF to simulate the galaxy with."
-    assert sed is not None, "You must provide a SED to simulate the galaxy with."
 
     SNLogger.debug(f"Simulating galaxy with band {band} and flux {bg_gal_flux}.")
     SNLogger.debug(f"Using sim_galaxy_scale {sim_galaxy_scale}")
@@ -362,16 +354,6 @@ def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=
     psf_image: numpy.ndarray, the image of the supernova convolved with the PSF.
 
     """
-    assert snx is not None, "You must provide the x coordinate of the supernova."
-    assert sny is not None, "You must provide the y coordinate of the supernova."
-    assert snx0 is not None, "You must provide the x coordinate of the pixel the image was cutout on."
-    assert sny0 is not None, "You must provide the y coordinate of the pixel the image was cutout on."
-    assert flux is not None, "You must provide the flux of the supernova."
-    assert sed is not None, "You must provide a SED for the supernova."
-    assert source_phot_ops is not None, "You must provide a value for source_phot_ops."
-    assert base_pointing is not None, "You must provide a base pointing to simulate the PSF."
-    assert base_sca is not None, "You must provide a base SCA to simulate the PSF."
-    assert stampsize is not None, "You must provide a stamp size to simulate the PSF."
 
     SNLogger.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} ")
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")

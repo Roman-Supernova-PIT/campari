@@ -265,16 +265,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     A numpy array of the PSFs at each grid point, with the shape
     (stampsize*stampsize, npoints)
     """
-    assert ra is not None, "You must provide RA values"
-    assert dec is not None, "You must provide DEC values"
-    assert sca_wcs is not None, "You must provide the SCA WCS"
-    assert x_loc is not None, "You must provide the x location in the SCA"
-    assert y_loc is not None, "You must provide the y location in the SCA"
-    assert stampsize is not None, "You must provide the stamp size"
-
-    assert util_ref is not None or psf is not None, "you must provide at least util_ref or psf"
-    assert util_ref is not None or band is not None, "you must provide at least util_ref or band"
-
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
@@ -353,7 +343,6 @@ def construct_transient_scene(
         + f" flux: {flux}"
     )
 
-    assert sed is not None, "You must provide an SED for the source"
 
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
@@ -411,10 +400,6 @@ def make_grid(
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     """
-    assert grid_type is not None, "You must provide a grid type"
-    assert images is not None, "You must provide images to build the grid on"
-    assert ra is not None, "You must provide the RA of the SN"
-    assert dec is not None, "You must provide the DEC of the SN"
 
     SNLogger.debug(f"Grid type: {grid_type}")
     if grid_type not in ["regular", "adaptive", "contour", "single"]:

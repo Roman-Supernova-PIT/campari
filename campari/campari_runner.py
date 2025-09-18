@@ -116,7 +116,8 @@ class campari_runner:
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
         er += "regular, adaptive, contour, or single. Details in documentation."
-        assert self.grid_type in ["regular", "adaptive", "contour", "single", "none"], er
+        if self.grid_type not in ["regular", "adaptive", "contour", "single"]:
+            raise ValueError(er)
 
         if self.max_no_transient_images is None or self.max_transient_images is None:
             self.max_images = None
