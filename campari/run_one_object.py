@@ -93,9 +93,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
         simulated_lightcurve, util_ref = \
-            simulate_images(image_list, diaobj,
-                            sim_galaxy_scale, sim_galaxy_offset,
-                            do_xshift, do_rotation, noise=noise,
+            simulate_images(image_list=image_list, diaobj=diaobj,
+                            sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
+                            do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
                             use_roman=use_roman, roman_path=roman_path,
                             size=size,
                             deltafcn_profile=deltafcn_profile,
@@ -339,7 +339,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
-            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps)
+            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
+            diaobj=diaobj, object_type=object_type
         )
 
     return lightcurve_model

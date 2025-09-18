@@ -44,6 +44,7 @@ class campari_lightcurve_model:
         galaxy_only_model_images=None,
         galra=None,
         galdec=None,
+        object_type="SN"
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -86,6 +87,8 @@ class campari_lightcurve_model:
             The RA of the host galaxy, if known.
         gal_dec : float
             The Dec of the host galaxy, if known.
+        object_type : str
+            The type of transient object, default is "SN".
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -105,6 +108,7 @@ class campari_lightcurve_model:
         self.galaxy_only_model_images = galaxy_only_model_images
         self.galra = galra
         self.galdec = galdec
+        self.object_type = object_type
 
 
 def gaussian(x, A, mu, sigma):
