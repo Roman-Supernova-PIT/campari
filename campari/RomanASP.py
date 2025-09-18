@@ -98,8 +98,8 @@ def main():
     parser.add_argument("-s", "--SNID", "--oid", type=int, default=None,
                         required=False, nargs="*",
                         help="Object IDs to run on. Meaning is dependent on the collection used."
-                             "Will be ignored if --SNID-file is given")
-    parser.add_argument("--SNID-file", "--oid_file", type=str, default=None, required=False,
+                             "Will be ignored if --SNID_file is given")
+    parser.add_argument("--SNID_file", "--oid_file", "--snid_file", type=str, default=None, required=False,
                         help="Path to a csv file containing a list of "
                              "Object IDs to run on. Meaning of Object ID dependent on the collection used.")
 
