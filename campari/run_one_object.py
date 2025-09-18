@@ -56,8 +56,6 @@ Adapted from code by Pedro Bernardinelli
 """
 # Global variables
 huge_value = 1e32
-ROMAN_PIXEL_SCALE = 0.11  # arcsec/pixel
-
 
 def run_one_object(diaobj=None, object_type=None, image_list=None,
                    roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,

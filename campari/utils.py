@@ -19,7 +19,6 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 # warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-ROMAN_PIXEL_SCALE = 0.11  # arcsec/pixel
 
 
 class campari_lightcurve_model:
@@ -261,7 +260,7 @@ def make_sim_param_grid(params):
     return flat_grid
 
 
-def calculate_local_surface_brightness(image_object_list, cutout_pix=2):
+def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_scale=0.11):
     """A function to calculate the local surface brightness in a nondetection image.
 
     Parameters
@@ -271,6 +270,9 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2):
     cutout_pix : int, optional
         The radius in pixels around the center of the image to use for the calculation. Since it must be odd, the
         total width will be 2*cutout_pix + 1. The default is 2 for a 5x5 cutout.
+    pixel_scale : float, optional
+        The pixel scale of the images in arcseconds/pixel. The default is 0.11, which is the pixel scale of Roman.
+    
     Returns
     -------
     LSB : float
@@ -304,7 +306,7 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2):
         flux_in_image_center, np.ones_like(flux_in_image_center), band
     )
 
-    cutout_width = (2 * cutout_pix + 1) * ROMAN_PIXEL_SCALE
+    cutout_width = (2 * cutout_pix + 1) * pixel_scale  # arcsec
     cutout_area = cutout_width**2
 
     LSB = np.mean(mag_in_image_center + 2.5 * np.log10(cutout_area))
