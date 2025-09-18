@@ -78,14 +78,12 @@ def build_lightcurve(diaobj, lc_model):
     """
     flux = np.atleast_1d(lc_model.flux)
     sigma_flux = np.atleast_1d(lc_model.sigma_flux)
-    confusion_metric = lc_model.confusion_metric
     image_list = lc_model.image_list
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
-    if confusion_metric is not None:
-        meta_dict["confusion_metric"] = confusion_metric
+    meta_dict["local_surface_brightness"] = lc_model.LSB
 
     data_dict = {
         "mjd": [],
