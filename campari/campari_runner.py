@@ -115,8 +115,8 @@ class campari_runner:
         self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
-        er += "regular, adaptive, contour, or single. Details in documentation."
-        if self.grid_type not in ["regular", "adaptive", "contour", "single"]:
+        er += "regular, adaptive, contour, single, or none. Details in documentation."
+        if self.grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
             raise ValueError(er)
 
         if self.max_no_transient_images is None or self.max_transient_images is None:
