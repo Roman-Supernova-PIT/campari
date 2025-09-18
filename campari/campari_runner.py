@@ -266,6 +266,9 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
+            mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+            mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
+
             image_list = find_all_exposures(diaobj, roman_path=self.roman_path,
                                             maxbg=self.max_no_transient_images,
                                             maxdet=self.max_transient_images,
@@ -273,14 +276,11 @@ class campari_runner:
                                             image_selection_end=self.image_selection_end,
                                             pointing_list=self.pointing_list)
 
-            mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
-            mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
-
-            transient_images = [a for a in image_list if (a.mjd > mjd_start) and (a.mjd < mjd_end)]
+            no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
 
             if (
                 self.max_no_transient_images != 0
-                and len(transient_images) == 0
+                and len(no_transient_images) == 0
                 and self.object_type != "star"
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"

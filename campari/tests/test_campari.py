@@ -46,6 +46,7 @@ from campari.model_building import (
 from campari.plotting import plot_lc
 from campari.utils import (calc_mag_and_err,
                            calculate_background_level,
+                           calculate_local_surface_brightness,
                            get_weights,
                            make_sim_param_grid,
                            campari_lightcurve_model)
@@ -654,7 +655,7 @@ def test_build_lc_and_add_truth(roman_path, sn_path):
         cutout_image_list.append(img)
 
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10,
-                                        image_list=image_list, cutout_image_list=cutout_image_list)
+                                        image_list=image_list, cutout_image_list=cutout_image_list, LSB=25.0,)
 
     diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41,  collection="manual")[0]
     diaobj.mjd_start = 62001.0
@@ -810,3 +811,32 @@ def test_handle_partial_overlap():
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
+
+
+def test_calculate_surface_brightness():
+    size = 25
+    pointing = 5934
+    sca = 3
+
+    band = "Y106"
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+
+    pointing = 13205
+    sca = 1
+    snappl_image_2 = img_collection.get_image(pointing=35198, sca=2, band=band)
+
+    # Both of these test images contain this SN
+    diaobj = DiaObject.find_objects(id=20172782,  collection="ou2024")[0]
+    ra, dec = diaobj.ra, diaobj.dec
+    cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+    cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+
+    LSB = calculate_local_surface_brightness([cutout_1, cutout_2])
+    # We check against a pre-calculated value up to 32-bit ulp epsilon, rtol ~1e-7.
+    (
+        np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
+        "The local surface brightness does not match the expected value.",
+    )

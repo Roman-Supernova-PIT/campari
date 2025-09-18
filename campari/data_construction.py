@@ -53,8 +53,8 @@ def construct_images(image_list, diaobj, size, subtract_background=True, truth="
     x_cutout_list = []
     y_cutout_list = []
 
-    for indx, _ in enumerate(image_list):
-        image = image_list[indx]
+    for indx, image in enumerate(image_list):
+
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
         image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
@@ -225,7 +225,6 @@ def find_all_exposures(
     img_collection = img_collection.get_collection(image_source)
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
-        SNLogger.debug(f"image_selection_start: {image_selection_start}, transient_start: {transient_start}")
 
         pre_transient_images = img_collection.find_images(
             mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, filter=band
@@ -259,5 +258,4 @@ def find_all_exposures(
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]
-
     return all_images

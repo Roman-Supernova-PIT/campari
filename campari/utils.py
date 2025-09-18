@@ -20,6 +20,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
+
 class campari_lightcurve_model:
     """This class holds the output of the Campari pipeline for a single SNID."""
 
@@ -235,6 +236,8 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
         "Y106": 302.275,
         "Z087": 101.7,
     }
+    flux = np.atleast_1d(flux)
+    sigma_flux = np.atleast_1d(sigma_flux)
 
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
@@ -255,3 +258,58 @@ def make_sim_param_grid(params):
     flat_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
     SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
     return flat_grid
+
+
+def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_scale=0.11):
+    """A function to calculate the local surface brightness in a nondetection image.
+
+    Parameters
+    ----------
+    image_object_list : list of snappl.image.Image objects
+        The image objects to calculate the local surface brightness from.
+    cutout_pix : int, optional
+        The radius in pixels around the center of the image to use for the calculation. Since it must be odd, the
+        total width will be 2*cutout_pix + 1. The default is 2 for a 5x5 cutout.
+    pixel_scale : float, optional
+        The pixel scale of the images in arcseconds/pixel. The default is 0.11, which is the pixel scale of Roman.
+    
+    Returns
+    -------
+    LSB : float
+        The mean local surface brightness in mag/arcsec^2.
+    """
+
+    band = image_object_list[0].band
+
+    cutout_pix = 2
+    center_fluxes = []
+    for i in image_object_list:
+        image = i.data
+        imsize = image.shape[0]
+        center_fluxes.append(np.mean(
+                image[
+                    imsize // 2 - cutout_pix : imsize // 2 + cutout_pix,
+                    imsize // 2 - cutout_pix : imsize // 2 + cutout_pix,
+                ]))
+    flux_in_image_center = np.array(center_fluxes)
+
+    # Because the images are background subtracted, It's possible that the flux is negative, which would cause
+    # an error when calculating the magnitude. Therefore, we set any negative fluxes to one.
+    # This is more useful than setting them to zero, which would cause the magnitude to be infinite, as it will just
+    # show that the surface brightness is very low post subtraction, which is the case if the background subtraction
+    # gets the image to about ~0 brightness.
+    if np.any(flux_in_image_center < 0):
+        SNLogger.debug("Some fluxes in the cutout center are negative. Setting them to 1"
+                       " to avoid errors in magnitude calculation.")
+    flux_in_image_center[flux_in_image_center < 0] = 1
+    mag_in_image_center, _, _ = calc_mag_and_err(
+        flux_in_image_center, np.ones_like(flux_in_image_center), band
+    )
+
+    cutout_width = (2 * cutout_pix + 1) * pixel_scale  # arcsec
+    cutout_area = cutout_width**2
+
+    LSB = np.mean(mag_in_image_center + 2.5 * np.log10(cutout_area))
+    SNLogger.debug(f"Local Surface Brightness: {LSB} mag/arcsec^2")
+
+    return LSB
