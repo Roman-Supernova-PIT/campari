@@ -9,10 +9,11 @@ from erfa import ErfaWarning
 from roman_imsim.utils import roman_utils
 
 from campari.utils import campari_lightcurve_model
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
 from snappl.imagecollection import ImageCollection
 from snappl.psf import PSF
+from snpit_utils.config import Config
+from snpit_utils.logger import SNLogger
+
 
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -131,9 +132,8 @@ def simulate_images(image_list=None, diaobj=None,
         else:
             rotation_angle = 0
 
-        wcs_dict = simulate_wcs(angle=rotation_angle, x_shift=x_shift, y_shift=y_shift, 
+        wcs_dict = simulate_wcs(angle=rotation_angle, x_shift=x_shift, y_shift=y_shift,
                                 base_sca=base_sca, base_pointing=base_pointing, band=band)
-
         image_object.set_fits_header(wcs_dict)
 
         full_image_wcs = image_object.get_wcs()
@@ -235,7 +235,8 @@ def simulate_images(image_list=None, diaobj=None,
     return lightcurve, util_ref
 
 
-def simulate_wcs(angle=None, x_shift=None, y_shift=None, base_sca=None, base_pointing=None, band=None):
+def simulate_wcs(angle=None, x_shift=None, y_shift=None, base_sca=None, base_pointing=None, band=None,
+                 sim_basis="ou2024"):
     """ This function simulates the WCS for a Roman image given a base pointing / SCA combination to start from,
     then applying a rotation and shifts to the WCS.
 
@@ -245,6 +246,7 @@ def simulate_wcs(angle=None, x_shift=None, y_shift=None, base_sca=None, base_poi
     base_sca: int, the base SCA to use to simulate the WCS.
     base_pointing: int, the base pointing to use to simulate the WCS.
     band: str, the band to use for the images.
+    sim_basis: str, the simulation to use to base WCS simulations on, defaults to "ou2024".
 
     Returns:
     wcs_dict: dict, a dictionary containing the WCS information for the image.
@@ -253,7 +255,7 @@ def simulate_wcs(angle=None, x_shift=None, y_shift=None, base_sca=None, base_poi
                                np.cos(angle)]).reshape(2, 2)
 
     img_collection = ImageCollection()
-    img_collection = img_collection.get_collection("ou2024")
+    img_collection = img_collection.get_collection(sim_basis)
     image = img_collection.get_image(pointing=base_pointing, sca=base_sca, band=band)
     header = image.get_fits_header()
 
@@ -276,7 +278,7 @@ def simulate_wcs(angle=None, x_shift=None, y_shift=None, base_sca=None, base_poi
             "CD2_2": CD_matrix_rotated[1, 1],
             "CUNIT1": header["CUNIT1"],
             "CUNIT2": header["CUNIT2"],
-            "CRVAL1":   header["CRVAL1"] + x_shift,
+            "CRVAL1": header["CRVAL1"] + x_shift,
             "CRVAL2":  header["CRVAL2"] + y_shift,
         }
 

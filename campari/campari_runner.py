@@ -264,7 +264,6 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-
             image_list = find_all_exposures(diaobj=diaobj,
                                             maxbg=self.max_no_transient_images,
                                             maxdet=self.max_transient_images,

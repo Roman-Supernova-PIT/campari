@@ -42,7 +42,7 @@ def main():
 
     desc = "Run the campari pipeline."
     try:
-        cfg = Config.get(args.config, setdefault=True)
+        _ = Config.get(args.config, setdefault=True)
     # except RuntimeError:
     #     # If it failed to load the config file, just move on with life.  This
     #     #   may mean that things will fail later, but it may also just mean

@@ -92,7 +92,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        
         simulated_lightcurve, util_ref = \
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
