@@ -18,17 +18,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-@pytest.fixture(scope="module")
-def roman_path(cfg):
-    return cfg.value("photometry.campari.paths.roman_path")
-
-
-@pytest.fixture(scope="module")
-def sn_path(cfg):
-    return cfg.value("photometry.campari.paths.sn_path")
-
-
-def test_simulate_images(roman_path):
+def test_simulate_images():
     lam = 1293  # nm
     ra = 7.47193824
     dec = -44.8280889
@@ -67,7 +57,6 @@ def test_simulate_images(roman_path):
         noise=0,
         use_roman=False,
         deltafcn_profile=False,
-        roman_path=roman_path,
         size=size,
         input_psf=airy,
         bg_gal_flux=bg_gal_flux,
@@ -93,9 +82,9 @@ def test_simulate_images(roman_path):
     np.testing.assert_allclose(images, compare_images.flatten(), atol=1e-7)
 
 
-def test_simulate_wcs(roman_path):
+def test_simulate_wcs():
     wcs_dict = simulate_wcs(angle=np.pi/4, x_shift=0.1, y_shift=0,
-                            roman_path=roman_path, base_sca=3,
+                            base_sca=3,
                             base_pointing=5934, band="Y106")
     b = np.load(pathlib.Path(__file__).parent / "testdata/wcs_dict.npy",
                 allow_pickle=True).item()

@@ -55,7 +55,6 @@ def create_default_test_args(cfg):
     test_args.subtract_background = config.value("photometry.campari.subtract_background")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.roman_path = config.value("photometry.campari.paths.roman_path")
     test_args.sn_path = config.value("photometry.campari.paths.sn_path")
     test_args.bg_gal_flux_all = config.value("photometry.campari.simulations.bg_gal_flux")
     test_args.sim_galaxy_scale_all = config.value("photometry.campari.simulations.sim_galaxy_scale")

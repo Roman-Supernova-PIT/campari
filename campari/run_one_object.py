@@ -57,8 +57,8 @@ Adapted from code by Pedro Bernardinelli
 # Global variables
 huge_value = 1e32
 
-def run_one_object(diaobj=None, object_type=None, image_list=None,
-                   roman_path=None, sn_path=None, size=None, band=None, fetch_SED=None, sedlist=None,
+
+def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    use_real_images=None, use_roman=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
@@ -96,7 +96,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            use_roman=use_roman, roman_path=roman_path,
+                            use_roman=use_roman,
                             size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
