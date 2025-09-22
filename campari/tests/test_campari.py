@@ -38,8 +38,12 @@ from campari.model_building import (
     make_regular_grid,
 )
 from campari.plotting import plot_lc
-from campari.run_one_object import campari_lightcurve_model
-from campari.utils import calc_mag_and_err, calculate_background_level, get_weights, make_sim_param_grid
+from campari.utils import (calc_mag_and_err,
+                           calculate_background_level,
+                           calculate_local_surface_brightness,
+                           get_weights,
+                           make_sim_param_grid,
+                           campari_lightcurve_model)
 import snappl
 from snappl.diaobject import DiaObject
 from snappl.image import ManualFITSImage
@@ -60,7 +64,7 @@ def test_find_all_exposures():
     diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    image_list = find_all_exposures(diaobj, "Y106", maxbg=24,
+    image_list = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                     maxdet=24,
                                     pointing_list=None, sca_list=None,
                                     truth="simple_model")
@@ -95,8 +99,9 @@ def test_savelightcurve():
         units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
         meta_dict = {}
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
+        lc["filter"] = "test"
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
-        save_lightcurve(lc, "test", "test", "test", output_path=output_dir)
+        save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir)
         assert lc_file.is_file()
         # TODO: look at contents?
 
@@ -326,17 +331,18 @@ def test_make_regular_grid():
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    ra_center = wcs_dict["CRVAL1"]
-    dec_center = wcs_dict["CRVAL2"]
+    image_size = 25
+    wcs_dict["NAXIS1"] = image_size
+    wcs_dict["NAXIS2"] = image_size
 
     test_ra = np.array([7.673631, 7.673558, 7.673485, 7.673735, 7.673662, 7.673588,
                         7.673839, 7.673765, 7.673692])
     test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
                          -44.263774, -44.263868, -44.263796, -44.263724])
-    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
-                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
-        ra_grid, dec_grid = make_regular_grid(ra_center, dec_center, wcs,
-                                              size=25, spacing=3.0)
+    for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+        img = ManualFITSImage(header=wcs_dict, data=np.zeros((25, 25)))
+        ra_grid, dec_grid = make_regular_grid(img,
+                                              spacing=3.0)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
             "RA vals do not match"
         np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \
@@ -348,16 +354,16 @@ def test_make_adaptive_grid():
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
-    ra_center = wcs_dict["CRVAL1"]
-    dec_center = wcs_dict["CRVAL2"]
-    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
-                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+    image_size = 11
+    wcs_dict["NAXIS1"] = image_size
+    wcs_dict["NAXIS2"] = image_size
+    for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
         SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
-        ra_grid, dec_grid = make_adaptive_grid(ra_center, dec_center, wcs,
-                                               image=image, percentiles=[99])
+        img_obj = ManualFITSImage(header=wcs_dict, data=image)
+        ra_grid, dec_grid = make_adaptive_grid(img_obj, percentiles=[99])
         test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
         test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
                     -44.26418721]
@@ -378,18 +384,16 @@ def test_make_contour_grid():
     test_ra = [7.67357048, 7.67360506, 7.67363963, 7.67367421]
     test_dec = [-44.26421364, -44.26419683, -44.26418002, -44.26416321]
     atol = 1e-9
-    for wcs in [snappl.wcs.GalsimWCS.from_header(wcs_dict),
-                snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
+    for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
         image = compare_images[0].reshape(11, 11)
-        ra_grid, dec_grid = make_contour_grid(image, wcs)
+        img_obj = ManualFITSImage(header=wcs_dict, data=image)
+        ra_grid, dec_grid = make_contour_grid(img_obj)
         msg = f"RA vals do not match to {atol:.1e}."
-        np.testing.assert_allclose(ra_grid[:4], test_ra,
-                                   atol=atol, rtol=1e-9), msg
+        np.testing.assert_allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
         msg = f"Dec vals do not match to {atol:.1e}."
-        np.testing.assert_allclose(dec_grid[:4], test_dec,
-                                   atol=atol, rtol=1e-9), msg
+        np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
 
 def test_calculate_background_level():
@@ -574,7 +578,7 @@ def test_build_lc():
         cutout_image_list.append(img)
 
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10,
-                                        image_list=image_list, cutout_image_list=cutout_image_list)
+                                        image_list=image_list, cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
 
     diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41,  collection="manual")[0]
     diaobj.mjd_start = 62001.0
@@ -636,7 +640,7 @@ def test_find_all_exposures_with_img_list():
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
 
-    image_list = find_all_exposures(diaobj, maxbg=max_no_transient_images,
+    image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
                                     maxdet=max_transient_images, band=band,
                                     image_selection_start=image_selection_start,
                                     image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
@@ -713,3 +717,32 @@ def test_handle_partial_overlap():
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
+
+
+def test_calculate_surface_brightness():
+    size = 25
+    pointing = 5934
+    sca = 3
+
+    band = "Y106"
+
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+
+    pointing = 13205
+    sca = 1
+    snappl_image_2 = img_collection.get_image(pointing=35198, sca=2, band=band)
+
+    # Both of these test images contain this SN
+    diaobj = DiaObject.find_objects(id=20172782,  collection="ou2024")[0]
+    ra, dec = diaobj.ra, diaobj.dec
+    cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+    cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+
+    LSB = calculate_local_surface_brightness([cutout_1, cutout_2])
+    # We check against a pre-calculated value up to 32-bit ulp epsilon, rtol ~1e-7.
+    (
+        np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
+        "The local surface brightness does not match the expected value.",
+    )

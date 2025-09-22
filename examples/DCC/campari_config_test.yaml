@@ -11,6 +11,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
+    save_debug: true
 
     paths:
       sims_sed_library: /hpc/home/cfm37/rubin_sim_data/sims_sed_library # CHANGE ME
@@ -19,10 +20,11 @@ photometry:
       sed_path: /campari_sed_dir
       output_dir: /hpc/home/cfm37/campari_out # CHANGE ME
       debug_dir: /hpc/home/cfm37/campari_debug # CHANGE ME
+      campari_test_data: /hpc/home/cfm37/campari_test_data # CHANGE ME
 
     # OMG
     galsim:
-      tds_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml # CHANGE ME
+      tds_file: /hpc/home/cfm37/MultiSMP/examples/DCC/tds.yaml # CHANGE ME
 
     grid_options:
       type: contour
@@ -48,12 +50,17 @@ photometry:
       sim_gal_dec_offset: 1e-5
       sim_gal_ra_offset: 1e-5
       single_grid_point: false
+      sim_galaxy_scale: 1.0
+      sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
+      base_pointing: 276
+      base_sca: 10
       run_name: whatever
 
 ou24:
   config_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml # CHANGE ME
   sn_truth_dir: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
   sims_sed_library: /hpc/home/cfm37/rubin_sim_data/sims_sed_library # CHANGE ME
+  images: /hpc/group/cosmology/OpenUniverse2024/RomanTDS/images/simple_model
 
 ou24psf:
   config_file: /hpc/home/cfm37/MultiSMP/campari/temp_tds.yaml # CHANGE ME
