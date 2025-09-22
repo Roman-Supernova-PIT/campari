@@ -18,7 +18,7 @@ from roman_imsim.utils import roman_utils
 from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
-from campari.utils import banner, get_weights
+from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
@@ -92,10 +92,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         # Simulate the images of the SN and galaxy.
         banner("Simulating Images")
-        sim_lc, util_ref, image_list, cutout_image_list, sim_galra, sim_galdec, galaxy_images, noise_maps = \
-            simulate_images(image_list, diaobj,
-                            sim_galaxy_scale, sim_galaxy_offset,
-                            do_xshift, do_rotation, noise=noise,
+        
+        simulated_lightcurve, util_ref = \
+            simulate_images(image_list=image_list, diaobj=diaobj,
+                            sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
+                            do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
                             use_roman=use_roman,
                             size=size,
                             deltafcn_profile=deltafcn_profile,
@@ -103,6 +104,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                             source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
+        sim_lc = simulated_lightcurve.sim_lc
+        image_list = simulated_lightcurve.image_list
+        cutout_image_list = simulated_lightcurve.cutout_image_list
+        galaxy_images = simulated_lightcurve.galaxy_images
+        noise_maps = simulated_lightcurve.noise_maps
+        sim_galra = simulated_lightcurve.galra
+        sim_galdec = simulated_lightcurve.galdec
         object_type = "SN"
 
     # Build the background grid
@@ -134,37 +142,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     banner("Building Model")
 
-    # Calculate the Confusion Metric
-
-    # if use_real_images and object_type == "SN" and num_detect_images > 1:
-    if False:  # This is a temporary fix to not calculate the confusion metric.
-        object_x, object_y = image_list[0].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-        # object_x and object_y are the exact coords of the SN in the SCA frame.
-        # x and y are the pixels the image has been cut out on, and
-        # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this switch.
-        # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
-        # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
-        # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
-        # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does it.
-        # For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
-        x = int(np.floor(object_x + 0.5))
-        y = int(np.floor(object_y + 0.5))
-        pointing, sca = image_list[0].pointing, image_list[0].sca
-        snx = x
-        sny = y
-        x = int(np.floor(x + 0.5))
-        y = int(np.floor(y + 0.5))
-        SNLogger.debug(f"x, y, snx, sny, {x, y, snx, sny}")
-        psf_source_array = construct_transient_scene(x, y, pointing, sca,
-                                                     stampsize=size,
-                                                     x_center=object_x, y_center=object_y,
-                                                     sed=sed)
-        confusion_metric = np.dot(cutout_image_list[0].data.flatten(), psf_source_array)
-
-        SNLogger.debug(f"Confusion Metric: {confusion_metric}")
+    no_transient_cutouts = [a for a in cutout_image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
+    if len(no_transient_cutouts) > 0:
+        LSB = calculate_local_surface_brightness(no_transient_cutouts, cutout_pix=2)
     else:
-        confusion_metric = 0
-        SNLogger.debug("Confusion Metric not calculated")
+        LSB = None
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
@@ -357,86 +339,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            confusion_metric=confusion_metric, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
-            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps)
+            LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
+            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
+            diaobj=diaobj, object_type=object_type
         )
 
     return lightcurve_model
 
-
-class campari_lightcurve_model:
-    """This class holds the output of the Campari pipeline for a single SNID."""
-
-    def __init__(
-        self,
-        diaobj=None,
-        flux=None,
-        sigma_flux=None,
-        images=None,
-        model_images=None,
-        image_list=None,
-        cutout_image_list=None,
-        ra_grid=None,
-        dec_grid=None,
-        wgt_matrix=None,
-        confusion_metric=None,
-        best_fit_model_values=None,
-        sim_lc=None,
-        galaxy_images=None,
-        noise_maps=None,
-        galaxy_only_model_images=None,
-    ):
-        """Initialize the Campari lightcurve model with the SNID and its properties.
-        Parameters
-        ----------
-        diaobj: snappl.diaobject.DiaObject
-            The DiaObject representing the transient.
-        flux : np.ndarray
-            The flux values for the lightcurve.
-        sigma_flux : np.ndarray
-            The uncertainties in the flux values.
-        images : np.ndarray
-            The image data used in the lightcurve analysis.
-        model_images : np.ndarray
-            The model images generated by Campari.
-        image_list : list of snappl.image.Image objects
-            list of images used in the lightcurve analysis.
-        cutout_image_list : list of snappl.image.Image objects
-            list of images used in the lightcurve analysis that have been cutout at transient location.
-        ra_grid : np.ndarray
-            The RA coordinates of the points used to construct the background model.
-        dec_grid : np.ndarray
-            The Dec coordinates of the points used to construct the background model.
-        wgt_matrix : np.ndarray
-            The weight matrix used in the lightcurve analysis.
-        confusion_metric : np.ndarray
-            The confusion metric for the images. Currently defined as the dot product of PSF rendered
-            at the location of the transient and an image of the background galaxy. This is analogous to
-            local surface brightness, so it is possible this will be replaced with local surface brightness
-            in the future.
-        best_fit_model_values : np.ndarray
-            The best fit model values for the lightcurve. The last n values,
-            where n is the number of images considered a transient detection,
-            are the flux values for the transient. All other values are the
-            flux values assigned to the points that make up the background model.
-        cutout_wcs_list : list
-            List of WCS objects for the cutouts used in the lightcurve analysis.
-        sim_lc : pd.DataFrame
-            The simulated lightcurve data, if applicable.
-        """
-        self.diaobj = diaobj
-        self.flux = flux
-        self.sigma_flux = sigma_flux
-        self.images = images
-        self.model_images = model_images
-        self.image_list = image_list
-        self.cutout_image_list = cutout_image_list
-        self.ra_grid = ra_grid
-        self.dec_grid = dec_grid
-        self.wgt_matrix = wgt_matrix
-        self.confusion_metric = confusion_metric
-        self.best_fit_model_values = best_fit_model_values
-        self.sim_lc = sim_lc
-        self.galaxy_images = galaxy_images
-        self.noise_maps = noise_maps
-        self.galaxy_only_model_images = galaxy_only_model_images

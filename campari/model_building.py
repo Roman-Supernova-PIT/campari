@@ -25,25 +25,30 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0, subsize=9):
+def make_regular_grid(image_object, spacing=1.0, subsize=9):
     """Generates a regular grid around a (RA, Dec) center, choosing step size.
 
-    ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, snappl.wcs.BaseWCS object
-    spacing: int, spacing of grid points in pixels.
-    subsize: int, width of the grid in pixels.
-             Specify the width of the grid, which can be smaller than the
-             image. For instance I could have an image that is 11x11 but a grid
-             that is only 9x9.
-             This is useful and different from making a smaller image because
-             when the image rotates, model points near the corners of the image
-             may be rotated out. By taking a smaller grid, we can avoid this.
+    Parameters
+    ----------
+    image_object: snappl.image.Image
+        The image to build the grid upon.
+    spacing: int
+        Spacing of grid points in pixels.
+    subsize: int
+        Width of the grid in pixels.
+        Specify the width of the grid, which can be smaller than the
+        image. For instance I could have an image that is 11x11 but a grid that is only 9x9.
+        This is useful and different from making a smaller image because
+        when the image rotates, model points near the corners of the image
+        may be rotated out. By taking a smaller grid, we can avoid this.
 
-
-    Returns:
-    ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
+    Returns
+    ----------
+    ra_grid, dec_grid: 1D numpy arrays of floats
+        The RA and DEC of the grid points.
     """
-    SNLogger.debug(f"CRPIX1 {wcs.to_fits_header()['CRPIX1']}")
+    wcs = image_object.get_wcs()
+    size = image_object.image_shape[0]
     if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
         SNLogger.warning(
             "This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
@@ -76,16 +81,14 @@ def make_regular_grid(ra_center, dec_center, wcs, size, spacing=1.0, subsize=9):
     return ra_grid, dec_grid
 
 
-def make_adaptive_grid(ra_center, dec_center, wcs, image, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
+def make_adaptive_grid(image_object, percentiles=[45, 90], subsize=9, subpixel_grid_width=1.2):
     """Construct an "adaptive grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image.
 
-    Inputs:
-    ra_center, dec_center: floats, coordinate center of the image
-    wcs: the WCS of the image, snappl.wcs.BaseWCS
-    image: 2D numpy array of floats of shape (size x size), the image to build
-    the grid on. This is used to determine the size of the grid, and once we
-                switch to snappl Image objects, will also determine the wcs.
+    Parameters
+    ----------
+    image_object: snappl.image.Image
+        The image to build the grid upon.
     percentiles: list of floats, the percentiles to use to bin the image. The
                 more bins, the more possible grid points could be placed in
                 that pixel. For instance, say if you had bins [45, 90],
@@ -121,7 +124,9 @@ def make_adaptive_grid(ra_center, dec_center, wcs, image, percentiles=[45, 90], 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     """
-    size = np.shape(image)[0]
+    size = image_object.image_shape[0]
+    image = image_object.data
+    wcs = image_object.get_wcs()
     if subsize > size:
         SNLogger.warning(
             "subsize is larger than the image size "
@@ -233,10 +238,13 @@ def generate_guess(imlist, ra_grid, dec_grid):
     return all_vals / len(wcslist)
 
 
-def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, pixel=False, util_ref=None, band=None):
+def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
+                           psf=None, pixel=False, util_ref=None, band=None):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
-    Inputs:
+
+    Parameters
+    ----------
     ra, dec: arrays of floats, RA and DEC values for the grid
     sca_wcs: the wcs of the entire image, i.e. the entire SCA. A snappl.wcs.BaseWCS object.
     x_loc, y_loc: floats,the pixel location of the object in the FULL image,
@@ -257,10 +265,6 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
     A numpy array of the PSFs at each grid point, with the shape
     (stampsize*stampsize, npoints)
     """
-
-    assert util_ref is not None or psf is not None, "you must provide at least util_ref or psf"
-    assert util_ref is not None or band is not None, "you must provide at least util_ref or band"
-
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
@@ -304,7 +308,8 @@ def construct_static_scene(ra, dec, sca_wcs, x_loc, y_loc, stampsize, psf=None, 
 
 
 def construct_transient_scene(
-    x, y, pointing, sca, stampsize=25, x_center=None, y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None
+    x=None, y=None, pointing=None, sca=None, stampsize=25, x_center=None,
+    y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
@@ -326,6 +331,9 @@ def construct_transient_scene(
     if not isinstance(x, int) or not isinstance(y, int):
         raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
 
+    if pointing is None or sca is None:
+        raise ValueError("You must provide both pointing and sca")
+
     SNLogger.debug(
         f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n"
         + f" pointing, sca: {pointing, sca} \n"
@@ -335,7 +343,6 @@ def construct_transient_scene(
         + f" flux: {flux}"
     )
 
-    assert sed is not None, "You must provide an SED for the source"
 
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
@@ -352,10 +359,10 @@ def construct_transient_scene(
 
 
 def make_grid(
-    grid_type,
-    images,
-    ra,
-    dec,
+    grid_type=None,
+    images=None,
+    ra=None,
+    dec=None,
     percentiles=[0, 90, 95, 100],
     make_exact=False,
     single_ra=None,
@@ -393,20 +400,17 @@ def make_grid(
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     """
-    size = images[0].image_shape[0]
-    snappl_wcs = images[0].get_wcs()
-    image_data = images[0].data
 
     SNLogger.debug(f"Grid type: {grid_type}")
     if grid_type not in ["regular", "adaptive", "contour", "single"]:
         raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
     if grid_type == "contour":
-        ra_grid, dec_grid = make_contour_grid(image_data, snappl_wcs)
+        ra_grid, dec_grid = make_contour_grid(images[0])
 
     elif grid_type == "adaptive":
-        ra_grid, dec_grid = make_adaptive_grid(ra, dec, snappl_wcs, image=image_data, percentiles=percentiles)
+        ra_grid, dec_grid = make_adaptive_grid(images[0], percentiles=percentiles)
     elif grid_type == "regular":
-        ra_grid, dec_grid = make_regular_grid(ra, dec, snappl_wcs, size=size, spacing=spacing)
+        ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing)
 
     if grid_type == "single":
         if single_ra is None or single_dec is None:
@@ -428,7 +432,7 @@ def make_grid(
     return ra_grid, dec_grid
 
 
-def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100], subsize=4):
+def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], subsize=4):
     """Construct a "contour grid" which allocates model grid points to model
     the background galaxy according to the brightness of the image. This is
     an alternate version of make_adaptive_grid that results in a more
@@ -484,6 +488,9 @@ def make_contour_grid(image, wcs, numlevels=None, percentiles=[0, 90, 98, 100], 
     Returns:
     ra_grid, dec_grid: 1D numpy arrays of floats, the RA and DEC of the grid.
     """
+    wcs = img_obj.get_wcs()
+    size = img_obj.image_shape[0]
+    image = img_obj.data
     size = image.shape[0]
     x = np.arange(0, size, 1.0)
     y = np.arange(0, size, 1.0)

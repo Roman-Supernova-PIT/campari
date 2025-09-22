@@ -1,6 +1,5 @@
 import pathlib
 
-
 import numpy as np
 import pandas as pd
 
@@ -114,8 +113,9 @@ class campari_runner:
         self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
-        er += "regular, adaptive, contour, or single. Details in documentation."
-        assert self.grid_type in ["regular", "adaptive", "contour", "single", "none"], er
+        er += "regular, adaptive, contour, single, or none. Details in documentation."
+        if self.grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
+            raise ValueError(er)
 
         if self.max_no_transient_images is None or self.max_transient_images is None:
             self.max_images = None
@@ -264,21 +264,21 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            image_list = find_all_exposures(diaobj,
+
+            image_list = find_all_exposures(diaobj=diaobj,
                                             maxbg=self.max_no_transient_images,
                                             maxdet=self.max_transient_images,
                                             band=self.band, image_selection_start=self.image_selection_start,
                                             image_selection_end=self.image_selection_end,
                                             pointing_list=self.pointing_list)
-
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
-            transient_images = [a for a in image_list if (a.mjd > mjd_start) and (a.mjd < mjd_end)]
+            no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
 
             if (
                 self.max_no_transient_images != 0
-                and len(transient_images) == 0
+                and len(no_transient_images) == 0
                 and self.object_type != "star"
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"
@@ -362,6 +362,7 @@ class campari_runner:
                 if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
+
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
             if self.run_name is None:
@@ -375,7 +376,7 @@ class campari_runner:
 
         if lc_model.flux is not None:
             output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
-            save_lightcurve(lc, identifier, self.band, psftype, output_path=output_dir)
+            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir)
 
         # Now, save the images
 

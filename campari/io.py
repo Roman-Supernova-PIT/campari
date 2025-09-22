@@ -54,14 +54,12 @@ def build_lightcurve(diaobj, lc_model):
     """
     flux = np.atleast_1d(lc_model.flux)
     sigma_flux = np.atleast_1d(lc_model.sigma_flux)
-    confusion_metric = lc_model.confusion_metric
     image_list = lc_model.image_list
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
-    if confusion_metric is not None:
-        meta_dict["confusion_metric"] = confusion_metric
+    meta_dict["local_surface_brightness"] = lc_model.LSB
 
     data_dict = {
         "mjd": [],
@@ -118,7 +116,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc, identifier, band, psftype, output_path=None, overwrite=True):
+def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -134,6 +132,7 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None, overwrite=T
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
+    band = lc["filter"][0]
     output_path = Config.get().value("photometry.campari.paths.output_dir") if output_path is None else output_path
     output_path = pathlib.Path(output_path)
     output_path.mkdir(exist_ok=True, parents=True)
