@@ -134,7 +134,7 @@ def simulate_images(image_list=None, diaobj=None,
         wcs_dict = simulate_wcs(angle=rotation_angle, x_shift=x_shift, y_shift=y_shift, roman_path=roman_path,
                                 base_sca=base_sca, base_pointing=base_pointing, band=band)
 
-        image_object.header = wcs_dict
+        image_object.set_fits_header(wcs_dict)
 
         full_image_wcs = image_object.get_wcs()
 

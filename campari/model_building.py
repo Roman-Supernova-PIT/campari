@@ -308,41 +308,47 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
 
 def construct_transient_scene(
-    x=None, y=None, pointing=None, sca=None, stampsize=25, x_center=None,
-    y_center=None, sed=None, flux=1, photOps=True, sca_wcs=None
+    x0=None, y0=None, pointing=None, sca=None, stampsize=25, x=None,
+    y=None, sed=None, flux=1, photOps=True, sca_wcs=None
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
-    Inputs:
-    x, y: ints, pixel coordinates where the cutout is centered in the SCA
-    pointing, sca: ints, the pointing and SCA of the image
-    stampsize = int, size of cutout image used
-    TODO: this defn below isn't correct
-    x_center and y_center: floats, x and y location of the object in the SCA.
-    sed: galsim.sed.SED object, the SED of the source
-    flux: float, If you are using this function to build a model grid point,
+    Parameters:
+    -----------
+    x0, y0: int, default None
+        The pixel position on the image corresponding to the center
+        pixel of the returned PSF.  If either is None, they default
+        to x0=floor(x+0.5) and y0=floor(y+0.5).
+    x, y: floats
+            Position on the image of the center of the psf.
+
+    For more on the above two parameters, see snappl.psf.PSF.get_stamp documentation.
+
+    pointing, sca: ints
+        The pointing and SCA of the image
+    stampsize: int
+        Size of cutout image used.
+    sed: galsim.sed.SED object
+        The SED of the source TODO: this needs to be implemented.
+    flux: float
+        If you are using this function to build a model grid point,
         this should be 1. If you are using this function to build a model of
         a source, this should be the flux of the source.
-    Outputs:
-    psf_image: numpy array of floats of size stampsize**2, the image
-                of the PSF at the (x,y) location.
+
+    Returns:
+    -----------
+    psf_image: numpy array of floats of size stampsize**2
+        The image of the PSF at the (x,y) location.
     """
-
-    if not isinstance(x, int) or not isinstance(y, int):
-        raise TypeError(f"x and y must be integers, not {type(x), type(y)}")
-
-    if pointing is None or sca is None:
-        raise ValueError("You must provide both pointing and sca")
 
     SNLogger.debug(
         f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n"
         + f" pointing, sca: {pointing, sca} \n"
         + f" stamp size: {stampsize} \n"
-        + f" x_center, y_center: {x_center, y_center} \n"
+        + f" x0, y0: {x0, y0} \n"
         + f" sed: {sed} \n"
         + f" flux: {flux}"
     )
-
 
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
@@ -353,7 +359,7 @@ def construct_transient_scene(
     psf_object = PSF.get_psf_object(
         "ou24PSF_slow", pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps
     )
-    psf_image = psf_object.get_stamp(x0=x, y0=y, x=x_center, y=y_center, flux=1.0, seed=None, input_wcs=sca_wcs)
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs)
 
     return psf_image.flatten()
 
