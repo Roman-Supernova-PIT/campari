@@ -18,11 +18,6 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-@pytest.fixture(scope="module")
-def sn_path(cfg):
-    return cfg.value("photometry.campari.paths.sn_path")
-
-
 def test_simulate_images():
     lam = 1293  # nm
     ra = 7.47193824

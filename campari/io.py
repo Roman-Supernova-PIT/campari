@@ -1,5 +1,4 @@
 # Standard Library
-import glob
 import os
 import pathlib
 import warnings
@@ -10,12 +9,10 @@ import pandas as pd
 import yaml
 
 # Astronomy Library
-from astropy.coordinates import SkyCoord
 from astropy.table import QTable
 import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-import healpy as hp
 
 # SN-PIT
 from snpit_utils.config import Config
@@ -144,197 +141,6 @@ def save_lightcurve(lc, identifier, band, psftype, output_path=None, overwrite=T
     lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
     SNLogger.info(f"Saving lightcurve to {lc_file}")
     lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
-
-
-def extract_sn_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_path, mag_limits=None):
-    """Convenience function for getting a list of SN IDs that obey some
-    conditions from a parquet file. This is not used anywhere in the main
-    algorithm.
-
-    Inputs:
-    parquet_file: the path to the parquet file
-    sn_path: the path to the supernova data
-    mag_limits: a tuple of (min_mag, max_mag) to filter the SNe by
-                peak magnitude. If None, no filtering is done.
-
-    Output:
-    Saves a csv file of the SN_IDs of supernovae from the parquet file that
-    pass mag cuts. If none are found, raise a ValueError.
-    """
-    # Get the supernova IDs from the parquet file
-    df = open_parquet(parquet_file, sn_path, obj_type="SN")
-    if mag_limits is not None:
-        min_mag, max_mag = mag_limits
-        # This can't always be just g band I think. TODO
-        df = df[(df["peak_mag_g"] >= min_mag) & (df["peak_mag_g"] <= max_mag)]
-    SN_ID = df.id.values
-    SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
-    # some reason. They only seem to have 1 or 2 images ever. TODO
-    SN_ID = np.array(SN_ID, dtype=int)
-    SNLogger.info(f"Found {np.size(SN_ID)} supernovae in the given range.")
-    if np.size(SN_ID) == 0:
-        raise ValueError("No supernovae found in the given range.")
-
-    pd.DataFrame(SN_ID).to_csv(output_path, index=False, header=False)
-    SNLogger.info(f"Saved to {output_path}")
-
-
-def extract_id_using_ra_dec(sn_path, ra=None, dec=None, radius=None, object_type="SN"):
-    """Convenience function for getting a list of SN RA and Dec that can be
-    cone-searched for by passing a central coordinate and a radius. For now, this solely
-    pulls objects from the OpenUniverse simulations.
-
-    Parameters
-    ----------
-    sn_path: str, the path to the supernova data
-    ra: float, the central RA of the region to search in
-    dec: float, the central Dec of the region to search in
-    radius: float, the radius over which cone search is performed. Can have
-            any angular astropy.unit attached to it. If no unit is
-            included, the function will produce a warning and then
-            automatically assume you meant degrees.
-    object_type: str, the type of object to search for. Can be "SN" or "star".
-                  Defaults to "SN".
-
-    Returns
-    -------
-    all_SN_ID: numpy array of int, the IDs of the objects found in the
-               given range.
-    all_dist: numpy array of float, the distances of the objects found in the
-                given range, in arcseconds.
-    """
-
-    if not hasattr(radius, "unit") and radius is not None:
-        SNLogger.warning("extract_id_using_ra_dec got a radius argument with no units. Assuming degrees.")
-        radius *= u.deg
-
-    file_prefix = {"SN": "snana", "star": "pointsource"}
-    file_prefix = file_prefix[object_type]
-    parquet_files = sorted(glob.glob(os.path.join(sn_path, f"{file_prefix}_*.parquet")))
-    SN_ID_list = []
-    dist_list = []
-    SNLogger.debug(f"Found {len(parquet_files)} parquet files in {sn_path} with prefix {file_prefix}")
-    for file in parquet_files:
-        p = file.split(f"{file_prefix}_")[-1].split(".parquet")[0]
-        df = open_parquet(p, sn_path, obj_type="SN")
-
-        if radius is not None and (ra is not None and dec is not None):
-            center_coord = SkyCoord(ra * u.deg, dec * u.deg)
-            df_coords = SkyCoord(ra=df["ra"].values * u.deg, dec=df["dec"].values * u.deg)
-            sep = center_coord.separation(df_coords)
-            df = df[sep < radius]
-            dist_list.extend(sep[sep < radius].to(u.arcsec).value)
-        SN_ID = df.id.values
-        SN_ID = SN_ID[np.log10(SN_ID) < 8]  # The 9 digit SN_ID SNe are weird for
-        # some reason. They only seem to have 1 or 2 images ever. TODO
-        SN_ID_list.extend(SN_ID)
-    all_SN_ID = np.array(SN_ID_list, dtype=int)
-    all_dist = np.array(dist_list, dtype=float)
-    SNLogger.info(f"Found {np.size(all_SN_ID)} {object_type}s in the given range.")
-    if np.size(all_SN_ID) == 0:
-        raise ValueError(f"No {object_type}s found in the given range.")
-
-    return all_SN_ID, all_dist
-
-
-def extract_star_from_parquet_file_and_write_to_csv(parquet_file, sn_path, output_path, ra=None, dec=None, radius=None):
-    """Convenience function for getting a list of star IDs
-    from a parquet file. The stars can be cone-searched for by passing a
-    central coordinate and a radius.
-    This is not used anywhere in the main algorithm.
-
-    Inputs:
-    parquet_file: int,  the number label of the parquet file to use.
-    sn_path: str, the path to the supernova data
-    ra: float, the central RA of the region to search in
-    dec: float, the central Dec of the region to search in
-    radius: float, the radius over which cone search is performed. Can have
-                    any angular astropy.unit attached to it. If no unit is
-                    included, the function will produce a warning and then
-                    automatically assume you meant degrees.
-    If no ra, dec, and radius are passed, no cone search
-    is performed and the IDs of the entire parquet file are returned.
-    If one or two of the above arguments is passed but not all three, the
-    cone search is not performed.
-
-    Output:
-    Saves a csv file to output_path of the IDs of stars from the parquet
-    file that pass location cuts. If none are found, raise a ValueError.
-    """
-    if not hasattr(radius, "unit") and radius is not None:
-        SNLogger.warning(
-            "extract_star_from_parquet_file_and_write_to_csv "
-            + "got a radius argument with no units. Assuming degrees."
-        )
-
-        radius *= u.deg
-
-    df = open_parquet(parquet_file, sn_path, obj_type="star")
-    df = df[df["object_type"] == "star"]
-
-    if radius is not None and (ra is not None and dec is not None):
-        center_coord = SkyCoord(ra * u.deg, dec * u.deg)
-        df_coords = SkyCoord(ra=df["ra"].values * u.deg, dec=df["dec"].values * u.deg)
-        sep = center_coord.separation(df_coords)
-        df = df[sep < radius]
-
-    star_ID = df.id.values
-    star_ID = np.array(star_ID, dtype=int)
-    SNLogger.info(f"Found {np.size(star_ID)} stars in the given range.")
-    if np.size(star_ID) == 0:
-        raise ValueError("No stars found in the given range.")
-    pd.DataFrame(star_ID).to_csv(output_path, index=False, header=False)
-    SNLogger.info(f"Saved to {output_path}")
-
-
-def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUniverse2024"):
-    """This function takes in a healpix and nside and extracts all of the objects of the requested type in that
-    healpix. Currently, the source the objects are extracted from is hardcoded to OpenUniverse2024 sims, but that will
-    change in the future with real data.
-
-    Parameters
-    ----------
-    healpix: int, the healpix number to extract objects from
-    nside: int, the nside of the healpix to extract objects from
-    object_type: str, the type of object to extract. Can be "SN" or "star". Defaults to "SN".
-    source: str, the source of the table of objects to extract. Defaults to "OpenUniverse2024".
-
-    Returns;
-    -------
-    id_array: numpy array of int, the IDs of the objects extracted from the healpix.
-    """
-    assert isinstance(healpix, int), "Healpix must be an integer."
-    assert isinstance(nside, int), "Nside must be an integer."
-    SNLogger.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
-    if source == "OpenUniverse2024":
-        path = Config.get().value("photometry.campari.paths.sn_path")
-        files = os.listdir(path)
-        file_prefix = {"SN": "snana", "star": "pointsource"}
-        files = [f for f in files if file_prefix[object_type] in f]
-        files = [f for f in files if ".parquet" in f]
-        files = [f for f in files if "flux" not in f]
-
-        ra_array = np.array([])
-        dec_array = np.array([])
-        id_array = np.array([])
-
-        for f in files:
-            pqfile = int(f.split("_")[1].split(".")[0])
-            df = open_parquet(pqfile, path, obj_type=object_type)
-
-            ra_array = np.concatenate([ra_array, df["ra"].values])
-            dec_array = np.concatenate([dec_array, df["dec"].values])
-            id_array = np.concatenate([id_array, df["id"].values])
-
-    else:
-        # With real data, we will have to choose the first detection, as ra/dec might shift slightly.
-        raise NotImplementedError(f"Source {source} not implemented yet.")
-
-    healpix_array = hp.ang2pix(nside, ra_array, dec_array, lonlat=True)
-    mask = healpix_array == healpix
-    id_array = id_array[mask]
-
-    return id_array.astype(int)
 
 
 def read_healpix_file(healpix_file):

@@ -17,12 +17,11 @@ from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
 # Campari
+from campari.access_truth import add_truth_to_lc, extract_object_from_healpix
 from campari.data_construction import find_all_exposures
 from campari.io import (
-    add_truth_to_lc,
     build_lightcurve,
     build_lightcurve_sim,
-    extract_object_from_healpix,
     read_healpix_file,
     save_lightcurve,
 )
@@ -73,7 +72,7 @@ class campari_runner:
         self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
-        self.sn_path = self.cfg.value("photometry.campari.paths.sn_path")
+        self.sn_truth_dir = self.cfg.value("ou24.sn_truth_dir")
         self.bg_gal_flux_all = self.cfg.value("photometry.campari.simulations.bg_gal_flux")
         self.sim_galaxy_scale_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_scale")
         self.sim_galaxy_offset_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_offset")
@@ -361,7 +360,7 @@ class campari_runner:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model)
                 if self.object_collection != "manual":
-                    lc = add_truth_to_lc(lc, lc_model, diaobj, self.sn_path, self.object_type)
+                    lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row

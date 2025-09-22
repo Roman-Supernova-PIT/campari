@@ -23,16 +23,10 @@ from roman_imsim.utils import roman_utils
 
 # SNPIT
 from campari import RomanASP
+from campari.access_truth import extract_object_from_healpix
 from campari.data_construction import find_all_exposures
 from campari.io import (
-    add_truth_to_lc,
     build_lightcurve,
-    extract_id_using_ra_dec,
-    extract_object_from_healpix,
-    extract_sn_from_parquet_file_and_write_to_csv,
-    extract_star_from_parquet_file_and_write_to_csv,
-    find_parquet,
-    open_parquet,
     read_healpix_file,
     save_lightcurve,
 )
@@ -60,16 +54,6 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
     return cfg.value("photometry.campari.paths.campari_test_data")
-
-
-@pytest.fixture(scope="module")
-def sn_path(cfg):
-    return cfg.value("photometry.campari.paths.sn_path")
-
-
-def test_find_parquet(sn_path):
-    parq_file_ID = find_parquet(50134575, sn_path)
-    assert parq_file_ID == 10430
 
 
 def test_find_all_exposures():
@@ -335,52 +319,6 @@ def test_plot_lc():
     assert output[5] == 0.0
 
 
-def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
-    cfg = Config.get()
-    new_snid_file = (pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
-                     "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv")
-    new_snid_file.unlink(missing_ok=True)
-    # Make sure we're really writing a new file so that this
-    #   test is really meaningful
-    assert not new_snid_file.exists()
-
-    # TODO don't write to testdata
-    extract_sn_from_parquet_file_and_write_to_csv(10430, sn_path, new_snid_file, mag_limits=[20, 21])
-    sn_ids = pd.read_csv(new_snid_file, header=None).values.flatten()
-    test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent
-                              / "testdata/test_snids.csv",
-                              header=None).values.flatten()
-    np.testing.assert_array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"
-
-
-def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)\
-            as temp_file:
-        output_path = temp_file.name
-        extract_star_from_parquet_file_and_write_to_csv(10430, sn_path,
-                                                        output_path,
-                                                        ra=7.1,
-                                                        dec=-44.1,
-                                                        radius=0.25)
-        star_ids = pd.read_csv(output_path, header=None).values.flatten()
-        test_star_ids = pd.read_csv(pathlib.Path(__file__).parent
-                                    / "testdata/test_star_ids.csv",
-                                    header=None).values.flatten()
-    np.testing.assert_array_equal(star_ids, test_star_ids), \
-        "The star IDs do not match the test example"
-
-    with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False)\
-            as temp_file:
-        output_path = temp_file.name
-        extract_star_from_parquet_file_and_write_to_csv(10430, sn_path,
-                                                        output_path)
-        star_ids = pd.read_csv(output_path, header=None).values.flatten()
-        parq = open_parquet(10430, sn_path, obj_type="star")
-        assert len(star_ids) == parq["id"].size, \
-            "extract_star_from_parquet_file_and_write_to_csv did not return" +\
-            "all stars when no radius was passed"
-
-
 def test_make_regular_grid():
     wcs_data = np.load(pathlib.Path(__file__).parent
                        / "testdata/wcs_dict.npz",
@@ -591,16 +529,7 @@ def test_construct_transient_scene():
                       f"image has been saved to {im_path}. Error: {e}"
 
 
-def test_extract_id_using_ra_dec(sn_path):
-    ra = 7.3447740
-    dec = -44.919229
-    ID, dist = extract_id_using_ra_dec(sn_path, ra, dec, radius=5 * u.arcsec, object_type="SN")
-    np.testing.assert_equal(ID, 40120913), "The ID extracted from the RA/Dec does not match the expected value."
-    np.testing.assert_allclose(dist, 0.003364, rtol=1e-3), \
-        "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec."
-
-
-def test_build_lc_and_add_truth(sn_path):
+def test_build_lc():
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -658,23 +587,6 @@ def test_build_lc_and_add_truth(sn_path):
     for i in lc.columns:
         if not isinstance(saved_lc[i][0], str):
             SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
-            np.testing.assert_allclose(lc[i].value, saved_lc[i])
-        else:
-            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
-    for key in list(lc.meta.keys()):
-        if not isinstance(saved_lc.meta[key], str):
-            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
-        else:
-            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
-
-    # Now add the truth to the lightcurve
-    # NOTE: The truth_path thing is a hacky fix, but since I have another issue raised to remove this from
-    # campari entirely, I'm leaving it for now. It will be gone soon anyway.
-    lc = add_truth_to_lc(lc, lc_model, diaobj, sn_path, "SN")
-    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
-
-    for i in lc.columns:
-        if not isinstance(saved_lc[i][0], str):
             np.testing.assert_allclose(lc[i].value, saved_lc[i])
         else:
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
