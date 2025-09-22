@@ -231,9 +231,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None,
                 y = int(np.floor(object_y + 0.5))
                 SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
                 psf_source_array =\
-                    construct_transient_scene(x, y, pointing, sca,
-                                              stampsize=size, x_center=object_x,
-                                              y_center=object_y, sed=sed,
+                    construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
+                                              stampsize=size, x=object_x,
+                                              y=object_y, sed=sed,
                                               photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
             else:
                 # NOTE: cutout_wcs_list is not being included in the zip above because in a different branch
