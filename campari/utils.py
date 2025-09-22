@@ -20,7 +20,6 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-
 class campari_lightcurve_model:
     """This class holds the output of the Campari pipeline for a single SNID."""
 
@@ -44,7 +43,8 @@ class campari_lightcurve_model:
         galaxy_only_model_images=None,
         galra=None,
         galdec=None,
-        object_type="SN"
+        object_type="SN",
+        LSB=None
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -89,6 +89,8 @@ class campari_lightcurve_model:
             The Dec of the host galaxy, if known.
         object_type : str
             The type of transient object, default is "SN".
+        LSB : float
+            The local surface brightness around the transient location in mag/arcsec^2.
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -109,6 +111,7 @@ class campari_lightcurve_model:
         self.galra = galra
         self.galdec = galdec
         self.object_type = object_type
+        self.LSB = LSB
 
 
 def gaussian(x, A, mu, sigma):

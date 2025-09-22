@@ -492,9 +492,9 @@ def test_construct_transient_scene():
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
 
-    psf_image = construct_transient_scene(x=2044, y=2044, pointing=43623, sca=7,
-                                          stampsize=25, x_center=2044,
-                                          y_center=2044, sed=sed,
+    psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
+                                          stampsize=25, x=2044,
+                                          y=2044, sed=sed,
                                           flux=1, photOps=False)
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
@@ -577,12 +577,14 @@ def test_build_lc():
         image_list.append(img)
         cutout_image_list.append(img)
 
-    lc_model = campari_lightcurve_model(flux=100, sigma_flux=10,
-                                        image_list=image_list, cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
-
-    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41,  collection="manual")[0]
+    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41, collection="manual")[0]
     diaobj.mjd_start = 62001.0
     diaobj.mjd_end = np.inf
+
+    lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
+                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
+
+
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
