@@ -141,12 +141,6 @@ def test_build_lc_and_add_truth(sn_path):
     lc = build_lightcurve(diaobj, lc_model)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
-    SNLogger.debug(f"lc meta: {lc.meta}")
-    SNLogger.debug(f"saved_lc meta: {saved_lc.meta}")
-
-    SNLogger.debug(f"lc {lc}")
-    SNLogger.debug(f"saved_lc {saved_lc}")
-
     for i in lc.columns:
         SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
         if not isinstance(saved_lc[i][0], str):
