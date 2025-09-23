@@ -356,12 +356,15 @@ def construct_transient_scene(
         # run, I'd want to know.
         SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    SNLogger.debug(f"Using psf class {psfclass}")
+    # We want to use the slower PSF class for supernovae
+    snpsfclass = "ou24PSF_slow" if psfclass == "ou24PSF" else psfclass
+
+    SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
-        psfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, stamp_size=stampsize
+        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, stamp_size=stampsize
     )
-    # Temporary removal of this: , seed=None, input_wcs=sca_wcs
-    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
+    # Temporary removal of this:
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs)
     SNLogger.debug(f"SN model image size: {np.shape(psf_image)}")
 
     return psf_image.flatten()
