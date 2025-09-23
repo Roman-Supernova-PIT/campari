@@ -332,7 +332,7 @@ class campari_runner:
 
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
-                           size=self.size, band=self.band,
+                           size=self.size, band=self.band, psfclass=self.psfclass,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
                            subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
@@ -372,6 +372,7 @@ class campari_runner:
                 identifier = self.run_name + "_" + str(diaobj.id)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
+                lc["filter"] = self.band
 
         if lc_model.flux is not None:
             output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))

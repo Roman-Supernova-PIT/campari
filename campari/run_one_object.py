@@ -59,7 +59,7 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, subtract_background=None,
+                   use_real_images=None, subtract_background=None, psfclass=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
@@ -96,7 +96,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            size=size,
+                            size=size, psfclass=psfclass,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
@@ -229,9 +229,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
             psf_source_array =\
                 construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
-                                            stampsize=size, x=object_x,
-                                            y=object_y, sed=sed,
-                                            photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
+                                          stampsize=size, x=object_x,
+                                          y=object_y, sed=sed, psfclass=psfclass,
+                                          photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
 
             sn_matrix.append(psf_source_array)
 

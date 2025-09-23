@@ -26,8 +26,8 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 def simulate_images(image_list=None, diaobj=None,
                     sim_galaxy_scale=None, sim_galaxy_offset=None, do_xshift=None,
-                    do_rotation=None, noise=None, use_roman=None, deltafcn_profile=None,
-                    size=11, input_psf=None,
+                    do_rotation=None, noise=None, deltafcn_profile=None,
+                    size=11, input_psf=None, psfclass=None,
                     bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
                     sim_gal_ra_offset=None, sim_gal_dec_offset=None,
@@ -46,7 +46,6 @@ def simulate_images(image_list=None, diaobj=None,
         series of images at different locations.)
     do_rotation: bool, whether to rotate the images
     noise: float, the noise level to add to the images.
-    use_roman: bool, whether to use the Roman PSF or a simple airy PSF.
     band: str, the band to use for the images.
     deltafcn_profile: bool, whether to use a delta function profile for the galaxy.
     size: int, the size of the images to simulate.
@@ -76,9 +75,6 @@ def simulate_images(image_list=None, diaobj=None,
     ra = diaobj.ra
     dec = diaobj.dec
     band = image_list[0].band
-
-    if use_roman:
-        input_psf = None
 
     if sim_gal_ra_offset is not None and sim_gal_dec_offset is not None:
         galra = ra + sim_gal_ra_offset
@@ -161,26 +157,30 @@ def simulate_images(image_list=None, diaobj=None,
 
         pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units="deg")
 
-        if use_roman:
+        if psfclass in ["ou24PSF", "ou24PSF_slow"]:
             sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
             sim_psf = input_psf
 
         # Draw the galaxy.
-        convolved = simulate_galaxy(bg_gal_flux=bg_gal_flux, sim_galaxy_scale=sim_galaxy_scale,
-                                    deltafcn_profile=deltafcn_profile, band=band,
-                                    sim_psf=sim_psf, sed=sed, bulge_hlr=bulge_hlr,
-                                    disk_hlr=disk_hlr)
+        if bg_gal_flux > 0:
+            convolved = simulate_galaxy(bg_gal_flux=bg_gal_flux, sim_galaxy_scale=sim_galaxy_scale,
+                                        deltafcn_profile=deltafcn_profile, band=band,
+                                        sim_psf=sim_psf, sed=sed, bulge_hlr=bulge_hlr,
+                                        disk_hlr=disk_hlr)
 
-        SNLogger.debug(f"Galaxy being drawn at {pointx, pointy} ")
-        localwcs = full_image_wcs.get_galsim_wcs().\
-            local(image_pos=galsim.PositionD(cutout_pixel[0] + 1, cutout_pixel[1] + 1))
-        stamp = galsim.Image(size, size, wcs=localwcs)
-        a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
-                                image=stamp, wcs=localwcs,
-                                center=galsim.PositionD(pointx, pointy),
-                                use_true_center=True).array
-        galaxy_images.append(np.copy(a))
+            SNLogger.debug(f"Galaxy being drawn at {pointx, pointy} ")
+            localwcs = full_image_wcs.get_galsim_wcs().\
+                local(image_pos=galsim.PositionD(cutout_pixel[0] + 1, cutout_pixel[1] + 1))
+            stamp = galsim.Image(size, size, wcs=localwcs)
+            a = convolved.drawImage(roman_bandpasses[band], method="no_pixel",
+                                    image=stamp, wcs=localwcs,
+                                    center=galsim.PositionD(pointx, pointy),
+                                    use_true_center=True).array
+            galaxy_images.append(np.copy(a))
+        else:
+            a = np.zeros((size, size))
+            galaxy_images.append(a)
 
         # Noise it up!
         if noise > 0:
@@ -201,11 +201,14 @@ def simulate_images(image_list=None, diaobj=None,
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units="deg")
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
                 SNLogger.debug(f"sed: {sed}")
+
+                # When using the ou24PSF, we want to use the slower and more accurate ou24PSF_slow for SN.
+                sn_psfclass = "ou24PSF_slow" if psfclass == "ou24PSF" else psfclass
                 supernova_image = \
                     simulate_supernova(snx=cutout_loc[0], sny=cutout_loc[1], snx0=cutout_pixel[0], sny0=cutout_pixel[1],
                                        flux=sim_lc[sn_im_index], sed=sed, source_phot_ops=source_phot_ops,
                                        base_pointing=base_pointing, base_sca=base_sca, stampsize=size,
-                                       sca_wcs=full_image_wcs)
+                                       sca_wcs=full_image_wcs, psfclass=sn_psfclass)
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
@@ -341,7 +344,7 @@ def simulate_galaxy(bg_gal_flux=None, sim_galaxy_scale=None, deltafcn_profile=No
 
 def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=None,
                        source_phot_ops=None, base_pointing=None, base_sca=None, stampsize=None,
-                       random_seed=0, sca_wcs=None):
+                       random_seed=0, sca_wcs=None, psfclass="ou24PSF_slow"):
     """This function simulates a supernova using the ou24PSF_slow PSF.
 
     Inputs:
@@ -364,10 +367,12 @@ def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=
     SNLogger.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} ")
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
     SNLogger.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
+    SNLogger.debug(f"Using psfclass {psfclass}")
 
-    psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
-                                    size=stampsize, include_photonOps=source_phot_ops, sed=sed)
+    psf_object = PSF.get_psf_object(psfclass, pointing=base_pointing, sca=base_sca,
+                                    size=stampsize, include_photonOps=source_phot_ops, sed=sed, stamp_size=stampsize)
     psf_image = psf_object.get_stamp(x0=snx0, y0=sny0, x=snx, y=sny,
-                                     flux=flux, seed=None, input_wcs=sca_wcs)
-    SNLogger.debug(type(psf_image))
+                                     flux=flux)
+    # , input_wcs=sca_wcs
+
     return psf_image

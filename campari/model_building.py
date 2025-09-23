@@ -358,9 +358,11 @@ def construct_transient_scene(
 
     SNLogger.debug(f"Using psf class {psfclass}")
     psf_object = PSF.get_psf_object(
-        psfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps
+        psfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, stamp_size=stampsize
     )
-    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs)
+    # Temporary removal of this: , seed=None, input_wcs=sca_wcs
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
+    SNLogger.debug(f"SN model image size: {np.shape(psf_image)}")
 
     return psf_image.flatten()
 

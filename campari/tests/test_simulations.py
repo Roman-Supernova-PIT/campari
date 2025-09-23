@@ -55,10 +55,9 @@ def test_simulate_images():
         do_rotation=True,
         sim_lc=test_lightcurve,
         noise=0,
-        use_roman=False,
         deltafcn_profile=False,
         size=size,
-        input_psf=airy,
+        psfclass="ou24PSF",
         bg_gal_flux=bg_gal_flux,
         base_sca=base_sca,
         base_pointing=base_pointing,
@@ -71,8 +70,7 @@ def test_simulate_images():
     image_list = simulated_lightcurve.image_list
     cutout_image_list = simulated_lightcurve.cutout_image_list
 
-    compare_images = np.load(pathlib.Path(__file__).parent
-                             / "testdata/test_sim_images.npy")
+    compare_images = np.load(pathlib.Path(__file__).parent / "testdata/test_sim_images.npy")
 
     images = []
     for ci in cutout_image_list:
@@ -142,7 +140,7 @@ def test_deltafcn_galaxy_test(cfg):
     curfile.unlink(missing_ok=True)
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
-         "--photometry-campari-use_roman",
+         "--photometry-campari-psfclass", "ou24PSF_slow",
          "--no-photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "single",
