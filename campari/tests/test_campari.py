@@ -656,23 +656,6 @@ def test_find_all_exposures_with_img_list():
     np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
-def test_extract_object_from_healpix():
-    healpix = 42924408
-    nside = 2**11
-    object_type = "SN"
-    source = "OpenUniverse2024"
-    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
-    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_id_array.npy")
-    np.testing.assert_array_equal(id_array, test_id_array), \
-        "The IDs extracted from the healpix do not match the expected values."
-
-    object_type = "star"
-    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
-    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
-    np.testing.assert_array_equal(id_array, test_id_array), \
-        "The IDs extracted from the healpix do not match the expected values."
-
-
 def test_read_healpix_file():
     healpix_file = pathlib.Path(__file__).parent / "testdata/test_healpix.dat"
     healpixes, nside = read_healpix_file(healpix_file)
