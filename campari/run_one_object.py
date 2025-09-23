@@ -59,7 +59,7 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, use_roman=None, subtract_background=None,
+                   use_real_images=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
@@ -96,7 +96,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            use_roman=use_roman,
                             size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
@@ -150,7 +149,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
         # Passing in None for the PSF means we use the Roman PSF.
-        drawing_psf = None if use_roman else airy
         pointing, sca = image.pointing, image.sca
 
         whole_sca_wcs = image.get_wcs()
@@ -173,7 +171,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
                                        whole_sca_wcs,
-                                       object_x, object_y, size, psf=drawing_psf,
+                                       object_x, object_y, size,
                                        pixel=pixel,
                                        util_ref=util_ref, band=band)
 
@@ -203,55 +201,37 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
         if sn_index >= 0:
-            if use_roman:
-                if use_real_images:
-                    pointing = pointing
-                    sca = sca
-                else:
-                    pointing = base_pointing
-                    sca = base_sca
-                # sedlist is the length of the number of supernova
-                # detection images. Therefore, when we iterate onto the
-                # first supernova image, we want to be on the first element
-                # of sedlist. Therefore, we subtract by the number of
-                # predetection images: num_total_images - num_detect_images.
-                sn_index = i - (num_total_images - num_detect_images)
-                SNLogger.debug(f"Using SED #{sn_index}")
-                sed = sedlist[sn_index]
-                # object_x and object_y are the exact coords of the SN in the SCA frame.
-                # x and y are the pixels the image has been cut out on, and
-                # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this
-                # switch.
-                # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
-                # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
-                # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
-                # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
-                # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
-                x = int(np.floor(object_x + 0.5))
-                y = int(np.floor(object_y + 0.5))
-                SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
-                psf_source_array =\
-                    construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
-                                              stampsize=size, x=object_x,
-                                              y=object_y, sed=sed,
-                                              photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
+            if use_real_images:
+                pointing = pointing
+                sca = sca
             else:
-                # NOTE: cutout_wcs_list is not being included in the zip above because in a different branch
-                # I am updating the simulations to use snappl image objects. That will be changed here once that
-                # is done.
-                stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
-                profile = galsim.DeltaFunction()*sed
-                profile = profile.withFlux(1, roman_bandpasses[band])
-                convolved = galsim.Convolve(profile, drawing_psf)
-                psf_source_array =\
-                    convolved.drawImage(roman_bandpasses[band],
-                                        method=draw_method_for_non_roman_psf,
-                                        image=stamp,
-                                        wcs=cutout_wcs_list[i],
-                                        center=(object_x, object_y),
-                                        use_true_center=True,
-                                        add_to_image=False)
-                psf_source_array = psf_source_array.array.flatten()
+                pointing = base_pointing
+                sca = base_sca
+            # sedlist is the length of the number of supernova
+            # detection images. Therefore, when we iterate onto the
+            # first supernova image, we want to be on the first element
+            # of sedlist. Therefore, we subtract by the number of
+            # predetection images: num_total_images - num_detect_images.
+            sn_index = i - (num_total_images - num_detect_images)
+            SNLogger.debug(f"Using SED #{sn_index}")
+            sed = sedlist[sn_index]
+            # object_x and object_y are the exact coords of the SN in the SCA frame.
+            # x and y are the pixels the image has been cut out on, and
+            # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this
+            # switch.
+            # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+            # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+            # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+            # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
+            # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+            x = int(np.floor(object_x + 0.5))
+            y = int(np.floor(object_y + 0.5))
+            SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
+            psf_source_array =\
+                construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
+                                            stampsize=size, x=object_x,
+                                            y=object_y, sed=sed,
+                                            photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
 
             sn_matrix.append(psf_source_array)
 

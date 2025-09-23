@@ -60,11 +60,11 @@ class campari_runner:
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
-        self.use_roman = self.cfg.value("photometry.campari.use_roman")
         self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
         self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
         self.do_rotation = self.cfg.value("photometry.campari.simulations.do_rotation")
+        self.psfclass = self.cfg.value("photometry.campari.psfclass")
         self.noise = self.cfg.value("photometry.campari.simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
@@ -334,7 +334,7 @@ class campari_runner:
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
                            size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
-                           use_roman=self.use_roman, subtract_background=self.subtract_background,
+                           subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
@@ -349,10 +349,10 @@ class campari_runner:
         return lightcurve_model
 
     def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
-        if self.use_roman:
+        if self.psfclass == "ou24PSF" or self.psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
         else:
-            psftype = "analyticpsf"
+            psftype = self.psfclass.lower()
 
         if self.use_real_images:
             identifier = str(diaobj.id)

@@ -12,6 +12,7 @@ photometry:
     subtract_background: true
     use_real_images: true
     save_debug: true
+    psfclass: ou24PSF
 
     paths:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
