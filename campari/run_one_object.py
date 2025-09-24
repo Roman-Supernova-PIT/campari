@@ -231,7 +231,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                 construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
                                           stampsize=size, x=object_x,
                                           y=object_y, sed=sed, psfclass=psfclass,
-                                          photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
+                                          photOps=source_phot_ops, image=image)
 
             sn_matrix.append(psf_source_array)
 
