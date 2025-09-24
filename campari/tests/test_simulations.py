@@ -3,8 +3,8 @@ import warnings
 import sys
 
 import galsim
+from matplotlib import pyplot as plt
 import numpy as np
-import pytest
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
@@ -140,13 +140,14 @@ def test_deltafcn_galaxy_test(cfg):
     curfile = pathlib.Path(pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
                            "deltafcn_test_20172782_Y106_romanpsf_images.npy")
     curfile.unlink(missing_ok=True)
+    imsize = 19
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
          "--photometry-campari-use_roman",
          "--no-photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "single",
-         "--photometry-campari-cutout_size", "19",
+         "--photometry-campari-cutout_size", f"{imsize}",
          "--no-photometry-campari-weighting",
          "--photometry-campari-subtract_background",
          "--no-photometry-campari-source_phot_ops",
@@ -166,4 +167,32 @@ def test_deltafcn_galaxy_test(cfg):
     # This tolerance value was chosen empirically. Looking at the actual image output, the fit seems to have no biases
     # or structure.
     SNLogger.debug(np.max(np.abs(data - model)/data))
-    np.testing.assert_allclose(data, model, rtol=3e-7)
+    try:
+        np.testing.assert_allclose(data, model, rtol=3e-7)
+    except AssertionError:
+        plt.subplots(1, 3, figsize=(12, 4))
+        plt.subplot(1, 3, 1)
+        plt.title("Data")
+        plt.imshow(data.reshape(-1, imsize, imsize)[0], origin="lower", cmap="viridis", vmin=0,
+                   vmax=np.max(data)*0.1)
+        plt.colorbar()
+        plt.subplot(1, 3, 2)
+        plt.title("Model")
+        plt.imshow(model.reshape(-1, imsize, imsize)[0], origin="lower", cmap="viridis", vmin=0,
+                   vmax=np.max(data)*0.1)
+        plt.colorbar()
+        plt.subplot(1, 3, 3)
+        plt.title("Residual")
+        plt.imshow(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0], origin="lower",
+                   cmap="viridis", vmin=-np.max(data)*0.01, vmax=np.max(data)*0.01)
+        plt.colorbar()
+        plt.tight_layout()
+        savepath = pathlib.Path(
+            pathlib.Path(cfg.value("photometry.campari.paths.debug_dir"))
+            / "deltafcn_test_20172782_Y106_romanpsf_images.png"
+        )
+        plt.savefig(savepath)
+        plt.close()
+        SNLogger.debug(f"Saved image to {savepath}")
+
+        raise AssertionError("Data and model do not match to tolerance! See debug directory for image.")
