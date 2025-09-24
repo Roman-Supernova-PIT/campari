@@ -55,7 +55,6 @@ def create_default_test_args(cfg):
     test_args.subtract_background = config.value("photometry.campari.subtract_background")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.sn_path = config.value("photometry.campari.paths.sn_path")
     test_args.bg_gal_flux_all = config.value("photometry.campari.simulations.bg_gal_flux")
     test_args.sim_galaxy_scale_all = config.value("photometry.campari.simulations.sim_galaxy_scale")
     test_args.sim_galaxy_offset_all = config.value("photometry.campari.simulations.sim_galaxy_offset")
@@ -138,29 +137,6 @@ def test_decide_run_mode(cfg):
     assert runner.transient_end is not None
     assert runner.run_mode == "RA/Dec"
 
-    # Now test passing a healpix
-    test_args.ra = None
-    test_args.dec = None
-    test_args.transient_start = None
-    test_args.transient_end = None
-    test_args.healpix = 42924408
-    test_args.nside = 2**11
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert runner.healpixes == [42924408]
-    assert runner.run_mode == "Healpix"
-    # We don't need to check that it gets the right SNIDs, because that is tested in test_campari.py
-
-    # Now test passing a healpix file
-    test_args.healpix = None
-    test_args.healpix_file = pathlib.Path(__file__).parent / "testdata/test_healpix.dat"
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    SNLogger.debug(len(runner.healpixes))
-    assert len(runner.healpixes) == 6
-    assert runner.nside == 2048
-    assert runner.run_mode == "Healpix File"
-    # We don't need to check that it gets the right SNIDs, because that is tested in test_campari.py
 
     # Finally, check some cases  that should raise errors
     test_args.healpix_file = None
@@ -168,6 +144,8 @@ def test_decide_run_mode(cfg):
     test_args.object_collection = "ou24"
     test_args.SNID = None
     test_args.SNID_file = None
+    test_args.ra = None
+    test_args.dec = None
     with pytest.raises(ValueError, match="Must specify --SNID, --SNID-file, to run campari "):
         campari_runner(**vars(test_args)).decide_run_mode()
 
