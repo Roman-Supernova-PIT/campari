@@ -193,6 +193,5 @@ def test_deltafcn_galaxy_test(cfg):
         )
         plt.savefig(savepath)
         plt.close()
-        SNLogger.debug(f"Saved image to {savepath}")
 
-        raise AssertionError("Data and model do not match to tolerance! See debug directory for image.")
+        raise AssertionError(f"Data and model do not match to tolerance! See {savepath} for image.")
