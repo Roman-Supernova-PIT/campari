@@ -225,17 +225,35 @@ def test_get_SED_list(cfg):
     img.band = "Y106"
     image_list = [img]
 
-    test_args.fetch_SED = True
-    test_args.object_type = "SN"
+    orig_fetch_sed = cfg.value( "photometry.campari.fetch_SED" )
 
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    sedlist = runner.get_sedlist(test_args.SNID, image_list)
-    assert len(sedlist) == 1, "The length of the SED list is not 1"
-    sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
-    np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_flambda_test.npy")
-    np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test, atol=1e-7)
+
+    try:
+
+        #  I am about to do a bad thing BUT ROB SAID I COULD
+        # Essentially, this needs to be edited because the regression tests set this to False for the python instance
+        # which causes this test to fail if you try to run all of the tests at once.
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", True)
+        cfg._static = True
+        # phrosty sets a precedent for my heinous sin:
+        # https://github.com/Roman-Supernova-PIT/phrosty/blob/54db2040feff7c183dfb9955904e957f5122f5ac/phrosty/tests/conftest.py#L37
+
+        test_args.object_type = "SN"
+
+        runner = campari_runner(**vars(test_args))
+        runner.decide_run_mode()
+        sedlist = runner.get_sedlist(test_args.SNID, image_list)
+        assert len(sedlist) == 1, "The length of the SED list is not 1"
+        sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
+        sn_flambda_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_flambda_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test, atol=1e-7)
+    finally:
+        # If it finishes or if something fails, restore the config value.
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", orig_fetch_sed)
+        cfg._static = True
 
 
 def test_build_and_save_lc(cfg):
