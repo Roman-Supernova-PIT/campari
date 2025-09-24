@@ -14,8 +14,6 @@ from snappl.psf import PSF
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
-
-
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
 warnings.simplefilter("ignore", category=AstropyWarning)
@@ -201,11 +199,19 @@ def simulate_images(image_list=None, diaobj=None,
                 snx, sny = cutoutgalwcs.toImage(snra, sndec, units="deg")
                 stamp = galsim.Image(size, size, wcs=cutoutgalwcs)
                 SNLogger.debug(f"sed: {sed}")
-                supernova_image = \
-                    simulate_supernova(snx=cutout_loc[0], sny=cutout_loc[1], snx0=cutout_pixel[0], sny0=cutout_pixel[1],
-                                       flux=sim_lc[sn_im_index], sed=sed, source_phot_ops=source_phot_ops,
-                                       base_pointing=base_pointing, base_sca=base_sca, stampsize=size,
-                                       sca_wcs=full_image_wcs)
+                supernova_image = simulate_supernova(
+                    snx=cutout_loc[0],
+                    sny=cutout_loc[1],
+                    snx0=cutout_pixel[0],
+                    sny0=cutout_pixel[1],
+                    flux=sim_lc[sn_im_index],
+                    sed=sed,
+                    source_phot_ops=source_phot_ops,
+                    base_pointing=base_pointing,
+                    base_sca=base_sca,
+                    stampsize=size,
+                    image=image_object,
+                )
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
@@ -220,7 +226,6 @@ def simulate_images(image_list=None, diaobj=None,
         cutout_object.mjd = image_object.mjd  # Temp fix, cutouts should inherit mjd from full image in snappl.
         cutout_object.band = image_object.band  # Temp fix, cutouts should inherit band from full image in snappl.
         cutout_image_list.append(cutout_object)
-
 
     lightcurve = campari_lightcurve_model(
         sim_lc=sim_lc,
@@ -341,7 +346,7 @@ def simulate_galaxy(bg_gal_flux=None, sim_galaxy_scale=None, deltafcn_profile=No
 
 def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=None,
                        source_phot_ops=None, base_pointing=None, base_sca=None, stampsize=None,
-                       random_seed=0, sca_wcs=None):
+                       random_seed=0, image=None):
     """This function simulates a supernova using the ou24PSF_slow PSF.
 
     Inputs:
@@ -366,8 +371,8 @@ def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=
     SNLogger.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
 
     psf_object = PSF.get_psf_object("ou24PSF_slow", pointing=base_pointing, sca=base_sca,
-                                    size=stampsize, include_photonOps=source_phot_ops, sed=sed)
+                                    size=stampsize, include_photonOps=source_phot_ops, sed=sed, seed=None, image=image)
     psf_image = psf_object.get_stamp(x0=snx0, y0=sny0, x=snx, y=sny,
-                                     flux=flux, seed=None, input_wcs=sca_wcs)
+                                     flux=flux)
     SNLogger.debug(type(psf_image))
     return psf_image
