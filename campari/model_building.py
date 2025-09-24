@@ -239,7 +239,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, util_ref=None, band=None, psfclass="ou24PSF"):
+                           pixel=False, util_ref=None, band=None, image=None, psfclass="ou24PSF"):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -291,7 +291,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     pointing = util_ref.visit
     sca = util_ref.sca
 
-    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=False)
+    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize,
+                                    include_photonOps=False, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
@@ -301,7 +302,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(
-            x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs
+            x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
 
     return psfs
@@ -309,7 +310,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
 def construct_transient_scene(
     x0=None, y0=None, pointing=None, sca=None, stampsize=25, x=None,
-    y=None, sed=None, flux=1, photOps=True, sca_wcs=None, psfclass="ou24PSF_slow"
+    y=None, sed=None, flux=1, photOps=True, image=None, psfclass="ou24PSF_slow"
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
@@ -361,11 +362,9 @@ def construct_transient_scene(
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, stamp_size=stampsize
+        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, image=image, stamp_size=stampsize
     )
-    # Temporary removal of this:
-    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0, seed=None, input_wcs=sca_wcs)
-    SNLogger.debug(f"SN model image size: {np.shape(psf_image)}")
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
 
     return psf_image.flatten()
 

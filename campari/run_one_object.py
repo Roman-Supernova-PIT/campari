@@ -172,7 +172,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                 construct_static_scene(ra_grid, dec_grid,
                                        whole_sca_wcs,
                                        object_x, object_y, size,
-                                       pixel=pixel,
+                                       pixel=pixel, image=image,
                                        util_ref=util_ref, band=band)
 
         if not subtract_background:
