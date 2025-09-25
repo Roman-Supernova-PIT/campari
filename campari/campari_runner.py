@@ -279,6 +279,7 @@ class campari_runner:
                 self.max_no_transient_images != 0
                 and len(no_transient_images) == 0
                 and self.object_type != "star"
+                and self.img_list is None  # If passing an image list, I assume the user knows what they are doing.
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"
                                  " detected in all images, or because the transient is outside the date range of"
