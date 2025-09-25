@@ -187,10 +187,10 @@ class campari_runner:
         # Option 1, user passes a file of SNIDs
         if self.SNID_file is not None:
             self.SNID = []
-            with open(self.SNID_file) as ifp:
+            with open(self.SNID_file, "r") as ifp:
                 for line in ifp:
                     # Check that the line is non-empty, not a comment, and doesn't contain letters.
-                    if len(line.strip()) > 0 and line[0] != "#" and not any(c.isalpha() for c in ifp):
+                    if len(line.strip()) > 0 and line[0] != "#" and not any(c.isalpha() for c in line):
                         self.SNID.append(int(line))
             self.run_mode = "SNID File"
 
