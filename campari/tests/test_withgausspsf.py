@@ -108,5 +108,29 @@ def test_nogalaxy_no_noise_SNPhotometry(cfg):
         np.testing.assert_allclose(row["flux"], row["sim_flux"], rtol=1e-7)
 
 
+def test_gaussianSMP_withgrid_butnogalaxy(cfg):
+    base_sca = 3
+    base_pointing = 5934
+    noise = 0
 
+    a = ["_", "-s", "20172782", "-f", "Y106", "-n", "2", "-t", "3",
+         "--photometry-campari-psfclass", "gaussian",
+         "--no-photometry-campari-use_real_images",
+         "--no-photometry-campari-fetch_SED",
+         "--photometry-campari-grid_options-type", "regular",
+         "--photometry-campari-cutout_size", "7",
+         "--no-photometry-campari-weighting",
+         "--photometry-campari-subtract_background",
+         "--no-photometry-campari-source_phot_ops",
+         "--photometry-campari-simulations-base_sca", str(base_sca),
+         "--photometry-campari-simulations-base_pointing", str(base_pointing),
+         "--photometry-campari-simulations-noise", str(noise),
+         "--photometry-campari-simulations-run_name", "gauss_test_grid",
+         "--photometry-campari-simulations-bg_gal_flux", "0"]
+    sys.argv = a
+    RomanASP.main()
+
+    df = pd.read_csv("/campari_out_dir/gauss_test_grid_20172782_Y106_gaussian_lc.ecsv", comment="#", delimiter=" ")
+    for index, row in df.iterrows():
+        np.testing.assert_allclose(row["flux"], row["sim_flux"], rtol=1e-7)
 

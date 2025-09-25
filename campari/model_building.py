@@ -291,7 +291,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     pointing = util_ref.visit
     sca = util_ref.sca
 
-    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize,
+    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
                                     include_photonOps=False, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
