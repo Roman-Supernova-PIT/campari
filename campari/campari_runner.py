@@ -270,6 +270,9 @@ class campari_runner:
                                             band=self.band, image_selection_start=self.image_selection_start,
                                             image_selection_end=self.image_selection_end,
                                             pointing_list=self.pointing_list)
+            SNLogger.debug(f"self.max_no_transient_images = {self.max_no_transient_images}")
+            SNLogger.debug(f"self.max_transient_images = {self.max_transient_images}")
+            SNLogger.debug(f"Found {len(image_list)} exposures for SN {diaobj.id}.")
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
@@ -279,6 +282,7 @@ class campari_runner:
                 self.max_no_transient_images != 0
                 and len(no_transient_images) == 0
                 and self.object_type != "star"
+                and self.img_list is None  # If passing an image list, I assume the user knows what they are doing.
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"
                                  " detected in all images, or because the transient is outside the date range of"
