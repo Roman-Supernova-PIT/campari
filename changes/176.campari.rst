@@ -1,0 +1,1 @@
+If passing an image list, don't check if there are pre and post detection images.
