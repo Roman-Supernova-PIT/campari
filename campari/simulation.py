@@ -188,15 +188,6 @@ def simulate_images(image_list=None, diaobj=None,
                                 use_true_center=True).array
         galaxy_images.append(np.copy(a))
 
-        # Noise it up!
-        if noise > 0:
-            rng = np.random.default_rng()
-            noise_map = rng.normal(0, noise, size**2).reshape(size, size)
-            a += noise_map
-            noise_maps.append(noise_map)
-        else:
-            noise_maps.append(np.zeros((size, size)))
-
         # Inject a supernova! If using.
         if sim_lc != 0:
             # Here we want to count which supernova image we are on. The
@@ -223,6 +214,29 @@ def simulate_images(image_list=None, diaobj=None,
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
+
+        # Noise it up!
+        if isinstance(noise, int) or isinstance(noise, float):
+            if noise > 0:
+                rng = np.random.default_rng()
+                noise_map = rng.normal(0, noise, size**2).reshape(size, size)
+                a += noise_map
+
+            else:
+                noise_map = np.zeros((size, size))
+        elif noise == "galsim":
+            galsim_image = galsim.Image(a)
+            img_w_noise = galsim.roman.allDetectorEffects(galsim_image)
+            a_with_noise = img_w_noise[0].array
+            noise_map = a_with_noise - a
+            a = a_with_noise
+
+        else:
+            raise ValueError(f"Got unexpected noise argument: {noise}. Options are 'galsim' for Galsim's roman noise"
+                             "estimation, or an integer or float to add purely Gaussian noise.")
+
+        noise_maps.append(noise_map)
+
 
         cutout_object.data = a
         # TODO: Decide how error is handled for simulated images.
