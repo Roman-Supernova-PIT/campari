@@ -230,7 +230,7 @@ def simulate_images(image_list=None, diaobj=None,
             cutout_object.noise = np.ones_like(a) * noise
         else:
             cutout_object.noise = np.ones_like(a)
-        cutout_object.mjd = image_object.mjd # Temp fix, cutouts should inherit mjd from full image in snappl.
+        cutout_object.mjd = image_object.mjd  # Temp fix, cutouts should inherit mjd from full image in snappl.
         cutout_object.band = image_object.band  # Temp fix, cutouts should inherit band from full image in snappl.
         cutout_image_list.append(cutout_object)
 
