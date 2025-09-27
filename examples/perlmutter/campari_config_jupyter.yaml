@@ -18,6 +18,7 @@ photometry:
     use_real_images: true
     save_model: true
     save_debug: true
+    psfclass: ou24PSF
 
     paths:
       sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
