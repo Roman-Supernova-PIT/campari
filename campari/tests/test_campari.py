@@ -183,16 +183,30 @@ def test_regression_function(campari_test_data):
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-         f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-psfclass", "ou24PSF",
-         "--photometry-campari-use_real_images",
-         "--no-photometry-campari-fetch_SED",
-         "--photometry-campari-grid_options-type", "contour",
-         "--photometry-campari-cutout_size", "19",
-         "--photometry-campari-weighting",
-         "--photometry-campari-subtract_background",
-         "--no-photometry-campari-source_phot_ops"]
+    a = [
+        "_",
+        "-s",
+        "20172782",
+        "-f",
+        "Y106",
+        "-i",
+        f"{campari_test_data}/test_image_list.csv",
+        "--photometry-campari-psfclass",
+        "ou24PSF",
+        "--photometry-campari-use_real_images",
+        "--no-photometry-campari-fetch_SED",
+        "--photometry-campari-grid_options-type",
+        "contour",
+        "--photometry-campari-cutout_size",
+        "19",
+        "--photometry-campari-weighting",
+        "--photometry-campari-subtract_background",
+        "--no-photometry-campari-source_phot_ops",
+        "--prebuilt_static_model",
+        str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
+        "--prebuilt_transient_model",
+        str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy")
+    ]
     orig_argv = sys.argv
     try:
         sys.argv = a
@@ -290,6 +304,7 @@ def test_regression(campari_test_data):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
         "--no-photometry-campari-source_phot_ops "
+        "--save_model "
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
