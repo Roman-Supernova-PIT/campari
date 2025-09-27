@@ -15,9 +15,10 @@ import astropy.units as u
 from campari.access_truth import (
     add_truth_to_lc,
     extract_id_using_ra_dec,
+    extract_object_from_healpix,
     extract_sn_from_parquet_file_and_write_to_csv,
     extract_star_from_parquet_file_and_write_to_csv,
-    find_parquet
+    find_parquet,
 )
 from campari.io import (
     build_lightcurve,
@@ -26,7 +27,7 @@ from campari.io import (
 
 from campari.run_one_object import campari_lightcurve_model
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -34,7 +35,7 @@ from snpit_utils.logger import SNLogger
 
 @pytest.fixture(scope="module")
 def sn_path(cfg):
-    return cfg.value("photometry.campari.paths.sn_path")
+    return cfg.value("ou24.sn_truth_dir")
 
 
 def test_find_parquet(sn_path):
@@ -112,11 +113,12 @@ def test_build_lc_and_add_truth(sn_path):
     cutout_image_list = []
 
     for i in range(len(explist["date"])):
-        img = ManualFITSImage(
+        img = FITSImageStdHeaders(
             header=None,
             data=np.zeros((4085, 4085)),
             noise=np.zeros((4085, 4085)),
             flags=np.zeros((4085, 4085)),
+            path="none",
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]
@@ -128,7 +130,8 @@ def test_build_lc_and_add_truth(sn_path):
         cutout_image_list.append(img)
 
     lc_model = campari_lightcurve_model(
-        flux=100, sigma_flux=10, image_list=image_list, cutout_image_list=cutout_image_list
+        flux=100, sigma_flux=10, image_list=image_list, cutout_image_list=cutout_image_list,
+        LSB=25.0
     )
 
     diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41, collection="manual")[0]
@@ -140,12 +143,14 @@ def test_build_lc_and_add_truth(sn_path):
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
     for i in lc.columns:
+        SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
         if not isinstance(saved_lc[i][0], str):
-            SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
+
             np.testing.assert_allclose(lc[i].value, saved_lc[i])
         else:
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
     for key in list(lc.meta.keys()):
+        SNLogger.debug(f"Checking column {key}, lc: {lc.meta[key]}, saved_lc: {saved_lc.meta[key]}")
         if not isinstance(saved_lc.meta[key], str):
             np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
         else:
@@ -178,3 +183,25 @@ def test_extract_id_using_ra_dec(sn_path):
         np.testing.assert_allclose(dist, 0.003364, rtol=1e-3),
         "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec.",
     )
+
+
+def test_extract_object_from_healpix():
+    healpix = 42924408
+    nside = 2**11
+    object_type = "SN"
+    source = "OpenUniverse2024"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_id_array.npy")
+    (
+        np.testing.assert_array_equal(id_array, test_id_array),
+        "The IDs extracted from the healpix do not match the expected values.",
+    )
+
+    object_type = "star"
+    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
+    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
+    (
+        np.testing.assert_array_equal(id_array, test_id_array),
+        "The IDs extracted from the healpix do not match the expected values.",
+    )
+

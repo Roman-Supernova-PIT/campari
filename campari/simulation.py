@@ -5,6 +5,7 @@ import galsim
 import numpy as np
 import pandas as pd
 from astropy.utils.exceptions import AstropyWarning
+from astropy.io.fits import Header as header
 from erfa import ErfaWarning
 from roman_imsim.utils import roman_utils
 
@@ -64,8 +65,8 @@ def simulate_images(image_list=None, diaobj=None,
     Returns:
     sim_lc: list, the light curve of the supernova.
     util_ref: roman_utils object, used to get the PSF.
-    image_list: list of ManualFITSImage objects, the full images.
-    cutout_image_list: list of ManualFITSImage objects, the cutout images.
+    image_list: list of FITSImageStdHeaders objects, the full images.
+    cutout_image_list: list of FITSImageStdHeaders objects, the cutout images.
     galra: float, the RA of the galaxy.
     galdec: float, the DEC of the galaxy.
     """
@@ -128,7 +129,14 @@ def simulate_images(image_list=None, diaobj=None,
 
         wcs_dict = simulate_wcs(angle=rotation_angle, x_shift=x_shift, y_shift=y_shift,
                                 base_sca=base_sca, base_pointing=base_pointing, band=band)
-        image_object.set_fits_header(wcs_dict)
+        input_header = header(wcs_dict)
+        # Adding in other necessary header keywords.
+        input_header["MJD"] = image_object.mjd
+        input_header["BAND"] = image_object.band
+        input_header["POINTING"] = image_object.pointing
+        input_header["SCA"] = image_object.sca
+
+        image_object.set_fits_header(input_header)
 
         full_image_wcs = image_object.get_wcs()
 
@@ -225,7 +233,6 @@ def simulate_images(image_list=None, diaobj=None,
             cutout_object.noise = np.ones_like(a) * noise
         else:
             cutout_object.noise = np.ones_like(a)
-
         cutout_object.mjd = image_object.mjd  # Temp fix, cutouts should inherit mjd from full image in snappl.
         cutout_object.band = image_object.band  # Temp fix, cutouts should inherit band from full image in snappl.
         cutout_image_list.append(cutout_object)

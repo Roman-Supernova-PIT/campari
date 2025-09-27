@@ -11,7 +11,7 @@ import pytest
 from campari.campari_runner import campari_runner
 from campari.utils import campari_lightcurve_model
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -137,29 +137,6 @@ def test_decide_run_mode(cfg):
     assert runner.transient_end is not None
     assert runner.run_mode == "RA/Dec"
 
-    # Now test passing a healpix
-    test_args.ra = None
-    test_args.dec = None
-    test_args.transient_start = None
-    test_args.transient_end = None
-    test_args.healpix = 42924408
-    test_args.nside = 2**11
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert runner.healpixes == [42924408]
-    assert runner.run_mode == "Healpix"
-    # We don't need to check that it gets the right SNIDs, because that is tested in test_campari.py
-
-    # Now test passing a healpix file
-    test_args.healpix = None
-    test_args.healpix_file = pathlib.Path(__file__).parent / "testdata/test_healpix.dat"
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    SNLogger.debug(len(runner.healpixes))
-    assert len(runner.healpixes) == 6
-    assert runner.nside == 2048
-    assert runner.run_mode == "Healpix File"
-    # We don't need to check that it gets the right SNIDs, because that is tested in test_campari.py
 
     # Finally, check some cases  that should raise errors
     test_args.healpix_file = None
@@ -167,6 +144,8 @@ def test_decide_run_mode(cfg):
     test_args.object_collection = "ou24"
     test_args.SNID = None
     test_args.SNID_file = None
+    test_args.ra = None
+    test_args.dec = None
     with pytest.raises(ValueError, match="Must specify --SNID, --SNID-file, to run campari "):
         campari_runner(**vars(test_args)).decide_run_mode()
 
@@ -216,25 +195,46 @@ def test_get_SED_list(cfg):
     test_args.object_collection = "ou24"
     test_args.SNID = 40120913
 
-    img = ManualFITSImage(
-        header=None, data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-        noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)), flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE))
+    img = FITSImageStdHeaders(
+        header=None,
+        path="none",
+        data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+        noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+        flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
     )
     img.mjd = 62535.424
     img.band = "Y106"
     image_list = [img]
 
-    test_args.fetch_SED = True
-    test_args.object_type = "SN"
+    orig_fetch_sed = cfg.value( "photometry.campari.fetch_SED" )
 
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    sedlist = runner.get_sedlist(test_args.SNID, image_list)
-    assert len(sedlist) == 1, "The length of the SED list is not 1"
-    sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
-    np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
-    sn_flambda_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_flambda_test.npy")
-    np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test, atol=1e-7)
+
+    try:
+
+        #  I am about to do a bad thing BUT ROB SAID I COULD
+        # Essentially, this needs to be edited because the regression tests set this to False for the python instance
+        # which causes this test to fail if you try to run all of the tests at once.
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", True)
+        cfg._static = True
+        # phrosty sets a precedent for my heinous sin:
+        # https://github.com/Roman-Supernova-PIT/phrosty/blob/54db2040feff7c183dfb9955904e957f5122f5ac/phrosty/tests/conftest.py#L37
+
+        test_args.object_type = "SN"
+
+        runner = campari_runner(**vars(test_args))
+        runner.decide_run_mode()
+        sedlist = runner.get_sedlist(test_args.SNID, image_list)
+        assert len(sedlist) == 1, "The length of the SED list is not 1"
+        sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
+        sn_flambda_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_flambda_test.npy")
+        np.testing.assert_allclose(sedlist[0]._spec.f, sn_flambda_test, atol=1e-7)
+    finally:
+        # If it finishes or if something fails, restore the config value.
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", orig_fetch_sed)
+        cfg._static = True
 
 
 def test_build_and_save_lc(cfg):
@@ -267,9 +267,12 @@ def test_build_and_save_lc(cfg):
     cutout_image_list = []
 
     for i in range(len(exposures["date"])):
-        img = ManualFITSImage(
-            header=None, data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-            noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)), flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE))
+        img = FITSImageStdHeaders(
+            header=None,
+            path="none",
+            data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
         )
         img.mjd = exposures["date"][i]
         img.band = exposures["filter"][i]

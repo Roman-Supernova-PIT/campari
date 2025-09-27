@@ -10,7 +10,7 @@ import galsim
 
 # SN-PIT
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -279,6 +279,7 @@ class campari_runner:
                 self.max_no_transient_images != 0
                 and len(no_transient_images) == 0
                 and self.object_type != "star"
+                and self.img_list is None  # If passing an image list, I assume the user knows what they are doing.
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"
                                  " detected in all images, or because the transient is outside the date range of"
@@ -299,12 +300,15 @@ class campari_runner:
                 # These data sizes are arbitary. I just need a data array present in order to perform the cutout,
                 # otherwise snappl throws an error. No data is actually placed into these images until they are
                 # cutout sized and the 4088 is used nowhere.
-                img = ManualFITSImage(
+                img = FITSImageStdHeaders(
                     header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)),
-                    flags=np.zeros((4088, 4088)), pointing=self.base_pointing, sca=self.base_sca, band=self.band,
-                    mjd=faux_dates[i]
+                    flags=np.zeros((4088, 4088)), path="none"
                 )
+                img.mjd = faux_dates[i]
+                img.band = self.band
                 image_list.append(img)
+                img.pointing = self.base_pointing
+                img.sca = self.base_sca
 
         recovered_pointings = [a.pointing for a in image_list]
         if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),

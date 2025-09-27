@@ -46,7 +46,7 @@ from campari.utils import (calc_mag_and_err,
                            campari_lightcurve_model)
 import snappl
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -340,7 +340,7 @@ def test_make_regular_grid():
     test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
                          -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
-        img = ManualFITSImage(header=wcs_dict, data=np.zeros((25, 25)))
+        img = FITSImageStdHeaders(header=wcs_dict, path="none", data=np.zeros((25, 25)))
         ra_grid, dec_grid = make_regular_grid(img,
                                               spacing=3.0)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
@@ -362,7 +362,7 @@ def test_make_adaptive_grid():
                                  / "testdata/images.npy")
         SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
-        img_obj = ManualFITSImage(header=wcs_dict, data=image)
+        img_obj = FITSImageStdHeaders(header=wcs_dict, data=image, path="none")
         ra_grid, dec_grid = make_adaptive_grid(img_obj, percentiles=[99])
         test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
         test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
@@ -388,7 +388,7 @@ def test_make_contour_grid():
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
         image = compare_images[0].reshape(11, 11)
-        img_obj = ManualFITSImage(header=wcs_dict, data=image)
+        img_obj = FITSImageStdHeaders(header=wcs_dict, data=image, path="none")
         ra_grid, dec_grid = make_contour_grid(img_obj)
         msg = f"RA vals do not match to {atol:.1e}."
         np.testing.assert_allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
@@ -565,8 +565,12 @@ def test_build_lc():
     cutout_image_list = []
 
     for i in range(len(explist["date"])):
-        img = ManualFITSImage(
-            header=None, data=np.zeros((4085, 4085)), noise=np.zeros((4085, 4085)), flags=np.zeros((4085, 4085)),
+        img = FITSImageStdHeaders(
+            header=None,
+            data=np.zeros((4085, 4085)),
+            noise=np.zeros((4085, 4085)),
+            flags=np.zeros((4085, 4085)),
+            path="none"
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]
@@ -652,23 +656,6 @@ def test_find_all_exposures_with_img_list():
     np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
     np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
     np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
-
-
-def test_extract_object_from_healpix():
-    healpix = 42924408
-    nside = 2**11
-    object_type = "SN"
-    source = "OpenUniverse2024"
-    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
-    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_id_array.npy")
-    np.testing.assert_array_equal(id_array, test_id_array), \
-        "The IDs extracted from the healpix do not match the expected values."
-
-    object_type = "star"
-    id_array = extract_object_from_healpix(healpix, nside, object_type, source=source)
-    test_id_array = np.load(pathlib.Path(__file__).parent / "testdata/test_healpix_star_id_array.npy")
-    np.testing.assert_array_equal(id_array, test_id_array), \
-        "The IDs extracted from the healpix do not match the expected values."
 
 
 def test_read_healpix_file():
