@@ -27,7 +27,7 @@ from campari.io import (
 
 from campari.run_one_object import campari_lightcurve_model
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -113,11 +113,12 @@ def test_build_lc_and_add_truth(sn_path):
     cutout_image_list = []
 
     for i in range(len(explist["date"])):
-        img = ManualFITSImage(
+        img = FITSImageStdHeaders(
             header=None,
             data=np.zeros((4085, 4085)),
             noise=np.zeros((4085, 4085)),
             flags=np.zeros((4085, 4085)),
+            path="/dev/null",
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]

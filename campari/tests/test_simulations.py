@@ -11,7 +11,7 @@ from erfa import ErfaWarning
 from campari import RomanASP
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snpit_utils.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
@@ -41,10 +41,19 @@ def test_simulate_images():
 
     image_list = []
     for i in range(10):
-        img = ManualFITSImage(header=None, data=np.zeros((4088, 4088)), noise=np.ones((4088, 4088)),
-                              flags=np.zeros((4088, 4088)), mjd=dates[i], band=band, pointing=base_pointing,
-                              sca=base_sca)
+        img = FITSImageStdHeaders(
+            header=None,
+            path="/dev/null",
+            data=np.zeros((4088, 4088)),
+            noise=np.ones((4088, 4088)),
+            flags=np.zeros((4088, 4088)),
+        )
+        img.mjd = dates[i]
+        img.band = band
+        img.pointing = base_pointing
+        img.sca = base_sca
         image_list.append(img)
+        SNLogger.debug(f"Created faux image with MJD {img.mjd}")
 
     simulated_lightcurve, util_ref = simulate_images(
         image_list=image_list,
