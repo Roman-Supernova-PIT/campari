@@ -150,7 +150,7 @@ def test_deltafcn_galaxy_test(cfg):
     imsize = 19
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
-         "--photometry-campari-psfclass", "ou24PSF_slow",
+         "--photometry-campari-psfclass", "ou24PSF",
          "--no-photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "single",
@@ -189,9 +189,10 @@ def test_deltafcn_galaxy_test(cfg):
                    vmax=np.max(data)*0.1)
         plt.colorbar()
         plt.subplot(1, 3, 3)
-        plt.title("Residual")
-        plt.imshow(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0], origin="lower",
-                   cmap="viridis", vmin=-np.max(data)*0.01, vmax=np.max(data)*0.01)
+        plt.title("Log Residual")
+        plt.imshow(np.log10(np.abs(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0])),
+                   origin="lower",
+                   cmap="viridis", vmin=-10, vmax=-2)
         plt.colorbar()
         plt.tight_layout()
         savepath = pathlib.Path(
