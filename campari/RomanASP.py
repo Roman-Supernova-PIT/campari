@@ -115,6 +115,14 @@ def main():
                         "will run on all supernovae in those healpixes. nside must be specified with the"
                         "--nside argument.")
 
+    parser.add_argument("--prebuilt_static_model", type=str, default=None,  required=False,
+                        help="A path to a .npy file containing a prebuilt static model. "
+                             "If given, will use this model instead of building a new one. ")
+
+    parser.add_argument("--prebuilt_transient_model", type=str, default=None,  required=False,
+                        help="A path to a .npy file containing a prebuilt transient model. "
+                             "If given, will use this model instead of building a new one. ")
+
     # If instead you give --ra and --dec, it will assume there is a
     # point source at that position and will scene model a stamp around
     # it. (NOT YET SUPPORTED.)
@@ -199,6 +207,11 @@ def main():
                         help="If True, will run campari in fast debug mode, "
                              "which will enforce a very sparse grid. Data collected "
                              "using this method should not be used. ")
+
+    parser.add_argument("--save_model", action=argparse.BooleanOptionalAction, default=False,
+                        help="If True, will save the PSF and SN matrices used in the fit to the debug directory."
+                             "This will be useful if you are running very similar configurations and want to avoid"
+                             "recomputing the matrices each time.")
 
     if cfg is not None:
         cfg.augment_argparse(parser)

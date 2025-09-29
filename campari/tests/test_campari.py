@@ -46,7 +46,7 @@ from campari.utils import (calc_mag_and_err,
                            campari_lightcurve_model)
 import snappl
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -183,16 +183,30 @@ def test_regression_function(campari_test_data):
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-         f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-use_roman",
-         "--photometry-campari-use_real_images",
-         "--no-photometry-campari-fetch_SED",
-         "--photometry-campari-grid_options-type", "contour",
-         "--photometry-campari-cutout_size", "19",
-         "--photometry-campari-weighting",
-         "--photometry-campari-subtract_background",
-         "--no-photometry-campari-source_phot_ops"]
+    a = [
+        "_",
+        "-s",
+        "20172782",
+        "-f",
+        "Y106",
+        "-i",
+        f"{campari_test_data}/test_image_list.csv",
+        "--photometry-campari-psfclass",
+        "ou24PSF",
+        "--photometry-campari-use_real_images",
+        "--no-photometry-campari-fetch_SED",
+        "--photometry-campari-grid_options-type",
+        "contour",
+        "--photometry-campari-cutout_size",
+        "19",
+        "--photometry-campari-weighting",
+        "--photometry-campari-subtract_background",
+        "--no-photometry-campari-source_phot_ops",
+        "--prebuilt_static_model",
+        str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
+        "--prebuilt_transient_model",
+        str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy")
+    ]
     orig_argv = sys.argv
     try:
         sys.argv = a
@@ -282,7 +296,7 @@ def test_regression(campari_test_data):
 
     output = os.system(
         f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-use_roman "
+        "--photometry-campari-psfclass ou24PSF "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
@@ -290,6 +304,7 @@ def test_regression(campari_test_data):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
         "--no-photometry-campari-source_phot_ops "
+        "--save_model "
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -340,7 +355,7 @@ def test_make_regular_grid():
     test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
                          -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
-        img = ManualFITSImage(header=wcs_dict, data=np.zeros((25, 25)))
+        img = FITSImageStdHeaders(header=wcs_dict, path="none", data=np.zeros((25, 25)))
         ra_grid, dec_grid = make_regular_grid(img,
                                               spacing=3.0)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
@@ -362,7 +377,7 @@ def test_make_adaptive_grid():
                                  / "testdata/images.npy")
         SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
-        img_obj = ManualFITSImage(header=wcs_dict, data=image)
+        img_obj = FITSImageStdHeaders(header=wcs_dict, data=image, path="none")
         ra_grid, dec_grid = make_adaptive_grid(img_obj, percentiles=[99])
         test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
         test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
@@ -388,7 +403,7 @@ def test_make_contour_grid():
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
         image = compare_images[0].reshape(11, 11)
-        img_obj = ManualFITSImage(header=wcs_dict, data=image)
+        img_obj = FITSImageStdHeaders(header=wcs_dict, data=image, path="none")
         ra_grid, dec_grid = make_contour_grid(img_obj)
         msg = f"RA vals do not match to {atol:.1e}."
         np.testing.assert_allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
@@ -565,8 +580,12 @@ def test_build_lc():
     cutout_image_list = []
 
     for i in range(len(explist["date"])):
-        img = ManualFITSImage(
-            header=None, data=np.zeros((4085, 4085)), noise=np.zeros((4085, 4085)), flags=np.zeros((4085, 4085)),
+        img = FITSImageStdHeaders(
+            header=None,
+            data=np.zeros((4085, 4085)),
+            noise=np.zeros((4085, 4085)),
+            flags=np.zeros((4085, 4085)),
+            path="none"
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]
@@ -583,8 +602,6 @@ def test_build_lc():
 
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
-
-
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
@@ -691,7 +708,7 @@ def test_handle_partial_overlap():
     output = os.system(
         f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --object_collection manual"
-        " --photometry-campari-use_roman --photometry-campari-use_real_images "
+        " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"

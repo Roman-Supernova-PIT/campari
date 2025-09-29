@@ -10,7 +10,7 @@ import galsim
 
 # SN-PIT
 from snappl.diaobject import DiaObject
-from snappl.image import ManualFITSImage
+from snappl.image import FITSImageStdHeaders
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -57,14 +57,17 @@ class campari_runner:
 
         self.ra = kwargs["ra"]
         self.dec = kwargs["dec"]
+        self.save_model = kwargs["save_model"]
+        self.prebuilt_static_model = kwargs["prebuilt_static_model"]
+        self.prebuilt_transient_model = kwargs["prebuilt_transient_model"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
-        self.use_roman = self.cfg.value("photometry.campari.use_roman")
         self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
         self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
         self.do_rotation = self.cfg.value("photometry.campari.simulations.do_rotation")
+        self.psfclass = self.cfg.value("photometry.campari.psfclass")
         self.noise = self.cfg.value("photometry.campari.simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
@@ -300,12 +303,15 @@ class campari_runner:
                 # These data sizes are arbitary. I just need a data array present in order to perform the cutout,
                 # otherwise snappl throws an error. No data is actually placed into these images until they are
                 # cutout sized and the 4088 is used nowhere.
-                img = ManualFITSImage(
+                img = FITSImageStdHeaders(
                     header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)),
-                    flags=np.zeros((4088, 4088)), pointing=self.base_pointing, sca=self.base_sca, band=self.band,
-                    mjd=faux_dates[i]
+                    flags=np.zeros((4088, 4088)), path="none"
                 )
+                img.mjd = faux_dates[i]
+                img.band = self.band
                 image_list.append(img)
+                img.pointing = self.base_pointing
+                img.sca = self.base_sca
 
         recovered_pointings = [a.pointing for a in image_list]
         if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
@@ -326,16 +332,21 @@ class campari_runner:
 
     def call_run_one_object(self, diaobj, image_list, sedlist, param_grid_row):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
+
+        prebuilt_psf_matrix = np.load(self.prebuilt_static_model) if self.prebuilt_static_model is not None else None
+        prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
+            else None
+
         if not self.use_real_images:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = param_grid_row
         else:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = None, None, None
-
+        SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
-                           size=self.size, band=self.band,
+                           size=self.size, band=self.band, psfclass=self.psfclass,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
-                           use_roman=self.use_roman, subtract_background=self.subtract_background,
+                           subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
@@ -345,15 +356,16 @@ class campari_runner:
                            avoid_non_linearity=self.avoid_non_linearity,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
-                           base_sca=self.base_sca)
+                           base_sca=self.base_sca, save_model=self.save_model, prebuilt_psf_matrix=prebuilt_psf_matrix,
+                           prebuilt_sn_matrix=prebuilt_sn_matrix)
 
         return lightcurve_model
 
     def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
-        if self.use_roman:
+        if self.psfclass == "ou24PSF" or self.psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
         else:
-            psftype = "analyticpsf"
+            psftype = self.psfclass.lower()
 
         if self.use_real_images:
             identifier = str(diaobj.id)
@@ -373,6 +385,7 @@ class campari_runner:
                 identifier = self.run_name + "_" + str(diaobj.id)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
+                lc["filter"] = self.band
 
         if lc_model.flux is not None:
             output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))

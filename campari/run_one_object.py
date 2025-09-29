@@ -59,13 +59,14 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, use_roman=None, subtract_background=None,
+                   use_real_images=None, subtract_background=None, psfclass=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel"):
+                   draw_method_for_non_roman_psf="no_pixel", save_model=False, prebuilt_psf_matrix=None,
+                   prebuilt_sn_matrix=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -96,8 +97,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            use_roman=use_roman,
-                            size=size,
+                            size=size, psfclass=psfclass,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
                             source_phot_ops=source_phot_ops,
@@ -150,7 +150,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
         # Passing in None for the PSF means we use the Roman PSF.
-        drawing_psf = None if use_roman else airy
         pointing, sca = image.pointing, image.sca
 
         whole_sca_wcs = image.get_wcs()
@@ -169,15 +168,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
         SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
-        if grid_type != "none":
+        if grid_type != "none" and prebuilt_psf_matrix is None:
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
                                        whole_sca_wcs,
-                                       object_x, object_y, size, psf=drawing_psf,
-                                       pixel=pixel, image=image,
+                                       object_x, object_y, size,
+                                       pixel=pixel, image=image, psfclass=psfclass,
                                        util_ref=util_ref, band=band)
+        elif grid_type != "none" and prebuilt_psf_matrix is not None:
+            SNLogger.debug("Using prebuilt PSF matrix for background model")
 
-        if not subtract_background:
+        if not subtract_background and prebuilt_psf_matrix is None:
             # If we did not manually subtract the background, we need to fit in the forward model. Since the
             # background is a constant, we add a term to the model that is all ones. But we only want the background
             # to be present in the model for the image it is associated with. Therefore, we only add the background
@@ -193,7 +194,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
         # Add the array of the model points and the background (if using)
         # to the matrix of all components of the model.
-        psf_matrix.append(background_model_array)
+        if prebuilt_psf_matrix is None:
+            psf_matrix.append(background_model_array)
 
         # The arrays below are the length of the number of images that contain the object
         # Therefore, when we iterate onto the
@@ -202,62 +204,55 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # predetection images: num_total_images - num_detect_images.
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
-        if sn_index >= 0:
-            if use_roman:
-                if use_real_images:
-                    pointing = pointing
-                    sca = sca
-                else:
-                    pointing = base_pointing
-                    sca = base_sca
-                # sedlist is the length of the number of supernova
-                # detection images. Therefore, when we iterate onto the
-                # first supernova image, we want to be on the first element
-                # of sedlist. Therefore, we subtract by the number of
-                # predetection images: num_total_images - num_detect_images.
-                sn_index = i - (num_total_images - num_detect_images)
-                SNLogger.debug(f"Using SED #{sn_index}")
-                sed = sedlist[sn_index]
-                # object_x and object_y are the exact coords of the SN in the SCA frame.
-                # x and y are the pixels the image has been cut out on, and
-                # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this
-                # switch.
-                # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
-                # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
-                # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
-                # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
-                # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
-                x = int(np.floor(object_x + 0.5))
-                y = int(np.floor(object_y + 0.5))
-                SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
-                psf_source_array =\
-                    construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
-                                              stampsize=size, x=object_x,
-                                              y=object_y, sed=sed, image=image,
-                                              photOps=source_phot_ops, sca_wcs=whole_sca_wcs)
+        if sn_index >= 0 and prebuilt_sn_matrix is None:
+            if use_real_images:
+                pointing = pointing
+                sca = sca
             else:
-                # NOTE: cutout_wcs_list is not being included in the zip above because in a different branch
-                # I am updating the simulations to use snappl image objects. That will be changed here once that
-                # is done.
-                stamp = galsim.Image(size, size, wcs=cutout_wcs_list[i])
-                profile = galsim.DeltaFunction()*sed
-                profile = profile.withFlux(1, roman_bandpasses[band])
-                convolved = galsim.Convolve(profile, drawing_psf)
-                psf_source_array =\
-                    convolved.drawImage(roman_bandpasses[band],
-                                        method=draw_method_for_non_roman_psf,
-                                        image=stamp,
-                                        wcs=cutout_wcs_list[i],
-                                        center=(object_x, object_y),
-                                        use_true_center=True,
-                                        add_to_image=False)
-                psf_source_array = psf_source_array.array.flatten()
+                pointing = base_pointing
+                sca = base_sca
+            # sedlist is the length of the number of supernova
+            # detection images. Therefore, when we iterate onto the
+            # first supernova image, we want to be on the first element
+            # of sedlist. Therefore, we subtract by the number of
+            # predetection images: num_total_images - num_detect_images.
+            sn_index = i - (num_total_images - num_detect_images)
+            SNLogger.debug(f"Using SED #{sn_index}")
+            sed = sedlist[sn_index]
+            # object_x and object_y are the exact coords of the SN in the SCA frame.
+            # x and y are the pixels the image has been cut out on, and
+            # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this
+            # switch.
+            # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
+            # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
+            # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
+            # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
+            # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
+            x = int(np.floor(object_x + 0.5))
+            y = int(np.floor(object_y + 0.5))
+            SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
+            psf_source_array =\
+                construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
+                                          stampsize=size, x=object_x,
+                                          y=object_y, sed=sed, psfclass=psfclass,
+                                          photOps=source_phot_ops, image=image)
 
             sn_matrix.append(psf_source_array)
 
+        elif sn_index >= 0 and prebuilt_sn_matrix is not None:
+            SNLogger.debug("Using prebuilt SN matrix for transient model")
+
     banner("Lin Alg Section")
-    psf_matrix = np.vstack(np.array(psf_matrix))
-    SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    if prebuilt_psf_matrix is None:
+        psf_matrix = np.vstack(np.array(psf_matrix))
+        SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    else:
+        psf_matrix = prebuilt_psf_matrix
+        SNLogger.debug(f"Using prebuilt PSF matrix of shape {psf_matrix.shape}")
+
+    if prebuilt_sn_matrix is not None:
+        sn_matrix = prebuilt_sn_matrix
+        SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
 
     # Add in the supernova images to the matrix in the appropriate location
     # so that it matches up with the image it represents.
@@ -270,9 +265,25 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    if save_model:
+        np.save(
+            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
+            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            psf_matrix,
+        )
+        np.save(
+            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
+            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            sn_matrix,
+        )
+        SNLogger.debug(
+            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('photometry.campari.paths.debug_dir'))}"
+        )
+
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
+
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     # Calculate amount of the PSF cut out by setting a distance cap
