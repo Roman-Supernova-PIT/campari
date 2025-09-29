@@ -131,6 +131,8 @@ def main():
                         help="Which collection of objects to use for lookup. "
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
+    parser.add_argument("--image_source", type=str, default="ou2024", required=False,
+                        help="Which collection of images to use for lookup. ")
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
