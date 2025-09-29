@@ -302,7 +302,7 @@ class campari_runner:
                 # cutout sized and the 4088 is used nowhere.
                 img = FITSImageStdHeaders(
                     header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)),
-                    flags=np.zeros((4088, 4088)), path="none"
+                    flags=np.zeros((4088, 4088)), path="/dev/null"
                 )
                 img.mjd = faux_dates[i]
                 img.band = self.band
