@@ -184,7 +184,13 @@ class campari_runner:
 
         # Option 1, user passes a file of SNIDs
         if self.SNID_file is not None:
-            self.SNID = pd.read_csv(self.SNID_file, header=None).values.flatten().tolist()
+            self.SNID = []
+            with open(self.SNID_file, "r") as ifp:
+                for line in ifp:
+                    # Check that the line is non-empty, not a comment, and doesn't contain letters.
+                    line = line.strip()
+                    if len(line) > 0 and line[0] != "#" and all(c in "0123456789" for c in line):
+                        self.SNID.append(int(line))
             self.run_mode = "SNID File"
 
         # Option 2, user passes a SNID
