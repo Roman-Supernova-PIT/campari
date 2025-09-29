@@ -185,7 +185,7 @@ def test_regression_function(campari_test_data):
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
          f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-use_roman",
+         "--photometry-campari-psfclass", "ou24PSF",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "contour",
@@ -282,7 +282,7 @@ def test_regression(campari_test_data):
 
     output = os.system(
         f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-use_roman "
+        "--photometry-campari-psfclass ou24PSF "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
@@ -588,8 +588,6 @@ def test_build_lc():
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
 
-
-
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
@@ -695,7 +693,7 @@ def test_handle_partial_overlap():
     output = os.system(
         f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --object_collection manual"
-        " --photometry-campari-use_roman --photometry-campari-use_real_images "
+        " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"

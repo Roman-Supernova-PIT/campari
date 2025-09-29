@@ -64,10 +64,9 @@ def test_simulate_images():
         do_rotation=True,
         sim_lc=test_lightcurve,
         noise=0,
-        use_roman=False,
         deltafcn_profile=False,
         size=size,
-        input_psf=airy,
+        psfclass="ou24PSF",
         bg_gal_flux=bg_gal_flux,
         base_sca=base_sca,
         base_pointing=base_pointing,
@@ -80,8 +79,7 @@ def test_simulate_images():
     image_list = simulated_lightcurve.image_list
     cutout_image_list = simulated_lightcurve.cutout_image_list
 
-    compare_images = np.load(pathlib.Path(__file__).parent
-                             / "testdata/test_sim_images.npy")
+    compare_images = np.load(pathlib.Path(__file__).parent / "testdata/test_sim_images.npy")
 
     images = []
     for ci in cutout_image_list:
@@ -152,7 +150,7 @@ def test_deltafcn_galaxy_test(cfg):
     imsize = 19
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
-         "--photometry-campari-use_roman",
+         "--photometry-campari-psfclass", "ou24PSF",
          "--no-photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "single",
@@ -191,9 +189,10 @@ def test_deltafcn_galaxy_test(cfg):
                    vmax=np.max(data)*0.1)
         plt.colorbar()
         plt.subplot(1, 3, 3)
-        plt.title("Residual")
-        plt.imshow(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0], origin="lower",
-                   cmap="viridis", vmin=-np.max(data)*0.01, vmax=np.max(data)*0.01)
+        plt.title("Log Residual")
+        plt.imshow(np.log10(np.abs(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0])),
+                   origin="lower",
+                   cmap="viridis", vmin=-10, vmax=-2)
         plt.colorbar()
         plt.tight_layout()
         savepath = pathlib.Path(

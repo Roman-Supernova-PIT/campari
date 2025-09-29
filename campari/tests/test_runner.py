@@ -44,7 +44,7 @@ def create_default_test_args(cfg):
 
     test_args.size = config.value("photometry.campari.cutout_size")
     test_args.use_real_images = config.value("photometry.campari.use_real_images")
-    test_args.use_roman = config.value("photometry.campari.use_roman")
+    test_args.psfclass = config.value("photometry.campari.psfclass")
     test_args.avoid_non_linearity = config.value("photometry.campari.simulations.avoid_non_linearity")
     test_args.deltafcn_profile = config.value("photometry.campari.simulations.deltafcn_profile")
     test_args.do_xshift = config.value("photometry.campari.simulations.do_xshift")

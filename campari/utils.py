@@ -279,7 +279,7 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
         total width will be 2*cutout_pix + 1. The default is 2 for a 5x5 cutout.
     pixel_scale : float, optional
         The pixel scale of the images in arcseconds/pixel. The default is 0.11, which is the pixel scale of Roman.
-    
+
     Returns
     -------
     LSB : float
