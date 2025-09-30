@@ -11,6 +11,7 @@ import galsim
 # SN-PIT
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
+from snappl.imagecollection import ImageCollection
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
@@ -54,6 +55,8 @@ class campari_runner:
         self.object_collection = kwargs["object_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
+        self.image_source = kwargs["image_source"]
+        self.image_path = kwargs["image_path"]
 
         self.ra = kwargs["ra"]
         self.dec = kwargs["dec"]
@@ -236,16 +239,16 @@ class campari_runner:
                 "Must specify --SNID, --SNID-file, --healpix, --healpix_file, or --ra and --dec to run campari."
             )
 
-        if self.img_list is not None:
-            columns = ["pointing", "sca"]
-            image_df = pd.read_csv(self.img_list, header=None, names=columns)
-            # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
-            self.max_no_transient_images = None
-            self.max_transient_images = None
-            self.pointing_list = image_df["pointing"].values
-        else:
-            image_df = None
-            self.pointing_list = None
+        # if self.img_list is not None:
+        #     columns = ["pointing", "sca"]
+        #     image_df = pd.read_csv(self.img_list, header=None, names=columns)
+        #     # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
+        #     self.max_no_transient_images = None
+        #     self.max_transient_images = None
+        #     self.pointing_list = image_df["pointing"].values
+        # else:
+        #     image_df = None
+        #     self.pointing_list = None
 
         if not isinstance(self.SNID, list):
             self.SNID = [self.SNID]
@@ -264,27 +267,35 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            image_list = find_all_exposures(diaobj=diaobj,
-                                            maxbg=self.max_no_transient_images,
-                                            maxdet=self.max_transient_images,
-                                            band=self.band, image_selection_start=self.image_selection_start,
-                                            image_selection_end=self.image_selection_end,
-                                            pointing_list=self.pointing_list)
-            mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
-            mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
+            if self.img_list is not None:
+                # If the user provided an image list, use that.
+                image_list = self.parse_img_list()
+                mjd_list = [im.mjd for im in image_list]
+                image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
+            else:
+                # Otherwise, go find images that match the criteria.
+                image_list = find_all_exposures(diaobj=diaobj,
+                                                maxbg=self.max_no_transient_images,
+                                                maxdet=self.max_transient_images,
+                                                band=self.band, image_selection_start=self.image_selection_start,
+                                                image_selection_end=self.image_selection_end,
+                                                pointing_list=self.pointing_list, image_source=self.image_source,
+                                                image_path=self.image_path)
+                mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+                mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
-            no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+                no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
 
-            if (
-                self.max_no_transient_images != 0
-                and len(no_transient_images) == 0
-                and self.object_type != "star"
-                and self.img_list is None  # If passing an image list, I assume the user knows what they are doing.
-            ):
-                raise ValueError("No non-detection images were found. This may be because the transient is"
-                                 " detected in all images, or because the transient is outside the date range of"
-                                 " available images. If you are running on stars, this is expected behavior."
-                                 " If you are running on supernovae, consider increasing the date range.")
+
+                if (
+                    self.max_no_transient_images != 0
+                    and len(no_transient_images) == 0
+                    and self.object_type != "star"
+                ):
+                    raise ValueError("No non-detection images were found. This may be because the transient is"
+                                    " detected in all images, or because the transient is outside the date range of"
+                                    " available images. If you are running on stars, this is expected behavior."
+                                    " If you are running on supernovae, consider increasing the date range.")
         else:
             if self.max_no_transient_images is None or self.max_transient_images is None:
                 raise ValueError("Must specify --max_no_transient_images and --max_transient_images to run campari with"
@@ -310,12 +321,14 @@ class campari_runner:
                 img.pointing = self.base_pointing
                 img.sca = self.base_sca
 
-        recovered_pointings = [a.pointing for a in image_list]
-        if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
-                                                            np.sort(self.pointing_list)):
-            SNLogger.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
-                             " following pointings were not found: "
-                             f"{np.setdiff1d(self.pointing_list, [a.pointing for a in image_list])}")
+        mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+        mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
+        no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+        transient_images = [a for a in image_list if (a.mjd >= mjd_start) and (a.mjd <= mjd_end)]
+
+        SNLogger.debug(f"Found a total of {len(image_list)} images for this object, ")
+        SNLogger.debug(f"of which {len(no_transient_images)} are non-detection images")
+        SNLogger.debug(f"and {len(transient_images)} are detection images.")
 
         return image_list
 
@@ -364,7 +377,6 @@ class campari_runner:
                 lc = build_lightcurve(diaobj, lc_model)
                 if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
-
 
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
@@ -417,3 +429,35 @@ class campari_runner:
                 SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")
         else:
             SNLogger.info("Not saving debug files.")
+
+    def parse_img_list(self):
+        """Parse the image list file if provided."""
+        with open(self.img_list) as ifp:
+            img_list_lines = ifp.readlines()
+        img_list_lines = [line.strip() for line in img_list_lines if
+                          (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        my_image_collection = ImageCollection()
+        # De-harcode this threefile thing
+        my_image_collection = my_image_collection.get_collection(self.image_source, subset="threefile",
+                                                                 base_path=self.image_path)
+        images = []
+        if all(len(line.split(",")) == 3 for line in img_list_lines):
+            # each line of file is pointing sca band
+            for line in img_list_lines:
+                vals = line.split(",")
+                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]), band=vals[2]))
+        elif all(len(line.split(",")) == 2 for line in img_list_lines):
+            # each line of file is pointing sca
+            for line in img_list_lines:
+                vals = line.split(",")
+                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]),
+                              band=self.band))
+        elif all(len(line.split(",")) == 1 for line in img_list_lines):
+            # each line of file is path to image
+            for line in img_list_lines:
+                images.append(my_image_collection.get_image(path=line))
+        else:
+            raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"
+                                " pointing and sca.")
+
+        return images

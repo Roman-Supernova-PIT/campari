@@ -78,7 +78,7 @@ def build_lightcurve(diaobj, lc_model):
     }
 
     for i, img in enumerate(image_list):
-        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+        if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
             data_dict["filter"].append(img.band)
             data_dict["pointing"].append(img.pointing)
@@ -92,6 +92,8 @@ def build_lightcurve(diaobj, lc_model):
 
     units = {"mjd": u.d, "flux_fit": "", "flux_fit_err": "", "mag_fit": u.mag, "mag_fit_err": u.mag, "filter": ""}
     SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
+    for key in list(data_dict.keys()):
+        SNLogger.debug(f"key: {key}, len: {len(data_dict[key])}")
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 

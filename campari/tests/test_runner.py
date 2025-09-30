@@ -39,6 +39,8 @@ def create_default_test_args(cfg):
     test_args.transient_end = None
     test_args.ra = None
     test_args.dec = None
+    test_args.image_source = "ou2024"
+    test_args.image_path = None
 
     config = cfg
 

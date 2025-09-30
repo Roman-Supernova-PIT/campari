@@ -99,7 +99,12 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
                 # However, if we are subtracting the background, we want to get
                 # rid of it here, either by reading the SKY_MEAN value from the
                 # image header...
-                bg = image_cutout.get_fits_header()["SKY_MEAN"]
+                # Clean this up before pushing TODO!
+                try:
+                    bg = image_cutout.get_fits_header()["SKY_MEAN"]
+                except KeyError:
+                    bg = calculate_background_level(imagedata)
+
             elif truth == "truth":
                 # ....or manually calculating it!
                 bg = calculate_background_level(imagedata)
@@ -107,7 +112,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
         bgflux.append(bg)
 
         image_cutout._data -= bg
-        SNLogger.debug(f"Subtracted a background level of {bg}")
 
         cutout_image_list.append(image_cutout)
 
@@ -186,6 +190,7 @@ def find_all_exposures(
     image_selection_start=None,
     image_selection_end=None,
     image_source="ou2024",
+    image_path=None
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
@@ -204,13 +209,9 @@ def find_all_exposures(
             images.
     band: the band to consider
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
-    explist: astropy.table.Table, the table of exposures that contain the
-    supernova. The columns are:
-        - pointing: the pointing of the exposure
-        - sca: the SCA of the exposure
-        - band: the band of the exposure
-        - date: the MJD of the exposure
-        - detected: whether the exposure contains a detection or not.
+    image_source: str, the source of the images to be used. If "ou2024", use the Open Universe 2024 images.
+    image_path: str, the path to the images to be used. If given, will use these images 
+                     for image sources that require a base_path.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     transient_start = diaobj.mjd_start
@@ -219,7 +220,8 @@ def find_all_exposures(
     dec = diaobj.dec
 
     img_collection = ImageCollection()
-    img_collection = img_collection.get_collection(image_source)
+    # De-harcode this
+    img_collection = img_collection.get_collection(image_source, subset="threefile", base_path=image_path)
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
 
