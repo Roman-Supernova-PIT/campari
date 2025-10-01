@@ -404,6 +404,7 @@ class campari_runner:
             debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
+            np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
 
             # Save the ra and dec grids
             ra_grid = np.atleast_1d(lc_model.ra_grid)
@@ -425,7 +426,7 @@ class campari_runner:
 
             if not self.use_real_images:
                 np.save(debug_dir / f"{fileroot}_galaxy_images.npy", lc_model.galaxy_images)
-                np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
+
                 SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")
         else:
             SNLogger.info("Not saving debug files.")

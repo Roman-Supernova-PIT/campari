@@ -103,7 +103,8 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
                 try:
                     bg = image_cutout.get_fits_header()["SKY_MEAN"]
                 except KeyError:
-                    bg = calculate_background_level(imagedata)
+                    SNLogger.warning("Using an override of 0")
+                    bg = 0
 
             elif truth == "truth":
                 # ....or manually calculating it!

@@ -81,12 +81,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if use_real_images:
         cutout_image_list, image_list = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
+        noise_maps = [im.noise for im in cutout_image_list]
+        for error in noise_maps:
+            SNLogger.debug(
+                f"error stats: min {np.min(error)}, max {np.max(error)}, mean {np.mean(error)}, median {np.median(error)}"
+            )
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
         galaxy_images = None
-        noise_maps = None
+
 
     else:
         # Simulate the images of the SN and galaxy.
@@ -248,8 +253,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Get the weights
 
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
+        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, sn_matrix=sn_matrix)
     else:
+        # error_list = [im.noise for im in cutout_image_list]
+        # error_list = np.array(error_list)
+        # error_list[np.where(error_list <= 1)] = 1 # Avoid division by 0 or tiny numbers
+        # wgt_matrix = 1 / (error_list.flatten()) ** 2
+        # wgt_matrix = np.nan_to_num(wgt_matrix)
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
     images, err, sn_matrix, wgt_matrix =\
@@ -315,6 +325,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
+
 
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
