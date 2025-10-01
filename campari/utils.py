@@ -213,7 +213,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, sn_matrix=None):
         # SNLogger.debug(f"image {i} error stats: min {np.min(error[i])}, max {np.max(error[i])}, mean {np.mean(error[i])}, median {np.median(error[i])}")
 
         # SNLogger.debug(f"wgt before: {np.linalg.norm(wgt)}")
-        wgt = sn_matrix[i].flatten()
+        #wgt = sn_matrix[i].flatten()
         psf_norm = np.linalg.norm(wgt)
         SNLogger.debug(f"PSF norm: {psf_norm}")
         #error_floor =  0.1
@@ -226,7 +226,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, sn_matrix=None):
         SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
         inv_var /= psf_norm  # Normalize by PSF norm to keep weights well behaved
 
-        wgt *= inv_var
+        wgt = inv_var
         SNLogger.debug(f"wgt after: {np.linalg.norm(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
