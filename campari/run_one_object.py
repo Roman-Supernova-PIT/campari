@@ -261,6 +261,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
+    SNLogger.debug(f"beginning of sn_matrix: {sn_matrix[:5]}")
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     # Calculate amount of the PSF cut out by setting a distance cap

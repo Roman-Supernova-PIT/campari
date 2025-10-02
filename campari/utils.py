@@ -215,16 +215,18 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, sn_matrix=None, er
             wgt[np.where(dist > cutoff)] = 0
             if error[i] is None:
                 error[i] = np.ones_like(wgt)
+            SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         else:
             wgt = np.ones(size**2)
 
         #error[i][np.where(error[i] <= error_floor)] = error_floor
         inv_var = 1 / (error[i].flatten()) ** 2
-        inv_var = np.nan_to_num(inv_var,  nan=0.0)
+        #inv_var = np.nan_to_num(inv_var,  nan=0.0)
         #inv_var[np.where(inv_var > 1)] = 1  # Avoid ridiculously high weights
-        SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
+        #SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
 
         wgt *= inv_var
+        SNLogger.debug(f"wgt after: {np.mean(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
 
