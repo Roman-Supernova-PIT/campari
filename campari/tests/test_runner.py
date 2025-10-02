@@ -72,7 +72,6 @@ def create_default_test_args(cfg):
     test_args.run_name = config.value("photometry.campari.simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
-    test_args.pointing_list = None
     return test_args
 
 
@@ -158,18 +157,6 @@ def test_decide_run_mode(cfg):
     ):
         campari_runner(**vars(test_args)).decide_run_mode()
 
-    test_args.object_collection = "ou24"
-    test_args.SNID = 20172782
-    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-
-    assert runner.SNID == [20172782]
-    columns = ["pointing", "sca"]
-    SNLogger.debug(pd.read_csv(test_args.img_list))
-    np.testing.assert_array_equal(runner.pointing_list,
-                                  pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
-
 
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
@@ -190,6 +177,25 @@ def test_get_exposures(cfg):
     np.testing.assert_array_equal([a.mjd for a in image_list], compare_table["date"])
     np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
     np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
+
+
+    #### Now try with an image list
+
+    test_args.object_collection = "ou24"
+    test_args.SNID = 20172782
+    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
+    runner = campari_runner(**vars(test_args))
+    runner.decide_run_mode()
+
+    diaobj = DiaObject.find_objects(id=2017278, ra=1, dec=2, collection="manual")[0]
+    diaobj.mjd_start = 62654.0
+    diaobj.mjd_end = 62958.0
+
+    assert runner.SNID == [20172782]
+    runner.get_exposures(diaobj=diaobj)
+    columns = ["pointing", "sca"]
+    pointing_list = [int(im.pointing) for im in runner.image_list]
+    np.testing.assert_array_equal(pointing_list, pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
 
 def test_get_SED_list(cfg):

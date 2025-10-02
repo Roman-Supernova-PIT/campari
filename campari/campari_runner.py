@@ -239,17 +239,6 @@ class campari_runner:
                 "Must specify --SNID, --SNID-file, --healpix, --healpix_file, or --ra and --dec to run campari."
             )
 
-        # if self.img_list is not None:
-        #     columns = ["pointing", "sca"]
-        #     image_df = pd.read_csv(self.img_list, header=None, names=columns)
-        #     # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
-        #     self.max_no_transient_images = None
-        #     self.max_transient_images = None
-        #     self.pointing_list = image_df["pointing"].values
-        # else:
-        #     image_df = None
-        #     self.pointing_list = None
-
         if not isinstance(self.SNID, list):
             self.SNID = [self.SNID]
 
@@ -279,7 +268,7 @@ class campari_runner:
                                                 maxdet=self.max_transient_images,
                                                 band=self.band, image_selection_start=self.image_selection_start,
                                                 image_selection_end=self.image_selection_end,
-                                                pointing_list=self.pointing_list, image_source=self.image_source,
+                                                image_source=self.image_source,
                                                 image_path=self.image_path)
                 mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
                 mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
@@ -329,6 +318,9 @@ class campari_runner:
         SNLogger.debug(f"Found a total of {len(image_list)} images for this object, ")
         SNLogger.debug(f"of which {len(no_transient_images)} are non-detection images")
         SNLogger.debug(f"and {len(transient_images)} are detection images.")
+
+        self.image_list = image_list
+        SNLogger.debug("setting image list")
 
         return image_list
 

@@ -82,10 +82,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         cutout_image_list, image_list = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
         noise_maps = [im.noise for im in cutout_image_list]
-        for error in noise_maps:
-            SNLogger.debug(
-                f"error stats: min {np.min(error)}, max {np.max(error)}, mean {np.mean(error)}, median {np.median(error)}"
-            )
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
@@ -290,6 +286,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"image shape: {images.shape}")
 
     if method == "lsqr":
+
+        SNLogger.debug("Trying Rob's suggestion")
+        wgt_matrix = np.sqrt(wgt_matrix)
+
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
                               images*wgt_matrix, x0=x0test, atol=1e-12,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
@@ -326,6 +326,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
 
+    mjd = np.array([im.mjd for im in cutout_image_list])
+    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
+    num_post_transient_images = np.sum(mjd > diaobj.mjd_end)
+
 
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
@@ -333,7 +337,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
-            diaobj=diaobj, object_type=object_type
+            diaobj=diaobj, object_type=object_type, pre_transient_images=num_pre_transient_images,
+            post_transient_images=num_post_transient_images
         )
 
     return lightcurve_model

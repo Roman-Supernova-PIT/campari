@@ -185,7 +185,6 @@ def find_all_exposures(
     band=None,
     maxbg=None,
     maxdet=None,
-    pointing_list=None,
     sca_list=None,
     truth="simple_model",
     image_selection_start=None,
@@ -211,7 +210,7 @@ def find_all_exposures(
     band: the band to consider
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
     image_source: str, the source of the images to be used. If "ou2024", use the Open Universe 2024 images.
-    image_path: str, the path to the images to be used. If given, will use these images 
+    image_path: str, the path to the images to be used. If given, will use these images
                      for image sources that require a base_path.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
@@ -252,9 +251,6 @@ def find_all_exposures(
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
-
-    if pointing_list is not None:
-        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]

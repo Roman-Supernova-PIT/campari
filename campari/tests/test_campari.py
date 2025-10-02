@@ -586,7 +586,8 @@ def test_build_lc():
     diaobj.mjd_end = np.inf
 
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
-                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
+                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
+                                        pre_transient_images=1, post_transient_images=0)
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
@@ -599,6 +600,8 @@ def test_build_lc():
         else:
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
     for key in list(lc.meta.keys()):
+        SNLogger.debug(f"Checking column {key}, lc: {lc.meta[key]}")
+        SNLogger.debug(f"saved_lc: {saved_lc.meta[key]}")
         if not isinstance(saved_lc.meta[key], str):
             np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
         else:
@@ -702,6 +705,15 @@ def test_handle_partial_overlap():
 
     current = np.load(curfile, allow_pickle=True)
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+
+    plt.subplot(1,3,1)
+    plt.imshow(current[2].reshape(101, 101), origin="lower")
+    plt.subplot(1,3,2)
+    plt.imshow(comparison_weights.reshape(101, 101), origin="lower")
+    plt.subplot(1,3,3)
+    plt.imshow(np.abs(current[2].reshape(101, 101)-comparison_weights.reshape(101, 101)), origin="lower")
+    plt.colorbar(label="| current - comparison  |")
+    plt.savefig(pathlib.Path(__file__).parent / "partial_overlap_weights.png")
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 
