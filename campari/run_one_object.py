@@ -249,7 +249,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Get the weights
 
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, sn_matrix=sn_matrix)
+        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
     else:
         # error_list = [im.noise for im in cutout_image_list]
         # error_list = np.array(error_list)
