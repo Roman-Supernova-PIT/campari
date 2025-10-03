@@ -60,6 +60,8 @@ def build_lightcurve(diaobj, lc_model):
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
     meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
     meta_dict["local_surface_brightness"] = lc_model.LSB
+    meta_dict["pre_transient_images"] = lc_model.pre_transient_images
+    meta_dict["post_transient_images"] = lc_model.post_transient_images
 
     data_dict = {
         "mjd": [],
@@ -78,7 +80,7 @@ def build_lightcurve(diaobj, lc_model):
     }
 
     for i, img in enumerate(image_list):
-        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+        if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
             data_dict["filter"].append(img.band)
             data_dict["pointing"].append(img.pointing)
@@ -91,7 +93,6 @@ def build_lightcurve(diaobj, lc_model):
             data_dict["y_cutout"].append(y_cutout)
 
     units = {"mjd": u.d, "flux_fit": "", "flux_fit_err": "", "mag_fit": u.mag, "mag_fit_err": u.mag, "filter": ""}
-    SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 

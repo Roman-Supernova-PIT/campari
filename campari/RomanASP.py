@@ -133,6 +133,9 @@ def main():
                              "will use the input ra and dec given by the user, and not perform any lookup.")
     parser.add_argument("--image_source", type=str, default="ou2024", required=False,
                         help="Which collection of images to use for lookup. ")
+    parser.add_argument("--image_path", type=str, default=None, required=False,
+                        help="Path to the images to use for scene modelling. "
+                             "If given, will use these images for image sources that require a base_path.")
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
