@@ -219,10 +219,10 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=0):
         else:
             wgt = np.ones(size**2)
 
-        #error[i][np.where(error[i] <= error_floor)] = error_floor
+        error[i][np.where(error[i] <= error_floor)] = error_floor
         inv_var = 1 / (error[i].flatten()) ** 2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
-        inv_var[np.where(inv_var > 1)] = 1  # Avoid ridiculously high weights
+        #inv_var[np.where(inv_var > 1)] = 1  # Avoid ridiculously high weights
         #SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
 
         wgt *= inv_var

@@ -288,7 +288,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if method == "lsqr":
 
-        SNLogger.debug("Trying Rob's suggestion")
         wgt_matrix = np.sqrt(wgt_matrix)
 
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
