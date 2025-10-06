@@ -109,11 +109,16 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
-
+    if isinstance(supernova, int) or isinstance(supernova, float):
+        supernova = [supernova]
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux, "flux_error": sigma_flux, "sim_flux": supernova}
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "", "flux": "", "flux_error": ""}
+
+    SNLogger.debug(f"data_dict: {data_dict}")
+    SNLogger.debug(f"meta_dict: {meta_dict}")
+    SNLogger.debug(f"units: {units}")
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 

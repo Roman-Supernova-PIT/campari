@@ -157,12 +157,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # grid we made in the previous section.
 
         # TODO: Put this in snappl
-        if use_real_images and "ou24" in psfclass:
-            util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
+        util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=pointing, sca=sca)
-        else:
-            util_ref = None
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
