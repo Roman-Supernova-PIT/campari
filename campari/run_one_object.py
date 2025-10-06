@@ -157,9 +157,15 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # grid we made in the previous section.
 
         # TODO: Put this in snappl
-        util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
+        SNLogger.debug(f"Image {i} pointing, sca: {pointing, sca}")
+        if pointing >= 0 and pointing <= 57364:
+            util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=pointing, sca=sca)
+        else:
+            util_ref = None
+            # Rob's simulated images have big placeholder pointings. This is a catch for those images.
+            SNLogger.warning("Pointing value is outside of the range of the TDS file.")
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
