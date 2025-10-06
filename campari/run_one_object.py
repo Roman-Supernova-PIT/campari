@@ -259,7 +259,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
-    SNLogger.debug(f"beginning of sn_matrix: {sn_matrix[:5]}")
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     # Calculate amount of the PSF cut out by setting a distance cap
@@ -297,13 +296,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
-    SNLogger.debug(f"np.max(wgt_matrix), {np.max(wgt_matrix)}")
-    SNLogger.debug(f"np.max(psf_matrix), {np.max(psf_matrix)}")
 
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
 
-    SNLogger.debug(f"shape of inv_cov: {inv_cov.shape}")
-    SNLogger.debug(f"inv_cov: {inv_cov}")
 
     try:
         cov = np.linalg.inv(inv_cov)

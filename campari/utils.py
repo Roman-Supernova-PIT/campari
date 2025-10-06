@@ -155,7 +155,7 @@ def calculate_background_level(im):
     return bg
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
+def get_weights(images, ra, dec, gaussian_var=None, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -187,6 +187,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
 
     for i, wcs in enumerate(wcs_list):
         if gaussian_var is not None:
+            raise NotImplementedError("I dont want to use this rn.")
             xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
             xx = xx.flatten()
             yy = yy.flatten()
@@ -220,14 +221,15 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             wgt = np.ones(size**2)
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
+        SNLogger.debug(f"error max min {np.nanmax(error[i]), np.nanmin(error[i])}")
         inv_var = 1 / (error[i].flatten()) ** 2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         #inv_var[np.where(inv_var > 1)] = 1  # Avoid ridiculously high weights
         #SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
-
         wgt *= inv_var
         SNLogger.debug(f"wgt max min {np.nanmax(wgt), np.nanmin(wgt)}")
         SNLogger.debug(f"wgt after: {np.nanmean(wgt)}")
+        SNLogger.debug("------------")
         wgt_matrix.append(wgt)
     return wgt_matrix
 
