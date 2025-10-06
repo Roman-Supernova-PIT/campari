@@ -254,11 +254,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if weighting:
         wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
     else:
-        # error_list = [im.noise for im in cutout_image_list]
-        # error_list = np.array(error_list)
-        # error_list[np.where(error_list <= 1)] = 1 # Avoid division by 0 or tiny numbers
-        # wgt_matrix = 1 / (error_list.flatten()) ** 2
-        # wgt_matrix = np.nan_to_num(wgt_matrix)
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
     images, err, sn_matrix, wgt_matrix =\
@@ -302,7 +297,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
-    inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+    SNLogger.debug(f"np.max(wgt_matrix), {np.max(wgt_matrix)}")
+    SNLogger.debug(f"np.max(psf_matrix), {np.max(psf_matrix)}")
+
+    inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
+
+    SNLogger.debug(f"shape of inv_cov: {inv_cov.shape}")
+    SNLogger.debug(f"inv_cov: {inv_cov}")
 
     try:
         cov = np.linalg.inv(inv_cov)

@@ -77,7 +77,7 @@ def test_noiseless_aligned_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     np.testing.assert_allclose(lc["flux_fit"], flux, atol=1e-7)
-    np.testing.assert_allclose(lc["flux_fit_err"], 0.0, atol=1e-7)
+    np.testing.assert_allclose(lc["flux_fit_err"], 1.651652, atol=1e-7)
 
 
 

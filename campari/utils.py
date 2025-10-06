@@ -155,7 +155,7 @@ def calculate_background_level(im):
     return bg
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=0):
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -226,7 +226,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=0):
         #SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
 
         wgt *= inv_var
-        SNLogger.debug(f"wgt stats {np.nanmax(wgt), np.nanmin(wgt)}")
+        SNLogger.debug(f"wgt max min {np.nanmax(wgt), np.nanmin(wgt)}")
         SNLogger.debug(f"wgt after: {np.nanmean(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
