@@ -115,10 +115,7 @@ def test_build_lc_and_add_truth(sn_path):
     for i in range(len(explist["date"])):
         img = FITSImageStdHeaders(
             header=None,
-            data=np.zeros((4085, 4085)),
-            noise=np.zeros((4085, 4085)),
-            flags=np.zeros((4085, 4085)),
-            path="/dev/null",
+            path=None,
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]

@@ -301,14 +301,14 @@ class campari_runner:
                 # otherwise snappl throws an error. No data is actually placed into these images until they are
                 # cutout sized and the 4088 is used nowhere.
                 img = FITSImageStdHeaders(
-                    header=None, data=np.zeros((4088, 4088)), noise=np.zeros((4088, 4088)),
-                    flags=np.zeros((4088, 4088)), path="/dev/null"
+                    header=None, path="/dev/null"
                 )
                 img.mjd = faux_dates[i]
                 img.band = self.band
-                image_list.append(img)
                 img.pointing = self.base_pointing
                 img.sca = self.base_sca
+                image_list.append(img)
+
 
         recovered_pointings = [a.pointing for a in image_list]
         if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
