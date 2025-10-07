@@ -184,8 +184,6 @@ def test_poisson_noise_aligned_no_host():
     # Now we add just poisson noise. This will introduce scatter, but campari should still agree with aperture
     # photometry.
 
-    imsize = 19
-
     cmd = base_cmd + [
         "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson.txt",
     ]
@@ -330,21 +328,6 @@ def test_both_noise_aligned_no_host():
 # --transient-ra 128 --transient-dec 42 --no-star-noise --no-transient-noise -n 1
 
 def test_noiseless_shifted_no_host():
-    # Going back to noiseless images but now we rotate and shift images. Campari should still do extremely well here.
-    # base_path = "/photometry_test_data/simple_gaussian_test/sig1.0/shifted_noiseless"
-    # all_images = os.listdir(base_path)
-    # noiseless_images = [x for x in all_images if "shifted" in x]
-    # SNLogger.debug(f"Found {len(noiseless_images)} images")
-    # SNLogger.debug(noiseless_images)
-    # np.testing.assert_equal(len(noiseless_images), 39)
-
-    # with open(pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_noiseless.txt", "w") as f:
-    #     for item in noiseless_images:
-    #         # There is an image, noise, and flags, and we don"t want to read the image thrice.
-    #         if "image" not in item and "flags" not in item and "READ" not in item:
-    #             whole_path = os.path.join(base_path, item)
-    #             print(whole_path.split("_image.fits")[0])
-    #             f.write(f"{whole_path.split('_noise.fits')[0]}\n")
 
 
     cmd = base_cmd + [
@@ -379,3 +362,65 @@ def test_noiseless_shifted_no_host():
     # we keep it.
     # We use a looser tolerance here because of numerical issues with the shifts.
     np.testing.assert_allclose(lc["flux_fit_err"], 3.691204, rtol=1e-4)
+
+# 'python /snappl/snappl/image_simulator.py --seed 42 --star-center 128 42 -n 0  --no-star-noise -b shifted_poisson
+# --width 256 --height 256 --pixscale 0.11 -t 60000 60005 60010 60015 60020 60025 60030 60035 60040 60045 60050 60055
+#  60060 --image-centers 128.      42.     127.999   42.     128.001   42.     128.      41.999  127.999   41.999
+#   128.001   41.999  128.      42.001  127.999   42.001  128.001   42.001  128.      42.0005 127.999   42.0005
+# 128.001   42.0005 128.      42.     -θ   0.  30.  60.  90. 120. 150. 180. 210. 240. 270. 300. 330. 360. -r 0 -s 0
+# --transient-ra 128 --transient-dec 42 --no-star-noise  -n 1'
+
+def test_poisson_shifted_no_host():
+    # Now we add just poisson noise. This will introduce scatter, but campari should still agree with aperture
+    # photometry.
+    # base_path = "/photometry_test_data/simple_gaussian_test/justtransient/shifted_poisson"
+    # all_images = os.listdir(base_path)
+    # noiseless_images = [x for x in all_images if "shifted" in x]
+    # SNLogger.debug(f"Found {len(noiseless_images)} images")
+    # SNLogger.debug(noiseless_images)
+    # np.testing.assert_equal(len(noiseless_images), 39)
+
+    # with open(pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_poisson.txt", "w") as f:
+    #     for item in noiseless_images:
+    #         # There is an image, noise, and flags, and we don"t want to read the image thrice.
+    #         if "image" not in item and "flags" not in item and "READ" not in item:
+    #             whole_path = os.path.join(base_path, item)
+    #             print(whole_path.split("_image.fits")[0])
+    #             f.write(f"{whole_path.split('_noise.fits')[0]}\n")
+
+    cmd = base_cmd + [
+        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_poisson.txt",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\n"
+            f"stdout:\n{result.stdout}\n"
+            f"stderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
+
+    # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
+    np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3)
+    #np.testing.assert_allclose(lc["flux_fit_err"], ap_err, rtol=3e-3)
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    SNLogger.debug(f"Expected fluxes: {flux}")
+    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+    SNLogger.debug(f"sigma residuals: {residuals_sigma}")
+    SNLogger.debug(f"flux fit error {lc['flux_fit_err']}")
+    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
+    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
+    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
