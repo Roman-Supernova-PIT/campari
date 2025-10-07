@@ -34,6 +34,9 @@ photometry:
       - 100
       spacing: 0.75
       turn_grid_off: false
+      gaussian_var: -1 # Gaussian weighting off by default
+      cutoff: 4
+      error_floor: 1
 
     simulations:
       avoid_non_linearity: false

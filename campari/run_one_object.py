@@ -65,7 +65,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel"):
+                   draw_method_for_non_roman_psf="no_pixel", gaussian_var=None,
+                   cutoff=None, error_floor=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -158,7 +159,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
         # TODO: Put this in snappl
         SNLogger.debug(f"Image {i} pointing, sca: {pointing, sca}")
-        if pointing >= 0 and pointing <= 57364:
+        if int(pointing) >= 0 and int(pointing) <= 57364:
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=pointing, sca=sca)
@@ -252,7 +253,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Get the weights
 
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
+        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, gaussian_var=gaussian_var,
+                                 cutoff=cutoff, error_floor=error_floor)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 

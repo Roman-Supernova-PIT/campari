@@ -155,7 +155,7 @@ def calculate_background_level(im):
     return bg
 
 
-def get_weights(images, ra, dec, gaussian_var=None, cutoff=4, error_floor=1):
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -187,7 +187,6 @@ def get_weights(images, ra, dec, gaussian_var=None, cutoff=4, error_floor=1):
 
     for i, wcs in enumerate(wcs_list):
         if gaussian_var is not None:
-            raise NotImplementedError("I dont want to use this rn.")
             xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
             xx = xx.flatten()
             yy = yy.flatten()

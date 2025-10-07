@@ -118,7 +118,8 @@ def test_run_on_star(campari_test_data, cfg):
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
             f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
-            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
+            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
+            "--photometry-campari-grid_options-gaussian_var", "1000"]
     orig_argv = sys.argv
 
     try:
@@ -152,7 +153,7 @@ def test_run_on_star(campari_test_data, cfg):
         f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659"
+        "--ra 7.5833264 --dec -44.809659 --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -194,7 +195,8 @@ def test_regression_function(campari_test_data):
          "--photometry-campari-cutout_size", "19",
          "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
-         "--no-photometry-campari-source_phot_ops"]
+         "--no-photometry-campari-source_phot_ops",
+         "--photometry-campari-grid_options-gaussian_var", "1000"]
     orig_argv = sys.argv
     try:
         sys.argv = a
@@ -292,6 +294,7 @@ def test_regression(campari_test_data):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
         "--no-photometry-campari-source_phot_ops "
+        "--photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 

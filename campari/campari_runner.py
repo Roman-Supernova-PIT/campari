@@ -94,6 +94,11 @@ class campari_runner:
         self.noise_maps = None
         self.galaxy_images = None
         self.galaxy_only_model_images = None
+        self.gaussian_var = self.cfg.value("photometry.campari.grid_options.gaussian_var")
+        if self.gaussian_var <= 0:
+            self.gaussian_var = None
+        self.cutoff = self.cfg.value("photometry.campari.grid_options.cutoff")
+        self.error_floor = self.cfg.value("photometry.campari.grid_options.error_floor")
 
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
@@ -353,7 +358,8 @@ class campari_runner:
                            avoid_non_linearity=self.avoid_non_linearity,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
-                           base_sca=self.base_sca)
+                           base_sca=self.base_sca, gaussian_var=self.gaussian_var, cutoff=self.cutoff,
+                           error_floor=self.error_floor)
 
         return lightcurve_model
 
