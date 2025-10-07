@@ -19,6 +19,8 @@
 # - {obj_ra: 7}
 # - {obj_dec: -41}
 # - {local_surface_brightness: 25.0}
+# - {pre_transient_images: 1}
+# - {post_transient_images: 0}
 # - __serialized_columns__:
 #     mag_fit:
 #       __class__: astropy.units.quantity.Quantity
