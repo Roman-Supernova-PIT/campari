@@ -43,10 +43,7 @@ def test_simulate_images():
     for i in range(10):
         img = FITSImageStdHeaders(
             header=None,
-            path="/dev/null",
-            data=np.zeros((4088, 4088)),
-            noise=np.ones((4088, 4088)),
-            flags=np.zeros((4088, 4088)),
+            path=None
         )
         img.mjd = dates[i]
         img.band = band
