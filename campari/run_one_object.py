@@ -59,9 +59,9 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, subtract_background=None, psfclass=None,
+                   use_real_images=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
-                   grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
+                   grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
@@ -96,10 +96,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            size=size, psfclass=psfclass,
+                            size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
-                            source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
         sim_lc = simulated_lightcurve.sim_lc
@@ -172,7 +171,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                 construct_static_scene(ra_grid, dec_grid,
                                        whole_sca_wcs,
                                        object_x, object_y, size,
-                                       pixel=pixel, image=image, psfclass=psfclass,
+                                       pixel=pixel, image=image,
                                        util_ref=util_ref, band=band)
 
         if not subtract_background:
@@ -230,8 +229,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             psf_source_array =\
                 construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
                                           stampsize=size, x=object_x,
-                                          y=object_y, sed=sed, psfclass=psfclass,
-                                          photOps=source_phot_ops, image=image)
+                                          y=object_y, sed=sed,
+                                          image=image)
 
             sn_matrix.append(psf_source_array)
 
