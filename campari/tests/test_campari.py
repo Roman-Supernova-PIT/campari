@@ -117,8 +117,8 @@ def test_run_on_star(campari_test_data, cfg):
 
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
             f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
-            "--object_type", "star", "--photometry-campari-grid_options-type", "none",
-            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
+            "--object_type", "star", "--photometry-campari-grid_options-type", "none", "--ra",
+            "7.5833264", "--dec", "-44.809659"]
     orig_argv = sys.argv
 
     try:
@@ -151,7 +151,6 @@ def test_run_on_star(campari_test_data, cfg):
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
         f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
-        "--no-photometry-campari-source_phot_ops "
         "--ra 7.5833264 --dec -44.809659"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
@@ -185,14 +184,14 @@ def test_regression_function(campari_test_data):
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-i",
          f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-psfclass", "ou24PSF",
+         "--photometry-campari-psf-galaxy_class", "ou24PSF",
          "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "contour",
          "--photometry-campari-cutout_size", "19",
          "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
-         "--no-photometry-campari-source_phot_ops"]
+         "--photometry-campari-psf-transient_class", "ou24PSF_slow",]
     orig_argv = sys.argv
     try:
         sys.argv = a
@@ -282,14 +281,14 @@ def test_regression(campari_test_data):
 
     output = os.system(
         f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-psfclass ou24PSF "
+        "--photometry-campari-psf-galaxy_class ou24PSF "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
-        "--no-photometry-campari-source_phot_ops "
+        "--photometry-campari-psf-transient_class ou24PSF_slow "
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -491,11 +490,23 @@ def test_construct_transient_scene():
 
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
+    cfg = Config.get()
+    orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
 
-    psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
-                                          stampsize=25, x=2044,
-                                          y=2044, sed=sed,
-                                          flux=1, photOps=False)
+    try:
+        cfg._static = False
+        cfg.set_value( "photometry.campari.fetch_SED", False )
+        cfg._static = True
+
+        psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
+                                            stampsize=25, x=2044,
+                                            y=2044, sed=sed,
+                                            flux=1)
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", orig_transient_photops)
+        cfg._static = True
+
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True)
@@ -693,10 +704,11 @@ def test_handle_partial_overlap():
     output = os.system(
         f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --object_collection manual"
-        " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
+        " --photometry-campari-psf-galaxy_class ou24PSF --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"
+        "--photometry-campari-weighting --photometry-campari-subtract_background"
+        " --photometry-campari-psf-transient_class ou24PSF_slow"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 

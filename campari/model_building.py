@@ -15,6 +15,7 @@ from galsim import roman
 
 # SN-PIT
 from snappl.psf import PSF
+from snpit_utils.config import Config
 from snpit_utils.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -239,7 +240,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, util_ref=None, band=None, image=None, psfclass="ou24PSF"):
+                           pixel=False, util_ref=None, band=None, image=None):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -272,6 +273,10 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     y_sca = np.atleast_1d(y_sca)
     bpass = roman.getBandpasses()[band]
 
+    cfg = Config.get()
+    psfclass = cfg.value("photometry.campari.psf.galaxy_class")
+    include_photonOps = cfg.value("photometry.campari.psf.galaxy_photon_ops")
+
     num_grid_points = np.size(x_sca)
 
     psfs = np.zeros((stampsize * stampsize, num_grid_points))
@@ -292,7 +297,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     sca = util_ref.sca
 
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
-                                    include_photonOps=False, seed=None, image=image)
+                                    include_photonOps=include_photonOps, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
@@ -310,7 +315,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
 def construct_transient_scene(
     x0=None, y0=None, pointing=None, sca=None, stampsize=25, x=None,
-    y=None, sed=None, flux=1, photOps=True, image=None, psfclass="ou24PSF_slow"
+    y=None, sed=None, flux=1, image=None
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
@@ -351,18 +356,19 @@ def construct_transient_scene(
         + f" flux: {flux}"
     )
 
+    cfg = Config.get()
+    psfclass = cfg.value("photometry.campari.psf.transient_class")
+    photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
         # run, I'd want to know.
         SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-    # We want to use the slower PSF class for supernovae
-    snpsfclass = "ou24PSF_slow" if psfclass == "ou24PSF" else psfclass
 
-    SNLogger.debug(f"Using psf class {snpsfclass}")
+    SNLogger.debug(f"Using psf class {psfclass}")
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, image=image, stamp_size=stampsize
+        psfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, image=image, stamp_size=stampsize
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
 
