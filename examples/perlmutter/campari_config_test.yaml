@@ -3,7 +3,6 @@ photometry:
     cutout_size: 11
     initial_flux_guess: 3000
     fetch_SED: true
-#    source_phot_ops: true
     use_roman: true
     weighting: true
     make_initial_guess: true
