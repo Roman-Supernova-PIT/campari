@@ -12,7 +12,6 @@ photometry:
     subtract_background: true
     use_real_images: true
     save_debug: true
-#    psfclass: ou24PSF # this should be removed by the time we push
 
     psf:
       galaxy_class: ou24PSF
