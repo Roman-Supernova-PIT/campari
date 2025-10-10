@@ -25,8 +25,7 @@ base_cmd = [
         "--photometry-campari-use_real_images",
         "--object_collection", "manual",
         "--no-photometry-campari-fetch_SED",
-        "--photometry-campari-grid_options-type", "none",
-        "--photometry-campari-grid_options-spacing", "5",
+        "--photometry-campari-grid_options-spacing", "1",
         "--photometry-campari-cutout_size", str(imsize),
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background",
@@ -150,6 +149,7 @@ def test_noiseless_aligned_no_host():
     # Can we define this in the config?
 
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_1.txt"]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -188,7 +188,7 @@ def test_poisson_noise_aligned_no_host():
     cmd = base_cmd + [
         "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson.txt",
     ]
-
+    cmd += ["--photometry-campari-grid_options-type", "none"]
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -233,6 +233,7 @@ def test_sky_noise_aligned_no_host():
     cmd = base_cmd + [
         "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_sky.txt",
     ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -282,6 +283,7 @@ def test_both_noise_aligned_no_host():
         "--img_list",
         pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise.txt",
     ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -335,6 +337,7 @@ def test_noiseless_shifted_no_host():
         "--img_list",
         pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_noiseless.txt",
     ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -375,6 +378,7 @@ def test_poisson_shifted_no_host():
     cmd = base_cmd + [
         "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_poisson.txt",
     ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -418,11 +422,11 @@ def test_poisson_shifted_no_host():
 def test_sky_shifted_no_host():
     # Now we add just sky noise.
 
-
     imsize = 19
     cmd = base_cmd + [
         "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_sky.txt",
     ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -470,26 +474,11 @@ def test_sky_shifted_no_host():
 # --transient-ra 128 --transient-dec 42 --no-star-noise  -n 1'
 
 def test_both_shifted_no_host():
-    # Now we add sky and poisson noise.
-
-    # base_path = "/photometry_test_data/simple_gaussian_test/justtransient/shifted_both"
-    # all_images = os.listdir(base_path)
-    # noiseless_images = [x for x in all_images if "shifted" in x]
-    # SNLogger.debug(f"Found {len(noiseless_images)} images")
-    # SNLogger.debug(noiseless_images)
-    # np.testing.assert_equal(len(noiseless_images), 39)
-
-    # with open(pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_both.txt", "w") as f:
-    #     for item in noiseless_images:
-    #         # There is an image, noise, and flags, and we don"t want to read the image thrice.
-    #         if "image" not in item and "flags" not in item and "READ" not in item:
-    #             whole_path = os.path.join(base_path, item)
-    #             print(whole_path.split("_image.fits")[0])
-    #             f.write(f"{whole_path.split('_noise.fits')[0]}\n")
 
     cmd = base_cmd + [
         "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_both.txt",
     ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -529,3 +518,96 @@ def test_both_shifted_no_host():
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
+
+def test_noiseless_aligned_22mag_host():
+
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_host_mag22.txt"]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    np.testing.assert_allclose(lc["flux_fit"], flux, atol=1e-7)
+
+    # The error is small, but higher than that in the no host case. I believe this is due to extra uncertainty
+    # thanks to more free parameters in the fit.
+    np.testing.assert_allclose(lc["flux_fit_err"], 4.520784, atol=1e-7)
+
+
+def test_poisson_aligned_22mag_host():
+
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_host_mag22.txt"]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
+    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
+    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
+    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+
+
+def test_skynoise_aligned_22mag_host():
+
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_skynoise_host_mag22.txt"]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
+    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
+    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
+    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+
+
+    # fit gaussians?

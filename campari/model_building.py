@@ -25,7 +25,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def make_regular_grid(image_object, spacing=1.0, subsize=9):
+def make_regular_grid(image_object, spacing=1.0, subsize=4): # changes this for testing, need to make this a param.
     """Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     Parameters
