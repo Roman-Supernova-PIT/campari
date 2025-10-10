@@ -1,0 +1,10 @@
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60055.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60025.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60020.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60060.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60040.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60030.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60050.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60015.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60045.0
+/pscratch/sd/c/cmeldorf/photometry_test_data/simple_gaussian_test/sig1.0/junkpoisson_60035.0
