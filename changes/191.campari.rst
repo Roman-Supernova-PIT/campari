@@ -1,0 +1,1 @@
+Updated lc file output to match the Wiki.
