@@ -23,7 +23,6 @@ from roman_imsim.utils import roman_utils
 
 # SNPIT
 from campari import RomanASP
-from campari.access_truth import extract_object_from_healpix
 from campari.data_construction import find_all_exposures
 from campari.io import (
     build_lightcurve,
@@ -99,11 +98,29 @@ def test_savelightcurve():
         units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
         meta_dict = {}
         lc = QTable(data=data_dict, meta=meta_dict, units=units)
-        lc["filter"] = "test"
+        lc["band"] = "test"
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
         save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir)
         assert lc_file.is_file()
-        # TODO: look at contents?
+
+
+def test_savelightcurve_pq():
+    with tempfile.TemporaryDirectory() as output_dir:
+        lc_file = output_dir + "/" + "test_test_test_lc.parquet"
+        lc_file = pathlib.Path(lc_file)
+
+        data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5], "measured_flux": [1, 2, 3, 4, 5]}
+        units = {"MJD": u.d, "true_flux": "", "measured_flux": ""}
+        meta_dict = {}
+        lc = QTable(data=data_dict, meta=meta_dict, units=units)
+        lc["band"] = "test"
+        # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
+        save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir, filetype="parquet")
+        assert lc_file.is_file()
+        t = Table.read(lc_file)
+        assert np.array_equal(t["MJD"], lc["MJD"])
+        assert np.array_equal(t["true_flux"], lc["true_flux"])
+        assert np.array_equal(t["measured_flux"], lc["measured_flux"])
 
 
 def test_run_on_star(campari_test_data, cfg):
@@ -134,8 +151,8 @@ def test_run_on_star(campari_test_data, cfg):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
+        if col == "band":
+            # band is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
             # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
@@ -162,8 +179,8 @@ def test_run_on_star(campari_test_data, cfg):
 
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
+        if col == "band":
+            # band is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
             # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
@@ -247,7 +264,7 @@ def test_regression_function(campari_test_data):
             # floating point number.)
 
             msg = f"The lightcurves do not match for column {col}"
-            if col == "filter":
+            if col == "band":
                 # band is the only string column, so we check it with array_equal
                 np.testing.assert_array_equal(current[col], comparison[col]), msg
             else:
@@ -300,7 +317,7 @@ def test_regression(campari_test_data):
     for col in current.columns:
         SNLogger.debug(f"Checking col {col}")
         msg = f"The lightcurves do not match for column {col}"
-        if col == "filter":
+        if col == "band":
             # band is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col]), msg
         else:
