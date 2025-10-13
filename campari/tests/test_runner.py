@@ -316,7 +316,7 @@ def test_build_and_save_lc(cfg):
         SNLogger.debug(f"Checking col {col}")
         # According to Michael and Rob, this is roughly what can be expected
         # due to floating point precision.
-        if col == "filter":
+        if col == "band":
             # filter is the only string column, so we check it with array_equal
             np.testing.assert_array_equal(current[col], comparison[col])
         else:
@@ -325,6 +325,122 @@ def test_build_and_save_lc(cfg):
             # change in flux of 2e-7. I don't want switching WCS types to make
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+
+
+def test_build_and_save_lc_parquet(cfg):
+    test_args = create_default_test_args(cfg)
+    test_args.object_collection = "manual"
+    test_args.SNID = 20172782
+
+    try:
+        cfg._static = False
+        cfg.set_value("photometry.campari.paths.lc_filetype", "parquet")
+        cfg._static = True
+        runner = campari_runner(**vars(test_args))
+
+        flux = np.array([1.0, 2.0, 3.0])
+        sigma_flux = np.array([0.1, 0.2, 0.3])
+        images = None
+        model_images = None
+        exposures = pd.DataFrame(
+            data={
+                "date": [1, 2, 3],
+                "filter": ["Y106", "Y106", "Y106"],
+                "detected": [True, True, True],
+                "pointing": [1, 1, 1],
+                "sca": [1, 1, 1],
+                "x": [0, 0, 0],
+                "y": [0, 0, 0],
+                "x_cutout": [0, 0, 0],
+                "y_cutout": [0, 0, 0],
+            }
+        )
+
+        # Getting a WCS to use
+        pointing = 5934
+        sca = 3
+        band = "Y106"
+        img_collection = ImageCollection()
+        img_collection = img_collection.get_collection("ou2024")
+        snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+
+        wcs = snappl_image.get_wcs()
+
+        image_list = []
+        cutout_image_list = []
+
+        for i in range(len(exposures["date"])):
+            img = FITSImageStdHeaders(
+                header=None,
+                path="/dev/null",
+                data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+                noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+                flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            )
+            img.mjd = exposures["date"][i]
+            img.band = exposures["filter"][i]
+            img.pointing = exposures["pointing"][i]
+            img.sca = exposures["sca"][i]
+            img._wcs = wcs
+            image_list.append(img)
+            cutout_image_list.append(img)
+
+        ra_grid = np.array([1, 2, 3])
+        dec_grid = np.array([1, 2, 3])
+        wgt_matrix = None
+        LSB = None
+        best_fit_model_values = np.array([0] * 16, dtype=float)
+        sim_lc = None
+        ra = 7.731890048839705
+        dec = -44.4589649005717
+
+        lc_model = campari_lightcurve_model(
+            flux=flux,
+            sigma_flux=sigma_flux,
+            images=images,
+            model_images=model_images,
+            image_list=image_list,
+            cutout_image_list=cutout_image_list,
+            ra_grid=ra_grid,
+            dec_grid=dec_grid,
+            wgt_matrix=wgt_matrix,
+            LSB=LSB,
+            best_fit_model_values=best_fit_model_values,
+            sim_lc=sim_lc,
+        )
+
+        diaobj = DiaObject.find_objects(id=test_args.SNID, ra=ra, dec=dec, collection="manual")[0]
+        diaobj.mjd_start = -np.inf
+        diaobj.mjd_end = np.inf
+        runner.build_and_save_lightcurve(diaobj, lc_model, None)
+
+        output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
+        filename = "20172782_Y106_romanpsf_lc.parquet"
+        filepath = output_dir / filename
+
+        assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+        current = pd.read_parquet(filepath)
+        comparison = pd.read_parquet(pathlib.Path(__file__).parent / "testdata/test_build_lc.parquet")
+
+        for col in current.columns:
+            SNLogger.debug(f"Checking col {col}")
+            # According to Michael and Rob, this is roughly what can be expected
+            # due to floating point precision.
+            if col == "band":
+                # filter is the only string column, so we check it with array_equal
+                np.testing.assert_array_equal(current[col], comparison[col])
+            else:
+                # Switching from one type of WCS to another gave rise in a
+                # difference of about 1e-9 pixels for the grid, which led to a
+                # change in flux of 2e-7. I don't want switching WCS types to make
+                # this fail, so I put the rtol at just above that level.
+                np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+    finally:
+        # If it finishes or if something fails, restore the config value.
+        cfg._static = False
+        cfg.set_value("photometry.campari.paths.lc_filetype", "ecsv")
+        cfg._static = True
 
 
 def test_sim_param_grid(cfg):

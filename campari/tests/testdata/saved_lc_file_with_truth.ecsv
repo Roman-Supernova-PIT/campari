@@ -2,11 +2,11 @@
 # ---
 # datatype:
 # - {name: mjd, unit: d, datatype: float64}
-# - {name: flux_fit, datatype: int64}
-# - {name: flux_fit_err, datatype: int64}
-# - {name: mag_fit, unit: mag, datatype: float64}
-# - {name: mag_fit_err, unit: mag, datatype: float64}
-# - {name: filter, datatype: string}
+# - {name: flux, datatype: int64}
+# - {name: flux_err, datatype: int64}
+# - {name: mag, unit: mag, datatype: float64}
+# - {name: mag_err, unit: mag, datatype: float64}
+# - {name: band, datatype: string}
 # - {name: zpt, datatype: float64}
 # - {name: pointing, datatype: int64}
 # - {name: sca, datatype: int64}
@@ -19,23 +19,27 @@
 # - {name: sim_realized_mag, unit: mag, datatype: float64}
 # - {name: sim_true_mag, unit: mag, datatype: float64}
 # meta: !!omap
-# - {ID: 20172782}
-# - {obj_ra: 7}
-# - {obj_dec: -41}
+# - {diaobject_id: 20172782}
+# - {iau_name: placeholder}
+# - {provenance_id: 0}
+# - {ra: 7}
+# - {ra_err: 0}
+# - {dec: -41}
+# - {dec_err: 0}
 # - {local_surface_brightness: 25.0}
 # - {host_sep: 1.7006677389144897}
 # - {host_mag_g: 23.76300048828125}
 # - {host_ra: 7.550449}
 # - {host_dec: -44.8073}
 # - __serialized_columns__:
-#     mag_fit:
+#     mag:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: &id001 !astropy.units.Unit {unit: mag}
-#       value: !astropy.table.SerializedColumn {name: mag_fit}
-#     mag_fit_err:
+#       value: !astropy.table.SerializedColumn {name: mag}
+#     mag_err:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: mag_fit_err}
+#       value: !astropy.table.SerializedColumn {name: mag_err}
 #     mjd:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
@@ -49,5 +53,5 @@
 #       unit: *id001
 #       value: !astropy.table.SerializedColumn {name: sim_true_mag}
 # schema: astropy-2.0
-mjd flux_fit flux_fit_err mag_fit mag_fit_err filter zpt pointing sca x y x_cutout y_cutout sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
+mjd flux flux_err mag mag_err band zpt pointing sca x y x_cutout y_cutout sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
 62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 35198 2 68565.854106 127021.05784706218 68565.854106 127021.05784706218 1040.0 1069.10031 25.119072405079763 25.089109614636662
