@@ -204,6 +204,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # predetection images: num_total_images - num_detect_images.
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
+
         if sn_index >= 0 and prebuilt_sn_matrix is None:
             if use_real_images:
                 pointing = pointing

@@ -134,3 +134,4 @@ def test_gaussianSMP_withgrid_butnogalaxy(cfg):
     for index, row in df.iterrows():
         np.testing.assert_allclose(row["flux"], row["sim_flux"], rtol=1e-7)
 
+
