@@ -705,14 +705,32 @@ def test_handle_partial_overlap():
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = np.load(curfile, allow_pickle=True)
-    comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+    try:
+        current = np.load(curfile, allow_pickle=True)
+        comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
 
-    np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
-        "The weights do not match the expected values."
+        np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
+            "The weights do not match the expected values."
+
+    except AssertionError as e:
+        plt.subplot(1,2,1)
+        plt.title("Current")
+        plt.imshow(current[2].reshape(101,101), origin="lower")
+        plt.colorbar(label="Weight")
+        plt.subplot(1,2,2)
+        plt.title("Comparison")
+        plt.imshow(comparison_weights.reshape(101,101), origin="lower")
+        plt.colorbar(label="Weight")
+        im_path = pathlib.Path(__file__).parent / f"test_partial_overlap_weights.png"
+        SNLogger.debug(f"Saving diagnostic image to {im_path}")
+        plt.savefig(im_path)
+        plt.close()
+        raise AssertionError("The weights do not match the expected values, "
+                             f"a diagnostic image has been saved to {im_path}. {e}")
 
 
 def test_calculate_surface_brightness():
