@@ -65,7 +65,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel"):
+                   draw_method_for_non_roman_psf="no_pixel", gaussian_var=None,
+                   cutoff=None, error_floor=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -73,21 +74,21 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     util_ref = None
 
     percentiles = []
-    roman_bandpasses = galsim.roman.getBandpasses()
 
     num_total_images = len(image_list)
-    transient_image_list = [a for a in image_list if a.mjd > diaobj.mjd_start and a.mjd < diaobj.mjd_end]
+    transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
     num_detect_images = len(transient_image_list)
 
     if use_real_images:
         cutout_image_list, image_list = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
+        noise_maps = [im.noise for im in cutout_image_list]
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
         galaxy_images = None
-        noise_maps = None
+
 
     else:
         # Simulate the images of the SN and galaxy.
@@ -148,7 +149,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
-        # Passing in None for the PSF means we use the Roman PSF.
         pointing, sca = image.pointing, image.sca
 
         whole_sca_wcs = image.get_wcs()
@@ -158,10 +158,15 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # grid we made in the previous section.
 
         # TODO: Put this in snappl
-        if use_real_images:
+        SNLogger.debug(f"Image {i} pointing, sca: {pointing, sca}")
+        if int(pointing) >= 0 and int(pointing) <= 57364:
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
                                    ("photometry.campari.galsim.tds_file")),
                                    visit=pointing, sca=sca)
+        else:
+            util_ref = None
+            # Rob's simulated images have big placeholder pointings. This is a catch for those images.
+            SNLogger.warning("Pointing value is outside of the range of the TDS file.")
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
@@ -200,7 +205,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # predetection images: num_total_images - num_detect_images.
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
-        if sn_index >= 0:
+        SNLogger.debug(f"i, sn_index: {i, sn_index}")
+        SNLogger.debug(f"Image mjd: {image.mjd}, diaobj mjd_start, mjd_end: {diaobj.mjd_start, diaobj.mjd_end}")
+        if image.mjd >= diaobj.mjd_start and image.mjd <= diaobj.mjd_end:
+            SNLogger.debug("Constructing transient model array for image " + str(i) + " ---------------")
             if use_real_images:
                 pointing = pointing
                 sca = sca
@@ -227,11 +235,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             x = int(np.floor(object_x + 0.5))
             y = int(np.floor(object_y + 0.5))
             SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
-            psf_source_array =\
-                construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
-                                          stampsize=size, x=object_x,
-                                          y=object_y, sed=sed, psfclass=psfclass,
-                                          photOps=source_phot_ops, image=image)
+            psf_source_array = construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
+                                                         stampsize=size, x=object_x,
+                                                         y=object_y, sed=sed, psfclass=psfclass,
+                                                         photOps=source_phot_ops, image=image)
 
             sn_matrix.append(psf_source_array)
 
@@ -246,7 +253,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Get the weights
 
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
+        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, gaussian_var=gaussian_var,
+                                 cutoff=cutoff, error_floor=error_floor)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
@@ -278,6 +286,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"image shape: {images.shape}")
 
     if method == "lsqr":
+
+        wgt_matrix = np.sqrt(wgt_matrix)
+
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
                               images*wgt_matrix, x0=x0test, atol=1e-12,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
@@ -287,7 +298,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
-    inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+
+    inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
+
 
     try:
         cov = np.linalg.inv(inv_cov)
@@ -314,13 +327,19 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
 
+    mjd = np.array([im.mjd for im in cutout_image_list])
+    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
+    num_post_transient_images = np.sum(mjd > diaobj.mjd_end)
+
+
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
-            diaobj=diaobj, object_type=object_type
+            diaobj=diaobj, object_type=object_type, pre_transient_images=num_pre_transient_images,
+            post_transient_images=num_post_transient_images
         )
 
     return lightcurve_model

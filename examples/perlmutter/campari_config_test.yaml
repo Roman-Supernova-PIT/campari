@@ -34,6 +34,9 @@ photometry:
       - 100
       spacing: 0.75
       turn_grid_off: false
+      gaussian_var: -1 # Gaussian weighting off by default
+      cutoff: 4
+      error_floor: 1
 
     simulations:
       avoid_non_linearity: false
@@ -52,6 +55,9 @@ photometry:
       base_pointing: 276
       base_sca: 10
       run_name: whatever
+
+  snappl:
+    simdex_server: https://roman-desc-simdex.rknop.net
 
 ou24:
   config_file: /sn_info_dir/tds.yaml
