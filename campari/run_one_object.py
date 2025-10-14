@@ -205,7 +205,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # predetection images: num_total_images - num_detect_images.
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
-        SNLogger.debug(f"i, sn_index: {i, sn_index}")
         SNLogger.debug(f"Image mjd: {image.mjd}, diaobj mjd_start, mjd_end: {diaobj.mjd_start, diaobj.mjd_end}")
         if image.mjd >= diaobj.mjd_start and image.mjd <= diaobj.mjd_end:
             SNLogger.debug("Constructing transient model array for image " + str(i) + " ---------------")
@@ -242,6 +241,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
             sn_matrix.append(psf_source_array)
 
+
     banner("Lin Alg Section")
     psf_matrix = np.vstack(np.array(psf_matrix))
     SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
@@ -259,7 +259,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
     images, err, sn_matrix, wgt_matrix =\
-        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
     # Combine the background model and the supernova model into one matrix.
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
@@ -274,6 +274,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     banner("Solving Photometry")
 
+    mjd = np.array([im.mjd for im in cutout_image_list])
+    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
+    num_post_transient_images = np.sum(mjd > diaobj.mjd_end)
+
     # These if statements can definitely be written more elegantly.
     if not make_initial_guess:
         x0test = np.zeros(psf_matrix.shape[1])
@@ -284,6 +288,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
     SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
     SNLogger.debug(f"image shape: {images.shape}")
+
+    summed_model = np.sum(psf_matrix, axis=1)
+    from matplotlib import pyplot as plt
+    plt.plot(8000 * summed_model)
+    plt.plot(images)
+    plt.savefig("model_vs_image.png")
 
     if method == "lsqr":
 
@@ -297,19 +307,28 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
-
-
+    flux = X[num_pre_transient_images:num_pre_transient_images+num_detect_images] if num_detect_images > 0 else None
+    SNLogger.debug(f"wgt_matrix shape right before invcov: {np.shape(wgt_matrix)}")
+    SNLogger.debug(f"diag shape: {np.diag(wgt_matrix**2).shape}")
+    SNLogger.debug(f"psf shape: {psf_matrix.shape}")
+    SNLogger.debug(f"psf.T shape: {psf_matrix.T.shape}")
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
-
 
     try:
         cov = np.linalg.inv(inv_cov)
     except LinAlgError:
         cov = np.linalg.pinv(inv_cov)
 
+    cheat_cov = np.linalg.pinv(psf_matrix.T @ psf_matrix)
+    SNLogger.debug(f"cheat cov diag: {np.diag(cheat_cov)}")
+
     if num_detect_images > 0:
         SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
-    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
+    sigma_flux = (
+        np.sqrt(np.diag(cov)[num_pre_transient_images : num_pre_transient_images + num_detect_images])
+        if num_detect_images > 0
+        else None
+    )
 
     SNLogger.debug(f"sigma flux: {sigma_flux}")
 
@@ -326,10 +345,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # possible. In the meantime, just return zeros for the simulated lc
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
-
-    mjd = np.array([im.mjd for im in cutout_image_list])
-    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
-    num_post_transient_images = np.sum(mjd > diaobj.mjd_end)
 
 
     lightcurve_model = campari_lightcurve_model(

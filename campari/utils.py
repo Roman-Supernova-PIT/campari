@@ -183,10 +183,10 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     error = [im.noise for im in images]
 
     wgt_matrix = []
-    SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var} with cutoff {cutoff}")
 
     for i, wcs in enumerate(wcs_list):
         if gaussian_var is not None:
+            SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var} with cutoff {cutoff}")
             xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
             xx = xx.flatten()
             yy = yy.flatten()
@@ -217,6 +217,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
                 error[i] = np.ones_like(wgt)
             SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         else:
+            SNLogger.debug("No Gaussian weighting applied in get_weights")
             wgt = np.ones(size**2)
 
         error[i][np.where(error[i] <= error_floor)] = error_floor

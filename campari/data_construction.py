@@ -119,7 +119,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
     return cutout_image_list, image_list
 
 
-def prep_data_for_fit(images, sn_matrix, wgt_matrix):
+def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     """This function takes the data from the images and puts it into the form
     such that we can analytically solve for the best fit using linear algebra.
 
@@ -142,6 +142,9 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0] ** 2
     tot_num = len(images)
+    mjd = np.array([im.mjd for im in images])
+
+    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
@@ -160,9 +163,13 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # others. We'll do this by initializing a matrix of zeros, and then filling
     # in the SN model in the correct place in the loop below:
 
+    SNLogger.debug("sn_matrix shape before: " + str(np.array(sn_matrix).shape))
     psf_zeros = np.zeros((np.size(image_data), tot_num))
     for i in range(det_num):
-        sn_index = tot_num - det_num + i  # We only want to edit SN columns.
+        SNLogger.debug(f"Filling in SN model for detection image {i}")
+        SNLogger.debug(f"totnum, pre_trans: {tot_num, num_pre_transient_images}")
+        sn_index = num_pre_transient_images + i  # We only want to edit SN columns.
+        SNLogger.debug(f"Which corresponds to image {sn_index} in the full set of images.")
         psf_zeros[
             (sn_index) * size_sq :   # Fill in rows s^2 * image number...
             (sn_index + 1) * size_sq,  # ... to s^2 * (image number + 1) ...

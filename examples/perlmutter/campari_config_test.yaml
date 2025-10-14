@@ -56,6 +56,8 @@ photometry:
       base_sca: 10
       run_name: whatever
 
+  snappl:
+    simdex_server: https://roman-desc-simdex.rknop.net
 ou24:
   config_file: /sn_info_dir/tds.yaml
   sn_truth_dir: /snana_pq_dir

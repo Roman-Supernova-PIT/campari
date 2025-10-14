@@ -138,7 +138,6 @@ def test_decide_run_mode(cfg):
     assert runner.transient_end is not None
     assert runner.run_mode == "RA/Dec"
 
-
     # Finally, check some cases  that should raise errors
     test_args.healpix_file = None
     test_args.nside = None
@@ -178,7 +177,6 @@ def test_get_exposures(cfg):
     np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
     np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
 
-
     #### Now try with an image list
 
     test_args.object_collection = "ou24"
@@ -214,8 +212,7 @@ def test_get_SED_list(cfg):
     img.band = "Y106"
     image_list = [img]
 
-    orig_fetch_sed = cfg.value( "photometry.campari.fetch_SED" )
-
+    orig_fetch_sed = cfg.value("photometry.campari.fetch_SED")
 
     try:
 
