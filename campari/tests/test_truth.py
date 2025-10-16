@@ -118,7 +118,7 @@ def test_build_lc_and_add_truth(sn_path):
             data=np.zeros((4085, 4085)),
             noise=np.zeros((4085, 4085)),
             flags=np.zeros((4085, 4085)),
-            path="none",
+            path="/dev/null",
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]

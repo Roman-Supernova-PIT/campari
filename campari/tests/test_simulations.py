@@ -43,7 +43,7 @@ def test_simulate_images():
     for i in range(10):
         img = FITSImageStdHeaders(
             header=None,
-            path="none",
+            path="/dev/null",
             data=np.zeros((4088, 4088)),
             noise=np.ones((4088, 4088)),
             flags=np.zeros((4088, 4088)),
@@ -189,9 +189,10 @@ def test_deltafcn_galaxy_test(cfg):
                    vmax=np.max(data)*0.1)
         plt.colorbar()
         plt.subplot(1, 3, 3)
-        plt.title("Residual")
-        plt.imshow(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0], origin="lower",
-                   cmap="viridis", vmin=-np.max(data)*0.01, vmax=np.max(data)*0.01)
+        plt.title("Log Residual")
+        plt.imshow(np.log10(np.abs(data.reshape(-1, imsize, imsize)[0] - model.reshape(-1, imsize, imsize)[0])),
+                   origin="lower",
+                   cmap="viridis", vmin=-10, vmax=-2)
         plt.colorbar()
         plt.tight_layout()
         savepath = pathlib.Path(
