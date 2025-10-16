@@ -57,6 +57,9 @@ class campari_runner:
 
         self.ra = kwargs["ra"]
         self.dec = kwargs["dec"]
+        self.save_model = kwargs["save_model"]
+        self.prebuilt_static_model = kwargs["prebuilt_static_model"]
+        self.prebuilt_transient_model = kwargs["prebuilt_transient_model"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
@@ -329,11 +332,16 @@ class campari_runner:
 
     def call_run_one_object(self, diaobj, image_list, sedlist, param_grid_row):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
+
+        prebuilt_psf_matrix = np.load(self.prebuilt_static_model) if self.prebuilt_static_model is not None else None
+        prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
+            else None
+
         if not self.use_real_images:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = param_grid_row
         else:
             bg_gal_flux, sim_galaxy_scale, sim_galaxy_offset = None, None, None
-
+        SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
                            size=self.size, band=self.band, psfclass=self.psfclass,
@@ -348,7 +356,8 @@ class campari_runner:
                            avoid_non_linearity=self.avoid_non_linearity,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
-                           base_sca=self.base_sca)
+                           base_sca=self.base_sca, save_model=self.save_model, prebuilt_psf_matrix=prebuilt_psf_matrix,
+                           prebuilt_sn_matrix=prebuilt_sn_matrix)
 
         return lightcurve_model
 

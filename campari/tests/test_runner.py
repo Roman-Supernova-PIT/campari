@@ -28,6 +28,9 @@ def create_default_test_args(cfg):
     test_args.image_selection_end = None
     test_args.object_type = "SN"
     test_args.fast_debug = False
+    test_args.save_model = False
+    test_args.prebuilt_static_model = None
+    test_args.prebuilt_transient_model = None
     test_args.SNID_file = None
     test_args.SNID = None
     test_args.img_list = None
