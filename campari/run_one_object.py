@@ -65,7 +65,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel", save_model=False, prebuilt_psf_matrix=None,
+                   save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None):
     psf_matrix = []
     sn_matrix = []
