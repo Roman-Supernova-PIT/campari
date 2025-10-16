@@ -150,7 +150,7 @@ def test_deltafcn_galaxy_test(cfg):
     imsize = 19
 
     a = ["_", "-s", "20172782", "-f", "Y106", "-n", "3", "-t", "0",
-         "--photometry-campari-psfclass", "ou24PSF",
+         "--photometry-campari-psfclass", "ou24PSF_slow",
          "--no-photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED",
          "--photometry-campari-grid_options-type", "single",

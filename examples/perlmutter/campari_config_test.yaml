@@ -55,6 +55,8 @@ photometry:
       base_pointing: 276
       base_sca: 10
       run_name: whatever
+  snappl:
+    simdex_server: https://roman-desc-simdex.rknop.net
 
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
