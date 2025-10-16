@@ -705,6 +705,7 @@ def test_handle_partial_overlap():
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 

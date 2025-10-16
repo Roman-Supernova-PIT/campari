@@ -166,10 +166,11 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     SNLogger.debug("sn_matrix shape before: " + str(np.array(sn_matrix).shape))
     psf_zeros = np.zeros((np.size(image_data), tot_num))
     for i in range(det_num):
-        SNLogger.debug(f"Filling in SN model for detection image {i}")
-        SNLogger.debug(f"totnum, pre_trans: {tot_num, num_pre_transient_images}")
-        sn_index = num_pre_transient_images + i  # We only want to edit SN columns.
-        SNLogger.debug(f"Which corresponds to image {sn_index} in the full set of images.")
+        #SNLogger.debug(f"Filling in SN model for detection image {i}")
+        #SNLogger.debug(f"totnum, pre_trans: {tot_num, num_pre_transient_images}")
+        #sn_index = num_pre_transient_images + i  # We only want to edit SN columns.
+        sn_index = tot_num - det_num + i  # We only want to edit SN columns.
+        #SNLogger.debug(f"Which corresponds to image {sn_index} in the full set of images.")
         psf_zeros[
             (sn_index) * size_sq :   # Fill in rows s^2 * image number...
             (sn_index + 1) * size_sq,  # ... to s^2 * (image number + 1) ...

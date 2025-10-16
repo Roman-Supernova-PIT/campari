@@ -79,6 +79,19 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
     num_detect_images = len(transient_image_list)
 
+    no_transient_images = [a for a in image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
+
+    transient_mjds = [a.mjd for a in transient_image_list]
+    no_transient_mjds = [a.mjd for a in no_transient_images]
+    transient_argsort = np.argsort(transient_mjds)
+    no_transient_argsort = np.argsort(no_transient_mjds)
+
+    transient_image_list = [transient_image_list[i] for i in transient_argsort]
+    no_transient_images = [no_transient_images[i] for i in no_transient_argsort]
+
+    image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
+    # but still sorted by MJD.
+
     if use_real_images:
         cutout_image_list, image_list = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
@@ -88,7 +101,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         sim_galra = None
         sim_galdec = None
         galaxy_images = None
-
 
     else:
         # Simulate the images of the SN and galaxy.
@@ -291,8 +303,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     summed_model = np.sum(psf_matrix, axis=1)
     from matplotlib import pyplot as plt
-    plt.plot(8000 * summed_model)
-    plt.plot(images)
+    plt.plot(summed_model/np.max(summed_model), label="model")
+    plt.plot(images/np.max(images), label="image")
     plt.savefig("model_vs_image.png")
 
     if method == "lsqr":
@@ -307,7 +319,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
-    flux = X[num_pre_transient_images:num_pre_transient_images+num_detect_images] if num_detect_images > 0 else None
+    #flux = X[num_pre_transient_images:num_pre_transient_images+num_detect_images] if num_detect_images > 0 else None
     SNLogger.debug(f"wgt_matrix shape right before invcov: {np.shape(wgt_matrix)}")
     SNLogger.debug(f"diag shape: {np.diag(wgt_matrix**2).shape}")
     SNLogger.debug(f"psf shape: {psf_matrix.shape}")
@@ -324,11 +336,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if num_detect_images > 0:
         SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
-    sigma_flux = (
-        np.sqrt(np.diag(cov)[num_pre_transient_images : num_pre_transient_images + num_detect_images])
-        if num_detect_images > 0
-        else None
-    )
+    sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
+    # sigma_flux = (
+    #     np.sqrt(np.diag(cov)[num_pre_transient_images : num_pre_transient_images + num_detect_images])
+    #     if num_detect_images > 0
+    #     else None
+    # )
 
     SNLogger.debug(f"sigma flux: {sigma_flux}")
 
