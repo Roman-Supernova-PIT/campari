@@ -222,7 +222,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
         SNLogger.debug(f"Image mjd: {image.mjd}, diaobj mjd_start, mjd_end: {diaobj.mjd_start, diaobj.mjd_end}")
-        if image.mjd >= diaobj.mjd_start and image.mjd <= diaobj.mjd_end and prebuilt_sn_matrix is None
+        if image.mjd >= diaobj.mjd_start and image.mjd <= diaobj.mjd_end and prebuilt_sn_matrix is None:
             SNLogger.debug("Constructing transient model array for image " + str(i) + " ---------------")
             if use_real_images:
                 pointing = pointing
@@ -287,7 +287,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if save_model:
         np.save(
             pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
-            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy",
             psf_matrix,
         )
         np.save(

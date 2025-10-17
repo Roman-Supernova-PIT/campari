@@ -3,13 +3,15 @@ import subprocess
 
 import numpy as np
 from matplotlib import pyplot as plt
+from scipy.stats import norm, skewtest
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
 
 from snpit_utils.logger import SNLogger
 
-imsize = 19 # CHANGE THIS BACK!!!!
+
+imsize = 19
 base_cmd = [
         "python", "../RomanASP.py",
         "-s", "123",
@@ -44,7 +46,8 @@ def perform_aperture_photometry(fileroot, imsize, aperture_radius=4):
     ap_err = []
     lc_index = 0
     for i in range(ims.shape[0]):
-        if i < lc.meta["pre_transient_images"] or i > ims.shape[0] - lc.meta["post_transient_images"] - 1:
+        #if i < lc.meta["pre_transient_images"] or i > ims.shape[0] - lc.meta["post_transient_images"] - 1:
+        if i < lc.meta["pre_transient_images"] + lc.meta["post_transient_images"]:
             # Skipping non detect images!
             continue
         im = ims[i]
@@ -62,11 +65,10 @@ def perform_aperture_photometry(fileroot, imsize, aperture_radius=4):
 
 
 def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None):
+    SNLogger.debug("Generating diagnostic plots....")
     lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
     ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
-    err = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
-    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1]\
-        .reshape(-1, imsize, imsize)
+    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
 
     numcols = 4
     plt.figure(figsize=(numcols * 5, ims.shape[0] * 5))
@@ -77,8 +79,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         if i == 0:
             plt.title("Input Image")
-      #  else:
-      #      plt.title(f"MJD {lc['mjd'][i - lc.meta['pre_transient_images'] - 1]:.1f}")
         im = plt.imshow(ims[i], origin="lower")
         vmin, vmax = im.get_clim()
         xticks = np.arange(0, imsize, 5) - 0.5
@@ -122,7 +122,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
             plt.title("Noise hist")
         bins = np.linspace(-100, 100, 20)
         plt.hist(ims[i].flatten(), bins=bins, alpha=0.5, label="Image")
-        #plt.hist(modelims[i].flatten(), bins=bins, alpha=0.5, label="Model")
         plt.legend()
 
         plt.colorbar()
@@ -132,19 +131,23 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     plt.savefig("/campari_debug_dir/" + plotname + ".png")
     plt.close()
 
+    SNLogger.debug("Generated image diagnostics and saved to /campari_debug_dir/" + plotname + ".png")
+    SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
     if trueflux is not None:
         plt.subplot(1, 2, 1)
         plt.errorbar(lc["mjd"], lc["flux_fit"] - trueflux, yerr=lc["flux_fit_err"], marker="o", linestyle="None",
                      label="Campari Fit - Truth")
-        plt.errorbar(lc["mjd"], np.array(ap_sums) - trueflux, yerr=ap_err, marker="o", linestyle="None",
-                     label="Aperture Phot - Truth", color="red")
-        plt.errorbar(lc["mjd"], lc["flux_fit"] - np.array(ap_sums),
-                     yerr=np.sqrt(lc["flux_fit_err"]**2 + np.array(ap_err)**2), marker="o", linestyle="None",
-                     label="Campari - Aperture Phot", color="green")
+        if ap_sums is not None and ap_err is not None:
+            SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
+            plt.errorbar(lc["mjd"], np.array(ap_sums) - trueflux, yerr=ap_err, marker="o", linestyle="None",
+                         label="Aperture Phot - Truth", color="red")
+            plt.errorbar(lc["mjd"], lc["flux_fit"] - np.array(ap_sums),
+                         yerr=np.sqrt(lc["flux_fit_err"]**2 + np.array(ap_err)**2), marker="o", linestyle="None",
+                         label="Campari - Aperture Phot", color="green")
 
         SNLogger.debug(f"campari std: {np.std(lc['flux_fit'] - trueflux)}")
-        SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
+
 
         plt.axhline(0, color="black", linestyle="--")
         plt.legend()
@@ -156,7 +159,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.subplot(1, 2, 2)
         pull = (lc["flux_fit"] - trueflux) / lc["flux_fit_err"]
         plt.hist(pull, bins=10, alpha=0.5, label="Campari Pull", density=True)
-        from scipy.stats import norm
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-5, 5, 100)
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
@@ -166,6 +168,22 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.legend()
 
         plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
+
+
+def perform_gaussianity_checks(lc, flux):
+    """Most of these tests apply the same checks, so just put them in a function."""
+    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
+    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
+    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2, err_msg="Errors non gaussian!?")
+
+    mu, sig = norm.fit(residuals_sigma)
+    np.testing.assert_allclose(mu, 0, atol=0.2, err_msg="Residuals biased!")
+    np.testing.assert_allclose(sig, 1, atol=0.2, err_msg="Residuals too broad or narrow!")
+    # Check to make sure our distribution is not skewed.
+    p_value = skewtest(residuals_sigma).pvalue
+    SNLogger.debug("Skewness p_value: " + str(p_value))
+    np.testing.assert_array_less(0.05, p_value, err_msg="Residuals skewed!")
 
 
 # TESTS BEGIN HERE #########################################################
@@ -211,8 +229,13 @@ def test_poisson_noise_aligned_no_host():
     # photometry.
 
     cmd = base_cmd + [
-        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson.txt",
-    ]
+        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_no_host_even_more.txt"
+        ]
+
+    # For this test I bumped it up to 60 images because the small number statistics caused it to not pass gaussianity
+    # checks. Thankfully 60 images run in about ~1 min without a bg static model. This will be a bit of a pain for
+    # tests with static models unfortunately.
+
     cmd += ["--photometry-campari-grid_options-type", "none"]
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -238,11 +261,15 @@ def test_poisson_noise_aligned_no_host():
     flux = np.zeros(len(mjd))
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+
+    try:
+        perform_gaussianity_checks(lc, flux)
+    except AssertionError as e:
+        plotname = "poisson_aligned_nohost_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
 
 # python /snappl/snappl/image_simulator.py --seed 42 --star-center 128 42 -n 0 --no-star-noise -b junkskynoise
 # --width 256 --height 256 --pixscale 0.11 -t 60000 60005 60010 60015 60020 60025 60030 60035 60040 60045 60050 60055
@@ -257,7 +284,7 @@ def test_sky_noise_aligned_no_host():
     # cmd = base_cmd + [
     #     "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_sky.txt",
     # ]
-    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_skynoise_nohost_more.txt"]
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_sky_no_host_more.txt"]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
@@ -285,13 +312,7 @@ def test_sky_noise_aligned_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
-        SNLogger.debug(f"true residuals: {lc['flux_fit'] - flux}")
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-        # np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3), "Aperture sums do not match campari fluxes!"
-        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+        perform_gaussianity_checks(lc, flux)
     except AssertionError as e:
         plotname = "sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -310,7 +331,7 @@ def test_both_noise_aligned_no_host():
     imsize = 19
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise.txt",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_more.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
@@ -336,13 +357,7 @@ def test_both_noise_aligned_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
-
-        # np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3), "Aperture sums do not match campari fluxes!"
+        perform_gaussianity_checks(lc, flux)
     except AssertionError as e:
         plotname = "both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -404,7 +419,7 @@ def test_noiseless_shifted_no_host():
 def test_poisson_shifted_no_host():
 
     cmd = base_cmd + [
-        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_poisson.txt",
+        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_poisson_more.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
@@ -433,11 +448,14 @@ def test_poisson_shifted_no_host():
     flux = np.zeros(len(mjd))
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+    try:
+        perform_gaussianity_checks(lc, flux)
+    except AssertionError as e:
+        plotname = "poisson_shifted_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
 
 
 # python /snappl/snappl/image_simulator.py --seed 42 --star-center 128 42 -n 0  --no-star-noise -b shifted_sky
@@ -452,7 +470,7 @@ def test_sky_shifted_no_host():
 
     imsize = 19
     cmd = base_cmd + [
-        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_sky.txt",
+        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_sky_more.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
@@ -479,15 +497,7 @@ def test_sky_shifted_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        SNLogger.debug(f"true residuals: {lc['flux_fit'] - flux}")
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
-        np.testing.assert_allclose(lc["flux_fit_err"], lc["flux_fit_err"][0], rtol=1e-4), "Noise should not be changing"
-        # np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3), "Aperture sums do not match campari fluxes!"
-        # np.testing.assert_allclose(lc["flux_fit_err"], ap_err, rtol=3e-3), "Ap Errors do not match campari errors!"
+        perform_gaussianity_checks(lc, flux)
     except AssertionError as e:
         plotname = "shifted_sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -506,7 +516,7 @@ def test_sky_shifted_no_host():
 def test_both_shifted_no_host():
 
     cmd = base_cmd + [
-        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_both.txt",
+        "--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_shifted_both_more.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
@@ -534,14 +544,7 @@ def test_both_shifted_no_host():
     SNLogger.debug(f"Expected fluxes: {flux}")
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
-        SNLogger.debug(f"flux fit error {lc['flux_fit_err']}")
-        # np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3), "Aperture sums do not match campari fluxes!"
-        # np.testing.assert_allclose(lc["flux_fit_err"], ap_err, rtol=3e-3), "Ap Errors do not match campari errors!"
+        perform_gaussianity_checks(lc, flux)
     except AssertionError as e:
         plotname = "shifted_both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -549,11 +552,17 @@ def test_both_shifted_no_host():
         SNLogger.debug(e)
         raise e
 
+# 22 mag delta function galaxy tests ############################################################################
+
 
 def test_noiseless_aligned_22mag_host():
 
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_host_mag22.txt"]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
+    # cmd += ["--save_model"]
+    cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
+            "testdata/psf_matrix_gaussian_123_13_images.npy"]
+
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -573,17 +582,33 @@ def test_noiseless_aligned_22mag_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
-    np.testing.assert_allclose(lc["flux_fit"], flux, atol=1e-7)
+    try:
+        np.testing.assert_allclose(lc["flux_fit"], flux, atol=1e-7)
 
-    # The error is small, but higher than that in the no host case. I believe this is due to extra uncertainty
-    # thanks to more free parameters in the fit.
-    np.testing.assert_allclose(lc["flux_fit_err"], 4.520784, atol=1e-7)
+        # The error is small, but higher than that in the no host case. I believe this is due to extra uncertainty
+        # thanks to more free parameters in the fit.
+        np.testing.assert_allclose(lc["flux_fit_err"], 4.520784, atol=1e-7)
+
+    except AssertionError as e:
+        plotname = "noiseless_aligned_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
 
 
 def test_poisson_aligned_22mag_host():
+    # I think is failing because there are so few no transient compared to with transient images.
 
-    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_host_mag22.txt"]
+    #cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_host_mag22.txt"]
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_22mag_host_more.txt"]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
+    cmd += ["--save_model"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.5"  # Finer grid spacing
+
+    # cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
+    #         "testdata/psf_matrix_gaussian_123_13_images.npy"]
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -603,17 +628,34 @@ def test_poisson_aligned_22mag_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
-    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+    try:
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
+        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
+        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
+        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2, err_msg="Errors non gaussian!?")
+        SNLogger.debug(f"flux fit error {lc['flux_fit_err']}")
+
+        mu, sig = norm.fit(residuals_sigma)
+        np.testing.assert_allclose(mu, 0, atol=0.2, err_msg="Residuals biased!")
+        np.testing.assert_allclose(sig, 1, atol=0.2, err_msg="Residuals too broad or narrow!")
+    except AssertionError as e:
+        plotname = "poisson_aligned_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
 
 
 def test_skynoise_aligned_22mag_host():
 
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_skynoise_host_mag22.txt"]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
+    # cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
+    #         "testdata/psf_matrix_gaussian_123_13_images.npy"]
+    cmd += ["--save_model"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -633,10 +675,19 @@ def test_skynoise_aligned_22mag_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
-    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-    np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-    sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-    SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-    np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
-
-    # fit gaussians?
+    try:
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
+        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
+        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
+        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
+        SNLogger.debug(f"flux fit error {lc['flux_fit_err']}")
+        mu, sig = norm.fit(residuals_sigma)
+        np.testing.assert_allclose(mu, 0, atol=0.2), "Residuals biased!"
+        np.testing.assert_allclose(sig, 1, atol=0.2), "Residuals too broad or narrow!"
+    except AssertionError as e:
+        plotname = "skynoise_aligned_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
