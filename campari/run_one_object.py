@@ -328,12 +328,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
     SNLogger.debug(f"image shape: {images.shape}")
 
-    summed_model = np.sum(psf_matrix, axis=1)
-    from matplotlib import pyplot as plt
-    plt.plot(summed_model/np.max(summed_model), label="model")
-    plt.plot(images/np.max(images), label="image")
-    plt.savefig("model_vs_image.png")
-
     if method == "lsqr":
 
         wgt_matrix = np.sqrt(wgt_matrix)
@@ -353,15 +347,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     except LinAlgError:
         cov = np.linalg.pinv(inv_cov)
 
-
     if num_detect_images > 0:
         SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
     sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
-    # sigma_flux = (
-    #     np.sqrt(np.diag(cov)[num_pre_transient_images : num_pre_transient_images + num_detect_images])
-    #     if num_detect_images > 0
-    #     else None
-    # )
 
     SNLogger.debug(f"sigma flux: {sigma_flux}")
 

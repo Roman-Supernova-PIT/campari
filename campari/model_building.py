@@ -25,7 +25,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def make_regular_grid(image_object, spacing=1.0, subsize=4): # changes this for testing, need to make this a param.
+def make_regular_grid(image_object, spacing=1.0, subsize=4):
     """Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     Parameters
@@ -302,7 +302,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         if a % 50 == 0:
             SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
-        SNLogger.debug(f"PSF at x,y: {x},{y} (loc in SCA: {x_loc},{y_loc})")
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
