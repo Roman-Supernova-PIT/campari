@@ -11,7 +11,6 @@ import scipy.sparse as sp
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-import galsim
 from roman_imsim.utils import roman_utils
 
 # SN-PIT
@@ -67,7 +66,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
-                   cutoff=None, error_floor=None):
+                   cutoff=None, error_floor=None, subsize=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -131,7 +130,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
                                       percentiles=percentiles, single_ra=sim_galra,
-                                      single_dec=sim_galdec, spacing=spacing)
+                                      single_dec=sim_galdec, spacing=spacing,
+                                      subsize=subsize)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
@@ -285,19 +285,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
     if save_model:
-        np.save(
-            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
-            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy",
-            psf_matrix,
-        )
-        np.save(
-            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
-            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
-            sn_matrix,
-        )
-        SNLogger.debug(
-            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('photometry.campari.paths.debug_dir'))}"
-        )
+        psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir")) \
+            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+        np.save(psf_matrix_path, psf_matrix)
+
+        sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir")) \
+            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+        np.save(sn_matrix_path, sn_matrix)
+
+        SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
+        SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
@@ -349,11 +346,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
-    #flux = X[num_pre_transient_images:num_pre_transient_images+num_detect_images] if num_detect_images > 0 else None
-    SNLogger.debug(f"wgt_matrix shape right before invcov: {np.shape(wgt_matrix)}")
-    SNLogger.debug(f"diag shape: {np.diag(wgt_matrix**2).shape}")
-    SNLogger.debug(f"psf shape: {psf_matrix.shape}")
-    SNLogger.debug(f"psf.T shape: {psf_matrix.T.shape}")
     inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
 
     try:
@@ -361,8 +353,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     except LinAlgError:
         cov = np.linalg.pinv(inv_cov)
 
-    cheat_cov = np.linalg.pinv(psf_matrix.T @ psf_matrix)
-    SNLogger.debug(f"cheat cov diag: {np.diag(cheat_cov)}")
 
     if num_detect_images > 0:
         SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")
@@ -389,7 +379,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # if we aren't simulating.
         sim_lc = np.zeros(num_detect_images)
 
-
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
@@ -401,4 +390,3 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         )
 
     return lightcurve_model
-

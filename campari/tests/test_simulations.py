@@ -163,7 +163,8 @@ def test_deltafcn_galaxy_test(cfg):
          "--photometry-campari-simulations-base_pointing", str(base_pointing),
          "--photometry-campari-simulations-noise", "0",
          "--photometry-campari-simulations-run_name", "deltafcn_test",
-         "--photometry-campari-simulations-bg_gal_flux", "1"]
+         "--photometry-campari-simulations-bg_gal_flux", "1",
+         "--photometry-campari-grid_options-subsize", "9",]
     sys.argv = a
     RomanASP.main()
 

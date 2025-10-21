@@ -37,6 +37,7 @@ photometry:
       gaussian_var: -1 # Gaussian weighting off by default
       cutoff: 4
       error_floor: 1
+      subsize: 4
 
     simulations:
       avoid_non_linearity: false

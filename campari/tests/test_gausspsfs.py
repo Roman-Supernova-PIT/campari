@@ -27,6 +27,7 @@ base_cmd = [
         "--object_collection", "manual",
         "--no-photometry-campari-fetch_SED",
         "--photometry-campari-grid_options-spacing", "1",
+        "--photometry-campari-grid_options-subsize", "4",
         "--photometry-campari-cutout_size", str(imsize),
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background",
@@ -46,7 +47,6 @@ def perform_aperture_photometry(fileroot, imsize, aperture_radius=4):
     ap_err = []
     lc_index = 0
     for i in range(ims.shape[0]):
-        #if i < lc.meta["pre_transient_images"] or i > ims.shape[0] - lc.meta["post_transient_images"] - 1:
         if i < lc.meta["pre_transient_images"] + lc.meta["post_transient_images"]:
             # Skipping non detect images!
             continue
@@ -69,6 +69,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
     ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
     modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
 
     numcols = 4
     plt.figure(figsize=(numcols * 5, ims.shape[0] * 5))
@@ -112,16 +113,22 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
             plt.title("Residuals")
         plt.imshow((ims[i] - modelims[i]), origin="lower", vmin=-200, vmax=200, cmap="seismic")
 
-        plt.colorbar()
-
-        ################################
-        ################################
+        # ###############################
         k += 1
         plt.subplot(ims.shape[0], numcols, numcols * i + k)
         if i == 0:
-            plt.title("Noise hist")
-        bins = np.linspace(-100, 100, 20)
-        plt.hist(ims[i].flatten(), bins=bins, alpha=0.5, label="Image")
+            plt.title("Pixel Pulls")
+        bins = np.linspace(-4, 4, 50)
+        residuals = (modelims[i] - ims[i]).flatten()
+        pixel_pull = (modelims[i].flatten() - ims[i].flatten()) / noise_maps[i].flatten()
+        pixel_pull = pixel_pull[np.where(np.abs(residuals) >= 1)]  # Remove zero residuals from the no transient images.
+        plt.hist(pixel_pull, bins=bins, density=True, alpha=0.5, label="Pixel Pulls")
+        normal_dist = norm(loc=0, scale=1)
+        x = np.linspace(-4, 4, 100)
+        plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
+        mu, sig = norm.fit(pixel_pull)
+        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+
         plt.legend()
 
         plt.colorbar()
@@ -135,9 +142,15 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
     if trueflux is not None:
-        plt.subplot(1, 2, 1)
+        plt.subplot(2, 2, 1)
         plt.errorbar(lc["mjd"], lc["flux_fit"] - trueflux, yerr=lc["flux_fit_err"], marker="o", linestyle="None",
                      label="Campari Fit - Truth")
+
+        residuals = lc["flux_fit"] - trueflux
+        window_size = 3
+        rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
+        plt.plot(lc["mjd"][window_size - 1:], rolling_avg, label="Rolling Average", color="orange")
+
         if ap_sums is not None and ap_err is not None:
             SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
             plt.errorbar(lc["mjd"], np.array(ap_sums) - trueflux, yerr=ap_err, marker="o", linestyle="None",
@@ -148,7 +161,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         SNLogger.debug(f"campari std: {np.std(lc['flux_fit'] - trueflux)}")
 
-
         plt.axhline(0, color="black", linestyle="--")
         plt.legend()
         plt.xlabel("MJD")
@@ -156,7 +168,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.xlim(np.min(lc["mjd"]) - 10, np.max(lc["mjd"]) + 10)
         plt.title(plotname + " Light Curve Residuals")
 
-        plt.subplot(1, 2, 2)
+        plt.subplot(2, 2, 2)
         pull = (lc["flux_fit"] - trueflux) / lc["flux_fit_err"]
         plt.hist(pull, bins=10, alpha=0.5, label="Campari Pull", density=True)
         normal_dist = norm(loc=0, scale=1)
@@ -167,18 +179,27 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
         plt.legend()
 
+        plt.subplot(2, 2, 3)
+        plt.errorbar(lc["mjd"], lc["flux_fit"], yerr=lc["flux_fit_err"], marker="o", linestyle="None",
+                     label="Campari Fit - Truth", ms=1)
+        plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
+        plt.yscale("log")
+        plt.ylim(1e3, 1e5)
+
         plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
 
 
-def perform_gaussianity_checks(lc, flux):
+def perform_gaussianity_checks(residuals_sigma):
     """Most of these tests apply the same checks, so just put them in a function."""
-    residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
     sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
     SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
     np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2, err_msg="Errors non gaussian!?")
 
     mu, sig = norm.fit(residuals_sigma)
-    np.testing.assert_allclose(mu, 0, atol=0.2, err_msg="Residuals biased!")
+    # If I am not mistaken, this is equivalent to checking that the residuals are unbiased at 3 sigma confidence.
+    mu_atol = 3 / np.sqrt(len(residuals_sigma))
+    SNLogger.debug("Fitted residuals mu: " + str(mu) + ", sig: " + str(sig) + "\n mu tolerance: " + str(mu_atol))
+    np.testing.assert_allclose(mu, 0, atol=mu_atol, err_msg="Residuals biased!")
     np.testing.assert_allclose(sig, 1, atol=0.2, err_msg="Residuals too broad or narrow!")
     # Check to make sure our distribution is not skewed.
     p_value = skewtest(residuals_sigma).pvalue
@@ -263,7 +284,8 @@ def test_poisson_noise_aligned_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        perform_gaussianity_checks(lc, flux)
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -312,7 +334,8 @@ def test_sky_noise_aligned_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
-        perform_gaussianity_checks(lc, flux)
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -357,7 +380,8 @@ def test_both_noise_aligned_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
-        perform_gaussianity_checks(lc, flux)
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -449,7 +473,8 @@ def test_poisson_shifted_no_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
     try:
-        perform_gaussianity_checks(lc, flux)
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -497,7 +522,8 @@ def test_sky_shifted_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        perform_gaussianity_checks(lc, flux)
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "shifted_sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -544,10 +570,119 @@ def test_both_shifted_no_host():
     SNLogger.debug(f"Expected fluxes: {flux}")
 
     try:
-        perform_gaussianity_checks(lc, flux)
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "shifted_both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+# Just background tests
+
+def test_aligned_noiseless_just_host():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_host_only.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    plotname = "noiseless_aligned_just_host_diagnostic"
+    generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
+    SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+
+    fileroot = "123_R062_gaussian"
+    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    residuals = ims - modelims
+    np.testing.assert_allclose(residuals, 0, atol=20)
+
+
+def test_both_aligned_just_host():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_aligned_host_only.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    # cmd += ['--save_model']
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent
+        / "testdata/prebuilt_models/psf_matrix_gaussian_123_10_images36_points.npy",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    fileroot = "123_R062_gaussian"
+    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    residuals = ims - modelims
+    pixel_pulls = residuals / noise_maps
+    try:
+        perform_gaussianity_checks(pixel_pulls.flatten())
+    except AssertionError as e:
+        plotname = "both_aligned_just_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_both_shifted_just_host():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_shifted_host_only.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    # cmd += ["--save_model"]
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent
+        / "testdata/prebuilt_models/psf_matrix_gaussian_123_10_images_rotated_36_points.npy",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    fileroot = "123_R062_gaussian"
+    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    residuals = ims - modelims
+    pixel_pulls = residuals / noise_maps
+    try:
+        perform_gaussianity_checks(pixel_pulls.flatten())
+    except AssertionError as e:
+        plotname = "both_shifted_just_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
         raise e
@@ -561,7 +696,7 @@ def test_noiseless_aligned_22mag_host():
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     # cmd += ["--save_model"]
     cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
-            "testdata/psf_matrix_gaussian_123_13_images.npy"]
+            "testdata/prebuilt_models/psf_matrix_gaussian_123_13_images.npy"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -600,15 +735,20 @@ def test_noiseless_aligned_22mag_host():
 def test_poisson_aligned_22mag_host():
     # I think is failing because there are so few no transient compared to with transient images.
 
-    #cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_host_mag22.txt"]
-    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_22mag_host_more.txt"]
-    cmd += ["--photometry-campari-grid_options-type", "regular"]
-    cmd += ["--save_model"]
-    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
-    cmd[spacing_index + 1] = "0.5"  # Finer grid spacing
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_aligned_hostmag22_evenmore.txt",
+    ]
 
-    # cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
-    #         "testdata/psf_matrix_gaussian_123_13_images.npy"]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    # cmd += ["--save_model"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += [
+         "--prebuilt_static_model",
+         pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_123_75_images36_points.npy",
+     ]
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -630,15 +770,7 @@ def test_poisson_aligned_22mag_host():
 
     try:
         residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2, err_msg="Errors non gaussian!?")
-        SNLogger.debug(f"flux fit error {lc['flux_fit_err']}")
-
-        mu, sig = norm.fit(residuals_sigma)
-        np.testing.assert_allclose(mu, 0, atol=0.2, err_msg="Residuals biased!")
-        np.testing.assert_allclose(sig, 1, atol=0.2, err_msg="Residuals too broad or narrow!")
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -647,15 +779,22 @@ def test_poisson_aligned_22mag_host():
         raise e
 
 
-def test_skynoise_aligned_22mag_host():
+def test_hostnoiseonly_aligned_22mag_host():
+    # I think is failing because there are so few no transient compared to with transient images.
 
-    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_skynoise_host_mag22.txt"]
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_hostpoisson_aligned_hostmag22.txt",
+    ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
-    #         "testdata/psf_matrix_gaussian_123_13_images.npy"]
-    cmd += ["--save_model"]
+    # cmd += ["--save_model"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_123_38_images36_points.npy",
+    ]
     result = subprocess.run(cmd, capture_output=False, text=True)
 
     if result.returncode != 0:
@@ -677,16 +816,145 @@ def test_skynoise_aligned_22mag_host():
 
     try:
         residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
-        np.testing.assert_allclose(residuals_sigma, 0, atol=3.0), "Campari fluxes are more than 3 sigma from the truth!"
-        sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
-        SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
-        np.testing.assert_allclose(sub_one_sigma / len(residuals_sigma), 0.68, atol=0.2), "Errors non gaussian!?"
-        SNLogger.debug(f"flux fit error {lc['flux_fit_err']}")
-        mu, sig = norm.fit(residuals_sigma)
-        np.testing.assert_allclose(mu, 0, atol=0.2), "Residuals biased!"
-        np.testing.assert_allclose(sig, 1, atol=0.2), "Residuals too broad or narrow!"
+        perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
-        plotname = "skynoise_aligned_22mag_host_diagnostic"
+        plotname = "hostnoiseonly_aligned_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_transientnoiseonly_aligned_22mag_host():
+    # I think is failing because there are so few no transient compared to with transient images.
+
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_transientpoisson_aligned_hostmag22.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    # cmd += ["--save_model"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_123_38_images36_points.npy",
+    ]
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
+    except AssertionError as e:
+        plotname = "transientnoiseonly_aligned_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_both_aligned_22mag_host():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_aligned_hostmag22_evenmore.txt",
+    ]
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_123_75_images36_points.npy",
+    ]
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
+    except AssertionError as e:
+        plotname = "both_aligned_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_both_shifted_22mag_host():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_shifted_hostmag22_evenmore.txt",
+    ]
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    # cmd += ["--save_model"]
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_rotated_75images_36points.npy",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        perform_gaussianity_checks(residuals_sigma)
+    except AssertionError as e:
+        plotname = "both_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)

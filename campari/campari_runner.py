@@ -86,6 +86,7 @@ class campari_runner:
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
         self.spacing = self.cfg.value("photometry.campari.grid_options.spacing")
+        self.subsize = self.cfg.value("photometry.campari.grid_options.subsize")
         self.percentiles = self.cfg.value("photometry.campari.grid_options.percentiles")
         self.grid_type = self.cfg.value("photometry.campari.grid_options.type")
         self.base_pointing = self.cfg.value("photometry.campari.simulations.base_pointing")
@@ -299,9 +300,10 @@ class campari_runner:
                                  " simulated images.")
             num_images = self.max_no_transient_images + self.max_transient_images
 
-            faux_dates = np.linspace(60000, diaobj.mjd_start, self.max_no_transient_images).tolist() + \
-                np.linspace(diaobj.mjd_start, diaobj.mjd_end, self.max_transient_images).tolist()
+            faux_dates = np.linspace(60000, diaobj.mjd_start - 1, self.max_no_transient_images).tolist() + \
+                np.linspace(diaobj.mjd_start + 1, diaobj.mjd_end - 1, self.max_transient_images).tolist()
             faux_dates = np.array(faux_dates)
+
             # fake dates for simulated images
             image_list = []
             for i in range(num_images):
@@ -363,7 +365,7 @@ class campari_runner:
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
-                           avoid_non_linearity=self.avoid_non_linearity,
+                           avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
                            base_sca=self.base_sca, save_model=self.save_model, prebuilt_psf_matrix=prebuilt_psf_matrix,
