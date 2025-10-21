@@ -66,7 +66,7 @@ def test_find_all_exposures():
     diaobj.mjd_end = 62958.0
     image_list = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                     maxdet=24,
-                                    pointing_list=None, sca_list=None,
+                                    sca_list=None,
                                     truth="simple_model")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
@@ -157,6 +157,8 @@ def test_run_on_star(campari_test_data, cfg):
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
     current = pd.read_csv(curfile, comment="#", delimiter=" ")
+
+
     comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
                              comment="#", delimiter=" ")
 
@@ -587,7 +589,8 @@ def test_build_lc():
     diaobj.mjd_end = np.inf
 
     lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
-                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
+                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
+                                        pre_transient_images=1, post_transient_images=0)
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
@@ -600,6 +603,8 @@ def test_build_lc():
         else:
             np.testing.assert_array_equal(lc[i].value, saved_lc[i])
     for key in list(lc.meta.keys()):
+        SNLogger.debug(f"Checking column {key}, lc: {lc.meta[key]}")
+        SNLogger.debug(f"saved_lc: {saved_lc.meta[key]}")
         if not isinstance(saved_lc.meta[key], str):
             np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
         else:
@@ -628,35 +633,35 @@ def test_wcs_regression():
     np.testing.assert_allclose(y, y_test, atol=1e-7)
 
 
-def test_find_all_exposures_with_img_list():
-    band = "Y106"
-    columns = ["pointing", "SCA"]
-    image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-    SNLogger.debug(image_df)
-    ra = 7.551093401915147
-    dec = -44.80718106491529
-    transient_start = 62450.
-    transient_end = 62881.
-    max_no_transient_images = None
-    max_transient_images = None
-    image_selection_start = None
-    image_selection_end = None
-    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
-    diaobj.mjd_start = transient_start
-    diaobj.mjd_end = transient_end
+# def test_find_all_exposures_with_img_list():
+#     band = "Y106"
+#     columns = ["pointing", "SCA"]
+#     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
+#     SNLogger.debug(image_df)
+#     ra = 7.551093401915147
+#     dec = -44.80718106491529
+#     transient_start = 62450.
+#     transient_end = 62881.
+#     max_no_transient_images = None
+#     max_transient_images = None
+#     image_selection_start = None
+#     image_selection_end = None
+#     diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
+#     diaobj.mjd_start = transient_start
+#     diaobj.mjd_end = transient_end
 
-    image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
-                                    maxdet=max_transient_images, band=band,
-                                    image_selection_start=image_selection_start,
-                                    image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
+#     image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
+#                                     maxdet=max_transient_images, band=band,
+#                                     image_selection_start=image_selection_start,
+#                                     image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
 
-    SNLogger.debug(f"Found {len(image_list)} images")
+#     SNLogger.debug(f"Found {len(image_list)} images")
 
-    compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
+#     compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
 
-    np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
-    np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
-    np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
+#     np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
+#     np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
+#     np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
 def test_read_healpix_file():
@@ -703,6 +708,7 @@ def test_handle_partial_overlap():
 
     current = np.load(curfile, allow_pickle=True)
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 

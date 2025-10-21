@@ -288,8 +288,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = util_ref.visit
-    sca = util_ref.sca
+    pointing = util_ref.visit if util_ref is not None else None
+    sca = util_ref.sca if util_ref is not None else None
 
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
                                     include_photonOps=False, seed=None, image=image)
