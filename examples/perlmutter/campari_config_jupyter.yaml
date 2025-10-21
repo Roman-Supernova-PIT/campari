@@ -25,6 +25,7 @@ photometry:
       sims_dir: /dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
       output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
       debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
+      lc_filetype: ecsv  # For production, this will be parquet. I just don't want to recreate all those files right now
 
     # OMG
     galsim:

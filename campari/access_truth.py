@@ -103,11 +103,11 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
 
 def add_truth_to_lc(lc, sn_path, object_type="SN"):
     """This code adds the truth flux and magnitude to a lightcurve datatable."""
-
-    ID = lc.meta["ID"]
+    SNLogger.debug("lc meta: " + str(lc.meta))
+    ID = lc.meta["diaobject_id"]
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
-    band = lc["filter"][0]
+    band = lc["band"][0]
 
     sim_true_flux = []
     sim_realized_flux = []

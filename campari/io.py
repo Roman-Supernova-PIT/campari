@@ -58,16 +58,19 @@ def build_lightcurve(diaobj, lc_model):
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
+    # ra and dec errors are set to 0 for now as they are currently being taken from truth tables.
+    # I am not yet sure how to get provenance_id or the iau_name
+    meta_dict = {"provenance_id": 0, "diaobject_id": diaobj.id, "iau_name": "placeholder", "ra": diaobj.ra, "ra_err": 0,
+                 "dec": diaobj.dec, "dec_err": 0}
     meta_dict["local_surface_brightness"] = lc_model.LSB
 
     data_dict = {
         "mjd": [],
-        "flux_fit": flux,
-        "flux_fit_err": sigma_flux,
-        "mag_fit": mag,
-        "mag_fit_err": magerr,
-        "filter": [],
+        "flux": flux,
+        "flux_err": sigma_flux,
+        "mag": mag,
+        "mag_err": magerr,
+        "band": [],
         "zpt": np.full(np.size(mag), zp),
         "pointing": [],
         "sca": [],
@@ -80,7 +83,7 @@ def build_lightcurve(diaobj, lc_model):
     for i, img in enumerate(image_list):
         if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["filter"].append(img.band)
+            data_dict["band"].append(img.band)
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
@@ -90,8 +93,7 @@ def build_lightcurve(diaobj, lc_model):
             data_dict["x_cutout"].append(x_cutout)
             data_dict["y_cutout"].append(y_cutout)
 
-    units = {"mjd": u.d, "flux_fit": "", "flux_fit_err": "", "mag_fit": u.mag, "mag_fit_err": u.mag, "filter": ""}
-    SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
+    units = {"mjd": u.d, "flux": "", "flux_err": "", "mag": u.mag, "mag_err": u.mag, "band": ""}
 
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
@@ -116,9 +118,9 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True):
+def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True, filetype="ecsv"):
     """This function parses settings in the SMP algorithm and saves the
-    lightcurve to an ecsv file with an appropriate name.
+    lightcurve to an ecsv or parquet file with an appropriate name.
     Input:
     lc: the lightcurve data
     identifier (str): the supernova ID or "simulated"
@@ -126,20 +128,21 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
     psftype (str): "romanpsf" or "analyticpsf"
     output_path (str): the path to save the lightcurve to.  Defaults to
       config value phtometry.campari.paths.output_dir
+    filetype (str): "ecsv" or "parquet", the type of file to save.  Defaults to "ecsv"
 
     Returns:
-    None, saves the lightcurve to a ecsv file.
+    None, saves the lightcurve to a ecsv or parquet file.
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
-    band = lc["filter"][0]
+    band = lc["band"][0]
     output_path = Config.get().value("photometry.campari.paths.output_dir") if output_path is None else output_path
     output_path = pathlib.Path(output_path)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
+    lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.{filetype}"
     SNLogger.info(f"Saving lightcurve to {lc_file}")
-    lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
+    lc.write(lc_file, overwrite=overwrite)
 
 
 def read_healpix_file(healpix_file):
