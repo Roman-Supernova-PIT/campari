@@ -99,7 +99,13 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
                 # However, if we are subtracting the background, we want to get
                 # rid of it here, either by reading the SKY_MEAN value from the
                 # image header...
-                bg = image_cutout.get_fits_header()["SKY_MEAN"]
+                # Clean this up before pushing TODO!
+                try:
+                    bg = image_cutout.get_fits_header()["SKY_MEAN"]
+                except KeyError:
+                    SNLogger.warning("Using an override of 0")
+                    bg = 0
+
             elif truth == "truth":
                 # ....or manually calculating it!
                 bg = calculate_background_level(imagedata)
@@ -107,14 +113,13 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
         bgflux.append(bg)
 
         image_cutout._data -= bg
-        SNLogger.debug(f"Subtracted a background level of {bg}")
 
         cutout_image_list.append(image_cutout)
 
     return cutout_image_list, image_list
 
 
-def prep_data_for_fit(images, sn_matrix, wgt_matrix):
+def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     """This function takes the data from the images and puts it into the form
     such that we can analytically solve for the best fit using linear algebra.
 
@@ -137,6 +142,9 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0] ** 2
     tot_num = len(images)
+    mjd = np.array([im.mjd for im in images])
+
+    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
@@ -155,6 +163,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # others. We'll do this by initializing a matrix of zeros, and then filling
     # in the SN model in the correct place in the loop below:
 
+    SNLogger.debug("sn_matrix shape before: " + str(np.array(sn_matrix).shape))
     psf_zeros = np.zeros((np.size(image_data), tot_num))
     for i in range(det_num):
         sn_index = tot_num - det_num + i  # We only want to edit SN columns.
@@ -180,12 +189,12 @@ def find_all_exposures(
     band=None,
     maxbg=None,
     maxdet=None,
-    pointing_list=None,
     sca_list=None,
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
     image_source="ou2024",
+    image_path=None
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
@@ -204,13 +213,9 @@ def find_all_exposures(
             images.
     band: the band to consider
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
-    explist: astropy.table.Table, the table of exposures that contain the
-    supernova. The columns are:
-        - pointing: the pointing of the exposure
-        - sca: the SCA of the exposure
-        - band: the band of the exposure
-        - date: the MJD of the exposure
-        - detected: whether the exposure contains a detection or not.
+    image_source: str, the source of the images to be used. If "ou2024", use the Open Universe 2024 images.
+    image_path: str, the path to the images to be used. If given, will use these images
+                     for image sources that require a base_path.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     transient_start = diaobj.mjd_start
@@ -219,7 +224,8 @@ def find_all_exposures(
     dec = diaobj.dec
 
     img_collection = ImageCollection()
-    img_collection = img_collection.get_collection(image_source)
+    # De-harcode this
+    img_collection = img_collection.get_collection(image_source, subset="threefile", base_path=image_path)
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
 
@@ -249,9 +255,6 @@ def find_all_exposures(
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
-
-    if pointing_list is not None:
-        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]
