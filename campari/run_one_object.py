@@ -65,7 +65,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel"):
+                   save_model=False, prebuilt_psf_matrix=None,
+                   prebuilt_sn_matrix=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -171,15 +172,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
         SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
-        if grid_type != "none":
+        if grid_type != "none" and prebuilt_psf_matrix is None:
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
                                        whole_sca_wcs,
                                        object_x, object_y, size,
                                        pixel=pixel, image=image, psfclass=psfclass,
                                        util_ref=util_ref, band=band)
+        elif grid_type != "none" and prebuilt_psf_matrix is not None:
+            SNLogger.debug("Using prebuilt PSF matrix for background model")
 
-        if not subtract_background:
+        if not subtract_background and prebuilt_psf_matrix is None:
             # If we did not manually subtract the background, we need to fit in the forward model. Since the
             # background is a constant, we add a term to the model that is all ones. But we only want the background
             # to be present in the model for the image it is associated with. Therefore, we only add the background
@@ -195,7 +198,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
         # Add the array of the model points and the background (if using)
         # to the matrix of all components of the model.
-        psf_matrix.append(background_model_array)
+        if prebuilt_psf_matrix is None:
+            psf_matrix.append(background_model_array)
 
         # The arrays below are the length of the number of images that contain the object
         # Therefore, when we iterate onto the
@@ -206,7 +210,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         sn_index = i - (num_total_images - num_detect_images)
         SNLogger.debug(f"i, sn_index: {i, sn_index}")
         SNLogger.debug(f"Image mjd: {image.mjd}, diaobj mjd_start, mjd_end: {diaobj.mjd_start, diaobj.mjd_end}")
-        if image.mjd >= diaobj.mjd_start and image.mjd <= diaobj.mjd_end:
+        if image.mjd >= diaobj.mjd_start and image.mjd <= diaobj.mjd_end and prebuilt_sn_matrix is None:
             SNLogger.debug("Constructing transient model array for image " + str(i) + " ---------------")
             if use_real_images:
                 pointing = pointing
@@ -241,9 +245,20 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
             sn_matrix.append(psf_source_array)
 
+        elif sn_index >= 0 and prebuilt_sn_matrix is not None:
+            SNLogger.debug("Using prebuilt SN matrix for transient model")
+
     banner("Lin Alg Section")
-    psf_matrix = np.vstack(np.array(psf_matrix))
-    SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    if prebuilt_psf_matrix is None:
+        psf_matrix = np.vstack(np.array(psf_matrix))
+        SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    else:
+        psf_matrix = prebuilt_psf_matrix
+        SNLogger.debug(f"Using prebuilt PSF matrix of shape {psf_matrix.shape}")
+
+    if prebuilt_sn_matrix is not None:
+        sn_matrix = prebuilt_sn_matrix
+        SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
 
     # Add in the supernova images to the matrix in the appropriate location
     # so that it matches up with the image it represents.
@@ -256,10 +271,25 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    if save_model:
+        np.save(
+            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
+            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            psf_matrix,
+        )
+        np.save(
+            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
+            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            sn_matrix,
+        )
+        SNLogger.debug(
+            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('photometry.campari.paths.debug_dir'))}"
+        )
+
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
-    SNLogger.debug(f"beginning of sn_matrix: {sn_matrix[:5]}")
+
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     # Calculate amount of the PSF cut out by setting a distance cap
