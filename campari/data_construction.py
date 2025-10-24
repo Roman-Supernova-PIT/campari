@@ -8,7 +8,7 @@ import numpy as np
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
@@ -51,6 +51,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
     y_list = []
     x_cutout_list = []
     y_cutout_list = []
+
 
     for indx, image in enumerate(image_list):
 
@@ -111,7 +112,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
 
         cutout_image_list.append(image_cutout)
 
-    return cutout_image_list, image_list
+    return cutout_image_list, image_list, bgflux
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
@@ -185,7 +186,8 @@ def find_all_exposures(
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
-    image_source="ou2024",
+    image_source="snpitdb",
+    dbclient=None
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
@@ -213,25 +215,28 @@ def find_all_exposures(
         - detected: whether the exposure contains a detection or not.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
+    SNLogger.debug(f"Using image source: {image_source}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec
 
-    img_collection = ImageCollection()
-    img_collection = img_collection.get_collection(image_source)
+    img_collection = ImageCollection().get_collection(collection=image_source, provenance_tag="ou2024",
+                                                   process="load_ou2024_image", dbclient=dbclient)
+    img_collection_prov = img_collection.provenance
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
 
         pre_transient_images = img_collection.find_images(
-            mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, filter=band
+            mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, band=band,
+
         )
     else:
         pre_transient_images = []
 
     if (image_selection_end is None or transient_end < image_selection_end) and transient_end is not None:
         post_transient_images = img_collection.find_images(
-            mjd_min=transient_end, mjd_max=image_selection_end, ra=ra, dec=dec, filter=band
+            mjd_min=transient_end, mjd_max=image_selection_end, ra=ra, dec=dec, band=band,
         )
     else:
         post_transient_images = []
@@ -239,7 +244,7 @@ def find_all_exposures(
     no_transient_images = pre_transient_images + post_transient_images
 
     transient_images = img_collection.find_images(
-        mjd_min=transient_start, mjd_max=transient_end, ra=ra, dec=dec, filter=band
+        mjd_min=transient_start, mjd_max=transient_end, ra=ra, dec=dec, band=band,
     )
 
     no_transient_images = np.array(no_transient_images)
@@ -255,4 +260,4 @@ def find_all_exposures(
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]
-    return all_images
+    return all_images, img_collection_prov

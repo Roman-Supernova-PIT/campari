@@ -7,14 +7,17 @@ import numpy as np
 import pandas as pd
 import pytest
 
+from astropy.table import Table
+
 # SNPIT
 from campari.campari_runner import campari_runner
+from campari.tests.test_campari import compare_lightcurves
 from campari.utils import campari_lightcurve_model
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 ROMAN_IMAGE_SIZE = 4088  # Roman images are 4088x4088 pixels (4096 minus 4 on each edge)
 
 
@@ -179,7 +182,7 @@ def test_get_exposures(cfg):
 
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
-    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
     image_list = runner.get_exposures(diaobj)
@@ -251,7 +254,7 @@ def test_build_and_save_lc(cfg):
     sigma_flux = np.array([0.1, 0.2, 0.3])
     images = None
     model_images = None
-    exposures = pd.DataFrame(data={"date": [1, 2, 3], "filter": ["Y106", "Y106", "Y106"],
+    exposures = pd.DataFrame(data={"date": [1.0, 2.0, 3.0], "filter": ["Y106", "Y106", "Y106"],
                                    "detected": [True, True, True],
                                    "pointing": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
                                    "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
@@ -288,7 +291,7 @@ def test_build_and_save_lc(cfg):
     ra_grid = np.array([1, 2, 3])
     dec_grid = np.array([1, 2, 3])
     wgt_matrix = None
-    LSB = None
+    LSB = 19.0
     best_fit_model_values = np.array([0] * 16, dtype=float)
     sim_lc = None
     ra = 7.731890048839705
@@ -297,11 +300,11 @@ def test_build_and_save_lc(cfg):
     lc_model = campari_lightcurve_model(flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
                                         image_list=image_list, cutout_image_list=cutout_image_list, ra_grid=ra_grid,
                                         dec_grid=dec_grid,
-                                        wgt_matrix=wgt_matrix, LSB=LSB,
+                                        wgt_matrix=wgt_matrix, LSB=LSB, sky_background=np.zeros(len(flux)),
                                         best_fit_model_values=best_fit_model_values,
                                         sim_lc=sim_lc)
 
-    diaobj = DiaObject.find_objects(id=test_args.SNID, ra=ra, dec=dec, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=test_args.SNID, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = -np.inf
     diaobj.mjd_end = np.inf
     runner.build_and_save_lightcurve(diaobj, lc_model, None)
@@ -312,22 +315,9 @@ def test_build_and_save_lc(cfg):
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
-    current = pd.read_csv(filepath, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", comment="#", delimiter=" ")
-
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        # According to Michael and Rob, this is roughly what can be expected
-        # due to floating point precision.
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col])
-        else:
-            # Switching from one type of WCS to another gave rise in a
-            # difference of about 1e-9 pixels for the grid, which led to a
-            # change in flux of 2e-7. I don't want switching WCS types to make
-            # this fail, so I put the rtol at just above that level.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+    current = Table.read(filepath, format="ascii.ecsv")
+    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", format="ascii.ecsv")
+    compare_lightcurves(current, comparison)
 
 
 def test_sim_param_grid(cfg):

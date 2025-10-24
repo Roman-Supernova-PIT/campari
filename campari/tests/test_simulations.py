@@ -12,7 +12,7 @@ from campari import RomanASP
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -31,7 +31,7 @@ def test_simulate_images():
     # Fluxes for the simulated supernova, days arbitrary.
     test_lightcurve = [10, 100, 1000, 10**4, 10**5]
 
-    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=1, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = 61000
     diaobj.mjd_end = 61200
 

@@ -9,7 +9,7 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snpit_utils.config import Config
+from snappl.config import Config
 from campari.campari_runner import campari_runner
 
 
@@ -135,7 +135,7 @@ def main():
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
 
-    parser.add_argument("--object_collection", type=str, default="ou2024", required=False,
+    parser.add_argument("--object_collection", type=str, default="snpitdb", required=False,
                         help="Which collection of objects to use for lookup. "
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")

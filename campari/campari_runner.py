@@ -9,11 +9,12 @@ import galsim
 
 
 # SN-PIT
+from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.sed import Flat_SED, OU2024_Truth_SED
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # Campari
 from campari.access_truth import add_truth_to_lc, extract_object_from_healpix
@@ -74,7 +75,7 @@ class campari_runner:
         self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
-        self.sn_truth_dir = self.cfg.value("ou24.sn_truth_dir")
+        self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
         self.bg_gal_flux_all = self.cfg.value("photometry.campari.simulations.bg_gal_flux")
         self.sim_galaxy_scale_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_scale")
         self.sim_galaxy_offset_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_offset")
@@ -94,6 +95,8 @@ class campari_runner:
         self.noise_maps = None
         self.galaxy_images = None
         self.galaxy_only_model_images = None
+        self.dbclient = SNPITDBClient()
+        self.img_coll_prov = None
 
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
@@ -138,8 +141,23 @@ class campari_runner:
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
 
-            diaobjs = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
-                                             mjd_discovery_max=self.transient_end, collection=self.object_collection)
+
+            if self.object_collection == "manual":
+                provenance_tag = None
+                process = None
+            else:
+                provenance_tag = "ou2024"
+                process = "load_ou2024_diaobject"
+
+            SNLogger.debug(f"Searching for DiaObject with id={ID}, ra={self.ra}, dec={self.dec},"
+                           f" collection={self.object_collection}, provenance_tag={provenance_tag}, process={process}")
+
+            diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
+                                             provenance_tag=provenance_tag, process=process, name=ID)
+
+            # These will need to be re included once Issue #93 is resolved.
+            # ra=self.ra, dec=self.dec
+            #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_en
             if len(diaobjs) == 0:
                 raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
             if len(diaobjs) > 1:
@@ -169,7 +187,7 @@ class campari_runner:
             SNLogger.debug(f"Object info for SN {ID} in collection {self.object_collection}: ra={diaobj.ra},"
                            f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
             image_list = self.get_exposures(diaobj)
-            sedlist = self.get_sedlist(diaobj.id, image_list)
+            sedlist = self.get_sedlist(diaobj.name, image_list)
 
             # This has to go after get_exposures because the infs break the simdex.
             if diaobj.mjd_start is None:
@@ -267,12 +285,12 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            image_list = find_all_exposures(diaobj=diaobj,
-                                            maxbg=self.max_no_transient_images,
-                                            maxdet=self.max_transient_images,
-                                            band=self.band, image_selection_start=self.image_selection_start,
-                                            image_selection_end=self.image_selection_end,
-                                            pointing_list=self.pointing_list)
+            image_list, self.img_coll_prov = find_all_exposures(diaobj=diaobj,
+                                                maxbg=self.max_no_transient_images,
+                                                maxdet=self.max_transient_images,
+                                                band=self.band, image_selection_start=self.image_selection_start,
+                                                image_selection_end=self.image_selection_end,
+                                                pointing_list=self.pointing_list, dbclient=self.dbclient)
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
@@ -362,18 +380,19 @@ class campari_runner:
         return lightcurve_model
 
     def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
+
+        lc_model.image_collection_prov = self.img_coll_prov if self.use_real_images else None
         if self.psfclass == "ou24PSF" or self.psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
         else:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
-            identifier = str(diaobj.id)
+            identifier = str(diaobj.name)
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model)
                 if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
-
 
         else:
             sim_galaxy_scale, bg_gal_flux, sim_galaxy_offset = param_grid_row
@@ -382,7 +401,7 @@ class campari_runner:
                     str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
                     + self.grid_type
             else:
-                identifier = self.run_name + "_" + str(diaobj.id)
+                identifier = self.run_name + "_" + str(diaobj.name)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
                 lc["filter"] = self.band

@@ -1,5 +1,6 @@
 # Standard Libary
 import os
+import uuid
 import pathlib
 import sys
 import tempfile
@@ -48,8 +49,9 @@ import snappl
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.lightcurve import Lightcurve
+from snappl.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -60,8 +62,101 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari.paths.campari_test_data")
 
 
+def compare_lightcurves(lc1, lc2):
+    col1s = lc1.columns
+    col2s = lc2.columns
+    col1s = set(col1s)
+    col2s = set(col2s)
+
+    bothcols = col1s & col2s
+
+    metacols1 = lc1.meta.keys()
+    metacols2 = lc2.meta.keys()
+    metacols1 = set(metacols1)
+    metacols2 = set(metacols2)
+
+    bothmetacols = metacols1 & metacols2
+
+    for col in bothcols:
+        SNLogger.debug(f"Checking col {col}")
+        # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
+        # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
+        # roughly log10(2^24)=7 significant figures.  As such,
+        # errors of 1e-7 can very easily come from things like order
+        # of operations (even in system libraries).  64-bit floats
+        # (i.e. doubles) have a 53-bit mantissa, and log10(2^53)=16,
+        # so you have 15 or 16 sig figs which "ought to be enough
+        # for anybody".  HOWEVER, you *can* get errors much larger
+        # than this, depending on your order of operations.  For
+        # example, try the following code:
+        #
+        #   import numpy
+        #   a = numpy.float32( 1e8 )
+        #   print( f"a={a}" )
+        #   b = numpy.float32( 1 )
+        #   print( f"b={b}" )
+        #   print( a - ( a - b ) )
+        #   print( a - a + b )
+        #
+        # If you know algebra, you know that the last two numbers
+        # printed out should be exactly the same.  However, you get
+        # either a 100% differerence, or an *infinite* difference,
+        # depending on how you define relative difference in this
+        # case.
+        #
+        # The numpy libraries try to be a bit clever when doing
+        # things like .sum() to avoid the worst of floating-point
+        # underflow, but it's a thing worth being aware of.
+        # Relative errors of 1e-7 (for floats) or 1e-16 (for
+        # doubles) can easily arise from floating-point underflow;
+        # whether or not you're worried about those errors depends
+        # on how confident you are that the order of operations is
+        # identical in two different test cases.  Bigger errors
+        # *can* arise from floating point underflow, but never just
+        # wave your hands and say, "eh, the tests are passing, it's
+        # just underflow!"  Understand how underflow did it.  If it
+        # did, and you're not worried, document that.  But,
+        # probably, you should be worried, and you should
+        # restructure the order of operations in your code to avoid
+        # underflow errors bigger than the number of sig figs in a
+        # floating point number.)
+        msg = f"The lightcurves do not match for column {col}"
+        if isinstance(lc1[col][0], str) or isinstance(lc1[col][0], np.str_):
+            np.testing.assert_array_equal(lc1[col], lc2[col]), msg
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
+
+    for col in bothmetacols:
+        SNLogger.debug(f"Checking meta col {col}")
+        msg = f"The lightcurves do not match for meta column {col}"
+        if isinstance(lc1.meta[col], str) or isinstance(lc2.meta[col], str):
+            np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
+        elif isinstance(lc1.meta[col], type(None)) or isinstance(lc2.meta[col], type(None)):
+            np.testing.assert_equal(lc1.meta[col], lc2.meta[col]), msg
+        elif isinstance(lc1.meta[col], dict) or isinstance(lc2.meta[col], dict):
+            np.testing.assert_equal(lc1.meta[col], lc2.meta[col]), msg
+        else:
+            np.testing.assert_allclose(lc1.meta[col], lc2.meta[col], rtol=3e-7), msg
+
+    unique_to_col1s = col1s.difference(col2s)
+    unique_to_col2s = col2s.difference(col1s)
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The columns in the two lightcurves do not match." + \
+        f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
+
+    unique_to_col1s = metacols1.difference(metacols2)
+    unique_to_col2s = metacols2.difference(metacols1)
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The meta columns in the two lightcurves do not match." + \
+        f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
+
+
+
 def test_find_all_exposures():
-    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    SNLogger.debug(f"URL {Config.get().value('system.db.url')}")
+    diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
     image_list = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
@@ -91,15 +186,38 @@ def test_find_all_exposures():
 
 def test_savelightcurve():
     with tempfile.TemporaryDirectory() as output_dir:
-        lc_file = output_dir + "/" + "test_test_test_lc.ecsv"
+        lc_file = output_dir + "/" + "test_Y_test_lc.ecsv"
         lc_file = pathlib.Path(lc_file)
 
-        data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5],
-                     "measured_flux": [1, 2, 3, 4, 5]}
-        units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
-        meta_dict = {}
-        lc = QTable(data=data_dict, meta=meta_dict, units=units)
-        lc["filter"] = "test"
+        meta_dict = {
+                "provenance_id": uuid.uuid4(),
+                "diaobject_id": uuid.uuid4(),
+                "iau_name": "ACoolLightcurve",
+                "ra": 70.0,
+                "ra_err": 1e-5,
+                "dec": 40.0,
+                "dec_err": 1e-5,
+                "local_surface_brightness_Y": 18.0,
+                "band": "Y",
+                "ra_dec_covar": 0.0,
+                "diaobject_position_id": uuid.uuid4(),
+
+            }
+
+        data_dict = {
+                "mjd": [60000.0, 60001.0],
+                "flux": [1000.0, 1100.0],
+                "flux_err": [50.0, 55.0],
+                "zpt": [25.0, 25.0],
+                "NEA": [5.0, 5.0],
+                "sky_background": [200.0, 210.0],
+                "pointing": [12345, 12346],
+                "sca": [3, 3],
+                "sky_rms": [30, 30],
+                "pix_x": [1, 1],
+                "pix_y": [1, 1]
+            }
+        lc = Lightcurve(data=data_dict, meta=meta_dict)
         # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
         save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir)
         assert lc_file.is_file()
@@ -129,17 +247,9 @@ def test_run_on_star(campari_test_data, cfg):
     finally:
         sys.argv = orig_argv
 
-    current = pd.read_csv(curfile, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", comment="#", delimiter=" ")
-
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col])
-        else:
-            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+    current = Table.read(curfile, format="ascii.ecsv")
+    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
+    compare_lightcurves(current, comparison)
 
     curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
@@ -156,18 +266,10 @@ def test_run_on_star(campari_test_data, cfg):
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
-    current = pd.read_csv(curfile, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
-                             comment="#", delimiter=" ")
 
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col])
-        else:
-            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+    current = Table.read(curfile, format="ascii.ecsv")
+    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
+    compare_lightcurves(current, comparison)
 
 
 def test_regression_function(campari_test_data):
@@ -201,65 +303,10 @@ def test_regression_function(campari_test_data):
         current = pd.read_csv(curfile, comment="#", delimiter=" ")
         comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
                                  comment="#", delimiter=" ")
+        current = Table.read(curfile, format="ascii.ecsv")
+        comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", format="ascii.ecsv")
 
-        for col in current.columns:
-            SNLogger.debug(f"Checking col {col}")
-            # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
-            # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
-            # roughly log10(2^24)=7 significant figures.  As such,
-            # errors of 1e-7 can very easily come from things like order
-            # of operations (even in system libraries).  64-bit floats
-            # (i.e. doubles) have a 53-bit mantissa, and log10(2^53)=16,
-            # so you have 15 or 16 sig figs which "ought to be enough
-            # for anybody".  HOWEVER, you *can* get errors much larger
-            # than this, depending on your order of operations.  For
-            # example, try the following code:
-            #
-            #   import numpy
-            #   a = numpy.float32( 1e8 )
-            #   print( f"a={a}" )
-            #   b = numpy.float32( 1 )
-            #   print( f"b={b}" )
-            #   print( a - ( a - b ) )
-            #   print( a - a + b )
-            #
-            # If you know algebra, you know that the last two numbers
-            # printed out should be exactly the same.  However, you get
-            # either a 100% differerence, or an *infinite* difference,
-            # depending on how you define relative difference in this
-            # case.
-            #
-            # The numpy libraries try to be a bit clever when doing
-            # things like .sum() to avoid the worst of floating-point
-            # underflow, but it's a thing worth being aware of.
-            # Relative errors of 1e-7 (for floats) or 1e-16 (for
-            # doubles) can easily arise from floating-point underflow;
-            # whether or not you're worried about those errors depends
-            # on how confident you are that the order of operations is
-            # identical in two different test cases.  Bigger errors
-            # *can* arise from floating point underflow, but never just
-            # wave your hands and say, "eh, the tests are passing, it's
-            # just underflow!"  Understand how underflow did it.  If it
-            # did, and you're not worried, document that.  But,
-            # probably, you should be worried, and you should
-            # restructure the order of operations in your code to avoid
-            # underflow errors bigger than the number of sig figs in a
-            # floating point number.)
-
-            msg = f"The lightcurves do not match for column {col}"
-            if col == "filter":
-                # band is the only string column, so we check it with array_equal
-                np.testing.assert_array_equal(current[col], comparison[col]), msg
-            else:
-                percent = 100 * np.max((current[col] - comparison[col])
-                                       / comparison[col])
-                msg2 = f"difference is {percent} %"
-                msg = msg+msg2
-                # Switching from one type of WCS to another gave rise in a
-                # difference of about 1e-9 pixels for the grid, which led to a
-                # change in flux of 2e-7. I don't want switching WCS types to make
-                # this fail, so I put the rtol at just above that level.
-                np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
+        compare_lightcurves(current, comparison)
 
             # check output
     finally:
@@ -294,23 +341,9 @@ def test_regression(campari_test_data):
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = pd.read_csv(curfile, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
-                             comment="#", delimiter=" ")
-
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        msg = f"The lightcurves do not match for column {col}"
-        if col == "filter":
-            # band is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col]), msg
-        else:
-            percent = 100 * np.max((current[col] - comparison[col])
-                                   / comparison[col])
-            msg2 = f"difference is {percent} %"
-            msg = msg+msg2
-            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
+    current = Table.read(curfile, format="ascii.ecsv")
+    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", format="ascii.ecsv")
+    compare_lightcurves(current, comparison)
 
 
 def test_plot_lc():
@@ -582,28 +615,21 @@ def test_build_lc():
         image_list.append(img)
         cutout_image_list.append(img)
 
-    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=20172782, ra=7, dec=-41, collection="manual")[0]
     diaobj.mjd_start = 62001.0
     diaobj.mjd_end = np.inf
 
-    lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
-                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
+    lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
+                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
+                                        sky_background=[0.0] * len(image_list))
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
+
+    lc = Table(data=lc.data, meta=lc.meta)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
-    for i in lc.columns:
-        if not isinstance(saved_lc[i][0], str):
-            SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
-            np.testing.assert_allclose(lc[i].value, saved_lc[i])
-        else:
-            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
-    for key in list(lc.meta.keys()):
-        if not isinstance(saved_lc.meta[key], str):
-            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
-        else:
-            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
+    compare_lightcurves(lc, saved_lc)
 
 
 def test_wcs_regression():
@@ -641,7 +667,7 @@ def test_find_all_exposures_with_img_list():
     max_transient_images = None
     image_selection_start = None
     image_selection_end = None
-    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=1, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
 
@@ -723,7 +749,7 @@ def test_calculate_surface_brightness():
     snappl_image_2 = img_collection.get_image(pointing=35198, sca=2, band=band)
 
     # Both of these test images contain this SN
-    diaobj = DiaObject.find_objects(id=20172782,  collection="ou2024")[0]
+    diaobj = DiaObject.find_objects(name=20172782,  collection="ou2024")[0]
     ra, dec = diaobj.ra, diaobj.dec
     cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
     cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)

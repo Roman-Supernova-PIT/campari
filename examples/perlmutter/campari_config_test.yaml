@@ -53,16 +53,23 @@ photometry:
       base_sca: 10
       run_name: whatever
   snappl:
-    simdex_server: https://roman-desc-simdex.rknop.net
-
-ou24:
-  config_file: /sn_info_dir/tds.yaml
-  sn_truth_dir: /snana_pq_dir
-  sims_sed_library: /home/rubin_sim_data/sims_sed_library
-  images: /sims_dir/RomanTDS/images/simple_model
-  tds_base: /photometry_test_data/ou2024
+    simdex_server: https://c3-sn.lbl.gov/roman_snpit_ou2024
 
 ou24psf:
   config_file: /campari/examples/perlmutter/tds.yaml
 
+system:
+  paths:
+    lightcurves: /lightcurves
+  ou24:
+    simdex_server: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    config_file: /campari/examples/perlmutter/tds.yaml
+    sn_truth_dir: /snana_pq_dir
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    images: /sims_dir/RomanTDS/images/simple_model
+    tds_base: /photometry_test_data/ou2024
 
+  db:
+    url: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    username: campari
+    passwordfile: /secrets/roman_snpit_ou2024_campari

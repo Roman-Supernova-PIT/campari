@@ -1,7 +1,9 @@
 # Standard Library
 import os
 import pathlib
+import uuid
 import warnings
+
 
 # Common Library
 import numpy as np
@@ -15,8 +17,10 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.provenance import Provenance
+from snappl.config import Config
+from snappl.lightcurve import Lightcurve
+from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calc_mag_and_err
@@ -58,42 +62,77 @@ def build_lightcurve(diaobj, lc_model):
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
-    meta_dict["local_surface_brightness"] = lc_model.LSB
+
+    diaobj_prov = getattr(diaobj, "provenance_Id", None)
+    provs = [diaobj_prov, lc_model.image_collection_prov]
+    upstream_list = [p for p in provs if p is not None]
+
+    cfg = Config.get()
+    cam_prov = Provenance(
+        process="campari", major=0, minor=42, params=cfg, keepkeys=["photometry.campari"], omitkeys=None,
+        upstreams=upstream_list
+    )
+
+    meta_dict = cam_prov.params["photometry"]["campari"]
+    del meta_dict["galsim"]
+    del meta_dict["simulations"]
+    meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
+    SNLogger.debug(f"meta dict in build_lightcurve: {meta_dict}")
 
     data_dict = {
         "mjd": [],
-        "flux_fit": flux,
-        "flux_fit_err": sigma_flux,
+        "flux": flux,
+        "flux_err": sigma_flux,
         "mag_fit": mag,
         "mag_fit_err": magerr,
-        "filter": [],
         "zpt": np.full(np.size(mag), zp),
         "pointing": [],
         "sca": [],
-        "x": [],
-        "y": [],
+        "pix_x": [],
+        "pix_y": [],
         "x_cutout": [],
         "y_cutout": [],
+        "sky_background": [],
+        "sky_rms": []
     }
 
     for i, img in enumerate(image_list):
         if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["filter"].append(img.band)
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-            data_dict["x"].append(x)
-            data_dict["y"].append(y)
+            data_dict["pix_x"].append(x)
+            data_dict["pix_y"].append(y)
             x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["x_cutout"].append(x_cutout)
             data_dict["y_cutout"].append(y_cutout)
+            data_dict["sky_background"].append(lc_model.sky_background[i])
+            data_dict["sky_rms"].append(0.0) # placeholder for now XXX TODO
 
-    units = {"mjd": u.d, "flux_fit": "", "flux_fit_err": "", "mag_fit": u.mag, "mag_fit_err": u.mag, "filter": ""}
     SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
 
-    return QTable(data=data_dict, meta=meta_dict, units=units)
+    SNLogger.debug("trying to build a lightcurve object")
+    meta_dict["band"] = band  # I don't ever expect campari to do multi-band fitting so just store the one band.
+    meta_dict["diaobject_position_id"] = "e98e579f-0ab3-4ad6-8042-2606d7d53014"  # placeholder for now XXX TODO
+    meta_dict["provenance_id"] = cam_prov.id
+    meta_dict["diaobject_id"] = diaobj.id
+    meta_dict["iau_name"] = diaobj.name  # I am not sure this is what IAUname is but it's a placeholder for now.
+    meta_dict["ra_err"] = 0.0
+    meta_dict["dec_err"] = 0.0  # This is a placeholder for now
+    meta_dict["ra_dec_covar"] = 0.0  # This is a placeholder for now
+    # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
+    # do multi-band fitting so this is probably fine.
+    meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
+    data_dict["NEA"] = [0.0] * len(data_dict["pix_x"]) # snappl will calculate this
+
+    SNLogger.debug("building lightcurve object")
+    SNLogger.debug(f"data dict: {data_dict}")
+    SNLogger.debug(f"meta dict: {meta_dict}")
+    lc = Lightcurve(data=data_dict, meta=meta_dict)
+
+    # return QTable(data=data_dict, meta=meta_dict, units=units)
+    return lc
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
@@ -132,14 +171,18 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
-    band = lc["filter"][0]
+    band = lc.meta["band"][0]
     output_path = Config.get().value("photometry.campari.paths.output_dir") if output_path is None else output_path
     output_path = pathlib.Path(output_path)
     output_path.mkdir(exist_ok=True, parents=True)
 
     lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
+
     SNLogger.info(f"Saving lightcurve to {lc_file}")
-    lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
+    #lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
+    lc.write(
+        base_dir=output_path, filepath=f"{identifier}_{band}_{psftype}_lc.ecsv", filetype="ecsv", overwrite=overwrite
+    )
 
 
 def read_healpix_file(healpix_file):
