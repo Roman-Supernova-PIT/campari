@@ -46,6 +46,7 @@ from campari.utils import (calc_mag_and_err,
                            make_sim_param_grid,
                            campari_lightcurve_model)
 import snappl
+from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
@@ -133,6 +134,10 @@ def compare_lightcurves(lc1, lc2):
     for col in bothmetacols:
         SNLogger.debug(f"Checking meta col {col}")
         msg = f"The lightcurves do not match for meta column {col}"
+        if "provenance" in col:
+            continue
+            # We want to check provenances at the end. Otherwise, the code will fail when it detects that the
+            # provenance is different before it can tell us which column is different.
         if isinstance(lc1.meta[col], str) or isinstance(lc2.meta[col], str):
             np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
         elif isinstance(lc1.meta[col], type(None)) or isinstance(lc2.meta[col], type(None)):
@@ -141,6 +146,13 @@ def compare_lightcurves(lc1, lc2):
             np.testing.assert_equal(lc1.meta[col], lc2.meta[col]), msg
         else:
             np.testing.assert_allclose(lc1.meta[col], lc2.meta[col], rtol=3e-7), msg
+
+    for col in bothmetacols:
+        SNLogger.debug(f"Checking meta col {col}")
+        msg = f"The lightcurves do not match for meta column {col}"
+        if "provenance" in col:
+            np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
+
 
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
@@ -153,16 +165,15 @@ def compare_lightcurves(lc1, lc2):
         f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
 
 
-
 def test_find_all_exposures():
     SNLogger.debug(f"URL {Config.get().value('system.db.url')}")
     diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    image_list = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
-                                    maxdet=24,
-                                    pointing_list=None, sca_list=None,
-                                    truth="simple_model")
+    image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
+                                       maxdet=24,
+                                       pointing_list=None, sca_list=None,
+                                       truth="simple_model", image_source="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     argsort = np.argsort(compare_table["date"])
@@ -186,7 +197,7 @@ def test_find_all_exposures():
 
 def test_savelightcurve():
     with tempfile.TemporaryDirectory() as output_dir:
-        lc_file = output_dir + "/" + "test_Y_test_lc.ecsv"
+        lc_file = output_dir + "/" + "test_Y106_test_lc.ecsv"
         lc_file = pathlib.Path(lc_file)
 
         meta_dict = {
@@ -236,8 +247,10 @@ def test_run_on_star(campari_test_data, cfg):
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
             f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
-            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
+            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
+            "--image_source", "ou2024"]
     orig_argv = sys.argv
+    orig_config = Config.get(clone=cfg)
 
     try:
         sys.argv = args
@@ -246,6 +259,8 @@ def test_run_on_star(campari_test_data, cfg):
         assert False, str(ex)
     finally:
         sys.argv = orig_argv
+        # ugly :( never do in real life
+        cfg._data = orig_config._data
 
     current = Table.read(curfile, format="ascii.ecsv")
     comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
@@ -262,7 +277,7 @@ def test_run_on_star(campari_test_data, cfg):
         f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659"
+        "--ra 7.5833264 --dec -44.809659 --image_source ou2024"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -272,7 +287,7 @@ def test_run_on_star(campari_test_data, cfg):
     compare_lightcurves(current, comparison)
 
 
-def test_regression_function(campari_test_data):
+def test_regression_function(campari_test_data, cfg):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
@@ -288,29 +303,29 @@ def test_regression_function(campari_test_data):
     a = ["_", "-s", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--photometry-campari-psfclass", "ou24PSF", "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
-         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
+         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting", # TEMMPORARY CHANGE FOR TEST SPEED
          "--photometry-campari-subtract_background",
          "--no-photometry-campari-source_phot_ops",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
-         "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy")
+         "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
+         "--image_source", "ou2024"
     ]
 
     orig_argv = sys.argv
+    orig_config = Config.get(clone=cfg)
     try:
         sys.argv = a
         RomanASP.main()
         cfg = Config.get()
-        current = pd.read_csv(curfile, comment="#", delimiter=" ")
-        comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
-                                 comment="#", delimiter=" ")
         current = Table.read(curfile, format="ascii.ecsv")
         comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", format="ascii.ecsv")
 
         compare_lightcurves(current, comparison)
 
-            # check output
     finally:
         sys.argv = orig_argv
+        # ugly :( never do in real life
+        cfg._data = orig_config._data
 
 
 def test_regression(campari_test_data):
@@ -337,7 +352,7 @@ def test_regression(campari_test_data):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
         "--no-photometry-campari-source_phot_ops "
-        "--save_model "
+        "--save_model --image_source ou2024"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -567,7 +582,7 @@ def test_construct_transient_scene():
                       f"image has been saved to {im_path}. Error: {e}"
 
 
-def test_build_lc():
+def test_build_lc(cfg):
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -671,10 +686,11 @@ def test_find_all_exposures_with_img_list():
     diaobj.mjd_start = transient_start
     diaobj.mjd_end = transient_end
 
-    image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
-                                    maxdet=max_transient_images, band=band,
-                                    image_selection_start=image_selection_start,
-                                    image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
+    image_list, _ = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
+                                       maxdet=max_transient_images, band=band,
+                                       image_selection_start=image_selection_start,
+                                       image_selection_end=image_selection_end,
+                                       pointing_list=image_df["pointing"].values)
 
     SNLogger.debug(f"Found {len(image_list)} images")
 
@@ -723,7 +739,8 @@ def test_handle_partial_overlap():
         " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"
+        "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "
+        "--transient_start 63000 --transient_end 63000.0001"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -739,9 +756,11 @@ def test_calculate_surface_brightness():
     sca = 3
 
     band = "Y106"
-
-    img_collection = ImageCollection()
-    img_collection = img_collection.get_collection("ou2024")
+    dbclient = SNPITDBClient()
+    image_source = "snpitdb"
+    img_collection = ImageCollection().get_collection(
+        collection=image_source, provenance_tag="ou2024", process="load_ou2024_image", dbclient=dbclient
+    )
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
     pointing = 13205
@@ -749,7 +768,10 @@ def test_calculate_surface_brightness():
     snappl_image_2 = img_collection.get_image(pointing=35198, sca=2, band=band)
 
     # Both of these test images contain this SN
-    diaobj = DiaObject.find_objects(name=20172782,  collection="ou2024")[0]
+    provenance_tag = "ou2024"
+    process = "load_ou2024_diaobject"
+    diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
+                                    provenance_tag=provenance_tag, process=process, name=20172782)[0]
     ra, dec = diaobj.ra, diaobj.dec
     cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
     cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)

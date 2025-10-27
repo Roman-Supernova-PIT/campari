@@ -216,36 +216,59 @@ def find_all_exposures(
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     SNLogger.debug(f"Using image source: {image_source}")
+    SNLogger.debug(f"image_selection_start: {image_selection_start}")
+    SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec
 
-    img_collection = ImageCollection().get_collection(collection=image_source, provenance_tag="ou2024",
-                                                   process="load_ou2024_image", dbclient=dbclient)
-    img_collection_prov = img_collection.provenance
+    if image_source != "ou2024":
+        provenance_tag = "ou2024"
+        process = "load_ou2024_image"
+    else:
+        provenance_tag = None
+        process = None
+
+    # Database can't handle Nones
+    temp_image_selection_start = 0 if image_selection_start is None else image_selection_start
+    temp_image_selection_end = 1e30 if image_selection_end is None else image_selection_end
+    temp_transient_start = 0 if transient_start is None else transient_start
+    temp_transient_end = 1e30 if transient_end is None else transient_end
+
+    img_collection = ImageCollection().get_collection(collection=image_source, provenance_tag=provenance_tag,
+                                                      process=process, dbclient=dbclient)
+    if image_source == "ou2024":
+        img_collection_prov = None
+    else:
+        img_collection_prov = img_collection.provenance
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
-
+        SNLogger.debug(f"Looking for Pre Transient images between {temp_image_selection_start} and {temp_transient_start}")
         pre_transient_images = img_collection.find_images(
-            mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, band=band,
+            mjd_min=temp_image_selection_start, mjd_max=temp_transient_start, ra=ra, dec=dec, band=band,
 
         )
+        SNLogger.debug(f"Found {len(pre_transient_images)}")
     else:
         pre_transient_images = []
 
     if (image_selection_end is None or transient_end < image_selection_end) and transient_end is not None:
+        SNLogger.debug(f"Looking for Post Transient images between {temp_transient_end} and {temp_image_selection_end}")
+
         post_transient_images = img_collection.find_images(
-            mjd_min=transient_end, mjd_max=image_selection_end, ra=ra, dec=dec, band=band,
+            mjd_min=temp_transient_end, mjd_max=temp_image_selection_end, ra=ra, dec=dec, band=band,
         )
+        SNLogger.debug(f"Found {len(post_transient_images)}")
     else:
         post_transient_images = []
 
     no_transient_images = pre_transient_images + post_transient_images
-
+    SNLogger.debug(f"Looking for Transient images between {temp_transient_start} and {temp_transient_end}")
     transient_images = img_collection.find_images(
-        mjd_min=transient_start, mjd_max=transient_end, ra=ra, dec=dec, band=band,
+        mjd_min=temp_transient_start, mjd_max=temp_transient_end, ra=ra, dec=dec, band=band,
     )
+    SNLogger.debug(f"Found {len(transient_images)}")
 
     no_transient_images = np.array(no_transient_images)
     transient_images = np.array(transient_images)

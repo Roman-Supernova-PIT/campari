@@ -45,6 +45,7 @@ def create_default_test_args(cfg):
     test_args.transient_end = None
     test_args.ra = None
     test_args.dec = None
+    test_args.image_source = "snpitdb"
 
     config = cfg
 
@@ -179,6 +180,7 @@ def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.object_collection = "ou24"
     test_args.SNID = 20172782
+    test_args.image_source = "ou2024"
 
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
@@ -213,7 +215,6 @@ def test_get_SED_list(cfg):
     image_list = [img]
 
     orig_fetch_sed = cfg.value( "photometry.campari.fetch_SED" )
-
 
     try:
 

@@ -48,6 +48,7 @@ class campari_runner:
         self.SNID_file = kwargs["SNID_file"]
         self.SNID = kwargs["SNID"]
         self.img_list = kwargs["img_list"]
+        self.image_source = kwargs["image_source"]
 
         self.healpix = kwargs["healpix"]
         self.healpix_file = kwargs["healpix_file"]
@@ -141,23 +142,30 @@ class campari_runner:
         for index, ID in enumerate(self.SNID):
             banner(f"Running SN {ID}")
 
+            # These will need to be re included once Issue #93 is resolved.
+            # ra=self.ra, dec=self.dec
+            #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
 
             if self.object_collection == "manual":
                 provenance_tag = None
                 process = None
+                diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
+                                                 provenance_tag=provenance_tag, process=process, name=ID,
+                                                 ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
+                                                 mjd_discovery_max=self.transient_end)
             else:
                 provenance_tag = "ou2024"
                 process = "load_ou2024_diaobject"
+                diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
+                                             provenance_tag=provenance_tag, process=process, name=ID)
 
             SNLogger.debug(f"Searching for DiaObject with id={ID}, ra={self.ra}, dec={self.dec},"
                            f" collection={self.object_collection}, provenance_tag={provenance_tag}, process={process}")
 
-            diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
-                                             provenance_tag=provenance_tag, process=process, name=ID)
 
-            # These will need to be re included once Issue #93 is resolved.
-            # ra=self.ra, dec=self.dec
-            #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_en
+
+
+
             if len(diaobjs) == 0:
                 raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
             if len(diaobjs) > 1:
@@ -286,11 +294,14 @@ class campari_runner:
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
             image_list, self.img_coll_prov = find_all_exposures(diaobj=diaobj,
-                                                maxbg=self.max_no_transient_images,
-                                                maxdet=self.max_transient_images,
-                                                band=self.band, image_selection_start=self.image_selection_start,
-                                                image_selection_end=self.image_selection_end,
-                                                pointing_list=self.pointing_list, dbclient=self.dbclient)
+                                                                maxbg=self.max_no_transient_images,
+                                                                maxdet=self.max_transient_images,
+                                                                band=self.band,
+                                                                image_selection_start=self.image_selection_start,
+                                                                image_selection_end=self.image_selection_end,
+                                                                image_source=self.image_source,
+                                                                pointing_list=self.pointing_list,
+                                                                dbclient=self.dbclient)
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
@@ -338,6 +349,7 @@ class campari_runner:
                              " following pointings were not found: "
                              f"{np.setdiff1d(self.pointing_list, [a.pointing for a in image_list])}")
 
+        SNLogger.debug(f"Found {len(image_list)} exposures")
         return image_list
 
     def get_sedlist(self, ID, image_list):

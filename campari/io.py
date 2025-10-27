@@ -69,13 +69,15 @@ def build_lightcurve(diaobj, lc_model):
 
     cfg = Config.get()
     cam_prov = Provenance(
-        process="campari", major=0, minor=42, params=cfg, keepkeys=["photometry.campari"], omitkeys=None,
-        upstreams=upstream_list
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,  # keepkeys=["photometry.campari"],
+        omitkeys=["photometry.campari.galsim", "photometry.campari.simulations"],
+        upstreams=upstream_list,
     )
 
     meta_dict = cam_prov.params["photometry"]["campari"]
-    del meta_dict["galsim"]
-    del meta_dict["simulations"]
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
     SNLogger.debug(f"meta dict in build_lightcurve: {meta_dict}")
 
@@ -176,10 +178,20 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
     output_path = pathlib.Path(output_path)
     output_path.mkdir(exist_ok=True, parents=True)
 
-    lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
+    band_map = {
+            "r": "R062",
+            "z": "Z087",
+            "y": "Y106",
+            "j": "J129",
+            "h": "H158",
+            "f": "F184",
+            "w": "W146",
+        }
 
-    SNLogger.info(f"Saving lightcurve to {lc_file}")
-    #lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
+    # Here we handle band abbreviations
+    if band not in list(band_map.values()):
+        band = band_map[band.lower()]
+
     lc.write(
         base_dir=output_path, filepath=f"{identifier}_{band}_{psftype}_lc.ecsv", filetype="ecsv", overwrite=overwrite
     )

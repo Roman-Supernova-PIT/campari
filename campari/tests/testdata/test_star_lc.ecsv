@@ -2,24 +2,24 @@
 # ---
 # datatype:
 # - {name: mjd, unit: d, datatype: float64}
-# - {name: band, datatype: string}
-# - {name: flux, unit: ph / s, datatype: float64}
-# - {name: flux_err, unit: ph / s, datatype: float64}
-# - {name: zpt, datatype: float64}
-# - {name: NEA, unit: pixels, datatype: float64}
-# - {name: sky_background, unit: ph / s, datatype: float64}
-# - {name: mag_fit, datatype: float64}
-# - {name: mag_fit_err, datatype: float64}
+# - {name: flux, unit: ct / s, datatype: float64}
+# - {name: flux_err, unit: ct / s, datatype: float64}
+# - {name: zpt, unit: mag, datatype: float64}
+# - {name: NEA, unit: pix2, datatype: float64}
+# - {name: sky_rms, unit: ct / s, datatype: float64}
 # - {name: pointing, datatype: int64}
 # - {name: sca, datatype: int64}
-# - {name: x, datatype: float64}
-# - {name: y, datatype: float64}
+# - {name: pix_x, unit: pix, datatype: float64}
+# - {name: pix_y, unit: pix, datatype: float64}
+# - {name: mag_fit, datatype: float64}
+# - {name: mag_fit_err, datatype: float64}
 # - {name: x_cutout, datatype: float64}
 # - {name: y_cutout, datatype: float64}
+# - {name: sky_background, datatype: float64}
 # meta: !!omap
 # - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
-# - {fetch_SED: true}
+# - {fetch_SED: false}
 # - {source_phot_ops: false}
 # - {use_roman: true}
 # - {weighting: true}
@@ -40,33 +40,48 @@
 # - {ID: '40973166870'}
 # - {ra: 7.5833264}
 # - {dec: -44.809659}
-# - {provenance_id: 465e820c-7434-0b7c-92c1-40768613bad4}
+# - {band: Y106}
+# - {diaobject_position_id: e98e579f-0ab3-4ad6-8042-2606d7d53014}
+# - {provenance_id: a4465223-c3d9-33a0-d5d3-cdc11ed3b312}
 # - {diaobject_id: null}
 # - {iau_name: '40973166870'}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
+# - {ra_dec_covar: 0.0}
 # - {local_surface_brightness_Y106: 20.67947596585431}
 # - __serialized_columns__:
 #     NEA:
 #       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: pixels}
+#       unit: !astropy.units.Unit {unit: pix2}
 #       value: !astropy.table.SerializedColumn {name: NEA}
 #     flux:
 #       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: ph / s}
+#       unit: !astropy.units.Unit {unit: ct / s}
 #       value: !astropy.table.SerializedColumn {name: flux}
 #     flux_err:
 #       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: ph / s}
+#       unit: !astropy.units.Unit {unit: ct / s}
 #       value: !astropy.table.SerializedColumn {name: flux_err}
 #     mjd:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
 #       value: !astropy.table.SerializedColumn {name: mjd}
-#     sky_background:
+#     pix_x:
 #       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: ph / s}
-#       value: !astropy.table.SerializedColumn {name: sky_background}
+#       unit: &id001 !astropy.units.Unit {unit: pix}
+#       value: !astropy.table.SerializedColumn {name: pix_x}
+#     pix_y:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: *id001
+#       value: !astropy.table.SerializedColumn {name: pix_y}
+#     sky_rms:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: ct / s}
+#       value: !astropy.table.SerializedColumn {name: sky_rms}
+#     zpt:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: mag}
+#       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
-mjd band flux flux_err zpt NEA sky_background mag_fit mag_fit_err pointing sca x y x_cutout y_cutout
-62455.669 Y106 362914.23250740854 148.49828230360725 15.023547191066584 0.0 0.0 18.7621457523746 0.0004442646416137137 35198 2 286.23733052601574 1091.4859035809764 5.2373305260157546 5.485903580976412
+mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
+62455.669 362914.23250740854 148.49828230360725 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.7621457523746 0.0004442646416137137 5.2373305260157546 5.485903580976412 108.0

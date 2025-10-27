@@ -23,7 +23,7 @@
 # meta: !!omap
 # - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
-# - {fetch_SED: true}
+# - {fetch_SED: false}
 # - {source_phot_ops: true}
 # - {use_roman: true}
 # - {weighting: true}
@@ -46,7 +46,7 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: e98e579f-0ab3-4ad6-8042-2606d7d53014}
-# - {provenance_id: 203162b9-9bb5-79ec-e64e-5c005fa1dd7a}
+# - {provenance_id: 609584ec-5659-d87b-fbd0-12028d052719}
 # - {diaobject_id: null}
 # - {iau_name: '20172782'}
 # - {ra_err: 0.0}
