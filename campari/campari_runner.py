@@ -401,7 +401,7 @@ class campari_runner:
 
         if lc_model.flux is not None:
             output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
-            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir)
+            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir, overwrite=False)
         else:
             SNLogger.debug("No flux was measured, so no lightcurve will be saved.")
 

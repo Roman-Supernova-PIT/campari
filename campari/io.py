@@ -145,6 +145,14 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
 
     lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
     SNLogger.info(f"Saving lightcurve to {lc_file}")
+    if not overwrite and lc_file.exists():
+        SNLogger.info(f"File {lc_file} already exists and overwrite is set to False.")
+        i = 0
+        while lc_file.exists():
+            i += 1
+            lc_file = output_path / f"{identifier}_{band}_{psftype}_lc_v{i}.ecsv"
+        SNLogger.info(f"Saving to new file {lc_file} instead.")
+
     lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
 
 
