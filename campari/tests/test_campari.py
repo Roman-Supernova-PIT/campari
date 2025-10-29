@@ -14,8 +14,7 @@ import pandas as pd
 import pytest
 
 # Astronomy Library
-from astropy.table import QTable, Table
-import astropy.units as u
+from astropy.table import Table
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
@@ -24,7 +23,6 @@ from roman_imsim.utils import roman_utils
 
 # SNPIT
 from campari import RomanASP
-from campari.access_truth import extract_object_from_healpix
 from campari.data_construction import find_all_exposures
 from campari.io import (
     build_lightcurve,
@@ -153,15 +151,14 @@ def compare_lightcurves(lc1, lc2):
         if "provenance" in col:
             np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
 
-
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
-    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The columns in the two lightcurves do not match." + \
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The columns in the lightcurves do not match." + \
         f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
 
     unique_to_col1s = metacols1.difference(metacols2)
     unique_to_col2s = metacols2.difference(metacols1)
-    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The meta columns in the two lightcurves do not match." + \
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The meta columns in the LCs do not match." + \
         f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
 
 
@@ -208,8 +205,8 @@ def test_savelightcurve():
                 "ra_err": 1e-5,
                 "dec": 40.0,
                 "dec_err": 1e-5,
-                "local_surface_brightness_Y": 18.0,
-                "band": "Y",
+                "local_surface_brightness_Y106": 18.0,
+                "band": "Y106",
                 "ra_dec_covar": 0.0,
                 "diaobject_position_id": uuid.uuid4(),
 
@@ -277,10 +274,9 @@ def test_run_on_star(campari_test_data, cfg):
         f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659 --image_source ou2024"
+        "--ra 7.5833264 --dec -44.809659 --image_source ou2024 "
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
-
 
     current = Table.read(curfile, format="ascii.ecsv")
     comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
@@ -303,13 +299,15 @@ def test_regression_function(campari_test_data, cfg):
     a = ["_", "-s", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--photometry-campari-psfclass", "ou24PSF", "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
-         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting", # TEMMPORARY CHANGE FOR TEST SPEED
+         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
          "--no-photometry-campari-source_phot_ops",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
-         "--image_source", "ou2024"
-    ]
+         "--image_source", "ou2024",
+         "--find_obj_prov_tag", "ou2024", "--find_obj_process", "load_ou2024_diaobject",
+         "--get_collection_prov_tag", "ou2024", "--get_collection_process", "load_ou2024_image"
+         ]
 
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
@@ -352,7 +350,9 @@ def test_regression(campari_test_data):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
         "--no-photometry-campari-source_phot_ops "
-        "--save_model --image_source ou2024"
+        "--save_model --image_source ou2024 "
+        "--find_obj_prov_tag ou2024 --find_obj_process load_ou2024_diaobject "
+        "--get_collection_prov_tag ou2024 --get_collection_process load_ou2024_image"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -740,7 +740,7 @@ def test_handle_partial_overlap():
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "
-        "--transient_start 63000 --transient_end 63000.0001"
+        "--transient_start 63000 --transient_end 63000.0001 "
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 

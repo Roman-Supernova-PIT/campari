@@ -215,6 +215,30 @@ def main():
                              "This will be useful if you are running very similar configurations and want to avoid"
                              "recomputing the matrices each time.")
 
+    parser.add_argument("--find_obj_prov_tag", "--find_object_provenance_tag", type=str,
+                        help="A string tag to identify the provenance of the "
+                        "object finding step. Default None.", default=None)
+
+    parser.add_argument("--find_obj_process", "--find_object_process", type=str,
+                        help="A string to identify the process of the "
+                        "object finding step. Default None.", default=None)
+
+    parser.add_argument("--get_collection_process", type=str,
+                        help="A string to identify the process of getting "
+                        "the image collection. Default None.", default=None)
+
+    parser.add_argument("--get_collection_prov_tag", "--get_collection_provenance_tag", type=str,
+                        help="A string tag to identify the provenance of "
+                        "the image collection step. Default None.", default=None)
+
+    parser.add_argument("--obj_pos_prov_tag", "--object_position_provenance_tag", type=str,
+                        help="A string tag to identify the provenance of the program that determines the "
+                        "object position. Default None.", default=None)
+
+    parser.add_argument("--obj_pos_process", "--object_position_process", type=str,
+                        help="A string to identify the process of the program that determines the object position."
+                        " Default None.", default=None)
+
     if cfg is not None:
         cfg.augment_argparse(parser)
     args = parser.parse_args(leftovers)

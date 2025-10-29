@@ -63,33 +63,40 @@ class campari_runner:
         self.prebuilt_static_model = kwargs["prebuilt_static_model"]
         self.prebuilt_transient_model = kwargs["prebuilt_transient_model"]
 
+        self.find_object_provenance_tag = kwargs["find_obj_prov_tag"]
+        self.find_object_process = kwargs["find_obj_process"]
+        self.get_collection_provenance_tag = kwargs["get_collection_prov_tag"]
+        self.get_collection_process = kwargs["get_collection_process"]
+        self.object_position_provenance_tag = kwargs["obj_pos_prov_tag"]
+        self.object_position_process = kwargs["obj_pos_process"]
+
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
-        self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
-        self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
-        self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
-        self.do_rotation = self.cfg.value("photometry.campari.simulations.do_rotation")
+        self.avoid_non_linearity = self.cfg.value("photometry.campari_simulations.avoid_non_linearity")
+        self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
+        self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
+        self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
         self.psfclass = self.cfg.value("photometry.campari.psfclass")
-        self.noise = self.cfg.value("photometry.campari.simulations.noise")
+        self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
         self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
-        self.bg_gal_flux_all = self.cfg.value("photometry.campari.simulations.bg_gal_flux")
-        self.sim_galaxy_scale_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_scale")
-        self.sim_galaxy_offset_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_offset")
+        self.bg_gal_flux_all = self.cfg.value("photometry.campari_simulations.bg_gal_flux")
+        self.sim_galaxy_scale_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_scale")
+        self.sim_galaxy_offset_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_offset")
         self.source_phot_ops = self.cfg.value("photometry.campari.source_phot_ops")
-        self.mismatch_seds = self.cfg.value("photometry.campari.simulations.mismatch_seds")
+        self.mismatch_seds = self.cfg.value("photometry.campari_simulations.mismatch_seds")
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
         self.spacing = self.cfg.value("photometry.campari.grid_options.spacing")
         self.percentiles = self.cfg.value("photometry.campari.grid_options.percentiles")
         self.grid_type = self.cfg.value("photometry.campari.grid_options.type")
-        self.base_pointing = self.cfg.value("photometry.campari.simulations.base_pointing")
-        self.base_sca = self.cfg.value("photometry.campari.simulations.base_sca")
-        self.run_name = self.cfg.value("photometry.campari.simulations.run_name")
+        self.base_pointing = self.cfg.value("photometry.campari_simulations.base_pointing")
+        self.base_sca = self.cfg.value("photometry.campari_simulations.base_sca")
+        self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
         self.save_debug = self.cfg.value("photometry.campari.save_debug")
         self.param_grid = None
         self.run_mode = None
@@ -146,25 +153,20 @@ class campari_runner:
             # ra=self.ra, dec=self.dec
             #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
 
+            SNLogger.debug(f"Searching for DiaObject with id={ID}, ra={self.ra}, dec={self.dec},"
+                           f" collection={self.object_collection}, provenance_tag={self.find_object_provenance_tag}, "
+                           f"process={self.find_object_process}")
+
             if self.object_collection == "manual":
-                provenance_tag = None
-                process = None
                 diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
-                                                 provenance_tag=provenance_tag, process=process, name=ID,
+                                                 provenance_tag=self.find_object_provenance_tag,
+                                                 process=self.find_object_process, name=ID,
                                                  ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
                                                  mjd_discovery_max=self.transient_end)
             else:
-                provenance_tag = "ou2024"
-                process = "load_ou2024_diaobject"
                 diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
-                                             provenance_tag=provenance_tag, process=process, name=ID)
-
-            SNLogger.debug(f"Searching for DiaObject with id={ID}, ra={self.ra}, dec={self.dec},"
-                           f" collection={self.object_collection}, provenance_tag={provenance_tag}, process={process}")
-
-
-
-
+                                                 provenance_tag=self.find_object_provenance_tag,
+                                                 process=self.find_object_process, name=ID)
 
             if len(diaobjs) == 0:
                 raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
@@ -268,6 +270,7 @@ class campari_runner:
         if self.img_list is not None:
             columns = ["pointing", "sca"]
             image_df = pd.read_csv(self.img_list, header=None, names=columns)
+            SNLogger.debug(f"Loaded image list from {self.img_list} with {len(image_df)} entries.")
             # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
             self.max_no_transient_images = None
             self.max_transient_images = None
@@ -293,6 +296,8 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
+            SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
+            SNLogger.debug("max transient images: " + str(self.max_transient_images))
             image_list, self.img_coll_prov = find_all_exposures(diaobj=diaobj,
                                                                 maxbg=self.max_no_transient_images,
                                                                 maxdet=self.max_transient_images,
@@ -301,11 +306,15 @@ class campari_runner:
                                                                 image_selection_end=self.image_selection_end,
                                                                 image_source=self.image_source,
                                                                 pointing_list=self.pointing_list,
-                                                                dbclient=self.dbclient)
+                                                                dbclient=self.dbclient,
+                                                                collection_provenance_tag=self.
+                                                                get_collection_provenance_tag,
+                                                                collection_process=self.get_collection_process)
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
             no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+            SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.name}.")
 
             if (
                 self.max_no_transient_images != 0
@@ -342,19 +351,28 @@ class campari_runner:
                 img.pointing = self.base_pointing
                 img.sca = self.base_sca
 
-        recovered_pointings = [a.pointing for a in image_list]
+        recovered_pointings = [int(a.pointing) for a in image_list]
+        self.pointing_list = self.pointing_list.astype(int) if self.pointing_list is not None else None
         if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
                                                             np.sort(self.pointing_list)):
-            SNLogger.warning("Unable to find the object in all the pointings in the image list. Specifically, the"
-                             " following pointings were not found: "
-                             f"{np.setdiff1d(self.pointing_list, [a.pointing for a in image_list])}")
+            SNLogger.warning(
+                "Unable to find the object in all the pointings in the image list. Specifically, the"
+                " following pointings were not found: "
+                f"{np.setdiff1d(self.pointing_list, recovered_pointings)}. A total of "
+                f"{len(np.setdiff1d(self.pointing_list, recovered_pointings))} were missing."
+            )
 
         SNLogger.debug(f"Found {len(image_list)} exposures")
         return image_list
 
     def get_sedlist(self, ID, image_list):
         """Create a list of SEDs for the given SNID and images."""
-        sed_obj = OU2024_Truth_SED(ID, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
+        try:
+            sed_obj = OU2024_Truth_SED(ID, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
+        except Exception as e:
+            SNLogger.error(f"Error creating SED object: {e}. Using flat SED instead.")
+            sed_obj = Flat_SED()
+
         sedlist = []
         for img in image_list:
             sedlist.append(sed_obj.get_sed(snid=ID, mjd=img.mjd))
@@ -402,7 +420,7 @@ class campari_runner:
         if self.use_real_images:
             identifier = str(diaobj.name)
             if lc_model.flux is not None:
-                lc = build_lightcurve(diaobj, lc_model)
+                lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.object_position_provenance_tag)
                 if self.object_collection != "manual":
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 

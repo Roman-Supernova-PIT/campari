@@ -31,7 +31,6 @@ from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snappl.config import Config
-from snappl.logger import SNLogger
 
 
 @pytest.fixture(scope="module")
@@ -186,4 +185,3 @@ def test_extract_object_from_healpix():
         np.testing.assert_array_equal(id_array, test_id_array),
         "The IDs extracted from the healpix do not match the expected values.",
     )
-

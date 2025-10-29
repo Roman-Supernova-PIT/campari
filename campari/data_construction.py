@@ -52,7 +52,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
     x_cutout_list = []
     y_cutout_list = []
 
-
     for indx, image in enumerate(image_list):
 
         imagedata, errordata, flags = image.get_data(which="all", cache=True)
@@ -187,7 +186,9 @@ def find_all_exposures(
     image_selection_start=None,
     image_selection_end=None,
     image_source="snpitdb",
-    dbclient=None
+    dbclient=None,
+    collection_provenance_tag=None,
+    collection_process=None,
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
@@ -223,28 +224,25 @@ def find_all_exposures(
     ra = diaobj.ra
     dec = diaobj.dec
 
-    if image_source != "ou2024":
-        provenance_tag = "ou2024"
-        process = "load_ou2024_image"
-    else:
-        provenance_tag = None
-        process = None
-
     # Database can't handle Nones
     temp_image_selection_start = 0 if image_selection_start is None else image_selection_start
     temp_image_selection_end = 1e30 if image_selection_end is None else image_selection_end
     temp_transient_start = 0 if transient_start is None else transient_start
     temp_transient_end = 1e30 if transient_end is None else transient_end
 
-    img_collection = ImageCollection().get_collection(collection=image_source, provenance_tag=provenance_tag,
-                                                      process=process, dbclient=dbclient)
-    if image_source == "ou2024":
-        img_collection_prov = None
-    else:
-        img_collection_prov = img_collection.provenance
+    image_source = "ou2024"
+    collection_process = None
+    collection_provenance_tag = None
+    img_collection = ImageCollection().get_collection(collection=image_source, provenance_tag=collection_provenance_tag,
+                                                      process=collection_process, dbclient=dbclient)
+
+    img_collection_prov = getattr(img_collection, "provenance", None)
+    if img_collection_prov is None:
+        SNLogger.warning("Image collection has no provenance information. This is only a problem if not using snpitdb.")
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
-        SNLogger.debug(f"Looking for Pre Transient images between {temp_image_selection_start} and {temp_transient_start}")
+        SNLogger.debug(f"Looking for Pre Transient images between {temp_image_selection_start}"
+                       f" and {temp_transient_start}")
         pre_transient_images = img_collection.find_images(
             mjd_min=temp_image_selection_start, mjd_max=temp_transient_start, ra=ra, dec=dec, band=band,
 
@@ -268,7 +266,7 @@ def find_all_exposures(
     transient_images = img_collection.find_images(
         mjd_min=temp_transient_start, mjd_max=temp_transient_end, ra=ra, dec=dec, band=band,
     )
-    SNLogger.debug(f"Found {len(transient_images)}")
+    SNLogger.debug(f"Found {len(transient_images)} Transient images")
 
     no_transient_images = np.array(no_transient_images)
     transient_images = np.array(transient_images)
@@ -277,9 +275,11 @@ def find_all_exposures(
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
+    SNLogger.debug(f"Found {len(all_images)} total images")
 
     if pointing_list is not None:
         all_images = np.array([img for img in all_images if img.pointing in pointing_list])
+        SNLogger.debug(f"Filtered to {len(all_images)} images based on provided pointing list.")
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]

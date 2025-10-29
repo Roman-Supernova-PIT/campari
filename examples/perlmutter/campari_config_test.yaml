@@ -35,25 +35,25 @@ photometry:
       spacing: 0.75
       turn_grid_off: false
 
-    simulations:
-      avoid_non_linearity: false
-      background_level: 0
-      bg_gal_flux: 100000.0
-      deltafcn_profile: false
-      do_rotation: true
-      do_xshift: true
-      mismatch_seds: false
-      noise: 0
-      sim_gal_dec_offset: 0.00001
-      sim_gal_ra_offset: 0.00001
-      single_grid_point: false
-      sim_galaxy_scale: 1.0
-      sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
-      base_pointing: 276
-      base_sca: 10
-      run_name: whatever
+  campari_simulations:
+    avoid_non_linearity: false
+    background_level: 0
+    bg_gal_flux: 100000.0
+    deltafcn_profile: false
+    do_rotation: true
+    do_xshift: true
+    mismatch_seds: false
+    noise: 0
+    sim_gal_dec_offset: 0.00001
+    sim_gal_ra_offset: 0.00001
+    single_grid_point: false
+    sim_galaxy_scale: 1.0
+    sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
+    base_pointing: 276
+    base_sca: 10
+    run_name: whatever
   snappl:
-    simdex_server: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    simdex_server: https://roman-desc-simdex.rknop.net
 
 ou24psf:
   config_file: /campari/examples/perlmutter/tds.yaml

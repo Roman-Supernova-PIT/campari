@@ -160,12 +160,12 @@ def test_simulate_supernova():
 #          "--no-photometry-campari-weighting",
 #          "--photometry-campari-subtract_background",
 #          "--no-photometry-campari-source_phot_ops",
-#          "--photometry-campari-simulations-deltafcn_profile",
-#          "--photometry-campari-simulations-base_sca", str(base_sca),
-#          "--photometry-campari-simulations-base_pointing", str(base_pointing),
-#          "--photometry-campari-simulations-noise", "0",
-#          "--photometry-campari-simulations-run_name", "deltafcn_test",
-#          "--photometry-campari-simulations-bg_gal_flux", "1"]
+#          "--photometry-campari_simulations-deltafcn_profile",
+#          "--photometry-campari_simulations-base_sca", str(base_sca),
+#          "--photometry-campari_simulations-base_pointing", str(base_pointing),
+#          "--photometry-campari_simulations-noise", "0",
+#          "--photometry-campari_simulations-run_name", "deltafcn_test",
+#          "--photometry-campari_simulations-bg_gal_flux", "1"]
 #     sys.argv = a
 #     RomanASP.main()
 

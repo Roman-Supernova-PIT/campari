@@ -52,32 +52,39 @@ def create_default_test_args(cfg):
     test_args.size = config.value("photometry.campari.cutout_size")
     test_args.use_real_images = config.value("photometry.campari.use_real_images")
     test_args.psfclass = config.value("photometry.campari.psfclass")
-    test_args.avoid_non_linearity = config.value("photometry.campari.simulations.avoid_non_linearity")
-    test_args.deltafcn_profile = config.value("photometry.campari.simulations.deltafcn_profile")
-    test_args.do_xshift = config.value("photometry.campari.simulations.do_xshift")
-    test_args.do_rotation = config.value("photometry.campari.simulations.do_rotation")
-    test_args.noise = config.value("photometry.campari.simulations.noise")
+    test_args.avoid_non_linearity = config.value("photometry.campari_simulations.avoid_non_linearity")
+    test_args.deltafcn_profile = config.value("photometry.campari_simulations.deltafcn_profile")
+    test_args.do_xshift = config.value("photometry.campari_simulations.do_xshift")
+    test_args.do_rotation = config.value("photometry.campari_simulations.do_rotation")
+    test_args.noise = config.value("photometry.campari_simulations.noise")
     test_args.method = config.value("photometry.campari.method")
     test_args.make_initial_guess = config.value("photometry.campari.make_initial_guess")
     test_args.subtract_background = config.value("photometry.campari.subtract_background")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.bg_gal_flux_all = config.value("photometry.campari.simulations.bg_gal_flux")
-    test_args.sim_galaxy_scale_all = config.value("photometry.campari.simulations.sim_galaxy_scale")
-    test_args.sim_galaxy_offset_all = config.value("photometry.campari.simulations.sim_galaxy_offset")
+    test_args.bg_gal_flux_all = config.value("photometry.campari_simulations.bg_gal_flux")
+    test_args.sim_galaxy_scale_all = config.value("photometry.campari_simulations.sim_galaxy_scale")
+    test_args.sim_galaxy_offset_all = config.value("photometry.campari_simulations.sim_galaxy_offset")
     test_args.source_phot_ops = config.value("photometry.campari.source_phot_ops")
-    test_args.mismatch_seds = config.value("photometry.campari.simulations.mismatch_seds")
+    test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")
     test_args.initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
     test_args.spacing = config.value("photometry.campari.grid_options.spacing")
     test_args.percentiles = config.value("photometry.campari.grid_options.percentiles")
     test_args.grid_type = config.value("photometry.campari.grid_options.type")
-    test_args.base_pointing = config.value("photometry.campari.simulations.base_pointing")
-    test_args.base_sca = config.value("photometry.campari.simulations.base_sca")
-    test_args.run_name = config.value("photometry.campari.simulations.run_name")
+    test_args.base_pointing = config.value("photometry.campari_simulations.base_pointing")
+    test_args.base_sca = config.value("photometry.campari_simulations.base_sca")
+    test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
     test_args.pointing_list = None
+
+    test_args.find_obj_prov_tag = None
+    test_args.find_obj_process = None
+    test_args.get_collection_prov_tag = None
+    test_args.get_collection_process = None
+    test_args.obj_pos_prov_tag = None
+    test_args.obj_pos_process = None
     return test_args
 
 
@@ -143,7 +150,6 @@ def test_decide_run_mode(cfg):
     assert runner.transient_start is not None
     assert runner.transient_end is not None
     assert runner.run_mode == "RA/Dec"
-
 
     # Finally, check some cases  that should raise errors
     test_args.healpix_file = None
@@ -214,7 +220,7 @@ def test_get_SED_list(cfg):
     img.band = "Y106"
     image_list = [img]
 
-    orig_fetch_sed = cfg.value( "photometry.campari.fetch_SED" )
+    orig_fetch_sed = cfg.value("photometry.campari.fetch_SED")
 
     try:
 

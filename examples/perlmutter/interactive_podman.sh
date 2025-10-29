@@ -5,6 +5,7 @@ podman-hpc run --gpu \
     --mount type=bind,source=$PWD/campari,target=/campari \
     --mount type=bind,source=$PWD/campari_out_dir,target=/campari_out_dir \
     --mount type=bind,source=$PWD/campari_out_dir,target=/lightcurves \
+    --mount type=bind,source=/global/homes/c/cmeldorf/secrets,target=/secrets \
     --mount type=bind,source=$SCRATCH/campari_debug_dir,target=/campari_debug_dir \
     --mount type=bind,source=/dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data,target=/sims_dir \
     --mount type=bind,source=/dvs_ro/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE,target=/snana_pq_dir \
