@@ -130,14 +130,15 @@ class campari_runner:
                              "the galaxy be a delta function.")
 
         # Lightcurve provenance argument parsing logic:
-        SNLogger.debug("no save to db is set to " + str(kwargs["save_to_db"]))
+        SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
         if kwargs["save_to_db"]:
             if self.create_ltcv_provenance:
                 raise NotImplementedError("Creating lightcurve provenance is not yet implemented in Campari.")
             else:
-                assert self.ltcv_provenance_id is not None or \
-                       (self.ltcv_provenance_tag is not None and self.ltcv_process is not None), \
-                       "Must provide either ltcv_provenance_id or both ltcv_provenance_tag and ltcv_process."
+                if not (self.ltcv_provenance_id is not None or
+                        (self.ltcv_provenance_tag is not None and self.ltcv_process is not None)):
+                    raise ValueError("Must provide either ltcv_provenance_id or both"
+                          " ltcv_provenance_tag and ltcv_process.")
 
         # PSF for when not using the Roman PSF:
         lam = 1293  # nm
@@ -175,16 +176,11 @@ class campari_runner:
                            f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
                            f"process={self.diaobject_process}")
 
-            if self.diaobject_collection == "manual":
-                diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
-                                                 provenance_tag=self.diaobject_provenance_tag,
-                                                 process=self.diaobject_process, name=ID,
-                                                 ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
-                                                 mjd_discovery_max=self.transient_end)
-            else:
-                diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
-                                                 provenance_tag=self.diaobject_provenance_tag,
-                                                 process=self.diaobject_process, name=ID)
+            diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
+                                             provenance_tag=self.diaobject_provenance_tag,
+                                             process=self.diaobject_process, name=ID,
+                                             ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
+                                             mjd_discovery_max=self.transient_end)
 
             if len(diaobjs) == 0:
                 raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
@@ -463,7 +459,10 @@ class campari_runner:
                 lc["filter"] = self.band
 
         if lc_model.flux is not None:
-            output_dir = pathlib.Path(self.cfg.value("system.paths.lightcurves"))
+            if self.save_to_db:
+                output_dir = pathlib.Path(self.cfg.value("system.paths.lightcurves"))
+            else:
+                output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db)
 

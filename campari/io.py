@@ -118,7 +118,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     meta_dict["diaobject_position_id"] = None  # placeholder for now XXX TODO
     meta_dict["provenance_id"] = cam_prov.id
     meta_dict["diaobject_id"] = diaobj.id
-    meta_dict["iau_name"] = diaobj.name  # I am not sure this is what IAUname is but it's a placeholder for now.
+    meta_dict["iau_name"] = diaobj.iauname
     meta_dict["ra_err"] = 0.0
     meta_dict["dec_err"] = 0.0  # This is a placeholder for now
     meta_dict["ra_dec_covar"] = 0.0  # This is a placeholder for now
@@ -166,7 +166,18 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
     """
     band = lc.meta["band"]
     SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
-    base_output_path = Config.get().value("system.paths.lightcurves") if output_path is None else output_path
+
+    if save_to_database:
+        if output_path is not None:
+            raise ValueError("output_path must be None when save_to_database is True.")
+        else:
+            base_output_path = Config.get().value("system.paths.lightcurves")
+    else:
+        if output_path is None:
+            base_output_path = Config.get().value("photometry.campari.paths.output_dir")
+        else:
+            base_output_path = output_path
+
     base_output_path = pathlib.Path(base_output_path)
     base_output_path.mkdir(exist_ok=True, parents=True)
 

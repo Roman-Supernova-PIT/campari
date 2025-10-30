@@ -30,7 +30,7 @@
 # - {use_real_images: true}
 # - {save_debug: true}
 # - {psfclass: ou24PSF}
-# - paths: {campari_test_data: /campari_test_data, debug_dir: /campari_debug_dir, sed_path: /campari_sed_dir,
+# - paths: {campari_test_data: /campari_test_data, debug_dir: /campari_debug_dir, output_dir: /campari_out_dir, sed_path: /campari_sed_dir,
 #     sims_sed_library: /home/rubin_sim_data/sims_sed_library}
 # - galsim: {tds_file: /campari/examples/perlmutter/tds.yaml}
 # - grid_options:
@@ -43,9 +43,9 @@
 # - {dec: -44.809659}
 # - {band: Y106}
 # - {diaobject_position_id: None}
-# - {provenance_id: da57dda1-522e-3e09-b1ac-6fb90fb9f386}
+# - {provenance_id: a44f6f8b-9bdd-4061-b083-2e5894e9cbe2}
 # - {diaobject_id: null}
-# - {iau_name: '40973166870'}
+# - {iau_name: None}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
 # - {ra_dec_covar: 0.0}

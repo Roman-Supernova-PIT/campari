@@ -140,12 +140,14 @@ def main():
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
     parser.add_argument("--diaobject-subset", type=str, default=None, required=False,
-                        help="Subset of the diaobject collection to use for lookup. ")  # Campari currently does not use this?
+                        help="Subset of the diaobject collection to use for lookup. ")
+    # Campari currently does not use this?
 
     parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of images to use for lookup. ")
     parser.add_argument("--image-subset", type=str, default=None, required=False,
-                        help="Subset of the image collection to use for lookup. ")  # Campari currently does not use this?
+                        help="Subset of the image collection to use for lookup. ")
+    # Campari currently does not use this?
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
@@ -235,10 +237,12 @@ def main():
                         help="A string to identify the process of the "
                         "diaobject. Default None.", default=None)
     parser.add_argument("--diaobject-id", type=str, default=None,
-                        help="the diaobject id. Default None.") # Campari currently does not use this?
+                        help="the diaobject id. Default None.")  # Campari currently does not use this?
 
     parser.add_argument("--ltcv-provenance-id", type=str,
-                        help="the provenance id for lightcurve. Default None.", default=None)  # Campari currently does not use this?
+                        help="the provenance id for lightcurve. Default None.", default=None)
+    # Campari currently does not use this?
+
     parser.add_argument("--ltcv-process", type=str,
                         help="A string to identify the process of the "
                         "lightcurve. Default None.", default=None)  # Campari currently does not use this?

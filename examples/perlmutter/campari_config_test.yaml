@@ -17,6 +17,7 @@ photometry:
     paths:
       sims_sed_library: /home/rubin_sim_data/sims_sed_library
       campari_test_data: /campari_test_data
+      output_dir: /campari_out_dir
       sed_path: /campari_sed_dir
       debug_dir: /campari_debug_dir
 
