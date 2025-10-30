@@ -185,10 +185,10 @@ def find_all_exposures(
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
-    image_source="snpitdb",
+    image_collection="snpitdb",
     dbclient=None,
-    collection_provenance_tag=None,
-    collection_process=None,
+    provenance_tag=None,
+    process=None,
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
@@ -216,7 +216,7 @@ def find_all_exposures(
         - detected: whether the exposure contains a detection or not.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
-    SNLogger.debug(f"Using image source: {image_source}")
+    SNLogger.debug(f"Using image source: {image_collection}")
     SNLogger.debug(f"image_selection_start: {image_selection_start}")
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
@@ -230,15 +230,12 @@ def find_all_exposures(
     temp_transient_start = 0 if transient_start is None else transient_start
     temp_transient_end = 1e30 if transient_end is None else transient_end
 
-    image_source = "ou2024"
-    collection_process = None
-    collection_provenance_tag = None
-    img_collection = ImageCollection().get_collection(collection=image_source, provenance_tag=collection_provenance_tag,
-                                                      process=collection_process, dbclient=dbclient)
+    img_collection = ImageCollection().get_collection(collection=image_collection, provenance_tag=provenance_tag,
+                                                      process=process, dbclient=dbclient)
 
     img_collection_prov = getattr(img_collection, "provenance", None)
     if img_collection_prov is None:
-        SNLogger.warning("Image collection has no provenance information. This is only a problem if not using snpitdb.")
+        SNLogger.warning("Image collection has no provenance information. This is only a problem if using snpitdb.")
 
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
         SNLogger.debug(f"Looking for Pre Transient images between {temp_image_selection_start}"

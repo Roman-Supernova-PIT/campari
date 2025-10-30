@@ -135,12 +135,17 @@ def main():
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
 
-    parser.add_argument("--object_collection", type=str, default="snpitdb", required=False,
+    parser.add_argument("--diaobject-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of objects to use for lookup. "
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
-    parser.add_argument("--image_source", type=str, default="snpitdb", required=False,
+    parser.add_argument("--diaobject-subset", type=str, default=None, required=False,
+                        help="Subset of the diaobject collection to use for lookup. ")  # Campari currently does not use this?
+
+    parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of images to use for lookup. ")
+    parser.add_argument("--image-subset", type=str, default=None, required=False,
+                        help="Subset of the image collection to use for lookup. ")  # Campari currently does not use this?
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
@@ -165,7 +170,7 @@ def main():
         "--transient_start",
         type=float,
         required=False,
-        help="MJD of first epoch of transient. Only used when --object_collection is manual. Otherwise, "
+        help="MJD of first epoch of transient. Only used when --diaobject-collection is manual. Otherwise, "
         " then the catalog values for transient_start, transient_end will be used."
         "If not given but transient_end is, will assume the first detection is at -inf.",
         default=None,
@@ -174,7 +179,7 @@ def main():
         "--transient_end",
         type=float,
         required=False,
-        help="MJD of last epoch of transient. Only used when --object_collection is manual. Otherwise, "
+        help="MJD of last epoch of transient. Only used when --diaobject-collection is manual. Otherwise, "
         " the catalog values for transient_start, transient_end will be used."
         " If not given but transient_start is, will assume the last detection is at +inf.",
         default=None,
@@ -215,29 +220,49 @@ def main():
                              "This will be useful if you are running very similar configurations and want to avoid"
                              "recomputing the matrices each time.")
 
-    parser.add_argument("--find_obj_prov_tag", "--find_object_provenance_tag", type=str,
-                        help="A string tag to identify the provenance of the "
-                        "object finding step. Default None.", default=None)
-
-    parser.add_argument("--find_obj_process", "--find_object_process", type=str,
-                        help="A string to identify the process of the "
-                        "object finding step. Default None.", default=None)
-
-    parser.add_argument("--get_collection_process", type=str,
+    parser.add_argument("--image-process", type=str,
                         help="A string to identify the process of getting "
                         "the image collection. Default None.", default=None)
 
-    parser.add_argument("--get_collection_prov_tag", "--get_collection_provenance_tag", type=str,
+    parser.add_argument("--image-provenance-tag", type=str,
                         help="A string tag to identify the provenance of "
                         "the image collection step. Default None.", default=None)
 
-    parser.add_argument("--obj_pos_prov_tag", "--object_position_provenance_tag", type=str,
+    parser.add_argument("--diaobject-provenance-tag", type=str,
+                        help="A string tag to identify the provenance of the "
+                        "diaobject. Default None.", default=None)
+    parser.add_argument("--diaobject-process", type=str,
+                        help="A string to identify the process of the "
+                        "diaobject. Default None.", default=None)
+    parser.add_argument("--diaobject-id", type=str, default=None,
+                        help="the diaobject id. Default None.") # Campari currently does not use this?
+
+    parser.add_argument("--ltcv-provenance-id", type=str,
+                        help="the provenance id for lightcurve. Default None.", default=None)  # Campari currently does not use this?
+    parser.add_argument("--ltcv-process", type=str,
+                        help="A string to identify the process of the "
+                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+    parser.add_argument("--ltcv-provenance-tag", type=str,
+                        help="A string tag to identify the provenance of the "
+                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+
+    parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=False,
+                        help="If True, will create and write provenances to the database."
+                             " Default False.")  # Campari currently does not use this?
+
+    parser.add_argument("--diaobject-position-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the program that determines the "
                         "object position. Default None.", default=None)
 
-    parser.add_argument("--obj_pos_process", "--object_position_process", type=str,
+    parser.add_argument("--diaobject-position-process", type=str,
                         help="A string to identify the process of the program that determines the object position."
                         " Default None.", default=None)
+
+    parser.add_argument("--save-to-db", action=argparse.BooleanOptionalAction, default=True, help="If True, "
+                        "will save all results to the database. Default True.")
+
+    parser.add_argument("--add-truth-to-lc", action=argparse.BooleanOptionalAction, default=False, help="If True, "
+                        "will add the truth fluxes from ou2024 to the lightcurve output. Default False.")
 
     if cfg is not None:
         cfg.augment_argparse(parser)

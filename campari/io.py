@@ -80,7 +80,6 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
 
     meta_dict = cam_prov.params["photometry"]["campari"]
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
-    SNLogger.debug(f"meta dict in build_lightcurve: {meta_dict}")
 
     data_dict = {
         "mjd": [],
@@ -96,7 +95,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
         "x_cutout": [],
         "y_cutout": [],
         "sky_background": [],
-        "sky_rms": []
+        "sky_rms": [],
+        "NEA": [],
     }
 
     for i, img in enumerate(image_list):
@@ -112,10 +112,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
             data_dict["y_cutout"].append(y_cutout)
             data_dict["sky_background"].append(lc_model.sky_background[i])
             data_dict["sky_rms"].append(0.0)  # placeholder for now XXX TODO
+            data_dict["NEA"].append(0.0)  # placeholder for now XXX TODO
 
-    SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
-
-    SNLogger.debug("trying to build a lightcurve object")
     meta_dict["band"] = band  # I don't ever expect campari to do multi-band fitting so just store the one band.
     meta_dict["diaobject_position_id"] = None  # placeholder for now XXX TODO
     meta_dict["provenance_id"] = cam_prov.id
@@ -127,15 +125,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
     # do multi-band fitting so this is probably fine.
     meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
-    data_dict["NEA"] = [0.0] * len(data_dict["pix_x"])  # snappl will calculate this
-
-    SNLogger.debug("building lightcurve object")
-    SNLogger.debug(f"data dict: {data_dict}")
-    SNLogger.debug(f"meta dict: {meta_dict}")
-    lc = Lightcurve(data=data_dict, meta=meta_dict)
-
-    # return QTable(data=data_dict, meta=meta_dict, units=units)
-    return lc
+    return Lightcurve(data=data_dict, meta=meta_dict)
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
@@ -158,16 +148,16 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True):
+def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True, save_to_database=False):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
-    lc: the lightcurve data
+    lc: the lightcurve data, in the form of a snappl.lightcurve.Lightcurve object
     identifier (str): the supernova ID or "simulated"
     band (str): the bandpass of the images used
     psftype (str): "romanpsf" or "analyticpsf"
     output_path (str): the path to save the lightcurve to.  Defaults to
-      config value phtometry.campari.paths.output_dir
+      config value system.paths.lightcurves
 
     Returns:
     None, saves the lightcurve to a ecsv file.
@@ -176,13 +166,17 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
     """
     band = lc.meta["band"]
     SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
-    output_path = Config.get().value("photometry.campari.paths.output_dir") if output_path is None else output_path
-    output_path = pathlib.Path(output_path)
-    output_path.mkdir(exist_ok=True, parents=True)
+    base_output_path = Config.get().value("system.paths.lightcurves") if output_path is None else output_path
+    base_output_path = pathlib.Path(base_output_path)
+    base_output_path.mkdir(exist_ok=True, parents=True)
+
+    filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
 
     lc.write(
-        base_dir=output_path, filepath=f"{identifier}_{band}_{psftype}_lc.ecsv", filetype="ecsv", overwrite=overwrite
+        base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
     )
+    # Return the lc so we can have the snappl generated filepath
+    return lc
 
 
 def read_healpix_file(healpix_file):

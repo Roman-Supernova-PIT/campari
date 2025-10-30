@@ -130,12 +130,12 @@ def compare_lightcurves(lc1, lc2):
             np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
 
     for col in bothmetacols:
-        SNLogger.debug(f"Checking meta col {col}")
         msg = f"The lightcurves do not match for meta column {col}"
         if "provenance" in col:
             continue
             # We want to check provenances at the end. Otherwise, the code will fail when it detects that the
             # provenance is different before it can tell us which column is different.
+        SNLogger.debug(f"Checking meta col {col}")
         if isinstance(lc1.meta[col], str) or isinstance(lc2.meta[col], str):
             np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
         elif isinstance(lc1.meta[col], type(None)) or isinstance(lc2.meta[col], type(None)):
@@ -146,9 +146,9 @@ def compare_lightcurves(lc1, lc2):
             np.testing.assert_allclose(lc1.meta[col], lc2.meta[col], rtol=3e-7), msg
 
     for col in bothmetacols:
-        SNLogger.debug(f"Checking meta col {col}")
         msg = f"The lightcurves do not match for meta column {col}"
         if "provenance" in col:
+            SNLogger.debug(f"Checking meta col {col}")
             np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
 
     unique_to_col1s = col1s.difference(col2s)
@@ -170,7 +170,7 @@ def test_find_all_exposures():
     image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                        maxdet=24,
                                        pointing_list=None, sca_list=None,
-                                       truth="simple_model", image_source="ou2024")
+                                       truth="simple_model", image_collection="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     argsort = np.argsort(compare_table["date"])
@@ -226,7 +226,7 @@ def test_savelightcurve():
                 "pix_y": [1, 1]
             }
         lc = Lightcurve(data=data_dict, meta=meta_dict)
-        # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
+        # save_lightcurve defaults to saving to system.paths.lightcurves
         save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir)
         assert lc_file.is_file()
         # TODO: look at contents?
@@ -235,17 +235,17 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
     args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
-            f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
+            f"{campari_test_data}/test_image_list_star.csv", "--diaobject-collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
-            "--image_source", "ou2024"]
+            "--image-collection", "ou2024", "--no-save-to-db"]
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
 
@@ -263,7 +263,7 @@ def test_run_on_star(campari_test_data, cfg):
     comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
     compare_lightcurves(current, comparison)
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -271,10 +271,10 @@ def test_run_on_star(campari_test_data, cfg):
     # Make sure it runs from the command line
     err_code = os.system(
         "python ../RomanASP.py -s 40973166870 -f Y106 -i"
-        f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
+        f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659 --image_source ou2024 "
+        "--ra 7.5833264 --dec -44.809659 --image-collection ou2024 --no-save-to-db "
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -290,7 +290,7 @@ def test_regression_function(campari_test_data, cfg):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -304,9 +304,7 @@ def test_regression_function(campari_test_data, cfg):
          "--no-photometry-campari-source_phot_ops",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
-         "--image_source", "ou2024",
-         "--find_obj_prov_tag", "ou2024", "--find_obj_process", "load_ou2024_diaobject",
-         "--get_collection_prov_tag", "ou2024", "--get_collection_process", "load_ou2024_image"
+         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc"
          ]
 
     orig_argv = sys.argv
@@ -334,7 +332,7 @@ def test_regression(campari_test_data):
 
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -350,9 +348,9 @@ def test_regression(campari_test_data):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
         "--no-photometry-campari-source_phot_ops "
-        "--save_model --image_source ou2024 "
-        "--find_obj_prov_tag ou2024 --find_obj_process load_ou2024_diaobject "
-        "--get_collection_prov_tag ou2024 --get_collection_process load_ou2024_image"
+        "--save_model --image-collection ou2024 "
+        " --no-save-to-db --add-truth-to-lc"
+        " --diaobject-collection ou2024"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -690,7 +688,8 @@ def test_find_all_exposures_with_img_list():
                                        maxdet=max_transient_images, band=band,
                                        image_selection_start=image_selection_start,
                                        image_selection_end=image_selection_end,
-                                       pointing_list=image_df["pointing"].values)
+                                       pointing_list=image_df["pointing"].values,
+                                       image_collection="ou2024")
 
     SNLogger.debug(f"Found {len(image_list)} images")
 
@@ -735,12 +734,12 @@ def test_handle_partial_overlap():
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
         f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
-        " --ra 7.446894 --dec -44.771605 --object_collection manual"
+        " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "
-        "--transient_start 63000 --transient_end 63000.0001 "
+        "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -757,9 +756,9 @@ def test_calculate_surface_brightness():
 
     band = "Y106"
     dbclient = SNPITDBClient()
-    image_source = "snpitdb"
+    image_collection = "snpitdb"
     img_collection = ImageCollection().get_collection(
-        collection=image_source, provenance_tag="ou2024", process="load_ou2024_image", dbclient=dbclient
+        collection=image_collection, provenance_tag="ou2024", process="load_ou2024_image", dbclient=dbclient
     )
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 

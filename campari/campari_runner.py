@@ -48,12 +48,12 @@ class campari_runner:
         self.SNID_file = kwargs["SNID_file"]
         self.SNID = kwargs["SNID"]
         self.img_list = kwargs["img_list"]
-        self.image_source = kwargs["image_source"]
+        self.image_collection = kwargs["image_collection"]
 
         self.healpix = kwargs["healpix"]
         self.healpix_file = kwargs["healpix_file"]
         self.nside = kwargs["nside"]
-        self.object_collection = kwargs["object_collection"]
+        self.diaobject_collection = kwargs["diaobject_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
 
@@ -63,12 +63,20 @@ class campari_runner:
         self.prebuilt_static_model = kwargs["prebuilt_static_model"]
         self.prebuilt_transient_model = kwargs["prebuilt_transient_model"]
 
-        self.find_object_provenance_tag = kwargs["find_obj_prov_tag"]
-        self.find_object_process = kwargs["find_obj_process"]
-        self.get_collection_provenance_tag = kwargs["get_collection_prov_tag"]
-        self.get_collection_process = kwargs["get_collection_process"]
-        self.object_position_provenance_tag = kwargs["obj_pos_prov_tag"]
-        self.object_position_process = kwargs["obj_pos_process"]
+        self.diaobject_provenance_tag = kwargs["diaobject_provenance_tag"]
+        self.diaobject_process = kwargs["diaobject_process"]
+        self.image_provenance_tag = kwargs["image_provenance_tag"]
+        self.image_process = kwargs["image_process"]
+        self.diaobject_position_provenance_tag = kwargs["diaobject_position_provenance_tag"]
+        self.diaobject_position_process = kwargs["diaobject_position_process"]
+
+        self.ltcv_provenance_tag = kwargs["ltcv_provenance_tag"]
+        self.ltcv_process = kwargs["ltcv_process"]
+        self.ltcv_provenance_id = kwargs["ltcv_provenance_id"]
+        self.create_ltcv_provenance = kwargs["create_ltcv_provenance"]
+
+        self.save_to_db = kwargs["save_to_db"]
+        self.add_truth_to_lc = kwargs["add_truth_to_lc"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
@@ -121,6 +129,16 @@ class campari_runner:
                              "which requires "
                              "the galaxy be a delta function.")
 
+        # Lightcurve provenance argument parsing logic:
+        SNLogger.debug("no save to db is set to " + str(kwargs["save_to_db"]))
+        if kwargs["save_to_db"]:
+            if self.create_ltcv_provenance:
+                raise NotImplementedError("Creating lightcurve provenance is not yet implemented in Campari.")
+            else:
+                assert self.ltcv_provenance_id is not None or \
+                       (self.ltcv_provenance_tag is not None and self.ltcv_process is not None), \
+                       "Must provide either ltcv_provenance_id or both ltcv_provenance_tag and ltcv_process."
+
         # PSF for when not using the Roman PSF:
         lam = 1293  # nm
         aberrations = galsim.roman.getPSF(1, self.band, pupil_bin=1).aberrations
@@ -154,25 +172,34 @@ class campari_runner:
             #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
 
             SNLogger.debug(f"Searching for DiaObject with id={ID}, ra={self.ra}, dec={self.dec},"
-                           f" collection={self.object_collection}, provenance_tag={self.find_object_provenance_tag}, "
-                           f"process={self.find_object_process}")
+                           f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
+                           f"process={self.diaobject_process}")
 
-            if self.object_collection == "manual":
-                diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
-                                                 provenance_tag=self.find_object_provenance_tag,
-                                                 process=self.find_object_process, name=ID,
+            if self.diaobject_collection == "manual":
+                diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
+                                                 provenance_tag=self.diaobject_provenance_tag,
+                                                 process=self.diaobject_process, name=ID,
                                                  ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
                                                  mjd_discovery_max=self.transient_end)
             else:
-                diaobjs = DiaObject.find_objects(collection=self.object_collection, dbclient=self.dbclient,
-                                                 provenance_tag=self.find_object_provenance_tag,
-                                                 process=self.find_object_process, name=ID)
+                diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
+                                                 provenance_tag=self.diaobject_provenance_tag,
+                                                 process=self.diaobject_process, name=ID)
 
             if len(diaobjs) == 0:
                 raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
             if len(diaobjs) > 1:
                 raise ValueError(f"Found multiple DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
             diaobj = diaobjs[0]
+
+            # Get diaobject position using different methods depending on provenance.
+            if self.diaobject_position_provenance_tag is None:
+                diaobj.ra = diaobj.ra
+                diaobj.dec = diaobj.dec
+            else:
+                diaobj.ra, diaobj.dec = diaobj.get_position(provenance_tag=self.diaobject_position_provenance_tag,
+                                                            process=self.diaobject_process, dbclient=self.dbclient)
+
             if self.ra is not None:
                 if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
                     SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
@@ -194,10 +221,10 @@ class campari_runner:
                                      f"nominal transient_end {diaobj.mjd_end}")
                 diaobj.mjd_end = self.transient_end
 
-            SNLogger.debug(f"Object info for SN {ID} in collection {self.object_collection}: ra={diaobj.ra},"
+            SNLogger.debug(f"Object info for SN {ID} in collection {self.diaobject_collection}: ra={diaobj.ra},"
                            f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
             image_list = self.get_exposures(diaobj)
-            sedlist = self.get_sedlist(diaobj.name, image_list)
+            sedlist = self.get_sedlist(diaobj.id, image_list)
 
             # This has to go after get_exposures because the infs break the simdex.
             if diaobj.mjd_start is None:
@@ -256,11 +283,11 @@ class campari_runner:
                 SNID.extend(extract_object_from_healpix(healpix, self.nside, object_type=self.object_type,
                             source="OpenUniverse2024"))
 
-        elif self.object_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
+        elif self.diaobject_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
             raise ValueError(
                 "Must specify --SNID, --SNID-file, to run campari with a non-manual object collection. Note that"
-                " --object_collection is ou2024 by default, so if you want to run campari without looking up a SNID,"
-                " you must set --object_collection to manual and provide --ra and --dec."
+                " --diaobject-collection is ou2024 by default, so if you want to run campari without looking up a SNID,"
+                " you must set --diaobject-collection to manual and provide --ra and --dec."
             )
         else:
             raise ValueError(
@@ -304,17 +331,16 @@ class campari_runner:
                                                                 band=self.band,
                                                                 image_selection_start=self.image_selection_start,
                                                                 image_selection_end=self.image_selection_end,
-                                                                image_source=self.image_source,
+                                                                image_collection=self.image_collection,
                                                                 pointing_list=self.pointing_list,
                                                                 dbclient=self.dbclient,
-                                                                collection_provenance_tag=self.
-                                                                get_collection_provenance_tag,
-                                                                collection_process=self.get_collection_process)
+                                                                provenance_tag=self.image_provenance_tag,
+                                                                process=self.image_process)
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
             no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
-            SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.name}.")
+            SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
 
             if (
                 self.max_no_transient_images != 0
@@ -365,17 +391,17 @@ class campari_runner:
         SNLogger.debug(f"Found {len(image_list)} exposures")
         return image_list
 
-    def get_sedlist(self, ID, image_list):
+    def get_sedlist(self, name, image_list):
         """Create a list of SEDs for the given SNID and images."""
         try:
-            sed_obj = OU2024_Truth_SED(ID, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
+            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
         except Exception as e:
             SNLogger.error(f"Error creating SED object: {e}. Using flat SED instead.")
             sed_obj = Flat_SED()
 
         sedlist = []
         for img in image_list:
-            sedlist.append(sed_obj.get_sed(snid=ID, mjd=img.mjd))
+            sedlist.append(sed_obj.get_sed(snid=name, mjd=img.mjd))
         return sedlist
 
     def call_run_one_object(self, diaobj, image_list, sedlist, param_grid_row):
@@ -418,10 +444,10 @@ class campari_runner:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
-            identifier = str(diaobj.name)
+            identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
             if lc_model.flux is not None:
-                lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.object_position_provenance_tag)
-                if self.object_collection != "manual":
+                lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
+                if self.add_truth_to_lc:
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
         else:
@@ -431,14 +457,15 @@ class campari_runner:
                     str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
                     + self.grid_type
             else:
-                identifier = self.run_name + "_" + str(diaobj.name)
+                identifier = self.run_name + "_" + str(diaobj.id if diaobj.id is not None else diaobj.name)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
                 lc["filter"] = self.band
 
         if lc_model.flux is not None:
-            output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
-            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir)
+            output_dir = pathlib.Path(self.cfg.value("system.paths.lightcurves"))
+            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                            save_to_database=self.save_to_db)
 
         # Now, save the images
 
