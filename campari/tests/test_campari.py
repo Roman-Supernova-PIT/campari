@@ -235,7 +235,7 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -263,7 +263,7 @@ def test_run_on_star(campari_test_data, cfg):
     comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
     compare_lightcurves(current, comparison)
 
-    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -290,7 +290,7 @@ def test_regression_function(campari_test_data, cfg):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -332,7 +332,7 @@ def test_regression(campari_test_data):
 
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("system.paths.lightcurves")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
