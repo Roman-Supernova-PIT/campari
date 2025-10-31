@@ -8,7 +8,7 @@ import numpy as np
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level

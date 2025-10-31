@@ -15,8 +15,8 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calc_mag_and_err

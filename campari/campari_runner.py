@@ -13,8 +13,8 @@ from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snappl.sed import Flat_SED, OU2024_Truth_SED
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # Campari
 from campari.access_truth import add_truth_to_lc, extract_object_from_healpix

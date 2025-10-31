@@ -8,7 +8,7 @@ from scipy.stats import norm, skewtest
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
 
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 
 imsize = 19

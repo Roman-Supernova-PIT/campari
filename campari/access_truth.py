@@ -21,8 +21,8 @@ import healpy as hp
 # SN-PIT
 from campari.utils import calc_mag_and_err
 from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 
 # This supresses a warning because the Open Universe Simulations dates are not

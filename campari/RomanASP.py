@@ -9,7 +9,7 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snpit_utils.config import Config
+from snappl.config import Config
 from campari.campari_runner import campari_runner
 
 

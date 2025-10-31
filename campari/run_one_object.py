@@ -18,8 +18,8 @@ from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
 from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.

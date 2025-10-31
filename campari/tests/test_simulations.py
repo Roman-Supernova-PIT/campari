@@ -12,7 +12,7 @@ from campari import RomanASP
 from campari.simulation import simulate_galaxy, simulate_images, simulate_supernova, simulate_wcs
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)

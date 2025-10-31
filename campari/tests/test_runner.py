@@ -13,8 +13,8 @@ from campari.utils import campari_lightcurve_model
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 ROMAN_IMAGE_SIZE = 4088  # Roman images are 4088x4088 pixels (4096 minus 4 on each edge)
 
 
