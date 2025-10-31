@@ -1,0 +1,1 @@
+Removed asserts outside of tests
