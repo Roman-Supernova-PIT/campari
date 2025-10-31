@@ -320,8 +320,12 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
     -------
     id_array: numpy array of int, the IDs of the objects extracted from the healpix.
     """
-    assert isinstance(healpix, int), "Healpix must be an integer."
-    assert isinstance(nside, int), "Nside must be an integer."
+
+    if not isinstance(healpix, int):
+        raise TypeError("Healpix must be an integer.")
+    if not isinstance(nside, int):
+        raise TypeError("Nside must be an integer.")
+
     SNLogger.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
     if source == "OpenUniverse2024":
         path = Config.get().value("ou24.sn_truth_dir")
