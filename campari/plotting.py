@@ -5,7 +5,7 @@ from matplotlib import pyplot as plt
 from astropy.io import fits
 
 import snappl
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 
 def plot_images(fileroot, size=11):

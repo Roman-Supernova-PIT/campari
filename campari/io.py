@@ -3,6 +3,7 @@ import os
 import pathlib
 import warnings
 
+
 # Common Library
 import numpy as np
 import pandas as pd
@@ -15,8 +16,10 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.provenance import Provenance
+from snappl.config import Config
+from snappl.lightcurve import Lightcurve
+from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calc_mag_and_err
@@ -38,7 +41,7 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     return df
 
 
-def build_lightcurve(diaobj, lc_model):
+def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     """This code builds a lightcurve datatable from the output of the SMP algorithm.
 
     Input:
@@ -57,43 +60,72 @@ def build_lightcurve(diaobj, lc_model):
     image_list = lc_model.image_list
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
+    SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-    meta_dict = {"ID": diaobj.id, "obj_ra": diaobj.ra, "obj_dec": diaobj.dec}
-    meta_dict["local_surface_brightness"] = lc_model.LSB
+
+    diaobj_prov = getattr(diaobj, "provenance_Id", None)
+    provs = [diaobj_prov, lc_model.image_collection_prov]
+    upstream_list = [p for p in provs if p is not None]
+
+    cfg = Config.get()
+    cam_prov = Provenance(
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,
+        keepkeys=["photometry.campari"],
+        omitkeys=None,
+        upstreams=upstream_list,
+    )
+
+    meta_dict = cam_prov.params["photometry"]["campari"]
+    meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
 
     data_dict = {
         "mjd": [],
-        "flux_fit": flux,
-        "flux_fit_err": sigma_flux,
+        "flux": flux,
+        "flux_err": sigma_flux,
         "mag_fit": mag,
         "mag_fit_err": magerr,
-        "filter": [],
         "zpt": np.full(np.size(mag), zp),
         "pointing": [],
         "sca": [],
-        "x": [],
-        "y": [],
+        "pix_x": [],
+        "pix_y": [],
         "x_cutout": [],
         "y_cutout": [],
+        "sky_background": [],
+        "sky_rms": [],
+        "NEA": [],
     }
 
     for i, img in enumerate(image_list):
         if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["filter"].append(img.band)
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-            data_dict["x"].append(x)
-            data_dict["y"].append(y)
+            data_dict["pix_x"].append(x)
+            data_dict["pix_y"].append(y)
             x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["x_cutout"].append(x_cutout)
             data_dict["y_cutout"].append(y_cutout)
+            data_dict["sky_background"].append(lc_model.sky_background[i])
+            data_dict["sky_rms"].append(0.0)  # placeholder for now XXX TODO
+            data_dict["NEA"].append(0.0)  # placeholder for now XXX TODO
 
-    units = {"mjd": u.d, "flux_fit": "", "flux_fit_err": "", "mag_fit": u.mag, "mag_fit_err": u.mag, "filter": ""}
-    SNLogger.debug(f"data dict in build_lightcurve: {data_dict}")
-
-    return QTable(data=data_dict, meta=meta_dict, units=units)
+    meta_dict["band"] = band  # I don't ever expect campari to do multi-band fitting so just store the one band.
+    meta_dict["diaobject_position_id"] = None  # placeholder for now XXX TODO
+    meta_dict["provenance_id"] = cam_prov.id
+    meta_dict["diaobject_id"] = diaobj.id
+    meta_dict["iau_name"] = diaobj.iauname
+    meta_dict["ra_err"] = 0.0
+    meta_dict["dec_err"] = 0.0  # This is a placeholder for now
+    meta_dict["ra_dec_covar"] = 0.0  # This is a placeholder for now
+    # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
+    # do multi-band fitting so this is probably fine.
+    meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
+    return Lightcurve(data=data_dict, meta=meta_dict)
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
@@ -116,30 +148,46 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True):
+def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True, save_to_database=False):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
-    lc: the lightcurve data
+    lc: the lightcurve data, in the form of a snappl.lightcurve.Lightcurve object
     identifier (str): the supernova ID or "simulated"
     band (str): the bandpass of the images used
     psftype (str): "romanpsf" or "analyticpsf"
     output_path (str): the path to save the lightcurve to.  Defaults to
-      config value phtometry.campari.paths.output_dir
+      config value system.paths.lightcurves
 
     Returns:
     None, saves the lightcurve to a ecsv file.
     The file name is:
     <output_path>/identifier_band_psftype_lc.ecsv
     """
-    band = lc["filter"][0]
-    output_path = Config.get().value("photometry.campari.paths.output_dir") if output_path is None else output_path
-    output_path = pathlib.Path(output_path)
-    output_path.mkdir(exist_ok=True, parents=True)
+    band = lc.meta["band"]
+    SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
 
-    lc_file = output_path / f"{identifier}_{band}_{psftype}_lc.ecsv"
-    SNLogger.info(f"Saving lightcurve to {lc_file}")
-    lc.write(lc_file, format="ascii.ecsv", overwrite=overwrite)
+    if save_to_database:
+        if output_path is not None:
+            raise ValueError("output_path must be None when save_to_database is True.")
+        else:
+            base_output_path = Config.get().value("system.paths.lightcurves")
+    else:
+        if output_path is None:
+            base_output_path = Config.get().value("photometry.campari.paths.output_dir")
+        else:
+            base_output_path = output_path
+
+    base_output_path = pathlib.Path(base_output_path)
+    base_output_path.mkdir(exist_ok=True, parents=True)
+
+    filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
+
+    lc.write(
+        base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
+    )
+    # Return the lc so we can have the snappl generated filepath
+    return lc
 
 
 def read_healpix_file(healpix_file):
