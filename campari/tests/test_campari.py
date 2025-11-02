@@ -58,7 +58,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
-    return cfg.value("photometry.campari.paths.campari_test_data")
+    return cfg.value("system.paths.campari_test_data")
 
 
 def compare_lightcurves(lc1, lc2):
@@ -235,13 +235,13 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
+    args = ["_", "--diaobject-name", "40973166870", "-f", "Y106", "-i",
             f"{campari_test_data}/test_image_list_star.csv", "--diaobject-collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
@@ -263,14 +263,14 @@ def test_run_on_star(campari_test_data, cfg):
     comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
     compare_lightcurves(current, comparison)
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
     # Make sure it runs from the command line
     err_code = os.system(
-        "python ../RomanASP.py -s 40973166870 -f Y106 -i"
+        "python ../RomanASP.py --diaobject-name 40973166870 -f Y106 -i"
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
@@ -290,13 +290,13 @@ def test_regression_function(campari_test_data, cfg):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
+    a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--photometry-campari-psfclass", "ou24PSF", "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
@@ -332,14 +332,14 @@ def test_regression(campari_test_data):
 
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
         "--photometry-campari-psfclass ou24PSF "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
@@ -725,7 +725,7 @@ def test_make_sim_param_grid():
 def test_handle_partial_overlap():
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) / "30617531_Y106_romanpsf_images.npy"
+    curfile = pathlib.Path(cfg.value("system.paths.debug_dir")) / "30617531_Y106_romanpsf_images.npy"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -733,7 +733,7 @@ def test_handle_partial_overlap():
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
-        f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
+        f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"

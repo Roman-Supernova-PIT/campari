@@ -270,17 +270,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if save_model:
         np.save(
-            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
+            pathlib.Path(Config.get().value("system.paths.debug_dir"))
             / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
             psf_matrix,
         )
         np.save(
-            pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir"))
+            pathlib.Path(Config.get().value("system.paths.debug_dir"))
             / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
             sn_matrix,
         )
         SNLogger.debug(
-            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('photometry.campari.paths.debug_dir'))}"
+            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('system.paths.debug_dir'))}"
         )
 
     images, err, sn_matrix, wgt_matrix =\

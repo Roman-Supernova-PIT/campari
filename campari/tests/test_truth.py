@@ -46,7 +46,7 @@ def test_find_parquet(sn_path):
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     cfg = Config.get()
     new_snid_file = (
-        pathlib.Path(cfg.value("photometry.campari.paths.debug_dir"))
+        pathlib.Path(cfg.value("system.paths.debug_dir"))
         / "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv"
     )
     new_snid_file.unlink(missing_ok=True)

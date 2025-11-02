@@ -34,12 +34,9 @@ def create_default_test_args(cfg):
     test_args.save_model = False
     test_args.prebuilt_static_model = None
     test_args.prebuilt_transient_model = None
-    test_args.SNID_file = None
-    test_args.SNID = None
+    test_args.diaobject_name = None
+    test_args.diaobject_id = None
     test_args.img_list = None
-    test_args.healpix = None
-    test_args.healpix_file = None
-    test_args.nside = None
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
@@ -113,12 +110,8 @@ def test_runner_init(cfg):
     assert runner.image_selection_end == test_args.image_selection_end
     assert runner.object_type == test_args.object_type
     assert runner.fast_debug == test_args.fast_debug
-    assert runner.SNID_file == test_args.SNID_file
-    assert runner.SNID == test_args.SNID
+    assert runner.diaobject_name == test_args.diaobject_name
     assert runner.img_list == test_args.img_list
-    assert runner.healpix == test_args.healpix
-    assert runner.healpix_file == test_args.healpix_file
-    assert runner.nside == test_args.nside
     assert runner.diaobject_collection == test_args.diaobject_collection
     assert runner.transient_start == test_args.transient_start
     assert runner.transient_end == test_args.transient_end
@@ -132,29 +125,16 @@ def test_runner_init(cfg):
 def test_decide_run_mode(cfg):
     test_args = create_default_test_args(cfg)
 
-    # First test passing a SNID
-    test_args.SNID = 20172782
+    # First test passing a diaobject_name
+    test_args.diaobject_name = 20172782
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
-    assert runner.SNID == [20172782]
-    assert runner.run_mode == "Single SNID"
+    assert runner.diaobject_name == 20172782
 
-    # Now Test passing a SNID file
-    test_args.SNID = None
-    test_args.SNID_file = pathlib.Path(__file__).parent / "testdata/test_snids.csv"
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert len(runner.SNID) == 50
-    assert runner.run_mode == "SNID File"
 
     # Now test passing RA and Dec
-    test_args.SNID_file = None
     test_args.ra = 10.684
     test_args.dec = 41.269
-    runner = campari_runner(**vars(test_args))
-    with pytest.raises(ValueError, match="Must specify --transient_start and --transient_end to run campari"):
-        runner.decide_run_mode()
-
     test_args.transient_start = 60000.0
     test_args.transient_end = 60100.0
     runner = campari_runner(**vars(test_args))
@@ -163,33 +143,14 @@ def test_decide_run_mode(cfg):
     assert runner.dec == 41.269
     assert runner.transient_start is not None
     assert runner.transient_end is not None
-    assert runner.run_mode == "RA/Dec"
-
-    # Finally, check some cases  that should raise errors
-    test_args.healpix_file = None
-    test_args.nside = None
-    test_args.diaobject_collection = "ou24"
-    test_args.SNID = None
-    test_args.SNID_file = None
-    test_args.ra = None
-    test_args.dec = None
-    with pytest.raises(ValueError, match="Must specify --SNID, --SNID-file, to run campari "):
-        campari_runner(**vars(test_args)).decide_run_mode()
-
-    test_args.diaobject_collection = "manual"
-    with pytest.raises(
-        ValueError,
-        match="Must specify --SNID, --SNID-file, --healpix, --healpix_file, or --ra and --dec to run campari.",
-    ):
-        campari_runner(**vars(test_args)).decide_run_mode()
 
     test_args.diaobject_collection = "ou24"
-    test_args.SNID = 20172782
+    test_args.diaobject_name = 20172782
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
 
-    assert runner.SNID == [20172782]
+    assert runner.diaobject_name == 20172782
     columns = ["pointing", "sca"]
     SNLogger.debug(pd.read_csv(test_args.img_list))
     np.testing.assert_array_equal(runner.pointing_list,
@@ -199,7 +160,7 @@ def test_decide_run_mode(cfg):
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
-    test_args.SNID = 20172782
+    test_args.diaobject_name = 20172782
     test_args.image_collection = "ou2024"
 
     runner = campari_runner(**vars(test_args))
@@ -221,7 +182,7 @@ def test_get_exposures(cfg):
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
-    test_args.SNID = 40120913
+    test_args.diaobject_name = 40120913
 
     img = FITSImageStdHeaders(
         header=None,
@@ -251,7 +212,7 @@ def test_get_SED_list(cfg):
 
         runner = campari_runner(**vars(test_args))
         runner.decide_run_mode()
-        sedlist = runner.get_sedlist(test_args.SNID, image_list)
+        sedlist = runner.get_sedlist(test_args.diaobject_name, image_list)
         assert len(sedlist) == 1, "The length of the SED list is not 1"
         sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
         np.testing.assert_allclose(sedlist[0]._spec.x, sn_lam_test, atol=1e-7)
@@ -267,7 +228,7 @@ def test_get_SED_list(cfg):
 def test_build_and_save_lc(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "manual"
-    test_args.SNID = 20172782
+    test_args.diaobject_name = 20172782
 
     runner = campari_runner(**vars(test_args))
 
@@ -325,12 +286,12 @@ def test_build_and_save_lc(cfg):
                                         best_fit_model_values=best_fit_model_values,
                                         sim_lc=sim_lc)
 
-    diaobj = DiaObject.find_objects(name=test_args.SNID, ra=ra, dec=dec, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=test_args.diaobject_name, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = -np.inf
     diaobj.mjd_end = np.inf
     runner.build_and_save_lightcurve(diaobj, lc_model, None)
 
-    output_dir = pathlib.Path(cfg.value("photometry.campari.paths.output_dir"))
+    output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"
     filepath = output_dir / filename
 
@@ -345,7 +306,7 @@ def test_sim_param_grid(cfg):
     test_args = create_default_test_args(cfg)
     test_args.use_real_images = False
     test_args.diaobject_collection = "ou24"
-    test_args.SNID = 20172782
+    test_args.diaobject_name = 20172782
     runner = campari_runner(**vars(test_args))
     runner.decide_run_mode()
     runner.bg_gal_flux_all = [1.0, 2.0]

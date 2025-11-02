@@ -95,25 +95,9 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("-s", "--SNID", "--oid", type=int, default=None,
-                        required=False, nargs="*",
-                        help="Object IDs to run on. Meaning is dependent on the collection used."
-                             "Will be ignored if --SNID-file is given")
-    parser.add_argument("--SNID-file", "--oid_file", type=str, default=None, required=False,
-                        help="Path to a csv file containing a list of "
-                             "Object IDs to run on. Meaning of Object ID dependent on the collection used.")
-
-    parser.add_argument("--healpix", type=int, default=None, required=False, nargs="*",
-                        help="Healpix ID or IDs to run on. If given, will run on all "
-                             "supernovae in that healpix. nside must be specified with the"
-                             "--nside argument.")
-    parser.add_argument("--nside", type=int, default=None, required=False,
-                        help="Nside of the healpix to run on. If given, will run "
-                             "on all supernovae in that healpix. This is a required argument if --healpix is given.")
-    parser.add_argument("--healpix_file", type=str, default=None,  required=False,
-                        help="A file of healpix IDs to run on. If given, "
-                        "will run on all supernovae in those healpixes. nside must be specified with the"
-                        "--nside argument.")
+    parser.add_argument("--diaobject-name", type=int, default=None,
+                        required=False,
+                        help="Object name to run on. Meaning is dependent on the collection used.")
 
     parser.add_argument("--prebuilt_static_model", type=str, default=None,  required=False,
                         help="A path to a .npy file containing a prebuilt static model. "
@@ -237,7 +221,7 @@ def main():
                         help="A string to identify the process of the "
                         "diaobject. Default None.", default=None)
     parser.add_argument("--diaobject-id", type=str, default=None,
-                        help="the diaobject id. Default None.")  # Campari currently does not use this?
+                        help="the diaobject id. Default None.")
 
     parser.add_argument("--ltcv-provenance-id", type=str,
                         help="the provenance id for lightcurve. Default None.", default=None)

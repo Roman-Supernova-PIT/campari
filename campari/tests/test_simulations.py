@@ -146,7 +146,7 @@ def test_simulate_supernova():
 #     base_sca = 3
 #     base_pointing = 5934
 
-#     curfile = pathlib.Path(pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) /
+#     curfile = pathlib.Path(pathlib.Path(cfg.value("system.paths.debug_dir")) /
 #                            "deltafcn_test_20172782_Y106_romanpsf_images.npy")
 #     curfile.unlink(missing_ok=True)
 #     imsize = 19
@@ -198,7 +198,7 @@ def test_simulate_supernova():
 #         plt.colorbar()
 #         plt.tight_layout()
 #         savepath = pathlib.Path(
-#             pathlib.Path(cfg.value("photometry.campari.paths.debug_dir"))
+#             pathlib.Path(cfg.value("system.paths.debug_dir"))
 #             / "deltafcn_test_20172782_Y106_romanpsf_images.png"
 #         )
 #         plt.savefig(savepath)

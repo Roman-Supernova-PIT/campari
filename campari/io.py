@@ -174,7 +174,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
             base_output_path = Config.get().value("system.paths.lightcurves")
     else:
         if output_path is None:
-            base_output_path = Config.get().value("photometry.campari.paths.output_dir")
+            base_output_path = Config.get().value("system.paths.output_dir")
         else:
             base_output_path = output_path
 

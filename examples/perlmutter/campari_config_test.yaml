@@ -14,12 +14,6 @@ photometry:
     save_debug: true
     psfclass: ou24PSF
 
-    paths:
-      sims_sed_library: /home/rubin_sim_data/sims_sed_library
-      campari_test_data: /campari_test_data
-      output_dir: /campari_out_dir
-      sed_path: /campari_sed_dir
-      debug_dir: /campari_debug_dir
 
     # OMG
     galsim:
@@ -61,6 +55,12 @@ ou24psf:
 system:
   paths:
     lightcurves: /campari_out_dir # So Cole can run tests.
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    campari_test_data: /campari_test_data
+    output_dir: /campari_out_dir
+    sed_path: /campari_sed_dir
+    debug_dir: /campari_debug_dir
+
   ou24:
     simdex_server: https://roman-desc-simdex.rknop.net
     config_file: /campari/examples/perlmutter/tds.yaml

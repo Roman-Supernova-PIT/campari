@@ -216,7 +216,7 @@ def find_all_exposures(
         - detected: whether the exposure contains a detection or not.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
-    SNLogger.debug(f"Using image source: {image_collection}")
+    SNLogger.debug(f"Using image collection: {image_collection}")
     SNLogger.debug(f"image_selection_start: {image_selection_start}")
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
@@ -234,9 +234,6 @@ def find_all_exposures(
                                                       process=process, dbclient=dbclient)
 
     img_collection_prov = getattr(img_collection, "provenance", None)
-    if img_collection_prov is None:
-        SNLogger.warning("Image collection has no provenance information. This is only a problem if using snpitdb.")
-
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
         SNLogger.debug(f"Looking for Pre Transient images between {temp_image_selection_start}"
                        f" and {temp_transient_start}")

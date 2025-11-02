@@ -24,7 +24,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
-    return cfg.value("photometry.campari.paths.campari_test_data")
+    return cfg.value("system.paths.campari_test_data")
 
 
 def test_find_diaobject():
@@ -65,9 +65,9 @@ def test_get_image_collection():
 def test_get_image_collection_missing_provenance():
     image_collection = "snpitdb"
     provenance_tag = "nonexistent_tag"
-    process = "load_nonexistent_image"
+    process = "load_ou2024_image"
     dbclient = SNPITDBClient()
-    with pytest.raises(RuntimeError, match="Unknown provenance"):
+    with pytest.raises(KeyError):
         ImageCollection().get_collection(
             collection=image_collection, provenance_tag=provenance_tag, process=process, dbclient=dbclient
         )
