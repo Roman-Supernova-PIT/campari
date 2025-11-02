@@ -399,7 +399,7 @@ class campari_runner:
 
         if lc_model.flux is not None:
             if self.save_to_db:
-                output_dir = pathlib.Path(self.cfg.value("system.paths.lightcurves"))
+                output_dir = None
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
