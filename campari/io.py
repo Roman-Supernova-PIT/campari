@@ -71,7 +71,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     cam_prov = Provenance(
         process="campari",
         major=0,
-        minor=42,
+        minor=42, # THIS CAN'T BE HARDCODED FOREVER XXX TODO
         params=cfg,
         keepkeys=["photometry.campari"],
         omitkeys=None,
@@ -102,6 +102,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     for i, img in enumerate(image_list):
         if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
+            SNLogger.debug(f"Adding image with MJD {img.mjd} to lightcurve")
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
@@ -125,7 +126,13 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
     # do multi-band fitting so this is probably fine.
     meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
-    return Lightcurve(data=data_dict, meta=meta_dict)
+
+    lc = Lightcurve(data=data_dict, meta=meta_dict)
+    # Some extra info needed to save
+    lc.image_list = image_list
+    lc.diaobj = diaobj
+
+    return lc
 
 
 def build_lightcurve_sim(supernova, flux, sigma_flux):
@@ -148,7 +155,10 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
-def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, overwrite=True, save_to_database=False):
+def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
+                    overwrite=True, save_to_database=False, dbclient=None,
+                    new_provenance=False, diaobj_pos=None,
+                    ltcvprocess=None):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -183,9 +193,38 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None, ov
 
     filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
 
-    lc.write(
-        base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
-    )
+    if save_to_database:
+
+        # process = "campari"
+        # major = 0
+        # minor = 42  # THIS CAN'T BE HARDCODED FOREVER XXX TODO
+        # params = Config.get()
+        # keepkeys = ["photometry.campari"]
+        # omitkeys = None
+        # imgprov = Provenance.get_by_id(lc.image_list[0].provenance_id, dbclient=dbclient)
+        # objprov = Provenance.get_by_id(lc.diaobj.provenance_id, dbclient=dbclient)
+        # if diaobj_pos is not None:
+        #     objposprov = Provenance.get_by_id(diaobj_pos, dbclient=dbclient)
+        #     upstreams = [imgprov, objprov, objposprov]
+        # else:
+        #     objposprov = None
+        #     upstreams = [imgprov, objprov]
+        SNLogger.debug("Creating new provenance for lightcurve")
+
+        # ltcvprov = Provenance(process=process, major=major, minor=minor, params=params,
+        #                       upstreams=upstreams, keepkeys=keepkeys,
+        #                       omitkeys=omitkeys)
+        SNLogger.debug("Using provenance to save lightcurve to database")
+        SNLogger.debug(lc.meta.get("provenance_id"))
+        ltcvprov = Provenance.get_by_id(lc.meta.get("provenance_id"), dbclient=dbclient)
+        ltcv_provenance_tag = "campari_test_provenance_lightcurve"
+        if new_provenance:
+            ltcvprov.save_to_db(tag=ltcv_provenance_tag)
+        lc.save_to_db(dbclient=dbclient)
+    else:
+        lc.write(
+            base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
+        )
     # Return the lc so we can have the snappl generated filepath
     return lc
 

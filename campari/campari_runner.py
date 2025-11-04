@@ -166,7 +166,8 @@ class campari_runner:
         # ra=self.ra, dec=self.dec
         #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
 
-        SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_name}, ra={self.ra}, dec={self.dec},"
+        SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                       f" ra={self.ra}, dec={self.dec},"
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
                        f"process={self.diaobject_process}")
 
@@ -178,9 +179,13 @@ class campari_runner:
                                          mjd_discovery_max=self.transient_end)
 
         if len(diaobjs) == 0:
-            raise ValueError(f"Could not find DiaObject with id={self.diaobject_name}, ra={self.ra}, dec={self.dec}.")
+            raise ValueError(
+                f"Could not find DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                f" ra={self.ra}, dec={self.dec}."
+            )
         if len(diaobjs) > 1:
-            raise ValueError(f"Found multiple DiaObject with id={self.diaobject_name}, ra={self.ra}, dec={self.dec}.")
+            raise ValueError(f"Found multiple DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                             f" ra={self.ra}, dec={self.dec}.")
         diaobj = diaobjs[0]
 
         # Get diaobject position using different methods depending on provenance.
@@ -188,6 +193,9 @@ class campari_runner:
             diaobj.ra = diaobj.ra
             diaobj.dec = diaobj.dec
         else:
+            if self.ra is not None or self.dec is not None:
+                raise ValueError("Cannot provide ra or dec when also providing diaobject_position_provenance_tag."
+                                 "This would lead to provenance confusion.")
             diaobj.ra, diaobj.dec = diaobj.get_position(provenance_tag=self.diaobject_position_provenance_tag,
                                                         process=self.diaobject_process, dbclient=self.dbclient)
 
@@ -246,13 +254,14 @@ class campari_runner:
             self.pointing_list = None
 
     def create_sim_param_grid(self):
-        """Create a grid of simulation parameters to run the pipeline on."""
-        params = [self.bg_gal_flux_all, self.sim_galaxy_scale_all, self.sim_galaxy_offset_all]
-        nd_grid = np.meshgrid(*params)
-        self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
-        SNLogger.debug("Created a grid of simulation parameters with a total of"
-                       f" {self.param_grid.shape[1]} combinations.")
-        self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
+        raise NotImplementedError("Simulation parameter grid creation is broken. Will be made external later.")
+        # """Create a grid of simulation parameters to run the pipeline on."""
+        # params = [self.bg_gal_flux_all, self.sim_galaxy_scale_all, self.sim_galaxy_offset_all]
+        # nd_grid = np.meshgrid(*params)
+        # self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
+        # SNLogger.debug("Created a grid of simulation parameters with a total of"
+        #                f" {self.param_grid.shape[1]} combinations.")
+        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""

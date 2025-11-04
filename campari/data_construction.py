@@ -230,6 +230,11 @@ def find_all_exposures(
     temp_transient_start = 0 if transient_start is None else transient_start
     temp_transient_end = 1e30 if transient_end is None else transient_end
 
+    SNLogger.debug(f"Using image collection: {image_collection}")
+    SNLogger.debug(f"Using provenance tag: {provenance_tag}")
+    SNLogger.debug(f"Using process: {process}")
+    SNLogger.debug(f"db_client: {dbclient}")
+
     img_collection = ImageCollection().get_collection(collection=image_collection, provenance_tag=provenance_tag,
                                                       process=process, dbclient=dbclient)
 

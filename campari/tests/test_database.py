@@ -13,6 +13,8 @@ from erfa import ErfaWarning
 
 # SNPIT
 from campari.data_construction import find_all_exposures
+from campari.io import build_lightcurve, save_lightcurve
+from campari.utils import campari_lightcurve_model
 
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
@@ -74,14 +76,17 @@ def test_get_image_collection_missing_provenance():
 
 
 def test_find_exposures():
-    provenance_tag = "ou2024"
-    process = "load_ou2024_image"
+
     dbclient = SNPITDBClient()
 
     diaobj_provenance_tag = "ou2024"
     diaobj_process = "load_ou2024_diaobject"
     diaobj = DiaObject.find_objects(name=20172782, collection="snpitdb",
                                     provenance_tag=diaobj_provenance_tag, process=diaobj_process)[0]
+
+    provenance_tag = "ou2024"
+    process = "load_ou2024_image"
+
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
     image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106",
@@ -93,3 +98,4 @@ def test_find_exposures():
     pointings = [i.pointing for i in image_list]
     regression_pointings = np.load("/campari/campari/tests/testdata/test_find_exposures_pointings.npy")
     np.testing.assert_array_equal(pointings, regression_pointings)
+
