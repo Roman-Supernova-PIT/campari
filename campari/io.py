@@ -133,8 +133,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbcli
 
     meta_dict["band"] = band  # I don't ever expect campari to do multi-band fitting so just store the one band.
     meta_dict["diaobject_position_id"] = None  # placeholder for now XXX TODO
-    meta_dict["provenance_id"] = cam_prov.id
-    meta_dict["diaobject_id"] = diaobj.id
+    meta_dict["provenance_id"] = str(cam_prov.id)
+    meta_dict["diaobject_id"] = str(diaobj.id)
     meta_dict["iau_name"] = diaobj.iauname
     meta_dict["ra_err"] = 0.0
     meta_dict["dec_err"] = 0.0  # This is a placeholder for now
@@ -193,6 +193,8 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     """
     band = lc.meta["band"]
     SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
+    SNLogger.debug(f"save_to_database = {save_to_database}")
+    SNLogger.debug(f"new_provenance = {new_provenance}")
 
     if save_to_database:
         if output_path is not None:
@@ -238,10 +240,12 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         # ltcvprov = Provenance(process=process, major=major, minor=minor, params=params,
         #                       upstreams=upstreams, keepkeys=keepkeys,
         #                       omitkeys=omitkeys)
-        # # SNLogger.debug("Using provenance to save lightcurve to database")
-        # SNLogger.debug(lc.meta.get("provenance_id"))
-        ltcvprov = Provenance.get_by_id(lc.meta.get("provenance_id"), dbclient=dbclient)
-        ltcv_provenance_tag = "campari_test_provenance_lightcurve"
+        SNLogger.debug(lc.meta.get("provenance_id"))
+        #ltcvprov = Provenance.get_by_id(lc.meta.get("provenance_id"), dbclient=dbclient)
+        ltcvprov = lc.provenance_object
+        SNLogger.debug("Lightcurve provenance object:")
+        SNLogger.debug(ltcvprov.id)
+        ltcv_provenance_tag = "nov2025campari_firstrun"
         if new_provenance:
 
             SNLogger.debug("Creating new provenance for lightcurve")
