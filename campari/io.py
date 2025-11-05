@@ -41,7 +41,7 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     return df
 
 
-def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos = None, dbclient=None):
+def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbclient=None):
     """This code builds a lightcurve datatable from the output of the SMP algorithm.
 
     Input:

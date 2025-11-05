@@ -108,7 +108,7 @@ def test_write_lc_to_db():
     diaobj = DiaObject.find_objects(name=20172782, collection="snpitdb",
                                     provenance_tag=diaobj_provenance_tag, process=diaobj_process)[0]
 
-    provenance_tag = "ou2024_truth"
+    provenance_tag = "ou2024"
     process = "load_ou2024_image"
 
 #   For some reason, fetching the dates is very slow right now. In the interest of time, I am saying that all images
