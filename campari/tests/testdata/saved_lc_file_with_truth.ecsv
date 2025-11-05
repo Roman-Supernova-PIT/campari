@@ -2,54 +2,60 @@
 # ---
 # datatype:
 # - {name: mjd, unit: d, datatype: float64}
-# - {name: flux_fit, datatype: int64}
-# - {name: flux_fit_err, datatype: int64}
-# - {name: mag_fit, unit: mag, datatype: float64}
-# - {name: mag_fit_err, unit: mag, datatype: float64}
-# - {name: filter, datatype: string}
-# - {name: zpt, datatype: float64}
+# - {name: flux, unit: ct / s, datatype: float64}
+# - {name: flux_err, unit: ct / s, datatype: float64}
+# - {name: zpt, unit: mag, datatype: float64}
+# - {name: NEA, unit: pix2, datatype: float64}
+# - {name: sky_rms, unit: ct / s, datatype: float64}
 # - {name: pointing, datatype: int64}
 # - {name: sca, datatype: int64}
-# - {name: x, datatype: float64}
-# - {name: y, datatype: float64}
+# - {name: pix_x, unit: pix, datatype: float64}
+# - {name: pix_y, unit: pix, datatype: float64}
+# - {name: mag_fit, datatype: float64}
+# - {name: mag_fit_err, datatype: float64}
 # - {name: x_cutout, datatype: float64}
 # - {name: y_cutout, datatype: float64}
+# - {name: sky_background, datatype: float64}
 # - {name: sim_realized_flux, datatype: float64}
 # - {name: sim_true_flux, datatype: float64}
-# - {name: sim_realized_mag, unit: mag, datatype: float64}
-# - {name: sim_true_mag, unit: mag, datatype: float64}
+# - {name: sim_realized_mag, datatype: float64}
+# - {name: sim_true_mag, datatype: float64}
 # meta: !!omap
-# - {ID: 20172782}
-# - {obj_ra: 7}
-# - {obj_dec: -41}
-# - {local_surface_brightness: 25.0}
-# - {pre_transient_images: 1}
-# - {post_transient_images: 0}
+# - {cutout_size: 11}
+# - {initial_flux_guess: 3000}
+# - {fetch_SED: false}
+# - {source_phot_ops: true}
+# - {use_roman: true}
+# - {weighting: true}
+# - {make_initial_guess: true}
+# - {method: lsqr}
+# - {pixel: false}
+# - {subtract_background: true}
+# - {use_real_images: true}
+# - {save_debug: true}
+# - {psfclass: ou24PSF}
+# - galsim: {tds_file: /campari/examples/perlmutter/tds.yaml}
+# - grid_options:
+#     percentiles: [0, 90, 98, 100]
+#     spacing: 0.75
+#     turn_grid_off: false
+#     type: contour
+# - {ID: '20172782'}
+# - {ra: 7.0}
+# - {dec: -41.0}
+# - {band: Y106}
+# - {diaobject_position_id: None}
+# - {provenance_id: 25e9145b-145b-bee3-6e30-0c85e30986d1}
+# - {diaobject_id: null}
+# - {iau_name: None}
+# - {ra_err: 0.0}
+# - {dec_err: 0.0}
+# - {ra_dec_covar: 0.0}
+# - {local_surface_brightness_Y106: 25.0}
 # - {host_sep: 1.7006677389144897}
 # - {host_mag_g: 23.76300048828125}
 # - {host_ra: 7.550449}
 # - {host_dec: -44.8073}
-# - __serialized_columns__:
-#     mag_fit:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: &id001 !astropy.units.Unit {unit: mag}
-#       value: !astropy.table.SerializedColumn {name: mag_fit}
-#     mag_fit_err:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: mag_fit_err}
-#     mjd:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: d}
-#       value: !astropy.table.SerializedColumn {name: mjd}
-#     sim_realized_mag:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: sim_realized_mag}
-#     sim_true_mag:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: sim_true_mag}
 # schema: astropy-2.0
-mjd flux_fit flux_fit_err mag_fit mag_fit_err filter zpt pointing sca x y x_cutout y_cutout sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
-62495.605 100 10 27.661655753326713 0.10857362047581294 Y106 15.023547191066584 35198 2 68565.854106 127021.05784706218 68565.854106 127021.05784706218 1040.0 1069.10031 25.119072405079763 25.089109614636662
+mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
+62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.85410580816 127021.05784706218 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0 1040.0 1069.10031 25.119072405079763 25.089109614636662

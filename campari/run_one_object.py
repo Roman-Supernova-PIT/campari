@@ -93,7 +93,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # but still sorted by MJD.
 
     if use_real_images:
-        cutout_image_list, image_list = construct_images(image_list, diaobj, size,
+        cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
         noise_maps = [im.noise for im in cutout_image_list]
 
@@ -116,6 +116,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
         sim_lc = simulated_lightcurve.sim_lc
+        sky_background = np.zeros(len(sim_lc))
         image_list = simulated_lightcurve.image_list
         cutout_image_list = simulated_lightcurve.cutout_image_list
         galaxy_images = simulated_lightcurve.galaxy_images
@@ -158,7 +159,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if len(no_transient_cutouts) > 0:
         LSB = calculate_local_surface_brightness(no_transient_cutouts, cutout_pix=2)
     else:
-        LSB = None
+        # This is used for stars only, essentially. LSB just can't be None.
+        LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
@@ -285,16 +287,19 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
     if save_model:
-        psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir")) \
-            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
-        np.save(psf_matrix_path, psf_matrix)
-
-        sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari.paths.debug_dir")) \
-            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy"
-        np.save(sn_matrix_path, sn_matrix)
-
-        SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
-        SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")
+        np.save(
+            pathlib.Path(Config.get().value("system.paths.debug_dir"))
+            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            psf_matrix,
+        )
+        np.save(
+            pathlib.Path(Config.get().value("system.paths.debug_dir"))
+            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            sn_matrix,
+        )
+        SNLogger.debug(
+            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('system.paths.debug_dir'))}"
+        )
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
@@ -374,7 +379,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, pre_transient_images=num_pre_transient_images,
-            post_transient_images=num_post_transient_images
+            post_transient_images=num_post_transient_images, sky_background=sky_background
         )
 
     return lightcurve_model

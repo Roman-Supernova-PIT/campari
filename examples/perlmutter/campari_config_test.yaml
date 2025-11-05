@@ -2,7 +2,7 @@ photometry:
   campari:
     cutout_size: 11
     initial_flux_guess: 3000
-    fetch_SED: true
+    fetch_SED: false
     source_phot_ops: true
     use_roman: true
     weighting: true
@@ -14,12 +14,6 @@ photometry:
     save_debug: true
     psfclass: ou24PSF
 
-    paths:
-      sims_sed_library: /home/rubin_sim_data/sims_sed_library
-      campari_test_data: /campari_test_data
-      sed_path: /campari_sed_dir
-      output_dir: /campari_out_dir
-      debug_dir: /campari_debug_dir
 
     # OMG
     galsim:
@@ -39,36 +33,47 @@ photometry:
       error_floor: 1
       subsize: 4
 
-    simulations:
-      avoid_non_linearity: false
-      background_level: 0
-      bg_gal_flux: 100000.0
-      deltafcn_profile: false
-      do_rotation: true
-      do_xshift: true
-      mismatch_seds: false
-      noise: 0
-      sim_gal_dec_offset: 0.00001
-      sim_gal_ra_offset: 0.00001
-      single_grid_point: false
-      sim_galaxy_scale: 1.0
-      sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
-      base_pointing: 276
-      base_sca: 10
-      run_name: whatever
+  campari_simulations:
+    avoid_non_linearity: false
+    background_level: 0
+    bg_gal_flux: 100000.0
+    deltafcn_profile: false
+    do_rotation: true
+    do_xshift: true
+    mismatch_seds: false
+    noise: 0
+    sim_gal_dec_offset: 0.00001
+    sim_gal_ra_offset: 0.00001
+    single_grid_point: false
+    sim_galaxy_scale: 1.0
+    sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
+    base_pointing: 276
+    base_sca: 10
+    run_name: whatever
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
-
-  snappl:
-    simdex_server: https://roman-desc-simdex.rknop.net
-ou24:
-  config_file: /sn_info_dir/tds.yaml
-  sn_truth_dir: /snana_pq_dir
-  sims_sed_library: /home/rubin_sim_data/sims_sed_library
-  images: /sims_dir/RomanTDS/images/simple_model
-  tds_base: /photometry_test_data/ou2024
 
 ou24psf:
   config_file: /campari/examples/perlmutter/tds.yaml
 
+system:
+  paths:
+    lightcurves: /campari_out_dir # So Cole can run tests.
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    campari_test_data: /campari_test_data
+    output_dir: /campari_out_dir
+    sed_path: /campari_sed_dir
+    debug_dir: /campari_debug_dir
 
+  ou24:
+    simdex_server: https://roman-desc-simdex.rknop.net
+    config_file: /campari/examples/perlmutter/tds.yaml
+    sn_truth_dir: /snana_pq_dir
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    images: /sims_dir/RomanTDS/images/simple_model
+    tds_base: /photometry_test_data/ou2024
+
+  db:
+    url: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    username: campari
+    passwordfile: /secrets/roman_snpit_ou2024_campari

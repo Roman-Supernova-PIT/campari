@@ -116,7 +116,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
 
         cutout_image_list.append(image_cutout)
 
-    return cutout_image_list, image_list
+    return cutout_image_list, image_list, bgflux
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
@@ -193,8 +193,10 @@ def find_all_exposures(
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
-    image_source="ou2024",
-    image_path=None
+    image_collection="snpitdb",
+    dbclient=None,
+    provenance_tag=None,
+    process=None,
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
@@ -218,35 +220,56 @@ def find_all_exposures(
                      for image sources that require a base_path.
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
+    SNLogger.debug(f"Using image collection: {image_collection}")
+    SNLogger.debug(f"image_selection_start: {image_selection_start}")
+    SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec
 
-    img_collection = ImageCollection()
-    # De-harcode this
-    img_collection = img_collection.get_collection(image_source, subset="threefile", base_path=image_path)
+    # Database can't handle Nones
+    temp_image_selection_start = 0 if image_selection_start is None else image_selection_start
+    temp_image_selection_end = 1e30 if image_selection_end is None else image_selection_end
+    temp_transient_start = 0 if transient_start is None else transient_start
+    temp_transient_end = 1e30 if transient_end is None else transient_end
 
+    SNLogger.debug(f"Using image collection: {image_collection}")
+    SNLogger.debug(f"Using provenance tag: {provenance_tag}")
+    SNLogger.debug(f"Using process: {process}")
+    SNLogger.debug(f"db_client: {dbclient}")
+
+    img_collection = ImageCollection().get_collection(collection=image_collection, provenance_tag=provenance_tag,
+                                                      process=process, dbclient=dbclient)
+
+    img_collection_prov = getattr(img_collection, "provenance", None)
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
-
+        SNLogger.debug(f"Looking for Pre Transient images between {temp_image_selection_start}"
+                       f" and {temp_transient_start}")
         pre_transient_images = img_collection.find_images(
-            mjd_min=image_selection_start, mjd_max=transient_start, ra=ra, dec=dec, filter=band
+            mjd_min=temp_image_selection_start, mjd_max=temp_transient_start, ra=ra, dec=dec, band=band,
+
         )
+        SNLogger.debug(f"Found {len(pre_transient_images)}")
     else:
         pre_transient_images = []
 
     if (image_selection_end is None or transient_end < image_selection_end) and transient_end is not None:
+        SNLogger.debug(f"Looking for Post Transient images between {temp_transient_end} and {temp_image_selection_end}")
+
         post_transient_images = img_collection.find_images(
-            mjd_min=transient_end, mjd_max=image_selection_end, ra=ra, dec=dec, filter=band
+            mjd_min=temp_transient_end, mjd_max=temp_image_selection_end, ra=ra, dec=dec, band=band,
         )
+        SNLogger.debug(f"Found {len(post_transient_images)}")
     else:
         post_transient_images = []
 
     no_transient_images = pre_transient_images + post_transient_images
-
+    SNLogger.debug(f"Looking for Transient images between {temp_transient_start} and {temp_transient_end}")
     transient_images = img_collection.find_images(
-        mjd_min=transient_start, mjd_max=transient_end, ra=ra, dec=dec, filter=band
+        mjd_min=temp_transient_start, mjd_max=temp_transient_end, ra=ra, dec=dec, band=band,
     )
+    SNLogger.debug(f"Found {len(transient_images)} Transient images")
 
     no_transient_images = np.array(no_transient_images)
     transient_images = np.array(transient_images)
@@ -255,7 +278,12 @@ def find_all_exposures(
     if maxdet is not None:
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
+    SNLogger.debug(f"Found {len(all_images)} total images")
+
+    if pointing_list is not None:
+        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
+        SNLogger.debug(f"Filtered to {len(all_images)} images based on provided pointing list.")
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]
-    return all_images
+    return all_images, img_collection_prov

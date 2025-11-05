@@ -26,6 +26,7 @@ from campari.io import (
 )
 
 from campari.run_one_object import campari_lightcurve_model
+from campari.tests.test_campari import compare_lightcurves
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
@@ -35,7 +36,7 @@ from snappl.logger import SNLogger
 
 @pytest.fixture(scope="module")
 def sn_path(cfg):
-    return cfg.value("ou24.sn_truth_dir")
+    return cfg.value("system.ou24.sn_truth_dir")
 
 
 def test_find_parquet(sn_path):
@@ -46,7 +47,7 @@ def test_find_parquet(sn_path):
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     cfg = Config.get()
     new_snid_file = (
-        pathlib.Path(cfg.value("photometry.campari.paths.debug_dir"))
+        pathlib.Path(cfg.value("system.paths.debug_dir"))
         / "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv"
     )
     new_snid_file.unlink(missing_ok=True)
@@ -130,52 +131,29 @@ def test_build_lc_and_add_truth(sn_path):
         cutout_image_list.append(img)
 
     lc_model = campari_lightcurve_model(
-        flux=100, sigma_flux=10, image_list=image_list, cutout_image_list=cutout_image_list,
-        LSB=25.0, pre_transient_images=1, post_transient_images=0
+        flux=100.0, sigma_flux=10.0, image_list=image_list, cutout_image_list=cutout_image_list,
+        LSB=25.0, sky_background=[0.0] * len(image_list),  pre_transient_images=1, post_transient_images=0
     )
 
-    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=20172782, ra=7, dec=-41, collection="manual")[0]
     diaobj.mjd_start = 62001.0
     diaobj.mjd_end = np.inf
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
-
-
-
+    lc_table = Table(data=lc.data, meta=lc.meta)
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
 
-    for i in lc.columns:
-        SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
-        if not isinstance(saved_lc[i][0], str):
-
-            np.testing.assert_allclose(lc[i].value, saved_lc[i])
-        else:
-            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
-    for key in list(lc.meta.keys()):
-        SNLogger.debug(f"Checking column {key}, lc: {lc.meta[key]}")
-        SNLogger.debug(f"saved_lc: {saved_lc.meta[key]}")
-        if not isinstance(saved_lc.meta[key], str):
-            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
-        else:
-            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
+    compare_lightcurves(lc_table, saved_lc)
 
     # Now add the truth to the lightcurve
-    # NOTE: The truth_path thing is a hacky fix, but since I have another issue raised to remove this from
-    # campari entirely, I'm leaving it for now. It will be gone soon anyway.
     lc = add_truth_to_lc(lc, sn_path, "SN")
+
     saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
 
-    for i in lc.columns:
-        if not isinstance(saved_lc[i][0], str):
-            np.testing.assert_allclose(lc[i].value, saved_lc[i])
-        else:
-            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
-    for key in list(lc.meta.keys()):
-        if not isinstance(saved_lc.meta[key], str):
-            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
-        else:
-            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
+    lc_table = Table(data=lc.data, meta=lc.meta)
+
+    compare_lightcurves(lc_table, saved_lc)
 
 
 def test_extract_id_using_ra_dec(sn_path):
@@ -208,4 +186,3 @@ def test_extract_object_from_healpix():
         np.testing.assert_array_equal(id_array, test_id_array),
         "The IDs extracted from the healpix do not match the expected values.",
     )
-

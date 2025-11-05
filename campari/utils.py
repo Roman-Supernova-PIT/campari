@@ -47,6 +47,8 @@ class campari_lightcurve_model:
         LSB=None,
         pre_transient_images=None,
         post_transient_images=None,
+        sky_background=None,
+        image_collection_prov=None,
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -93,6 +95,8 @@ class campari_lightcurve_model:
             The type of transient object, default is "SN".
         LSB : float
             The local surface brightness around the transient location in mag/arcsec^2.
+        sky_background: list
+            The sky background fluxes subtracted out of each image cutout.
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -116,6 +120,8 @@ class campari_lightcurve_model:
         self.LSB = LSB
         self.pre_transient_images = pre_transient_images
         self.post_transient_images = post_transient_images
+        self.sky_background = sky_background
+        self.image_collection_prov = image_collection_prov
 
 
 def gaussian(x, A, mu, sigma):

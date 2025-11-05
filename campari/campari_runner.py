@@ -9,6 +9,7 @@ import galsim
 
 
 # SN-PIT
+from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
@@ -17,12 +18,11 @@ from snappl.config import Config
 from snappl.logger import SNLogger
 
 # Campari
-from campari.access_truth import add_truth_to_lc, extract_object_from_healpix
+from campari.access_truth import add_truth_to_lc
 from campari.data_construction import find_all_exposures
 from campari.io import (
     build_lightcurve,
     build_lightcurve_sim,
-    read_healpix_file,
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
@@ -45,14 +45,12 @@ class campari_runner:
         self.image_selection_end = kwargs["image_selection_end"]
         self.object_type = kwargs["object_type"]
         self.fast_debug = kwargs["fast_debug"]
-        self.SNID_file = kwargs["SNID_file"]
-        self.SNID = kwargs["SNID"]
+        self.diaobject_name = kwargs["diaobject_name"]
+        self.diaobject_id = kwargs["diaobject_id"]
         self.img_list = kwargs["img_list"]
+        self.image_collection = kwargs["image_collection"]
 
-        self.healpix = kwargs["healpix"]
-        self.healpix_file = kwargs["healpix_file"]
-        self.nside = kwargs["nside"]
-        self.object_collection = kwargs["object_collection"]
+        self.diaobject_collection = kwargs["diaobject_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
         self.image_source = kwargs["image_source"]
@@ -64,37 +62,51 @@ class campari_runner:
         self.prebuilt_static_model = kwargs["prebuilt_static_model"]
         self.prebuilt_transient_model = kwargs["prebuilt_transient_model"]
 
+        self.diaobject_provenance_tag = kwargs["diaobject_provenance_tag"]
+        self.diaobject_process = kwargs["diaobject_process"]
+        self.image_provenance_tag = kwargs["image_provenance_tag"]
+        self.image_process = kwargs["image_process"]
+        self.diaobject_position_provenance_tag = kwargs["diaobject_position_provenance_tag"]
+        self.diaobject_position_process = kwargs["diaobject_position_process"]
+
+        self.ltcv_provenance_tag = kwargs["ltcv_provenance_tag"]
+        self.ltcv_process = kwargs["ltcv_process"]
+        self.ltcv_provenance_id = kwargs["ltcv_provenance_id"]
+        self.create_ltcv_provenance = kwargs["create_ltcv_provenance"]
+
+        self.save_to_db = kwargs["save_to_db"]
+        self.add_truth_to_lc = kwargs["add_truth_to_lc"]
+
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
-        self.avoid_non_linearity = self.cfg.value("photometry.campari.simulations.avoid_non_linearity")
-        self.deltafcn_profile = self.cfg.value("photometry.campari.simulations.deltafcn_profile")
-        self.do_xshift = self.cfg.value("photometry.campari.simulations.do_xshift")
-        self.do_rotation = self.cfg.value("photometry.campari.simulations.do_rotation")
+        self.avoid_non_linearity = self.cfg.value("photometry.campari_simulations.avoid_non_linearity")
+        self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
+        self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
+        self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
         self.psfclass = self.cfg.value("photometry.campari.psfclass")
-        self.noise = self.cfg.value("photometry.campari.simulations.noise")
+        self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
         self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
-        self.sn_truth_dir = self.cfg.value("ou24.sn_truth_dir")
-        self.bg_gal_flux_all = self.cfg.value("photometry.campari.simulations.bg_gal_flux")
-        self.sim_galaxy_scale_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_scale")
-        self.sim_galaxy_offset_all = self.cfg.value("photometry.campari.simulations.sim_galaxy_offset")
+        self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
+        self.bg_gal_flux_all = self.cfg.value("photometry.campari_simulations.bg_gal_flux")
+        self.sim_galaxy_scale_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_scale")
+        self.sim_galaxy_offset_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_offset")
         self.source_phot_ops = self.cfg.value("photometry.campari.source_phot_ops")
-        self.mismatch_seds = self.cfg.value("photometry.campari.simulations.mismatch_seds")
+        self.mismatch_seds = self.cfg.value("photometry.campari_simulations.mismatch_seds")
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
         self.spacing = self.cfg.value("photometry.campari.grid_options.spacing")
         self.subsize = self.cfg.value("photometry.campari.grid_options.subsize")
         self.percentiles = self.cfg.value("photometry.campari.grid_options.percentiles")
         self.grid_type = self.cfg.value("photometry.campari.grid_options.type")
-        self.base_pointing = self.cfg.value("photometry.campari.simulations.base_pointing")
-        self.base_sca = self.cfg.value("photometry.campari.simulations.base_sca")
-        self.run_name = self.cfg.value("photometry.campari.simulations.run_name")
+        self.base_pointing = self.cfg.value("photometry.campari_simulations.base_pointing")
+        self.base_sca = self.cfg.value("photometry.campari_simulations.base_sca")
+        self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
         self.save_debug = self.cfg.value("photometry.campari.save_debug")
         self.param_grid = None
-        self.run_mode = None
         self.noise_maps = None
         self.galaxy_images = None
         self.galaxy_only_model_images = None
@@ -103,6 +115,8 @@ class campari_runner:
             self.gaussian_var = None
         self.cutoff = self.cfg.value("photometry.campari.grid_options.cutoff")
         self.error_floor = self.cfg.value("photometry.campari.grid_options.error_floor")
+        self.dbclient = SNPITDBClient()
+        self.img_coll_prov = None
 
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
@@ -118,6 +132,17 @@ class campari_runner:
                              "The goal of using a single point is to run an exact fit for testing purposes,"
                              "which requires "
                              "the galaxy be a delta function.")
+
+        # Lightcurve provenance argument parsing logic:
+        SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
+        if kwargs["save_to_db"]:
+            if self.create_ltcv_provenance:
+                raise NotImplementedError("Creating lightcurve provenance is not yet implemented in Campari.")
+            else:
+                if not (self.ltcv_provenance_id is not None or
+                        (self.ltcv_provenance_tag is not None and self.ltcv_process is not None)):
+                    raise ValueError("Must provide either ltcv_provenance_id or both"
+                          " ltcv_provenance_tag and ltcv_process.")
 
         # PSF for when not using the Roman PSF:
         lam = 1293  # nm
@@ -144,156 +169,141 @@ class campari_runner:
         if not self.use_real_images:
             self.create_sim_param_grid()
 
-        for index, ID in enumerate(self.SNID):
-            banner(f"Running SN {ID}")
+        banner(f"Running SN {self.diaobject_name}")
 
-            diaobjs = DiaObject.find_objects(id=ID, ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
-                                             mjd_discovery_max=self.transient_end, collection=self.object_collection)
-            if len(diaobjs) == 0:
-                raise ValueError(f"Could not find DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
-            if len(diaobjs) > 1:
-                raise ValueError(f"Found multiple DiaObject with id={ID}, ra={self.ra}, dec={self.dec}.")
-            diaobj = diaobjs[0]
-            if self.ra is not None:
-                if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
-                    SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
-                diaobj.ra = self.ra
-            if self.dec is not None:
-                if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
-                    SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
-                diaobj.dec = self.dec
+        # These will need to be re included once Issue #93 is resolved.
+        # ra=self.ra, dec=self.dec
+        #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
 
-            if (self.transient_start is not None):
-                if (diaobj.mjd_start is not None) and np.fabs(self.transient_start - diaobj.mjd_start) > .1:
-                    SNLogger.warning(f"Given transient_start {self.transient_start} is far from DiaObject "
-                                     f"nominal transient_start {diaobj.mjd_start}")
-                diaobj.mjd_start = self.transient_start
+        SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                       f" ra={self.ra}, dec={self.dec},"
+                       f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
+                       f"process={self.diaobject_process}")
 
-            if self.transient_end is not None:
-                if (diaobj.mjd_end is not None) and np.fabs(self.transient_end - diaobj.mjd_end) > .1:
-                    SNLogger.warning(f"Given transient_end {self.transient_end} is far from DiaObject "
-                                     f"nominal transient_end {diaobj.mjd_end}")
-                diaobj.mjd_end = self.transient_end
+        diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
+                                         provenance_tag=self.diaobject_provenance_tag,
+                                         process=self.diaobject_process, name=self.diaobject_name,
+                                         diaobject_id=self.diaobject_id,
+                                         ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
+                                         mjd_discovery_max=self.transient_end)
 
-            SNLogger.debug(f"Object info for SN {ID} in collection {self.object_collection}: ra={diaobj.ra},"
-                           f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
-            image_list = self.get_exposures(diaobj)
-            sedlist = self.get_sedlist(diaobj.id, image_list)
+        if len(diaobjs) == 0:
+            raise ValueError(
+                f"Could not find DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                f" ra={self.ra}, dec={self.dec}."
+            )
+        if len(diaobjs) > 1:
+            raise ValueError(f"Found multiple DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                             f" ra={self.ra}, dec={self.dec}.")
+        diaobj = diaobjs[0]
 
-            # This has to go after get_exposures because the infs break the simdex.
-            if diaobj.mjd_start is None:
-                diaobj.mjd_start = -np.inf
-            if diaobj.mjd_end is None:
-                diaobj.mjd_end = np.inf
+        # Get diaobject position using different methods depending on provenance.
+        if self.diaobject_position_provenance_tag is None:
+            diaobj.ra = diaobj.ra
+            diaobj.dec = diaobj.dec
+        else:
+            if self.ra is not None or self.dec is not None:
+                raise ValueError("Cannot provide ra or dec when also providing diaobject_position_provenance_tag."
+                                 "This would lead to provenance confusion.")
+            diaobj.ra, diaobj.dec = diaobj.get_position(provenance_tag=self.diaobject_position_provenance_tag,
+                                                        process=self.diaobject_process, dbclient=self.dbclient)
 
-            param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
+        if self.ra is not None:
+            if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
+                SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
+            diaobj.ra = self.ra
+        if self.dec is not None:
+            if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
+                SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
+            diaobj.dec = self.dec
 
-            lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
-            self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
+        if (self.transient_start is not None):
+            if (diaobj.mjd_start is not None) and np.fabs(self.transient_start - diaobj.mjd_start) > .1:
+                SNLogger.warning(f"Given transient_start {self.transient_start} is far from DiaObject "
+                                 f"nominal transient_start {diaobj.mjd_start}")
+            diaobj.mjd_start = self.transient_start
+
+        if self.transient_end is not None:
+            if (diaobj.mjd_end is not None) and np.fabs(self.transient_end - diaobj.mjd_end) > .1:
+                SNLogger.warning(f"Given transient_end {self.transient_end} is far from DiaObject "
+                                 f"nominal transient_end {diaobj.mjd_end}")
+            diaobj.mjd_end = self.transient_end
+
+        SNLogger.debug(f"Object info for SN {self.diaobject_name} with ID {self.diaobject_id} in"
+                       f" collection {self.diaobject_collection}: ra={diaobj.ra},"
+                       f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
+        image_list = self.get_exposures(diaobj)
+        sedlist = self.get_sedlist(diaobj.id, image_list)
+
+        # This has to go after get_exposures because the infs break the simdex.
+        if diaobj.mjd_start is None:
+            diaobj.mjd_start = -np.inf
+        if diaobj.mjd_end is None:
+            diaobj.mjd_end = np.inf
+
+#       param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
+        param_grid_row = None  # Tear all this out into external program in a future PR.
+
+        lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
+        self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
 
     def decide_run_mode(self):
         """Decide which run mode to use based on the input configuration."""
 
-        # Option 1, user passes a file of SNIDs
-        if self.SNID_file is not None:
-            self.SNID = pd.read_csv(self.SNID_file, header=None).values.flatten().tolist()
-            self.run_mode = "SNID File"
-
-        # Option 2, user passes a SNID
-        elif self.SNID is not None:
-            self.run_mode = "Single SNID"
-
-        # Option 3, user passes a ra and dec, meaning we don't search for SNID.
-        elif (self.ra is not None) or (self.dec is not None):
-            self.run_mode = "RA/Dec"
-            if self.transient_start is None and self.transient_end is None:
-                raise ValueError("Must specify --transient_start and --transient_end to run campari at a"
-                                 " given RA and Dec.")
-            SNLogger.debug(
-                "Forcing campari to run on the given RA and Dec, "
-                f" RA={self.ra}, Dec={self.dec} with transient flux fit for between "
-                f"MJD {self.transient_start} and {self.transient_end}."
-            )
-
-        # Option 4, user passes a healpix and nside, meaning we search for SNe in healpix via ra/dec.
-        elif self.healpix is not None or self.healpix_file is not None:
-            if self.healpix is not None:
-                self.healpixes = [self.healpix]
-                self.run_mode = "Healpix"
-            else:
-                self.healpixes, self.nside = read_healpix_file(self.healpix_file)
-                self.run_mode = "Healpix File"
-
-            if self.nside is None:
-                if self.nside is not None:
-                    pass
-                else:
-                    raise ValueError("--nside was not passed, and nside was not found in the healpix file. ")
-
-            SNLogger.debug(f"Running on {len(self.healpixes)} healpixes with nside {self.nside}.")
-
-            SNID = []
-            for healpix in self.healpixes:
-                SNID.extend(extract_object_from_healpix(healpix, self.nside, object_type=self.object_type,
-                            source="OpenUniverse2024"))
-
-        elif self.object_collection != "manual" and (self.SNID is None) and (self.SNID_file is None):
-            raise ValueError(
-                "Must specify --SNID, --SNID-file, to run campari with a non-manual object collection. Note that"
-                " --object_collection is ou2024 by default, so if you want to run campari without looking up a SNID,"
-                " you must set --object_collection to manual and provide --ra and --dec."
-            )
+        if self.img_list is not None:
+            columns = ["pointing", "sca"]
+            image_df = pd.read_csv(self.img_list, header=None, names=columns)
+            SNLogger.debug(f"Loaded image list from {self.img_list} with {len(image_df)} entries.")
+            # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
+            self.max_no_transient_images = None
+            self.max_transient_images = None
+            self.pointing_list = image_df["pointing"].values
         else:
-            raise ValueError(
-                "Must specify --SNID, --SNID-file, --healpix, --healpix_file, or --ra and --dec to run campari."
-            )
-
-        if not isinstance(self.SNID, list):
-            self.SNID = [self.SNID]
-
-        SNLogger.debug(f"Running campari in {self.run_mode} mode with {len(self.SNID)} SNIDs.")
+            image_df = None
+            self.pointing_list = None
 
     def create_sim_param_grid(self):
-        """Create a grid of simulation parameters to run the pipeline on."""
-        params = [self.bg_gal_flux_all, self.sim_galaxy_scale_all, self.sim_galaxy_offset_all]
-        nd_grid = np.meshgrid(*params)
-        self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
-        SNLogger.debug("Created a grid of simulation parameters with a total of"
-                       f" {self.param_grid.shape[1]} combinations.")
-        self.SNID = self.SNID * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
+        raise NotImplementedError("Simulation parameter grid creation is broken. Will be made external later.")
+        # """Create a grid of simulation parameters to run the pipeline on."""
+        # params = [self.bg_gal_flux_all, self.sim_galaxy_scale_all, self.sim_galaxy_offset_all]
+        # nd_grid = np.meshgrid(*params)
+        # self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
+        # SNLogger.debug("Created a grid of simulation parameters with a total of"
+        #                f" {self.param_grid.shape[1]} combinations.")
+        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            if self.img_list is not None:
-                # If the user provided an image list, use that.
-                image_list = self.parse_img_list()
-                mjd_list = [im.mjd for im in image_list]
-                image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
-            else:
-                # Otherwise, go find images that match the criteria.
-                image_list = find_all_exposures(diaobj=diaobj,
-                                                maxbg=self.max_no_transient_images,
-                                                maxdet=self.max_transient_images,
-                                                band=self.band, image_selection_start=self.image_selection_start,
-                                                image_selection_end=self.image_selection_end,
-                                                image_source=self.image_source,
-                                                image_path=self.image_path)
-                mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
-                mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
+            SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
+            SNLogger.debug("max transient images: " + str(self.max_transient_images))
+            image_list, self.img_coll_prov = find_all_exposures(diaobj=diaobj,
+                                                                maxbg=self.max_no_transient_images,
+                                                                maxdet=self.max_transient_images,
+                                                                band=self.band,
+                                                                image_selection_start=self.image_selection_start,
+                                                                image_selection_end=self.image_selection_end,
+                                                                image_collection=self.image_collection,
+                                                                pointing_list=self.pointing_list,
+                                                                dbclient=self.dbclient,
+                                                                provenance_tag=self.image_provenance_tag,
+                                                                process=self.image_process)
+            mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+            mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
-                no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+            no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+            SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
 
-
-                if (
-                    self.max_no_transient_images != 0
-                    and len(no_transient_images) == 0
-                    and self.object_type != "star"
-                ):
-                    raise ValueError("No non-detection images were found. This may be because the transient is"
-                                    " detected in all images, or because the transient is outside the date range of"
-                                    " available images. If you are running on stars, this is expected behavior."
-                                    " If you are running on supernovae, consider increasing the date range.")
+            if (
+                self.max_no_transient_images != 0
+                and len(no_transient_images) == 0
+                and self.object_type != "star"
+                and self.img_list is None  # If passing an image list, I assume the user knows what they are doing.
+            ):
+                raise ValueError("No non-detection images were found. This may be because the transient is"
+                                 " detected in all images, or because the transient is outside the date range of"
+                                 " available images. If you are running on stars, this is expected behavior."
+                                 " If you are running on supernovae, consider increasing the date range.")
         else:
             if self.max_no_transient_images is None or self.max_transient_images is None:
                 raise ValueError("Must specify --max_no_transient_images and --max_transient_images to run campari with"
@@ -320,26 +330,31 @@ class campari_runner:
                 img.pointing = self.base_pointing
                 img.sca = self.base_sca
 
-        mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
-        mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
-        no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
-        transient_images = [a for a in image_list if (a.mjd >= mjd_start) and (a.mjd <= mjd_end)]
+        recovered_pointings = [int(a.pointing) for a in image_list]
+        self.pointing_list = self.pointing_list.astype(int) if self.pointing_list is not None else None
+        if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
+                                                            np.sort(self.pointing_list)):
+            SNLogger.warning(
+                "Unable to find the object in all the pointings in the image list. Specifically, the"
+                " following pointings were not found: "
+                f"{np.setdiff1d(self.pointing_list, recovered_pointings)}. A total of "
+                f"{len(np.setdiff1d(self.pointing_list, recovered_pointings))} were missing."
+            )
 
-        SNLogger.debug(f"Found a total of {len(image_list)} images for this object, ")
-        SNLogger.debug(f"of which {len(no_transient_images)} are non-detection images")
-        SNLogger.debug(f"and {len(transient_images)} are detection images.")
-
-        self.image_list = image_list
-        SNLogger.debug("setting image list")
-
+        SNLogger.debug(f"Found {len(image_list)} exposures")
         return image_list
 
-    def get_sedlist(self, ID, image_list):
+    def get_sedlist(self, name, image_list):
         """Create a list of SEDs for the given SNID and images."""
-        sed_obj = OU2024_Truth_SED(ID, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
+        try:
+            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
+        except Exception as e:
+            SNLogger.error(f"Error creating SED object: {e}. Using flat SED instead.")
+            sed_obj = Flat_SED()
+
         sedlist = []
         for img in image_list:
-            sedlist.append(sed_obj.get_sed(snid=ID, mjd=img.mjd))
+            sedlist.append(sed_obj.get_sed(snid=name, mjd=img.mjd))
         return sedlist
 
     def call_run_one_object(self, diaobj, image_list, sedlist, param_grid_row):
@@ -375,16 +390,19 @@ class campari_runner:
         return lightcurve_model
 
     def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
+
+        lc_model.image_collection_prov = self.img_coll_prov if self.use_real_images else None
         if self.psfclass == "ou24PSF" or self.psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
         else:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
-            identifier = str(diaobj.id)
+            identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
+            # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
-                lc = build_lightcurve(diaobj, lc_model)
-                if self.object_collection != "manual":
+                lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
+                if self.add_truth_to_lc:
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
         else:
@@ -394,16 +412,18 @@ class campari_runner:
                     str(np.round(np.log10(bg_gal_flux), 2)) + "_" + str(sim_galaxy_offset) + "_" \
                     + self.grid_type
             else:
-                identifier = self.run_name + "_" + str(diaobj.id)
+                identifier = self.run_name + "_" + str(diaobj.id if diaobj.id is not None else diaobj.name)
             if lc_model.flux is not None:
                 lc = build_lightcurve_sim(lc_model.sim_lc, lc_model.flux, lc_model.sigma_flux)
                 lc["filter"] = self.band
 
         if lc_model.flux is not None:
-            output_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.output_dir"))
-            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir, overwrite=False)
-        else:
-            SNLogger.debug("No flux was measured, so no lightcurve will be saved.")
+            if self.save_to_db:
+                output_dir = None
+            else:
+                output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
+            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                            save_to_database=self.save_to_db)
 
         # Now, save the images
 
@@ -412,7 +432,7 @@ class campari_runner:
             images_and_model = np.array(
                 [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
             )
-            debug_dir = pathlib.Path(self.cfg.value("photometry.campari.paths.debug_dir"))
+            debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
             np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
