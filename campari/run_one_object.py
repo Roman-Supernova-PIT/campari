@@ -160,10 +160,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
 
-        # TODO: Put this in snappl
         if use_real_images:
+            SNLogger.debug("file used: " + str(pathlib.Path(Config.get().value
+                                   ("system.ou24.config_file"))))
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
-                                   ("photometry.campari.galsim.tds_file")),
+                                   ("system.ou24.config_file")),
                                    visit=pointing, sca=sca)
 
         # If no grid, we still need something that can be concatenated in the

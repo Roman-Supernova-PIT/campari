@@ -14,11 +14,6 @@ photometry:
     save_debug: true
     psfclass: ou24PSF
 
-
-    # OMG
-    galsim:
-      tds_file: /campari/examples/perlmutter/tds.yaml
-
     grid_options:
       type: contour
       percentiles:
@@ -48,9 +43,6 @@ photometry:
     run_name: whatever
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
-
-ou24psf:
-  config_file: /campari/examples/perlmutter/tds.yaml
 
 system:
   paths:

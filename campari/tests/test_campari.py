@@ -307,6 +307,8 @@ def test_regression_function(campari_test_data, cfg):
          "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc"
          ]
 
+    SNLogger.debug(f"Args for test: {' '.join(a)}")
+
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
     try:
@@ -481,7 +483,7 @@ def test_calc_mag_and_err():
 
 
 def test_construct_static_scene(cfg):
-    config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
+    config_file = pathlib.Path(cfg.value("system.ou24.config_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
 

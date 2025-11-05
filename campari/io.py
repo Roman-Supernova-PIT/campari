@@ -41,7 +41,7 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     return df
 
 
-def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
+def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos = None, dbclient=None):
     """This code builds a lightcurve datatable from the output of the SMP algorithm.
 
     Input:
@@ -58,16 +58,33 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     flux = np.atleast_1d(lc_model.flux)
     sigma_flux = np.atleast_1d(lc_model.sigma_flux)
     image_list = lc_model.image_list
+
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
-    diaobj_prov = getattr(diaobj, "provenance_Id", None)
-    provs = [diaobj_prov, lc_model.image_collection_prov]
-    upstream_list = [p for p in provs if p is not None]
+    # diaobj_prov = getattr(diaobj, "provenance_Id", None)
+    SNLogger.debug("Getting provenance for images")
+    SNLogger.debug(f"lc_model.image_list[0].provenance_id = {lc_model.image_list[0].provenance_id}")
+    imgprov = Provenance.get_by_id(lc_model.image_list[0].provenance_id, dbclient=dbclient)
+
+    SNLogger.debug("Getting provenance for diaobject")
+    objprov = Provenance.get_by_id(diaobj.provenance_id, dbclient=dbclient)
+
+    if diaobj_pos is not None:
+        SNLogger.debug("Getting provenance for diaobject position")
+        objposprov = Provenance.get_by_id(diaobj_pos, dbclient=dbclient)
+        upstreams = [imgprov, objprov, objposprov]
+    else:
+        objposprov = None
+        upstreams = [imgprov, objprov]
+
+    # provs = [diaobj_prov, lc_model.image_collection_prov]
+    # upstream_list = [p for p in provs if p is not None]
 
     cfg = Config.get()
+    SNLogger.debug("Attempting to build provenance for lightcurve")
     cam_prov = Provenance(
         process="campari",
         major=0,
@@ -75,7 +92,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
         params=cfg,
         keepkeys=["photometry.campari"],
         omitkeys=None,
-        upstreams=upstream_list,
+        upstreams=upstreams,
     )
 
     meta_dict = cam_prov.params["photometry"]["campari"]
@@ -102,7 +119,6 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     for i, img in enumerate(image_list):
         if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            SNLogger.debug(f"Adding image with MJD {img.mjd} to lightcurve")
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
@@ -131,6 +147,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None):
     # Some extra info needed to save
     lc.image_list = image_list
     lc.diaobj = diaobj
+    lc.provenance_object = cam_prov
 
     return lc
 
@@ -209,16 +226,25 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         # else:
         #     objposprov = None
         #     upstreams = [imgprov, objprov]
-        SNLogger.debug("Creating new provenance for lightcurve")
+
+        # SNLogger.debug("In save lc the parameters for provenance are:")
+        # SNLogger.debug(f"process = {process}")
+        # SNLogger.debug(f"major = {major}")
+        # SNLogger.debug(f"minor = {minor}")
+        # SNLogger.debug(f"params = {params}")
+        # SNLogger.debug(f"keepkeys = {keepkeys}")
+        # SNLogger.debug(f"upstreams = {upstreams}")
 
         # ltcvprov = Provenance(process=process, major=major, minor=minor, params=params,
         #                       upstreams=upstreams, keepkeys=keepkeys,
         #                       omitkeys=omitkeys)
-        SNLogger.debug("Using provenance to save lightcurve to database")
-        SNLogger.debug(lc.meta.get("provenance_id"))
+        # # SNLogger.debug("Using provenance to save lightcurve to database")
+        # SNLogger.debug(lc.meta.get("provenance_id"))
         ltcvprov = Provenance.get_by_id(lc.meta.get("provenance_id"), dbclient=dbclient)
         ltcv_provenance_tag = "campari_test_provenance_lightcurve"
         if new_provenance:
+
+            SNLogger.debug("Creating new provenance for lightcurve")
             ltcvprov.save_to_db(tag=ltcv_provenance_tag)
         lc.save_to_db(dbclient=dbclient)
     else:
