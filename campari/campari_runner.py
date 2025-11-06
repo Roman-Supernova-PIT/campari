@@ -413,9 +413,10 @@ class campari_runner:
                 output_dir = None
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
+            testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=self.testrun, dbclient=self.dbclient)
+                            testrun=testrun, dbclient=self.dbclient)
 
         # Now, save the images
 

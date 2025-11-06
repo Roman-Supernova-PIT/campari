@@ -41,7 +41,7 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
     return df
 
 
-def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbclient=None):
+def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     """This code builds a lightcurve datatable from the output of the SMP algorithm.
 
     Input:
@@ -64,31 +64,36 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbcli
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
-    # diaobj_prov = getattr(diaobj, "provenance_Id", None)
-    SNLogger.debug("Getting provenance for images")
-    SNLogger.debug(f"lc_model.image_list[0].provenance_id = {lc_model.image_list[0].provenance_id}")
-    imgprov = Provenance.get_by_id(lc_model.image_list[0].provenance_id, dbclient=dbclient)
+    upstreams = []
 
-    SNLogger.debug("Getting provenance for diaobject")
-    objprov = Provenance.get_by_id(diaobj.provenance_id, dbclient=dbclient)
-
-    if diaobj_pos is not None:
-        SNLogger.debug("Getting provenance for diaobject position")
-        objposprov = Provenance.get_by_id(diaobj_pos, dbclient=dbclient)
-        upstreams = [imgprov, objprov, objposprov]
+    if lc_model.image_list[0].provenance_id is not None:
+        SNLogger.debug("Getting provenance for images")
+        upstreams.append(Provenance.get_by_id(lc_model.image_list[0].provenance_id, dbclient=dbclient))
     else:
-        objposprov = None
-        upstreams = [imgprov, objprov]
+        SNLogger.warning("Image provenance ID is None; setting imgprov to None. This should only happen in tests.")
 
-    # provs = [diaobj_prov, lc_model.image_collection_prov]
-    # upstream_list = [p for p in provs if p is not None]
+    if diaobj.provenance_id is not None:
+        SNLogger.debug("Getting provenance for diaobject")
+        upstreams.append(Provenance.get_by_id(diaobj.provenance_id, dbclient=dbclient))
+    else:
+        SNLogger.warning("Diaobject provenance ID is None; setting objprov to None. This should only happen in tests.")
+
+    if obj_pos_prov is not None:
+        SNLogger.debug("Getting provenance for diaobject position")
+        upstreams.append(obj_pos_prov)
+    else:
+        SNLogger.warning("No diaobject position provenance ID provided; skipping.")
+
+    if len(upstreams) == 0:
+        upstreams = None
+        SNLogger.warning("No upstream provenances found; setting upstreams to None.")
 
     cfg = Config.get()
     SNLogger.debug("Attempting to build provenance for lightcurve")
     cam_prov = Provenance(
         process="campari",
         major=0,
-        minor=42, # THIS CAN'T BE HARDCODED FOREVER XXX TODO
+        minor=42,  # THIS CAN'T BE HARDCODED FOREVER XXX TODO
         params=cfg,
         keepkeys=["photometry.campari"],
         omitkeys=None,
@@ -139,8 +144,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbcli
 
     meta_dict["band"] = band  # I don't ever expect campari to do multi-band fitting so just store the one band.
     meta_dict["diaobject_position_id"] = None  # placeholder for now XXX TODO
-    meta_dict["provenance_id"] = str(cam_prov.id)
-    meta_dict["diaobject_id"] = str(diaobj.id)
+    meta_dict["provenance_id"] = str(cam_prov.id) if cam_prov.id is not None else None
+    meta_dict["diaobject_id"] = str(diaobj.id) if diaobj.id is not None else None
     meta_dict["iau_name"] = diaobj.iauname
     meta_dict["ra_err"] = 0.0
     meta_dict["dec_err"] = 0.0  # This is a placeholder for now
@@ -150,7 +155,6 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbcli
     meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
     SNLogger.debug("Lightcurve provenance object line 148:")
     SNLogger.debug(cam_prov.params)
-
 
     lc = Lightcurve(data=data_dict, meta=meta_dict)
     # Some extra info needed to save
