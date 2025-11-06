@@ -11,7 +11,6 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
-    save_debug: true
     psfclass: ou24PSF
 
     grid_options:
@@ -23,6 +22,10 @@ photometry:
       - 100
       spacing: 0.75
       turn_grid_off: false
+
+  campari_io:
+    save_debug: true
+
 
   campari_simulations:
     avoid_non_linearity: false

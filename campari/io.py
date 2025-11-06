@@ -95,8 +95,14 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbcli
         upstreams=upstreams,
     )
 
-    meta_dict = cam_prov.params["photometry"]["campari"]
+    SNLogger.debug("Lightcurve provenance object line 98:")
+    SNLogger.debug(cam_prov.params)
+
+    meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
+
+    SNLogger.debug("Lightcurve provenance object line 104:")
+    SNLogger.debug(cam_prov.params)
 
     data_dict = {
         "mjd": [],
@@ -142,6 +148,9 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, diaobj_pos=None, dbcli
     # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
     # do multi-band fitting so this is probably fine.
     meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
+    SNLogger.debug("Lightcurve provenance object line 148:")
+    SNLogger.debug(cam_prov.params)
+
 
     lc = Lightcurve(data=data_dict, meta=meta_dict)
     # Some extra info needed to save
@@ -175,7 +184,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
                     overwrite=True, save_to_database=False, dbclient=None,
                     new_provenance=False, diaobj_pos=None,
-                    ltcvprocess=None):
+                    ltcvprocess=None, testrun=None):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -195,6 +204,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
     SNLogger.debug(f"save_to_database = {save_to_database}")
     SNLogger.debug(f"new_provenance = {new_provenance}")
+
 
     if save_to_database:
         if output_path is not None:
@@ -245,12 +255,15 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         ltcvprov = lc.provenance_object
         SNLogger.debug("Lightcurve provenance object:")
         SNLogger.debug(ltcvprov.id)
-        ltcv_provenance_tag = "nov2025campari_firstrun"
-        if new_provenance:
 
+        ltcv_provenance_tag = "nov2025campari_firstrun_3"
+        if testrun is not None:
+            ltcv_provenance_tag += str(testrun)
+        if new_provenance:
             SNLogger.debug("Creating new provenance for lightcurve")
             ltcvprov.save_to_db(tag=ltcv_provenance_tag)
         lc.save_to_db(dbclient=dbclient)
+        lc.write()
     else:
         lc.write(
             base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite

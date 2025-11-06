@@ -101,7 +101,11 @@ class campari_runner:
         self.base_pointing = self.cfg.value("photometry.campari_simulations.base_pointing")
         self.base_sca = self.cfg.value("photometry.campari_simulations.base_sca")
         self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
-        self.save_debug = self.cfg.value("photometry.campari.save_debug")
+        self.save_debug = self.cfg.value("photometry.campari_io.save_debug")
+        try:
+            self.testrun = self.cfg.value("photometry.campari.testrun")
+        except Exception:
+            pass
         self.param_grid = None
         self.noise_maps = None
         self.galaxy_images = None
@@ -410,7 +414,8 @@ class campari_runner:
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
-                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance)
+                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
+                            testrun=self.testrun, dbclient=self.dbclient)
 
         # Now, save the images
 
