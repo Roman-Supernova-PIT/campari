@@ -176,7 +176,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         SNLogger.debug(f"Image {i} pointing, sca: {pointing, sca}")
         if int(pointing) >= 0 and int(pointing) <= 57364:
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
-                                   ("photometry.campari.galsim.tds_file")),
+                                   ("system.ou24.config_file")),
                                    visit=pointing, sca=sca)
         else:
             util_ref = None

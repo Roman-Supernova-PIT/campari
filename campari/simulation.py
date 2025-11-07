@@ -109,7 +109,7 @@ def simulate_images(image_list=None, diaobj=None,
     galaxy_images = []
 
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}")
-    file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
+    file_path = pathlib.Path(Config.get().value("system.ou24.config_file"))
     util_ref = roman_utils(config_file=file_path, visit=base_pointing, sca=base_sca)
     SNLogger.debug(f"image list {image_list}")
     for i, image_object in enumerate(image_list):

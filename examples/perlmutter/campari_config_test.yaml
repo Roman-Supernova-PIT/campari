@@ -11,13 +11,7 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
-    save_debug: true
     psfclass: ou24PSF
-
-
-    # OMG
-    galsim:
-      tds_file: /campari/examples/perlmutter/tds.yaml
 
     grid_options:
       type: contour
@@ -32,6 +26,10 @@ photometry:
       cutoff: 4
       error_floor: 1
       subsize: 4
+
+  campari_io:
+    save_debug: true
+
 
   campari_simulations:
     avoid_non_linearity: false
@@ -52,9 +50,6 @@ photometry:
     run_name: whatever
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
-
-ou24psf:
-  config_file: /campari/examples/perlmutter/tds.yaml
 
 system:
   paths:

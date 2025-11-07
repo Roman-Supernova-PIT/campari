@@ -99,3 +99,55 @@ def test_find_exposures():
     regression_pointings = np.load("/campari/campari/tests/testdata/test_find_exposures_pointings.npy")
     np.testing.assert_array_equal(pointings, regression_pointings)
 
+
+
+# This worked once but I am going to wait to re-enable until I have my own testing database set up.
+
+# def test_write_lc_to_db():
+#     dbclient = SNPITDBClient()
+
+#     diaobj_provenance_tag = "ou2024_truth"
+#     diaobj_process = "load_ou2024_diaobject"
+#     diaobj = DiaObject.find_objects(name=20172782, collection="snpitdb",
+#                                     provenance_tag=diaobj_provenance_tag, process=diaobj_process)[0]
+
+#     provenance_tag = "ou2024"
+#     process = "load_ou2024_image"
+
+# #   For some reason, fetching the dates is very slow right now. In the interest of time, I am saying that all images
+# #   are detections to make this test run faster. I should restore the original date later.
+#     #    diaobj.mjd_start = 62654.0
+#     diaobj.mjd_start = 0
+#     diaobj.mjd_end = 62958.0
+#     image_list_all, _ = find_all_exposures(diaobj=diaobj, band="Y106",
+#                                            truth="simple_model", image_collection="snpitdb",
+#                                            provenance_tag=provenance_tag, process=process, dbclient=dbclient)
+
+
+#     # This is what is slowing things down a lot right now.
+#     # Select only a few images for the test lightcurve.
+#     image_list = []
+#     for i in image_list_all:
+#         if i.mjd > diaobj.mjd_start and i.mjd < diaobj.mjd_end:
+#             image_list.append(i)
+#         if len(image_list) >= 5:
+#             break
+
+#     flux = np.array([120.0, 95.0, 80.0, 60.0, 50.0])
+#     sigma_flux = np.array([10.0, 12.0, 9.0, 11.0, 10.0])
+
+#     lc_model = campari_lightcurve_model(
+#         flux=flux,
+#         sigma_flux=sigma_flux,
+#         image_list=image_list,
+#         cutout_image_list=image_list,
+#         LSB=25.0,
+#         diaobj=diaobj,
+#         sky_background=[0.0] * len(image_list),
+#     )
+
+#     # The data values are arbitary, just to check that the lc is constructed properly.
+#     lc = build_lightcurve(diaobj, lc_model)
+
+#     save_lightcurve(lc=lc, identifier="test", psftype="romanpsf", save_to_database=True, dbclient=dbclient,
+#                     diaobj_pos=None, new_provenance=False)

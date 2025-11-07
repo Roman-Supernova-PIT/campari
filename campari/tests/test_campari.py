@@ -14,7 +14,7 @@ import pandas as pd
 import pytest
 
 # Astronomy Library
-from astropy.table import Table
+from astropy.table import Table, QTable
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
@@ -61,7 +61,11 @@ def campari_test_data(cfg):
     return cfg.value("system.paths.campari_test_data")
 
 
-def compare_lightcurves(lc1, lc2):
+def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
+    # lc1 is new, lc2 is old
+
+    lc1 = QTable.read(lc1_path, format="ascii.ecsv")
+    lc2 = QTable.read(lc2_path, format="ascii.ecsv")
     col1s = lc1.columns
     col2s = lc2.columns
     col1s = set(col1s)
@@ -129,6 +133,24 @@ def compare_lightcurves(lc1, lc2):
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
 
+    unique_to_col1s = col1s.difference(col2s)
+    unique_to_col2s = col2s.difference(col1s)
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, (
+        "The columns in the lightcurves do not match."
+        + f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
+    )
+
+    if overwrite_meta:
+        SNLogger.debug("At this point, all the data columns match. I am now overwriting the metadata of lc2 with that of lc1.")
+        # print the difference between the two meta dictionaries
+        for key in lc1.meta:
+            if key not in lc2.meta or lc1.meta[key] != lc2.meta[key]:
+                SNLogger.debug(f"Metadata difference: {key} - {lc1.meta[key]} vs {lc2.meta[key]}")
+
+        lc2.meta = lc1.meta
+        lc2.write(lc2_path, format="ascii.ecsv", overwrite=True)
+        return None
+
     for col in bothmetacols:
         msg = f"The lightcurves do not match for meta column {col}"
         if "provenance" in col:
@@ -145,21 +167,16 @@ def compare_lightcurves(lc1, lc2):
         else:
             np.testing.assert_allclose(lc1.meta[col], lc2.meta[col], rtol=3e-7), msg
 
+    unique_to_col1s = metacols1.difference(metacols2)
+    unique_to_col2s = metacols2.difference(metacols1)
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The meta columns in the LCs do not match." + \
+        f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
+
     for col in bothmetacols:
         msg = f"The lightcurves do not match for meta column {col}"
         if "provenance" in col:
             SNLogger.debug(f"Checking meta col {col}")
             np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
-
-    unique_to_col1s = col1s.difference(col2s)
-    unique_to_col2s = col2s.difference(col1s)
-    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The columns in the lightcurves do not match." + \
-        f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
-
-    unique_to_col1s = metacols1.difference(metacols2)
-    unique_to_col2s = metacols2.difference(metacols1)
-    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The meta columns in the LCs do not match." + \
-        f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
 
 
 def test_find_all_exposures():
@@ -232,7 +249,7 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
-def test_run_on_star(campari_test_data, cfg):
+def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
@@ -260,9 +277,7 @@ def test_run_on_star(campari_test_data, cfg):
         # ugly :( never do in real life
         cfg._data = orig_config._data
 
-    current = Table.read(curfile, format="ascii.ecsv")
-    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
-    compare_lightcurves(current, comparison)
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", overwrite_meta=overwrite_meta)
 
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
@@ -280,12 +295,15 @@ def test_run_on_star(campari_test_data, cfg):
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
-    current = Table.read(curfile, format="ascii.ecsv")
-    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", format="ascii.ecsv")
-    compare_lightcurves(current, comparison)
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", overwrite_meta=overwrite_meta)
+
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_run_on_star so I am rerunning this test.")
+        test_run_on_star(campari_test_data, cfg, overwrite_meta=False)
 
 
-def test_regression_function(campari_test_data, cfg):
+
+def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
@@ -310,24 +328,29 @@ def test_regression_function(campari_test_data, cfg):
          "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc"
          ]
 
+    SNLogger.debug(f"Args for test: {' '.join(a)}")
+
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
     try:
         sys.argv = a
         RomanASP.main()
         cfg = Config.get()
-        current = Table.read(curfile, format="ascii.ecsv")
-        comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", format="ascii.ecsv")
 
-        compare_lightcurves(current, comparison)
+        compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
+                            overwrite_meta=overwrite_meta)
 
     finally:
         sys.argv = orig_argv
         # ugly :( never do in real life
         cfg._data = orig_config._data
 
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
+        test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
-def test_regression(campari_test_data):
+
+def test_regression(campari_test_data, overwrite_meta):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
@@ -358,9 +381,10 @@ def test_regression(campari_test_data):
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = Table.read(curfile, format="ascii.ecsv")
-    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", format="ascii.ecsv")
-    compare_lightcurves(current, comparison)
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
+        test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
 
 def test_plot_lc():
@@ -484,7 +508,7 @@ def test_calc_mag_and_err():
 
 
 def test_construct_static_scene(cfg):
-    config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
+    config_file = pathlib.Path(cfg.value("system.ou24.config_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
 
@@ -583,7 +607,7 @@ def test_construct_transient_scene():
                       f"image has been saved to {im_path}. Error: {e}"
 
 
-def test_build_lc(cfg):
+def test_build_lc(cfg, overwrite_meta):
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -608,6 +632,7 @@ def test_build_lc(cfg):
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+    SNLogger.debug(f"Snappl image: {snappl_image.provenance_id}")
 
     wcs = snappl_image.get_wcs()
 
@@ -643,9 +668,16 @@ def test_build_lc(cfg):
     lc = build_lightcurve(diaobj, lc_model)
 
     lc = Table(data=lc.data, meta=lc.meta)
-    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
+    lc.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv", format="ascii.ecsv", overwrite=True)
 
-    compare_lightcurves(lc, saved_lc)
+    compare_lightcurves(
+        pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv",
+        pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv",
+        overwrite_meta=overwrite_meta
+    )
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_build_lc so I am rerunning this test.")
+        test_build_lc(cfg, overwrite_meta=False)
 
 
 def test_wcs_regression():
