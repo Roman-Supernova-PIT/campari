@@ -28,9 +28,7 @@
 # - {pixel: false}
 # - {subtract_background: true}
 # - {use_real_images: true}
-# - {save_debug: true}
 # - {psfclass: ou24PSF}
-# - galsim: {tds_file: /campari/examples/perlmutter/tds.yaml}
 # - grid_options:
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
@@ -40,10 +38,10 @@
 # - {ra: 7.731890048839705}
 # - {dec: -44.4589649005717}
 # - {band: Y106}
-# - {diaobject_position_id: None}
-# - {provenance_id: 25e9145b-145b-bee3-6e30-0c85e30986d1}
+# - {diaobject_position_id: null}
+# - {provenance_id: 43bed641-7c09-9cf9-b7ec-65b345685419}
 # - {diaobject_id: null}
-# - {iau_name: None}
+# - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
 # - {ra_dec_covar: 0.0}

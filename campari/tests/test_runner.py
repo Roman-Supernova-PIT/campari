@@ -225,7 +225,7 @@ def test_get_SED_list(cfg):
         cfg._static = True
 
 
-def test_build_and_save_lc(cfg):
+def test_build_and_save_lc(cfg, overwrite_meta):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "manual"
     test_args.diaobject_name = 20172782
@@ -297,9 +297,10 @@ def test_build_and_save_lc(cfg):
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
-    current = Table.read(filepath, format="ascii.ecsv")
-    comparison = Table.read(pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", format="ascii.ecsv")
-    compare_lightcurves(current, comparison)
+    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", overwrite_meta=overwrite_meta)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
+        test_build_and_save_lc(cfg, overwrite_meta=False)
 
 
 # sim param grid broken for now

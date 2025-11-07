@@ -31,6 +31,7 @@ from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snappl.config import Config
+from snappl.logger import SNLogger
 
 
 @pytest.fixture(scope="module")
@@ -81,7 +82,7 @@ def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
         )
 
 
-def test_build_lc_and_add_truth(sn_path):
+def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -141,18 +142,23 @@ def test_build_lc_and_add_truth(sn_path):
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
     lc_table = Table(data=lc.data, meta=lc.meta)
-    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
+    lc_table.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv", format="ascii.ecsv", overwrite=True)
 
-    compare_lightcurves(lc_table, saved_lc)
-
+    compare_lightcurves(pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv",
+                        pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv",
+                        overwrite_meta=overwrite_meta)
     # Now add the truth to the lightcurve
     lc = add_truth_to_lc(lc, sn_path, "SN")
 
-    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv", format="ascii.ecsv")
-
     lc_table = Table(data=lc.data, meta=lc.meta)
+    lc_table.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc_with_truth.ecsv", format="ascii.ecsv", overwrite=True)
 
-    compare_lightcurves(lc_table, saved_lc)
+    compare_lightcurves(pathlib.Path(__file__).parent / "testdata/newly_built_lc_with_truth.ecsv",
+                        pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv",
+                        overwrite_meta=overwrite_meta)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_build_lc_and_add_truth so I am rerunning this test.")
+        test_build_lc_and_add_truth(sn_path, overwrite_meta=False)
 
 
 def test_extract_id_using_ra_dec(sn_path):

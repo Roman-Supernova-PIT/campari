@@ -101,7 +101,11 @@ class campari_runner:
         self.base_pointing = self.cfg.value("photometry.campari_simulations.base_pointing")
         self.base_sca = self.cfg.value("photometry.campari_simulations.base_sca")
         self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
-        self.save_debug = self.cfg.value("photometry.campari.save_debug")
+        self.save_debug = self.cfg.value("photometry.campari_io.save_debug")
+        try:
+            self.testrun = self.cfg.value("photometry.campari.testrun")
+        except Exception:
+            pass
         self.param_grid = None
         self.noise_maps = None
         self.galaxy_images = None
@@ -127,9 +131,7 @@ class campari_runner:
         # Lightcurve provenance argument parsing logic:
         SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
         if kwargs["save_to_db"]:
-            if self.create_ltcv_provenance:
-                raise NotImplementedError("Creating lightcurve provenance is not yet implemented in Campari.")
-            else:
+            if not self.create_ltcv_provenance:
                 if not (self.ltcv_provenance_id is not None or
                         (self.ltcv_provenance_tag is not None and self.ltcv_process is not None)):
                     raise ValueError("Must provide either ltcv_provenance_id or both"
@@ -411,8 +413,10 @@ class campari_runner:
                 output_dir = None
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
+            testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
-                            save_to_database=self.save_to_db)
+                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
+                            testrun=testrun, dbclient=self.dbclient)
 
         # Now, save the images
 
