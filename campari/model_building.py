@@ -25,7 +25,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def make_regular_grid(image_object, spacing=1.0, subsize=9):
+def make_regular_grid(image_object, spacing=1.0, subsize=4):
     """Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     Parameters
@@ -288,9 +288,10 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = util_ref.visit
-    sca = util_ref.sca
+    pointing = util_ref.visit if util_ref is not None else None
+    sca = util_ref.sca if util_ref is not None else None
 
+    print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
                                     include_photonOps=False, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
@@ -380,6 +381,7 @@ def make_grid(
     single_dec=None,
     cut_points_close_to_sn=False,
     spacing=0.75,
+    subsize=9,
 ):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -416,12 +418,12 @@ def make_grid(
     if grid_type not in ["regular", "adaptive", "contour", "single"]:
         raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
     if grid_type == "contour":
-        ra_grid, dec_grid = make_contour_grid(images[0])
+        ra_grid, dec_grid = make_contour_grid(images[0], subsize=subsize)
 
     elif grid_type == "adaptive":
-        ra_grid, dec_grid = make_adaptive_grid(images[0], percentiles=percentiles)
+        ra_grid, dec_grid = make_adaptive_grid(images[0], percentiles=percentiles, subsize=subsize)
     elif grid_type == "regular":
-        ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing)
+        ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing, subsize=subsize)
 
     if grid_type == "single":
         if single_ra is None or single_dec is None:

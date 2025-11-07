@@ -120,7 +120,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     }
 
     for i, img in enumerate(image_list):
-        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+        if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
             data_dict["pointing"].append(img.pointing)
             data_dict["sca"].append(img.sca)
@@ -168,11 +168,16 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
-
+    if isinstance(supernova, int) or isinstance(supernova, float):
+        supernova = [supernova]
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux, "flux_error": sigma_flux, "sim_flux": supernova}
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "", "flux": "", "flux_error": ""}
+
+    SNLogger.debug(f"data_dict: {data_dict}")
+    SNLogger.debug(f"meta_dict: {meta_dict}")
+    SNLogger.debug(f"units: {units}")
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
@@ -211,11 +216,19 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
             base_output_path = Config.get().value("system.paths.output_dir")
         else:
             base_output_path = output_path
-
+            
     base_output_path = pathlib.Path(base_output_path)
     base_output_path.mkdir(exist_ok=True, parents=True)
 
     filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
+    
+#    if not overwrite and lc_file.exists():
+#        SNLogger.info(f"File {lc_file} already exists and overwrite is set to False.")
+#        i = 0
+#        while lc_file.exists():
+#            i += 1
+#            lc_file = output_path / f"{identifier}_{band}_{psftype}_lc_v{i}.ecsv"
+#        SNLogger.info(f"Saving to new file {lc_file} instead.")
 
     if save_to_database:
         ltcvprov = lc.provenance_object

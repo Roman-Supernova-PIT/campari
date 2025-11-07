@@ -12,6 +12,7 @@ import galsim
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
+from snappl.imagecollection import ImageCollection
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
@@ -52,6 +53,8 @@ class campari_runner:
         self.diaobject_collection = kwargs["diaobject_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
+        self.image_source = kwargs["image_source"]
+        self.image_path = kwargs["image_path"]
 
         self.ra = kwargs["ra"]
         self.dec = kwargs["dec"]
@@ -96,6 +99,7 @@ class campari_runner:
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
         self.spacing = self.cfg.value("photometry.campari.grid_options.spacing")
+        self.subsize = self.cfg.value("photometry.campari.grid_options.subsize")
         self.percentiles = self.cfg.value("photometry.campari.grid_options.percentiles")
         self.grid_type = self.cfg.value("photometry.campari.grid_options.type")
         self.base_pointing = self.cfg.value("photometry.campari_simulations.base_pointing")
@@ -110,6 +114,11 @@ class campari_runner:
         self.noise_maps = None
         self.galaxy_images = None
         self.galaxy_only_model_images = None
+        self.gaussian_var = self.cfg.value("photometry.campari.grid_options.gaussian_var")
+        if self.gaussian_var <= 0:
+            self.gaussian_var = None
+        self.cutoff = self.cfg.value("photometry.campari.grid_options.cutoff")
+        self.error_floor = self.cfg.value("photometry.campari.grid_options.error_floor")
         self.dbclient = SNPITDBClient()
         self.img_coll_prov = None
 
@@ -303,9 +312,10 @@ class campari_runner:
                                  " simulated images.")
             num_images = self.max_no_transient_images + self.max_transient_images
 
-            faux_dates = np.linspace(60000, diaobj.mjd_start, self.max_no_transient_images).tolist() + \
-                np.linspace(diaobj.mjd_start, diaobj.mjd_end, self.max_transient_images).tolist()
+            faux_dates = np.linspace(60000, diaobj.mjd_start - 1, self.max_no_transient_images).tolist() + \
+                np.linspace(diaobj.mjd_start + 1, diaobj.mjd_end - 1, self.max_transient_images).tolist()
             faux_dates = np.array(faux_dates)
+
             # fake dates for simulated images
             image_list = []
             for i in range(num_images):
@@ -372,11 +382,12 @@ class campari_runner:
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
-                           avoid_non_linearity=self.avoid_non_linearity,
+                           avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
                            base_sca=self.base_sca, save_model=self.save_model, prebuilt_psf_matrix=prebuilt_psf_matrix,
-                           prebuilt_sn_matrix=prebuilt_sn_matrix)
+                           prebuilt_sn_matrix=prebuilt_sn_matrix, gaussian_var=self.gaussian_var, cutoff=self.cutoff,
+                           error_floor=self.error_floor)
 
         return lightcurve_model
 
@@ -428,6 +439,7 @@ class campari_runner:
             debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
+            np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
 
             # Save the ra and dec grids
             ra_grid = np.atleast_1d(lc_model.ra_grid)
@@ -449,7 +461,39 @@ class campari_runner:
 
             if not self.use_real_images:
                 np.save(debug_dir / f"{fileroot}_galaxy_images.npy", lc_model.galaxy_images)
-                np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
+
                 SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")
         else:
             SNLogger.info("Not saving debug files.")
+
+    def parse_img_list(self):
+        """Parse the image list file if provided."""
+        with open(self.img_list) as ifp:
+            img_list_lines = ifp.readlines()
+        img_list_lines = [line.strip() for line in img_list_lines if
+                          (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        my_image_collection = ImageCollection()
+        # De-harcode this threefile thing
+        my_image_collection = my_image_collection.get_collection(self.image_source, subset="threefile",
+                                                                 base_path=self.image_path)
+        images = []
+        if all(len(line.split(",")) == 3 for line in img_list_lines):
+            # each line of file is pointing sca band
+            for line in img_list_lines:
+                vals = line.split(",")
+                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]), band=vals[2]))
+        elif all(len(line.split(",")) == 2 for line in img_list_lines):
+            # each line of file is pointing sca
+            for line in img_list_lines:
+                vals = line.split(",")
+                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]),
+                              band=self.band))
+        elif all(len(line.split(",")) == 1 for line in img_list_lines):
+            # each line of file is path to image
+            for line in img_list_lines:
+                images.append(my_image_collection.get_image(path=line))
+        else:
+            raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"
+                                " pointing and sca.")
+
+        return images

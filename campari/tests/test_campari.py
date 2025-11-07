@@ -262,6 +262,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
             f"{campari_test_data}/test_image_list_star.csv", "--diaobject-collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
+            "--photometry-campari-grid_options-gaussian_var", "1000",
             "--image-collection", "ou2024", "--no-save-to-db"]
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
@@ -290,6 +291,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
         "--ra 7.5833264 --dec -44.809659 --image-collection ou2024 --no-save-to-db "
+        "--photometry-campari-grid_options-gaussian_var 1000"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -320,6 +322,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
          "--no-photometry-campari-source_phot_ops",
+         "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
          "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc"
@@ -374,6 +377,7 @@ def test_regression(campari_test_data, overwrite_meta):
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
+        "--photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -412,8 +416,7 @@ def test_make_regular_grid():
                          -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         img = FITSImageStdHeaders(header=wcs_dict, path="/dev/null", data=np.zeros((25, 25)))
-        ra_grid, dec_grid = make_regular_grid(img,
-                                              spacing=3.0)
+        ra_grid, dec_grid = make_regular_grid(img, spacing=3.0, subsize=9)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
             "RA vals do not match"
         np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \
@@ -659,7 +662,7 @@ def test_build_lc(cfg, overwrite_meta):
 
     lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
-                                        sky_background=[0.0] * len(image_list))
+                                        sky_background=[0.0] * len(image_list), pre_transient_images=1, post_transient_images=0)
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
@@ -771,12 +774,13 @@ def test_handle_partial_overlap():
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "
-        "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
+        "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024 --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = np.load(curfile, allow_pickle=True)
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 

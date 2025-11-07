@@ -132,7 +132,7 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
 
     lc_model = campari_lightcurve_model(
         flux=100.0, sigma_flux=10.0, image_list=image_list, cutout_image_list=cutout_image_list,
-        LSB=25.0, sky_background=[0.0] * len(image_list)
+        LSB=25.0, sky_background=[0.0] * len(image_list),  pre_transient_images=1, post_transient_images=0
     )
 
     diaobj = DiaObject.find_objects(name=20172782, ra=7, dec=-41, collection="manual")[0]
