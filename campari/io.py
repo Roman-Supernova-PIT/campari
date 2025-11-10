@@ -22,6 +22,7 @@ from snappl.lightcurve import Lightcurve
 from snappl.logger import SNLogger
 
 # Campari
+import campari
 from campari.utils import calc_mag_and_err
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -86,10 +87,13 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
 
     cfg = Config.get()
     SNLogger.debug("Attempting to build provenance for lightcurve")
+    campari_version = campari.__version__
+    major = int(campari_version.split('.')[0])
+    minor = int(campari_version.split('.')[1])
     cam_prov = Provenance(
         process="campari",
-        major=0,
-        minor=42,  # THIS CAN'T BE HARDCODED FOREVER XXX TODO
+        major=major,
+        minor=minor,
         params=cfg,
         keepkeys=["photometry.campari"],
         omitkeys=None,
