@@ -18,8 +18,8 @@ from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
 from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -93,7 +93,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # but still sorted by MJD.
 
     if use_real_images:
-        cutout_image_list, image_list = construct_images(image_list, diaobj, size,
+        cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
         noise_maps = [im.noise for im in cutout_image_list]
 
@@ -116,6 +116,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
         sim_lc = simulated_lightcurve.sim_lc
+        sky_background = np.zeros(len(sim_lc))
         image_list = simulated_lightcurve.image_list
         cutout_image_list = simulated_lightcurve.cutout_image_list
         galaxy_images = simulated_lightcurve.galaxy_images
@@ -158,7 +159,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if len(no_transient_cutouts) > 0:
         LSB = calculate_local_surface_brightness(no_transient_cutouts, cutout_pix=2)
     else:
-        LSB = None
+        # This is used for stars only, essentially. LSB just can't be None.
+        LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
@@ -174,7 +176,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         SNLogger.debug(f"Image {i} pointing, sca: {pointing, sca}")
         if int(pointing) >= 0 and int(pointing) <= 57364:
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
-                                   ("photometry.campari.galsim.tds_file")),
+                                   ("system.ou24.config_file")),
                                    visit=pointing, sca=sca)
         else:
             util_ref = None
@@ -373,7 +375,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
-            diaobj=diaobj, object_type=object_type, pre_transient_images=num_pre_transient_images,
+            diaobj=diaobj, object_type=object_type, sky_background=sky_background, pre_transient_images=num_pre_transient_images,
             post_transient_images=num_post_transient_images
         )
 

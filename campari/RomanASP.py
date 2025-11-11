@@ -9,7 +9,7 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snpit_utils.config import Config
+from snappl.config import Config
 from campari.campari_runner import campari_runner
 
 
@@ -95,25 +95,9 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("-s", "--SNID", "--oid", type=int, default=None,
-                        required=False, nargs="*",
-                        help="Object IDs to run on. Meaning is dependent on the collection used."
-                             "Will be ignored if --SNID-file is given")
-    parser.add_argument("--SNID-file", "--oid_file", type=str, default=None, required=False,
-                        help="Path to a csv file containing a list of "
-                             "Object IDs to run on. Meaning of Object ID dependent on the collection used.")
-
-    parser.add_argument("--healpix", type=int, default=None, required=False, nargs="*",
-                        help="Healpix ID or IDs to run on. If given, will run on all "
-                             "supernovae in that healpix. nside must be specified with the"
-                             "--nside argument.")
-    parser.add_argument("--nside", type=int, default=None, required=False,
-                        help="Nside of the healpix to run on. If given, will run "
-                             "on all supernovae in that healpix. This is a required argument if --healpix is given.")
-    parser.add_argument("--healpix_file", type=str, default=None,  required=False,
-                        help="A file of healpix IDs to run on. If given, "
-                        "will run on all supernovae in those healpixes. nside must be specified with the"
-                        "--nside argument.")
+    parser.add_argument("--diaobject-name", type=int, default=None,
+                        required=False,
+                        help="Object name to run on. Meaning is dependent on the collection used.")
 
     parser.add_argument("--prebuilt_static_model", type=str, default=None,  required=False,
                         help="A path to a .npy file containing a prebuilt static model. "
@@ -135,15 +119,22 @@ def main():
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
 
-    parser.add_argument("--object_collection", type=str, default="ou2024", required=False,
+    parser.add_argument("--diaobject-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of objects to use for lookup. "
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
-    parser.add_argument("--image_source", type=str, default="ou2024", required=False,
+    parser.add_argument("--diaobject-subset", type=str, default=None, required=False,
+                        help="Subset of the diaobject collection to use for lookup. ")
+    # Campari currently does not use this?
+
+    parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of images to use for lookup. ")
     parser.add_argument("--image_path", type=str, default=None, required=False,
                         help="Path to the images to use for scene modelling. "
                              "If given, will use these images for image sources that require a base_path.")
+    parser.add_argument("--image-subset", type=str, default=None, required=False,
+                        help="Subset of the image collection to use for lookup. ")
+    # Campari currently does not use this?
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
 
@@ -168,7 +159,7 @@ def main():
         "--transient_start",
         type=float,
         required=False,
-        help="MJD of first epoch of transient. Only used when --object_collection is manual. Otherwise, "
+        help="MJD of first epoch of transient. Only used when --diaobject-collection is manual. Otherwise, "
         " then the catalog values for transient_start, transient_end will be used."
         "If not given but transient_end is, will assume the first detection is at -inf.",
         default=None,
@@ -177,7 +168,7 @@ def main():
         "--transient_end",
         type=float,
         required=False,
-        help="MJD of last epoch of transient. Only used when --object_collection is manual. Otherwise, "
+        help="MJD of last epoch of transient. Only used when --diaobject-collection is manual. Otherwise, "
         " the catalog values for transient_start, transient_end will be used."
         " If not given but transient_start is, will assume the last detection is at +inf.",
         default=None,
@@ -217,6 +208,52 @@ def main():
                         help="If True, will save the PSF and SN matrices used in the fit to the debug directory."
                              "This will be useful if you are running very similar configurations and want to avoid"
                              "recomputing the matrices each time.")
+
+    parser.add_argument("--image-process", type=str,
+                        help="A string to identify the process of getting "
+                        "the image collection. Default None.", default=None)
+
+    parser.add_argument("--image-provenance-tag", type=str,
+                        help="A string tag to identify the provenance of "
+                        "the image collection step. Default None.", default=None)
+
+    parser.add_argument("--diaobject-provenance-tag", type=str,
+                        help="A string tag to identify the provenance of the "
+                        "diaobject. Default None.", default=None)
+    parser.add_argument("--diaobject-process", type=str,
+                        help="A string to identify the process of the "
+                        "diaobject. Default None.", default=None)
+    parser.add_argument("--diaobject-id", type=str, default=None,
+                        help="the diaobject id. Default None.")
+
+    parser.add_argument("--ltcv-provenance-id", type=str,
+                        help="the provenance id for lightcurve. Default None.", default=None)
+    # Campari currently does not use this?
+
+    parser.add_argument("--ltcv-process", type=str,
+                        help="A string to identify the process of the "
+                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+    parser.add_argument("--ltcv-provenance-tag", type=str,
+                        help="A string tag to identify the provenance of the "
+                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+
+    parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=False,
+                        help="If True, will create and write provenances to the database."
+                             " Default False.")  # Campari currently does not use this?
+
+    parser.add_argument("--diaobject-position-provenance-tag", type=str,
+                        help="A string tag to identify the provenance of the program that determines the "
+                        "object position. Default None.", default=None)
+
+    parser.add_argument("--diaobject-position-process", type=str,
+                        help="A string to identify the process of the program that determines the object position."
+                        " Default None.", default=None)
+
+    parser.add_argument("--save-to-db", action=argparse.BooleanOptionalAction, default=True, help="If True, "
+                        "will save all results to the database. Default True.")
+
+    parser.add_argument("--add-truth-to-lc", action=argparse.BooleanOptionalAction, default=False, help="If True, "
+                        "will add the truth fluxes from ou2024 to the lightcurve output. Default False.")
 
     if cfg is not None:
         cfg.augment_argparse(parser)
