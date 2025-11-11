@@ -15,8 +15,8 @@ from galsim import roman
 
 # SN-PIT
 from snappl.psf import PSF
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
+from snappl.config import Config
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.

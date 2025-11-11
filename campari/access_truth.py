@@ -21,8 +21,8 @@ import healpy as hp
 # SN-PIT
 from campari.utils import calc_mag_and_err
 from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -73,6 +73,7 @@ def main():
 
 def find_parquet(ID, path, obj_type="SN"):
     """Find the parquet file that contains a given supernova ID."""
+    SNLogger.debug(f"Searching for {obj_type} {ID} in parquet files in {path}")
 
     files = os.listdir(path)
     file_prefix = {"SN": "snana", "star": "pointsource"}
@@ -104,17 +105,34 @@ def open_parquet(parq, path, obj_type="SN", engine="fastparquet"):
 def add_truth_to_lc(lc, sn_path, object_type="SN"):
     """This code adds the truth flux and magnitude to a lightcurve datatable."""
 
-    ID = lc.meta["ID"]
+    ID = int(lc.meta["ID"])
     parq_file = find_parquet(ID, path=sn_path, obj_type=object_type)
+    SNLogger.debug(f"Loading truth data for {object_type} {ID} from parquet file {parq_file}")
     df = open_parquet(parq_file, path=sn_path, obj_type=object_type)
-    band = lc["filter"][0]
+    band = lc.meta["band"][0]
 
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, sca in zip(lc["pointing"], lc["sca"]):
+    for pointing, sca in zip(lc.data["pointing"], lc.data["sca"]):
         # Load the truthpath for a OU24 Image with that pointing and SCA
         img_collection = ImageCollection()
         img_collection = img_collection.get_collection("ou2024")
+
+
+        band_map = {
+            "r": "R062",
+            "z": "Z087",
+            "y": "Y106",
+            "j": "J129",
+            "h": "H158",
+            "f": "F184",
+            "w": "W146",
+        }
+
+        # Here we handle band abbreviations
+        if band not in list(band_map.values()):
+            band = band_map[band.lower()]
+
         dummy_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
         catalogue_path = dummy_image.truthpath
 
@@ -158,7 +176,9 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
         "sim_true_mag": u.mag,
     }
 
-    lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
+    lc.data.update(data_dict)
+    lc.meta.update(meta_dict)
+    #lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
 
     return lc
 
@@ -320,11 +340,15 @@ def extract_object_from_healpix(healpix, nside, object_type="SN", source="OpenUn
     -------
     id_array: numpy array of int, the IDs of the objects extracted from the healpix.
     """
-    assert isinstance(healpix, int), "Healpix must be an integer."
-    assert isinstance(nside, int), "Nside must be an integer."
+
+    if not isinstance(healpix, int):
+        raise TypeError("Healpix must be an integer.")
+    if not isinstance(nside, int):
+        raise TypeError("Nside must be an integer.")
+
     SNLogger.debug(f"Extracting {object_type} objects from healpix {healpix} with nside {nside} from {source}.")
     if source == "OpenUniverse2024":
-        path = Config.get().value("ou24.sn_truth_dir")
+        path = Config.get().value("system.ou24.sn_truth_dir")
         files = os.listdir(path)
         file_prefix = {"SN": "snana", "star": "pointsource"}
         files = [f for f in files if file_prefix[object_type] in f]

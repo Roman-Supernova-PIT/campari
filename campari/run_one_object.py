@@ -19,8 +19,8 @@ from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
 from campari.simulation import simulate_images
 from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -65,7 +65,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel"):
+                   save_model=False, prebuilt_psf_matrix=None,
+                   prebuilt_sn_matrix=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -80,7 +81,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     num_detect_images = len(transient_image_list)
 
     if use_real_images:
-        cutout_image_list, image_list = construct_images(image_list, diaobj, size,
+        cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                          subtract_background=subtract_background)
 
         # We didn't simulate anything, so set these simulation only vars to none.
@@ -102,6 +103,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
         sim_lc = simulated_lightcurve.sim_lc
+        sky_background = np.zeros(len(sim_lc))
         image_list = simulated_lightcurve.image_list
         cutout_image_list = simulated_lightcurve.cutout_image_list
         galaxy_images = simulated_lightcurve.galaxy_images
@@ -143,7 +145,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if len(no_transient_cutouts) > 0:
         LSB = calculate_local_surface_brightness(no_transient_cutouts, cutout_pix=2)
     else:
-        LSB = None
+        # This is used for stars only, essentially. LSB just can't be None.
+        LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
     for i, image in enumerate(image_list):
@@ -156,25 +159,28 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
 
-        # TODO: Put this in snappl
         if use_real_images:
+            SNLogger.debug("file used: " + str(pathlib.Path(Config.get().value
+                                   ("system.ou24.config_file"))))
             util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
-                                   ("photometry.campari.galsim.tds_file")),
+                                   ("system.ou24.config_file")),
                                    visit=pointing, sca=sca)
 
         # If no grid, we still need something that can be concatenated in the
         # linear algebra steps, so we initialize an empty array by default.
         background_model_array = np.empty((size**2, 0))
         SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
-        if grid_type != "none":
+        if grid_type != "none" and prebuilt_psf_matrix is None:
             background_model_array = \
                 construct_static_scene(ra_grid, dec_grid,
                                        whole_sca_wcs,
                                        object_x, object_y, size,
                                        pixel=pixel, image=image,
                                        util_ref=util_ref, band=band)
+        elif grid_type != "none" and prebuilt_psf_matrix is not None:
+            SNLogger.debug("Using prebuilt PSF matrix for background model")
 
-        if not subtract_background:
+        if not subtract_background and prebuilt_psf_matrix is None:
             # If we did not manually subtract the background, we need to fit in the forward model. Since the
             # background is a constant, we add a term to the model that is all ones. But we only want the background
             # to be present in the model for the image it is associated with. Therefore, we only add the background
@@ -190,7 +196,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
         # Add the array of the model points and the background (if using)
         # to the matrix of all components of the model.
-        psf_matrix.append(background_model_array)
+        if prebuilt_psf_matrix is None:
+            psf_matrix.append(background_model_array)
 
         # The arrays below are the length of the number of images that contain the object
         # Therefore, when we iterate onto the
@@ -199,7 +206,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         # predetection images: num_total_images - num_detect_images.
         # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
         sn_index = i - (num_total_images - num_detect_images)
-        if sn_index >= 0:
+
+        if sn_index >= 0 and prebuilt_sn_matrix is None:
             if use_real_images:
                 pointing = pointing
                 sca = sca
@@ -234,9 +242,20 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
             sn_matrix.append(psf_source_array)
 
+        elif sn_index >= 0 and prebuilt_sn_matrix is not None:
+            SNLogger.debug("Using prebuilt SN matrix for transient model")
+
     banner("Lin Alg Section")
-    psf_matrix = np.vstack(np.array(psf_matrix))
-    SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    if prebuilt_psf_matrix is None:
+        psf_matrix = np.vstack(np.array(psf_matrix))
+        SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    else:
+        psf_matrix = prebuilt_psf_matrix
+        SNLogger.debug(f"Using prebuilt PSF matrix of shape {psf_matrix.shape}")
+
+    if prebuilt_sn_matrix is not None:
+        sn_matrix = prebuilt_sn_matrix
+        SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
 
     # Add in the supernova images to the matrix in the appropriate location
     # so that it matches up with the image it represents.
@@ -249,9 +268,25 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    if save_model:
+        np.save(
+            pathlib.Path(Config.get().value("system.paths.debug_dir"))
+            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            psf_matrix,
+        )
+        np.save(
+            pathlib.Path(Config.get().value("system.paths.debug_dir"))
+            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy",
+            sn_matrix,
+        )
+        SNLogger.debug(
+            f"Saved PSF and SN matrices to{pathlib.Path(Config.get().value('system.paths.debug_dir'))}"
+        )
+
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
     # Combine the background model and the supernova model into one matrix.
+
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     # Calculate amount of the PSF cut out by setting a distance cap
@@ -319,7 +354,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
-            diaobj=diaobj, object_type=object_type
+            diaobj=diaobj, object_type=object_type, sky_background=sky_background
         )
 
     return lightcurve_model

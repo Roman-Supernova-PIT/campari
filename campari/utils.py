@@ -10,7 +10,7 @@ from erfa import ErfaWarning
 from galsim import roman
 
 # SN-PIT
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -44,7 +44,9 @@ class campari_lightcurve_model:
         galra=None,
         galdec=None,
         object_type="SN",
-        LSB=None
+        LSB=None,
+        sky_background=None,
+        image_collection_prov=None,
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -91,6 +93,8 @@ class campari_lightcurve_model:
             The type of transient object, default is "SN".
         LSB : float
             The local surface brightness around the transient location in mag/arcsec^2.
+        sky_background: list
+            The sky background fluxes subtracted out of each image cutout.
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -112,6 +116,8 @@ class campari_lightcurve_model:
         self.galdec = galdec
         self.object_type = object_type
         self.LSB = LSB
+        self.sky_background = sky_background
+        self.image_collection_prov = image_collection_prov
 
 
 def gaussian(x, A, mu, sigma):
