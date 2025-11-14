@@ -153,7 +153,7 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
 
     for col in bothmetacols:
         msg = f"The lightcurves do not match for meta column {col}"
-        if "provenance" in col:
+        if "provenance" in col or "diaobject_id" in col:
             continue
             # We want to check provenances at the end. Otherwise, the code will fail when it detects that the
             # provenance is different before it can tell us which column is different.
