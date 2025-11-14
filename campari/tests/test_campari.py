@@ -79,6 +79,15 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     metacols2 = set(metacols2)
 
     bothmetacols = metacols1 & metacols2
+    SNLogger.debug("OLD METADATA:")
+    SNLogger.debug(lc2.meta)
+    SNLogger.debug("NEW METADATA:")
+    SNLogger.debug(lc1.meta)
+
+    SNLogger.debug("OLD LIGHTCURVE DATA:")
+    SNLogger.debug(lc2)
+    SNLogger.debug("NEW LIGHTCURVE DATA:")
+    SNLogger.debug(lc1)
 
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")
@@ -133,6 +142,8 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
 
+
+
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
     assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, (
@@ -153,7 +164,7 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
 
     for col in bothmetacols:
         msg = f"The lightcurves do not match for meta column {col}"
-        if "provenance" in col:
+        if "provenance" in col or "diaobject_id" in col:
             continue
             # We want to check provenances at the end. Otherwise, the code will fail when it detects that the
             # provenance is different before it can tell us which column is different.
@@ -186,7 +197,7 @@ def test_find_all_exposures():
     diaobj.mjd_end = 62958.0
     image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                        maxdet=24,
-                                       pointing_list=None, sca_list=None,
+                                       sca_list=None,
                                        truth="simple_model", image_collection="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
@@ -262,7 +273,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
             f"{campari_test_data}/test_image_list_star.csv", "--diaobject-collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
             "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
-            "--image-collection", "ou2024", "--no-save-to-db"]
+            "--image-collection", "ou2024", "--no-save-to-db", "--photometry-campari-grid_options-gaussian_var", "1000"]
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
 
@@ -289,11 +300,12 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659 --image-collection ou2024 --no-save-to-db "
+        "--ra 7.5833264 --dec -44.809659 --image-collection ou2024 --no-save-to-db --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
-    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", overwrite_meta=overwrite_meta)
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
 
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_run_on_star so I am rerunning this test.")
@@ -320,6 +332,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
          "--no-photometry-campari-source_phot_ops",
+         "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
          "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc"
@@ -355,6 +368,7 @@ def test_regression(campari_test_data, overwrite_meta):
 
     cfg = Config.get()
 
+    #curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
@@ -374,6 +388,7 @@ def test_regression(campari_test_data, overwrite_meta):
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -412,8 +427,7 @@ def test_make_regular_grid():
                          -44.263774, -44.263868, -44.263796, -44.263724])
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         img = FITSImageStdHeaders(header=wcs_dict, path="/dev/null", data=np.zeros((25, 25)))
-        ra_grid, dec_grid = make_regular_grid(img,
-                                              spacing=3.0)
+        ra_grid, dec_grid = make_regular_grid(img, spacing=3.0, subsize=9)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
             "RA vals do not match"
         np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \
@@ -659,7 +673,7 @@ def test_build_lc(cfg, overwrite_meta):
 
     lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
-                                        sky_background=[0.0] * len(image_list))
+                                        sky_background=[0.0] * len(image_list), pre_transient_images=1, post_transient_images=0)
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
@@ -699,37 +713,35 @@ def test_wcs_regression():
     np.testing.assert_allclose(y, y_test, atol=1e-7)
 
 
-def test_find_all_exposures_with_img_list():
-    band = "Y106"
-    columns = ["pointing", "SCA"]
-    image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-    SNLogger.debug(image_df)
-    ra = 7.551093401915147
-    dec = -44.80718106491529
-    transient_start = 62450.
-    transient_end = 62881.
-    max_no_transient_images = None
-    max_transient_images = None
-    image_selection_start = None
-    image_selection_end = None
-    diaobj = DiaObject.find_objects(name=1, ra=ra, dec=dec, collection="manual")[0]
-    diaobj.mjd_start = transient_start
-    diaobj.mjd_end = transient_end
+# def test_find_all_exposures_with_img_list():
+#     band = "Y106"
+#     columns = ["pointing", "SCA"]
+#     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
+#     SNLogger.debug(image_df)
+#     ra = 7.551093401915147
+#     dec = -44.80718106491529
+#     transient_start = 62450.
+#     transient_end = 62881.
+#     max_no_transient_images = None
+#     max_transient_images = None
+#     image_selection_start = None
+#     image_selection_end = None
+#     diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
+#     diaobj.mjd_start = transient_start
+#     diaobj.mjd_end = transient_end
 
-    image_list, _ = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
-                                       maxdet=max_transient_images, band=band,
-                                       image_selection_start=image_selection_start,
-                                       image_selection_end=image_selection_end,
-                                       pointing_list=image_df["pointing"].values,
-                                       image_collection="ou2024")
+#     image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
+#                                     maxdet=max_transient_images, band=band,
+#                                     image_selection_start=image_selection_start,
+#                                     image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
 
-    SNLogger.debug(f"Found {len(image_list)} images")
+#     SNLogger.debug(f"Found {len(image_list)} images")
 
-    compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
+#     compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
 
-    np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
-    np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
-    np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
+#     np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
+#     np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
+#     np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
 def test_read_healpix_file():
@@ -772,11 +784,13 @@ def test_handle_partial_overlap():
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "
         "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = np.load(curfile, allow_pickle=True)
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 

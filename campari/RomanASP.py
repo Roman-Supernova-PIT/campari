@@ -129,6 +129,9 @@ def main():
 
     parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of images to use for lookup. ")
+    parser.add_argument("--image_path", type=str, default=None, required=False,
+                        help="Path to the images to use for scene modelling. "
+                             "If given, will use these images for image sources that require a base_path.")
     parser.add_argument("--image-subset", type=str, default=None, required=False,
                         help="Subset of the image collection to use for lookup. ")
     # Campari currently does not use this?

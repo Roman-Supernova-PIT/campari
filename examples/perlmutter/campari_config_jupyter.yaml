@@ -61,12 +61,24 @@ photometry:
       base_sca: 10
       run_name: whatever
 
+system:
+  paths:
+    lightcurves: /campari_out_dir # So Cole can run tests.
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    campari_test_data: /campari_test_data
+    output_dir: /campari_out_dir
+    sed_path: /campari_sed_dir
+    debug_dir: /campari_debug_dir
 
-ou24psf:
-  config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
+  ou24:
+    simdex_server: https://roman-desc-simdex.rknop.net
+    config_file: /campari/examples/perlmutter/tds.yaml
+    sn_truth_dir: /snana_pq_dir
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    images: /sims_dir/RomanTDS/images/simple_model
+    tds_base: /photometry_test_data/ou2024
 
-ou24:
-  config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
-  sn_truth_dir: /dvs_ro/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
-  sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
-  images:  /dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/images/simple_model
+  db:
+    url: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    username: campari
+    passwordfile: /global/homes/c/cmeldorf/secrets/roman_snpit_ou2024_campari

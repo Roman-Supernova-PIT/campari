@@ -61,7 +61,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
 
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
-    SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band}")
+    SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
     upstreams = []
@@ -120,9 +120,9 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     }
 
     for i, img in enumerate(image_list):
-        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+        if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["pointing"].append(img.pointing)
+            data_dict["pointing"].append(int(img.pointing))
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["pix_x"].append(x)
@@ -168,11 +168,16 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
-
+    if isinstance(supernova, int) or isinstance(supernova, float):
+        supernova = [supernova]
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux, "flux_error": sigma_flux, "sim_flux": supernova}
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "", "flux": "", "flux_error": ""}
+
+    SNLogger.debug(f"data_dict: {data_dict}")
+    SNLogger.debug(f"meta_dict: {meta_dict}")
+    SNLogger.debug(f"units: {units}")
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
