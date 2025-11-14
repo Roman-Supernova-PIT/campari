@@ -389,7 +389,11 @@ class campari_runner:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
-            identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
+            if self.save_to_db:
+                identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
+            else:
+                identifier = str(diaobj.name)
+
             # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
