@@ -53,7 +53,7 @@ class campari_runner:
         self.diaobject_collection = kwargs["diaobject_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
-        self.image_source = kwargs["image_source"]
+        self.image_collection = kwargs["image_collection"]
         self.image_path = kwargs["image_path"]
 
         self.ra = kwargs["ra"]
@@ -167,7 +167,7 @@ class campari_runner:
 
     def __call__(self):
         """Run the Campari pipeline."""
-        self.decide_run_mode()
+        #self.decide_run_mode()
         if not self.use_real_images:
             self.create_sim_param_grid()
 
@@ -189,6 +189,8 @@ class campari_runner:
                                          ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
                                          mjd_discovery_max=self.transient_end)
 
+
+
         if len(diaobjs) == 0:
             raise ValueError(
                 f"Could not find DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
@@ -198,6 +200,7 @@ class campari_runner:
             raise ValueError(f"Found multiple DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
                              f" ra={self.ra}, dec={self.dec}.")
         diaobj = diaobjs[0]
+        SNLogger.debug(f"Immediately after searching for objects the ID is: {diaobj.id}")
 
         # Get diaobject position using different methods depending on provenance.
         if self.diaobject_position_provenance_tag is None:
@@ -249,20 +252,20 @@ class campari_runner:
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
         self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
 
-    def decide_run_mode(self):
-        """Decide which run mode to use based on the input configuration."""
+    # def decide_run_mode(self):
+    #     """Decide which run mode to use based on the input configuration."""
 
-        if self.img_list is not None:
-            columns = ["pointing", "sca"]
-            image_df = pd.read_csv(self.img_list, header=None, names=columns)
-            SNLogger.debug(f"Loaded image list from {self.img_list} with {len(image_df)} entries.")
-            # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
-            self.max_no_transient_images = None
-            self.max_transient_images = None
-            self.pointing_list = image_df["pointing"].values
-        else:
-            image_df = None
-            self.pointing_list = None
+    #     if self.img_list is not None:
+    #         columns = ["pointing", "sca"]
+    #         image_df = pd.read_csv(self.img_list, header=None, names=columns)
+    #         SNLogger.debug(f"Loaded image list from {self.img_list} with {len(image_df)} entries.")
+    #         # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
+    #         self.max_no_transient_images = None
+    #         self.max_transient_images = None
+    #         self.pointing_list = image_df["pointing"].values
+    #     else:
+    #         image_df = None
+    #         self.pointing_list = None
 
     def create_sim_param_grid(self):
         raise NotImplementedError("Simulation parameter grid creation is broken. Will be made external later.")
@@ -353,8 +356,8 @@ class campari_runner:
         SNLogger.debug("setting image list")
         recovered_pointings = [int(a.pointing) for a in image_list]
         self.pointing_list = self.pointing_list.astype(int) if self.pointing_list is not None else None
-        if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
-                                                            np.sort(self.pointing_list)):
+        if (self.img_list is not None and self.pointing_list is not None) \
+            and not np.array_equiv(np.sort(recovered_pointings), np.sort(self.pointing_list)):
             SNLogger.warning(
                 "Unable to find the object in all the pointings in the image list. Specifically, the"
                 " following pointings were not found: "
@@ -419,7 +422,10 @@ class campari_runner:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
-            identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
+            if diaobj.id is not None and self.diaobject_collection == "snpitdb":
+                identifier = str(diaobj.id)
+            else:
+                identifier = str(diaobj.name)
             # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
@@ -493,22 +499,27 @@ class campari_runner:
                           (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
-        my_image_collection = my_image_collection.get_collection(self.image_source, subset="threefile",
+        my_image_collection = my_image_collection.get_collection(self.image_collection, subset="threefile",
                                                                  base_path=self.image_path)
         images = []
         if all(len(line.split(",")) == 3 for line in img_list_lines):
+            self.pointing_list = []
             # each line of file is pointing sca band
             for line in img_list_lines:
                 vals = line.split(",")
                 images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]), band=vals[2]))
+                self.pointing_list.append(int(vals[0]))
         elif all(len(line.split(",")) == 2 for line in img_list_lines):
             # each line of file is pointing sca
+            self.pointing_list = []
             for line in img_list_lines:
                 vals = line.split(",")
                 images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]),
                               band=self.band))
+                self.pointing_list.append(int(vals[0]))
         elif all(len(line.split(",")) == 1 for line in img_list_lines):
             # each line of file is path to image
+            self.pointing_list = None
             for line in img_list_lines:
                 images.append(my_image_collection.get_image(path=line))
         else:

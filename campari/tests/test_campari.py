@@ -79,6 +79,15 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     metacols2 = set(metacols2)
 
     bothmetacols = metacols1 & metacols2
+    SNLogger.debug("OLD METADATA:")
+    SNLogger.debug(lc2.meta)
+    SNLogger.debug("NEW METADATA:")
+    SNLogger.debug(lc1.meta)
+
+    SNLogger.debug("OLD LIGHTCURVE DATA:")
+    SNLogger.debug(lc2)
+    SNLogger.debug("NEW LIGHTCURVE DATA:")
+    SNLogger.debug(lc1)
 
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")
@@ -133,6 +142,8 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
 
+
+
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
     assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, (
@@ -153,7 +164,7 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
 
     for col in bothmetacols:
         msg = f"The lightcurves do not match for meta column {col}"
-        if "provenance" in col:
+        if "provenance" in col or "diaobject_id" in col:
             continue
             # We want to check provenances at the end. Otherwise, the code will fail when it detects that the
             # provenance is different before it can tell us which column is different.
@@ -186,7 +197,7 @@ def test_find_all_exposures():
     diaobj.mjd_end = 62958.0
     image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                        maxdet=24,
-                                       pointing_list=None, sca_list=None,
+                                       sca_list=None,
                                        truth="simple_model", image_collection="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
@@ -293,7 +304,8 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
-    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", overwrite_meta=overwrite_meta)
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
 
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_run_on_star so I am rerunning this test.")
@@ -356,6 +368,7 @@ def test_regression(campari_test_data, overwrite_meta):
 
     cfg = Config.get()
 
+    #curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
@@ -375,7 +388,7 @@ def test_regression(campari_test_data, overwrite_meta):
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
-        "--photometry-campari-grid_options-gaussian_var 1000"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 

@@ -30,8 +30,12 @@
 # - {use_real_images: true}
 # - {psfclass: ou24PSF}
 # - grid_options:
+#     cutoff: 4
+#     error_floor: 1
+#     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
+#     subsize: 4
 #     turn_grid_off: false
 #     type: contour
 # - {ID: '20172782'}
@@ -39,8 +43,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 43bed641-7c09-9cf9-b7ec-65b345685419}
-# - {diaobject_id: null}
+# - {provenance_id: b8aa3e1f-960c-57f5-c302-55fe1dcf0e98}
+# - {diaobject_id: 3e9567e7-03db-4822-8e4b-ae8e3811b168}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

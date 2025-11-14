@@ -8,13 +8,13 @@ from scipy.stats import norm, skewtest
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
 
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 
 imsize = 19
 base_cmd = [
         "python", "../RomanASP.py",
-        "-s", "123",
+        "--diaobject-name", "123",
         "-t", "1",
         "-n", "0",
         "-f", "R062",
@@ -24,7 +24,7 @@ base_cmd = [
         "--transient_end", "60060",
         "--photometry-campari-psfclass", "gaussian",
         "--photometry-campari-use_real_images",
-        "--object_collection", "manual",
+        "--diaobject-collection", "manual",
         "--no-photometry-campari-fetch_SED",
         "--photometry-campari-grid_options-spacing", "1",
         "--photometry-campari-grid_options-subsize", "4",
@@ -32,9 +32,10 @@ base_cmd = [
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background",
         "--no-photometry-campari-source_phot_ops",
-        "--image_source", "manual_fits",
-        "--photometry-campari-simulations-run_name", "gauss_source_no_grid",
+        "--image-collection", "manual_fits",
+        "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
         "--image_path", "/photometry_test_data/simple_gaussian_test/sig1.0",
+        "--no-save-to-db"
     ]
 
 
@@ -143,10 +144,10 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     # Now plot a light curve
     if trueflux is not None:
         plt.subplot(2, 2, 1)
-        plt.errorbar(lc["mjd"], lc["flux_fit"] - trueflux, yerr=lc["flux_fit_err"], marker="o", linestyle="None",
+        plt.errorbar(lc["mjd"], lc["flux"] - trueflux, yerr=lc["flux_err"], marker="o", linestyle="None",
                      label="Campari Fit - Truth")
 
-        residuals = lc["flux_fit"] - trueflux
+        residuals = lc["flux"] - trueflux
         window_size = 3
         rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
         plt.plot(lc["mjd"][window_size - 1:], rolling_avg, label="Rolling Average", color="orange")
@@ -155,8 +156,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
             SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
             plt.errorbar(lc["mjd"], np.array(ap_sums) - trueflux, yerr=ap_err, marker="o", linestyle="None",
                          label="Aperture Phot - Truth", color="red")
-            plt.errorbar(lc["mjd"], lc["flux_fit"] - np.array(ap_sums),
-                         yerr=np.sqrt(lc["flux_fit_err"]**2 + np.array(ap_err)**2), marker="o", linestyle="None",
+            plt.errorbar(lc["mjd"], lc["flux"] - np.array(ap_sums),
+                         yerr=np.sqrt(lc["flux_err"]**2 + np.array(ap_err)**2), marker="o", linestyle="None",
                          label="Campari - Aperture Phot", color="green")
 
         SNLogger.debug(f"campari std: {np.std(lc['flux_fit'] - trueflux)}")
@@ -169,7 +170,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.title(plotname + " Light Curve Residuals")
 
         plt.subplot(2, 2, 2)
-        pull = (lc["flux_fit"] - trueflux) / lc["flux_fit_err"]
+        pull = (lc["flux"] - trueflux) / lc["flux_err"]
         plt.hist(pull, bins=10, alpha=0.5, label="Campari Pull", density=True)
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-5, 5, 100)
@@ -180,7 +181,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.legend()
 
         plt.subplot(2, 2, 3)
-        plt.errorbar(lc["mjd"], lc["flux_fit"], yerr=lc["flux_fit_err"], marker="o", linestyle="None",
+        plt.errorbar(lc["mjd"], lc["flux"], yerr=lc["flux_err"], marker="o", linestyle="None",
                      label="Campari Fit - Truth", ms=1)
         plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
         plt.yscale("log")
@@ -237,12 +238,12 @@ def test_noiseless_aligned_no_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
-    np.testing.assert_allclose(lc["flux_fit"], flux, atol=1e-7)
+    np.testing.assert_allclose(lc["flux"], flux, atol=1e-7)
 
     # The 3.691204 comes from the fact that we set an error floor of 1 on each pixel. If we did not, this error
     # would be zero for the noiseless case, but this causes issues with the inverse variance in other cases so
     # we keep it.
-    np.testing.assert_allclose(lc["flux_fit_err"], 3.691204, atol=1e-7)
+    np.testing.assert_allclose(lc["flux_err"], 3.691204, atol=1e-7)
 
 
 def test_poisson_noise_aligned_no_host():
@@ -272,7 +273,7 @@ def test_poisson_noise_aligned_no_host():
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
-    np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3)
+    np.testing.assert_allclose(lc["flux"], ap_sums, rtol=3e-3)
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -284,7 +285,7 @@ def test_poisson_noise_aligned_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_diagnostic"
@@ -334,7 +335,7 @@ def test_sky_noise_aligned_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "sky_noise_diagnostic"
@@ -380,7 +381,7 @@ def test_both_noise_aligned_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "both_noise_diagnostic"
@@ -424,13 +425,13 @@ def test_noiseless_shifted_no_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
-    np.testing.assert_allclose(lc["flux_fit"], flux, rtol=1e-7, atol=0)
+    np.testing.assert_allclose(lc["flux"], flux, rtol=1e-7, atol=0)
 
     # The 3.691204 comes from the fact that we set an error floor of 1 on each pixel. If we did not, this error
     # would be zero for the noiseless case, but this causes issues with the inverse variance in other cases so
     # we keep it.
     # We use a looser tolerance here because of numerical issues with the shifts.
-    np.testing.assert_allclose(lc["flux_fit_err"], 3.691204, rtol=1e-4)
+    np.testing.assert_allclose(lc["flux_err"], 3.691204, rtol=1e-4)
 
 # 'python /snappl/snappl/image_simulator.py --seed 42 --star-center 128 42 -n 0  --no-star-noise -b shifted_poisson
 # --width 256 --height 256 --pixscale 0.11 -t 60000 60005 60010 60015 60020 60025 60030 60035 60040 60045 60050 60055
@@ -461,8 +462,8 @@ def test_poisson_shifted_no_host():
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
-    np.testing.assert_allclose(lc["flux_fit"], ap_sums, rtol=3e-3)
-    # np.testing.assert_allclose(lc["flux_fit_err"], ap_err, rtol=3e-3)
+    np.testing.assert_allclose(lc["flux"], ap_sums, rtol=3e-3)
+    # np.testing.assert_allclose(lc["flux_err"], ap_err, rtol=3e-3)
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -473,7 +474,7 @@ def test_poisson_shifted_no_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
@@ -522,7 +523,7 @@ def test_sky_shifted_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "shifted_sky_noise_diagnostic"
@@ -570,7 +571,7 @@ def test_both_shifted_no_host():
     SNLogger.debug(f"Expected fluxes: {flux}")
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "shifted_both_noise_diagnostic"
@@ -718,11 +719,11 @@ def test_noiseless_aligned_22mag_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        np.testing.assert_allclose(lc["flux_fit"], flux, atol=1e-7)
+        np.testing.assert_allclose(lc["flux"], flux, atol=1e-7)
 
         # The error is small, but higher than that in the no host case. I believe this is due to extra uncertainty
         # thanks to more free parameters in the fit.
-        np.testing.assert_allclose(lc["flux_fit_err"], 4.520784, atol=1e-7)
+        np.testing.assert_allclose(lc["flux_err"], 4.520784, atol=1e-7)
 
     except AssertionError as e:
         plotname = "noiseless_aligned_22mag_host_diagnostic"
@@ -769,7 +770,7 @@ def test_poisson_aligned_22mag_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_aligned_22mag_host_diagnostic"
@@ -815,7 +816,7 @@ def test_hostnoiseonly_aligned_22mag_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "hostnoiseonly_aligned_22mag_host_diagnostic"
@@ -861,7 +862,7 @@ def test_transientnoiseonly_aligned_22mag_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "transientnoiseonly_aligned_22mag_host_diagnostic"
@@ -905,7 +906,7 @@ def test_both_aligned_22mag_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "both_aligned_22mag_host_diagnostic"
@@ -951,7 +952,7 @@ def test_both_shifted_22mag_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        residuals_sigma = (lc["flux_fit"] - flux) / lc["flux_fit_err"]
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_diagnostic"
