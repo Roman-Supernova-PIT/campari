@@ -219,7 +219,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
 
     if save_to_database:
         ltcvprov = lc.provenance_object
-        if testrun is not None:
+        if testrun is not None and ltcv_provenance_tag is not None:
             ltcv_provenance_tag += str(testrun)
         if new_provenance:
             SNLogger.debug("Creating new provenance for lightcurve")

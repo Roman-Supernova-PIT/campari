@@ -173,12 +173,21 @@ class campari_runner:
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
                        f"process={self.diaobject_process}")
 
-        diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
-                                         provenance_tag=self.diaobject_provenance_tag,
-                                         process=self.diaobject_process, name=self.diaobject_name,
-                                         diaobject_id=self.diaobject_id,
-                                         ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
-                                         mjd_discovery_max=self.transient_end)
+        arguments = {
+            "collection": self.diaobject_collection,
+            "dbclient": self.dbclient,
+            "provenance_tag": self.diaobject_provenance_tag,
+            "process": self.diaobject_process,
+            "name": self.diaobject_name,
+            "diaobject_id": self.diaobject_id,
+            "ra": self.ra,
+            "dec": self.dec,
+            "mjd_discovery_min": self.transient_start,
+            "mjd_discovery_max": self.transient_end}
+        filtered_args = {k: v for k, v in arguments.items() if v is not None}
+        # Database can't handle nones.
+
+        diaobjs = DiaObject.find_objects(**filtered_args)
 
         if len(diaobjs) == 0:
             raise ValueError(
