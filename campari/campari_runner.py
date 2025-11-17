@@ -398,7 +398,10 @@ class campari_runner:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
+            # identifier is a string that will be used to name the lightcurve file when saving debug files.
+            # TODO: Come up with a better name for this.
             if self.save_to_db:
+
                 identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
             else:
                 identifier = str(diaobj.name)
