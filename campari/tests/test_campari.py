@@ -14,6 +14,7 @@ import pandas as pd
 import pytest
 
 # Astronomy Library
+from astropy.io import fits
 from astropy.table import Table, QTable
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -155,7 +156,9 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
         SNLogger.debug("At this point, all the data columns match. I am now overwriting the metadata of lc2 with that of lc1.")
         # print the difference between the two meta dictionaries
         for key in lc1.meta:
-            if key not in lc2.meta or lc1.meta[key] != lc2.meta[key]:
+            if key not in lc2.meta:
+                SNLogger.debug(f"Metadata key {key} is missing in lc2")
+            elif lc1.meta[key] != lc2.meta[key]:
                 SNLogger.debug(f"Metadata difference: {key} - {lc1.meta[key]} vs {lc2.meta[key]}")
 
         lc2.meta = lc1.meta
@@ -425,6 +428,7 @@ def test_make_regular_grid():
                         7.673839, 7.673765, 7.673692])
     test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
                          -44.263774, -44.263868, -44.263796, -44.263724])
+    wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         img = FITSImageStdHeaders(header=wcs_dict, path="/dev/null", data=np.zeros((25, 25)))
         ra_grid, dec_grid = make_regular_grid(img, spacing=3.0, subsize=9)
@@ -442,6 +446,7 @@ def test_make_adaptive_grid():
     image_size = 11
     wcs_dict["NAXIS1"] = image_size
     wcs_dict["NAXIS2"] = image_size
+    wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
@@ -469,6 +474,7 @@ def test_make_contour_grid():
     test_ra = [7.67357048, 7.67360506, 7.67363963, 7.67367421]
     test_dec = [-44.26421364, -44.26419683, -44.26418002, -44.26416321]
     atol = 1e-9
+    wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")

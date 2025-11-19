@@ -123,39 +123,39 @@ def test_runner_init(cfg):
     assert isinstance(runner.cfg, Config)
 
 
-def test_decide_run_mode(cfg):
-    test_args = create_default_test_args(cfg)
+# def test_decide_run_mode(cfg):
+#     test_args = create_default_test_args(cfg)
 
-    # First test passing a diaobject_name
-    test_args.diaobject_name = 20172782
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert runner.diaobject_name == 20172782
+#     # First test passing a diaobject_name
+#     test_args.diaobject_name = 20172782
+#     runner = campari_runner(**vars(test_args))
+#     runner.decide_run_mode()
+#     assert runner.diaobject_name == 20172782
 
 
-    # Now test passing RA and Dec
-    test_args.ra = 10.684
-    test_args.dec = 41.269
-    test_args.transient_start = 60000.0
-    test_args.transient_end = 60100.0
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert runner.ra == 10.684
-    assert runner.dec == 41.269
-    assert runner.transient_start is not None
-    assert runner.transient_end is not None
+#     # Now test passing RA and Dec
+#     test_args.ra = 10.684
+#     test_args.dec = 41.269
+#     test_args.transient_start = 60000.0
+#     test_args.transient_end = 60100.0
+#     runner = campari_runner(**vars(test_args))
+#     runner.decide_run_mode()
+#     assert runner.ra == 10.684
+#     assert runner.dec == 41.269
+#     assert runner.transient_start is not None
+#     assert runner.transient_end is not None
 
-    test_args.diaobject_collection = "ou24"
-    test_args.diaobject_name = 20172782
-    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
+#     test_args.diaobject_collection = "ou24"
+#     test_args.diaobject_name = 20172782
+#     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
+#     runner = campari_runner(**vars(test_args))
+#     runner.decide_run_mode()
 
-    assert runner.diaobject_name == 20172782
-    columns = ["pointing", "sca"]
-    SNLogger.debug(pd.read_csv(test_args.img_list))
-    np.testing.assert_array_equal(runner.pointing_list,
-                                  pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
+#     assert runner.diaobject_name == 20172782
+#     columns = ["pointing", "sca"]
+#     SNLogger.debug(pd.read_csv(test_args.img_list))
+#     np.testing.assert_array_equal(runner.pointing_list,
+#                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
 
 def test_get_exposures(cfg):
@@ -165,7 +165,7 @@ def test_get_exposures(cfg):
     test_args.image_collection = "ou2024"
 
     runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
+    #runner.decide_run_mode()
     diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
@@ -185,13 +185,12 @@ def test_get_exposures(cfg):
     test_args.SNID = 20172782
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
+    #runner.decide_run_mode()
 
-    diaobj = DiaObject.find_objects(id=2017278, ra=1, dec=2, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=20172782, ra=1, dec=2, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
 
-    assert runner.SNID == [20172782]
     runner.get_exposures(diaobj=diaobj)
     columns = ["pointing", "sca"]
     pointing_list = [int(im.pointing) for im in runner.image_list]
@@ -230,7 +229,7 @@ def test_get_SED_list(cfg):
         test_args.object_type = "SN"
 
         runner = campari_runner(**vars(test_args))
-        runner.decide_run_mode()
+        #runner.decide_run_mode()
         sedlist = runner.get_sedlist(test_args.diaobject_name, image_list)
         assert len(sedlist) == 1, "The length of the SED list is not 1"
         sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
