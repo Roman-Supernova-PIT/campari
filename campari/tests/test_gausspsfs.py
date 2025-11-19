@@ -918,6 +918,45 @@ def test_both_aligned_22mag_host():
         raise e
 
 
+def test_noiseless_shifted_22mag_host():
+    # This test is kinda unncessary since the more difficult tests pass, but I want to
+    # make a direct comparison to the same version of this test with a varying gaussian PSF.
+    # By removing noise we can isolate any differences to just the PSF modeling.
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_noiseless_shifted_host.txt",
+    ]
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    # cmd += ["--save_model"]
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_rotated_75images_36points.npy",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+
 def test_both_shifted_22mag_host():
     cmd = base_cmd + [
         "--img_list",
@@ -963,6 +1002,9 @@ def test_both_shifted_22mag_host():
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
+
+# ###### Tests with varying gaussian PSF ##############################################################
 
 def test_both_shifted_22mag_host_varying_gaussian():
 
