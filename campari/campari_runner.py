@@ -182,12 +182,21 @@ class campari_runner:
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
                        f"process={self.diaobject_process}")
 
-        diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
-                                         provenance_tag=self.diaobject_provenance_tag,
-                                         process=self.diaobject_process, name=self.diaobject_name,
-                                         diaobject_id=self.diaobject_id,
-                                         ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
-                                         mjd_discovery_max=self.transient_end)
+        arguments = {
+            "collection": self.diaobject_collection,
+            "dbclient": self.dbclient,
+            "provenance_tag": self.diaobject_provenance_tag,
+            "process": self.diaobject_process,
+            "name": self.diaobject_name,
+            "diaobject_id": self.diaobject_id,
+            "ra": self.ra,
+            "dec": self.dec,
+            "mjd_discovery_min": self.transient_start,
+            "mjd_discovery_max": self.transient_end}
+        filtered_args = {k: v for k, v in arguments.items() if v is not None}
+        # Database can't handle nones.
+
+        diaobjs = DiaObject.find_objects(**filtered_args)
 
 
 
@@ -422,10 +431,14 @@ class campari_runner:
             psftype = self.psfclass.lower()
 
         if self.use_real_images:
-            if diaobj.id is not None and self.diaobject_collection == "snpitdb":
-                identifier = str(diaobj.id)
+            # identifier is a string that will be used to name the lightcurve file when saving debug files.
+            # TODO: Come up with a better name for this.
+            if self.save_to_db:
+
+                identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
             else:
                 identifier = str(diaobj.name)
+
             # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
