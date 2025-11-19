@@ -296,7 +296,6 @@ class campari_runner:
                                                                 image_selection_start=self.image_selection_start,
                                                                 image_selection_end=self.image_selection_end,
                                                                 image_collection=self.image_collection,
-                                                                pointing_list=self.pointing_list,
                                                                 dbclient=self.dbclient,
                                                                 provenance_tag=self.image_provenance_tag,
                                                                 process=self.image_process)
@@ -355,7 +354,8 @@ class campari_runner:
         self.image_list = image_list
         SNLogger.debug("setting image list")
         recovered_pointings = [int(a.pointing) for a in image_list]
-        self.pointing_list = self.pointing_list.astype(int) if self.pointing_list is not None else None
+        self.pointing_list = np.array(self.pointing_list).astype(int) if getattr(self, "pointing_list", None) \
+            is not None else None
         if (self.img_list is not None and self.pointing_list is not None) \
             and not np.array_equiv(np.sort(recovered_pointings), np.sort(self.pointing_list)):
             SNLogger.warning(

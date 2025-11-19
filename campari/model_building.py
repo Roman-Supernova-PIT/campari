@@ -221,7 +221,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
     imx = np.arange(0, size, 1)
     imy = np.arange(0, size, 1)
     imx, imy = np.meshgrid(imx, imy)
-    all_vals = np.zeros_like(ra_grid)
+    all_vals = np.atleast_1d(np.zeros_like(ra_grid))
 
     wcslist = [im.get_wcs() for im in imlist]
     imdata = [im.data.flatten() for im in imlist]
@@ -232,8 +232,10 @@ def generate_guess(imlist, ra_grid, dec_grid):
         # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
         xx = np.atleast_1d(xx)
         yy = np.atleast_1d(yy)
+        #SNLogger.debug(f"Generating guess for xx and yy {xx, yy}")
         for imval, imxval, imyval in zip(im.flatten(), imx.flatten(), imy.flatten()):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
+            #SNLogger.debug(f"Assigning grid point values {grid_point_vals}")
         all_vals += grid_point_vals
     return all_vals / len(wcslist)
 

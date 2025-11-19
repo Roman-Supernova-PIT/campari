@@ -210,7 +210,6 @@ def find_all_exposures(
         at the location of the transient) and which do not.
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    pointing_list: If this is passed in, only consider these pointings
     sca_list: If this is passed in, only consider these SCAs
     truth: If "truth" use truth images, if "simple_model" use simple model
             images.

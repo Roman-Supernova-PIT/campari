@@ -145,6 +145,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
     # do multi-band fitting so this is probably fine.
     meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
+    meta_dict["pre_transient_images"] = lc_model.pre_transient_images
+    meta_dict["post_transient_images"] = lc_model.post_transient_images
     SNLogger.debug(cam_prov.params)
 
     lc = Lightcurve(data=data_dict, meta=meta_dict)
