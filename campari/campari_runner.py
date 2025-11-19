@@ -521,6 +521,7 @@ class campari_runner:
             # each line of file is path to image
             self.pointing_list = None
             for line in img_list_lines:
+                SNLogger.debug(f"Looking for path {line}.")
                 images.append(my_image_collection.get_image(path=line))
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"
