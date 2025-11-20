@@ -140,6 +140,10 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
         # cutout_image_list.append(image_cutout)
     SNLogger.debug("Finished constructing cutouts.")
     SNLogger.debug(cutout_image_list)
+    SNLogger.debug(f"x_list: {x_list}")
+    SNLogger.debug(f"y_list: {y_list}")
+    SNLogger.debug(f"x_cutout_list: {x_cutout_list}")
+    SNLogger.debug(f"y_cutout_list: {y_cutout_list}")
     return cutout_image_list, image_list, bgflux
 
 

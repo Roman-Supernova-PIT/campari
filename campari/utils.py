@@ -184,7 +184,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
 
-    SNLogger.debug
+    SNLogger.debug(f"ra: {ra}, dec: {dec}")
+    SNLogger.debug(f"error zero index: {error[0]}")
 
     wgt_matrix = []
     SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var}")
@@ -194,6 +195,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
         yy = yy.flatten()
 
         object_x, object_y = wcs.world_to_pixel(ra, dec)
+
         dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
         SNLogger.debug(f"x: {object_x}, y: {object_y}")
 
