@@ -190,6 +190,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
         SNLogger.debug("Generated light curve diagnostics and saved to /campari_debug_dir/" + plotname + "_lc.png")
+        plt.close()
 
 
 def perform_gaussianity_checks(residuals_sigma):
@@ -478,6 +479,7 @@ def test_poisson_shifted_no_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
+        assert False, "force plotting"
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -924,7 +926,7 @@ def test_noiseless_shifted_22mag_host():
     # By removing noise we can isolate any differences to just the PSF modeling.
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_noiseless_shifted_host.txt",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_shifted_host.txt",
     ]
 
     cmd += ["--photometry-campari-grid_options-type", "regular"]
@@ -956,11 +958,129 @@ def test_noiseless_shifted_22mag_host():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
+    np.testing.assert_allclose(lc["flux"], flux, atol=1, rtol=1e-3)
+
+    # The 3.691204 comes from the fact that we set an error floor of 1 on each pixel. If we did not, this error
+    # would be zero for the noiseless case, but this causes issues with the inverse variance in other cases so
+    # we keep it.
+    # The tolerance has to be higher here because the rotation and changing in PSF sizes.
+    np.testing.assert_allclose(lc["flux_err"], 4.14, rtol=1.1e-2)
+
+
+def test_skynoise_shifted_22mag_host():
+    # This test is kinda unncessary since the more difficult tests pass, but I want to
+    # make a direct comparison to the same version of this test with a varying gaussian PSF.
+    # By removing noise we can isolate any differences to just the PSF modeling.
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_skynoise_shifted_host.txt",
+    ]
+
+    # Delete saved lc file if it exists from previous test runs
+    lc_path = pathlib.Path("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    if lc_path.exists():
+        lc_path.unlink()
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    # cmd += ["--save_model"]
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_rotated_75images_36points.npy",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "skynoise_shifted_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+def test_poisson_shifted_22mag_host():
+    # This test is kinda unncessary since the more difficult tests pass, but I want to
+    # make a direct comparison to the same version of this test with a varying gaussian PSF.
+    # By removing noise we can isolate any differences to just the PSF modeling.
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_shifted_host.txt",
+    ]
+
+    # Delete saved lc file if it exists from previous test runs
+    lc_path = pathlib.Path("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    if lc_path.exists():
+        lc_path.unlink()
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    # cmd += ["--save_model"]
+
+    cmd += [
+        "--prebuilt_static_model",
+        pathlib.Path(__file__).parent / "testdata/prebuilt_models/psf_matrix_gaussian_rotated_75images_36points.npy",
+    ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "poisson_shifted_22mag_host_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
 
 def test_both_shifted_22mag_host():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_shifted_hostmag22_evenmore.txt",
+        # pathlib.Path(__file__).parent / "testdata/test_gaussims_both_shifted_hostmag22_evenmore.txt",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_both_shifted_host_v2.txt",
     ]
 
     cmd += ["--photometry-campari-grid_options-type", "regular"]
@@ -1144,9 +1264,8 @@ def test_noiseless_shifted_22mag_host_varying():
     #cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_varying_gaussian_f72a62b7-ba7a-4f3e-816b-44776eeab728_15_images36_points.npy",
+        "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     ]
-
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
     psfclass_index = cmd.index("--photometry-campari-psfclass")
@@ -1170,7 +1289,7 @@ def test_noiseless_shifted_22mag_host_varying():
     flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
-    np.testing.assert_allclose(lc["flux"], flux, atol=10, rtol = 1e-3)
+    np.testing.assert_allclose(lc["flux"], flux, atol=1, rtol = 1e-3)
 
     # The 3.691204 comes from the fact that we set an error floor of 1 on each pixel. If we did not, this error
     # would be zero for the noiseless case, but this causes issues with the inverse variance in other cases so
@@ -1218,6 +1337,50 @@ def test_skynoise_shifted_22mag_host_varying():
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_varying"
+        generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+def test_poisson_shifted_22mag_host_varying():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_poisson_shifted_host_varyingPSF.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    # cmd += ["--save_model"]
+    cmd += [
+        "--prebuilt_static_model",
+        "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    ]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "varying_gaussian"
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "poisson_shifted_22mag_host_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
