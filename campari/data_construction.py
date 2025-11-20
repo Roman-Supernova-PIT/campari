@@ -73,6 +73,10 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
                 y_cutout_list.append(res[1][1])
                 cutout_image_list.append(res[2])
                 bgflux.append(res[4])
+        mjd_list = [i.mjd for i in image_list]
+        cutout_mjd_list = [i.mjd for i in cutout_image_list]  # sanity check
+        np.testing.assert_array_equal(mjd_list, cutout_mjd_list), "Cutout MJDs do not match input image MJDs!" \
+            " Parallel processing failure."
 
     else:
         raise NotImplementedError("Non Parallel processing is not implemented yet.")
@@ -198,11 +202,9 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         elif truth == "truth":
             # ....or manually calculating it!
             bg = calculate_background_level(imagedata)
+    image_cutout._data -= bg
+    SNLogger.debug(f"Subtracted a background level of {bg}")
     return sca_loc, cutout_loc, image_cutout, image, bg
-
-def put_construct_results_into_arrays(result, indx):
-    x_array[indx], y_array[indx], x_cutout_array[indx], y_cutout_array[indx], cutout_image_list[indx],\
-         image_list[indx], bgflux[indx] = result
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
