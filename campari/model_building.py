@@ -580,11 +580,20 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     # Build the model for the background using the correct psf and the
     # grid we made in the previous section.
 
-    if use_real_images:
-        SNLogger.debug("file used: " + str(pathlib.Path(Config.get().value("system.ou24.config_file"))))
-        util_ref = roman_utils(
-            config_file=pathlib.Path(Config.get().value("system.ou24.config_file")), visit=pointing, sca=sca
-        )
+    # if use_real_images:
+    #     SNLogger.debug("file used: " + str(pathlib.Path(Config.get().value("system.ou24.config_file"))))
+    #     util_ref = roman_utils(
+    #         config_file=pathlib.Path(Config.get().value("system.ou24.config_file")), visit=pointing, sca=sca
+    #     )
+
+    if int(pointing) >= 0 and int(pointing) <= 57364 and use_real_images:
+        util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
+                                   ("system.ou24.config_file")),
+                                   visit=pointing, sca=sca)
+    else:
+        util_ref = None
+        # Rob's simulated images have big placeholder pointings. This is a catch for those images.
+        SNLogger.warning("Pointing value is outside of the range of the TDS file.")
 
     # If no grid, we still need something that can be concatenated in the
     # linear algebra steps, so we initialize an empty array by default.
