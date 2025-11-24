@@ -6,16 +6,24 @@ import warnings
 
 import numpy as np
 from numpy.linalg import LinAlgError
+from multiprocessing import Pool
 import scipy.sparse as sp
 
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+<<<<<<< HEAD
 from roman_imsim.utils import roman_utils
+=======
+>>>>>>> parallel
 
 # SN-PIT
 from campari.data_construction import construct_images, prep_data_for_fit
-from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
+from campari.model_building import (
+    generate_guess,
+    make_grid,
+    build_model_for_one_image,
+)
 from campari.simulation import simulate_images
 from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
 from snappl.config import Config
@@ -65,8 +73,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
                    save_model=False, prebuilt_psf_matrix=None,
+<<<<<<< HEAD
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None):
+=======
+                   prebuilt_sn_matrix=None, nprocs=None):
+>>>>>>> parallel
     psf_matrix = []
     sn_matrix = []
 
@@ -94,8 +106,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if use_real_images:
         cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
+<<<<<<< HEAD
                                                          subtract_background=subtract_background)
         noise_maps = [im.noise for im in cutout_image_list]
+=======
+                                                                         subtract_background=subtract_background,
+                                                                         nprocs=nprocs)
+>>>>>>> parallel
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
@@ -163,12 +180,75 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
+<<<<<<< HEAD
     for i, image in enumerate(image_list):
         pointing, sca = image.pointing, image.sca
+=======
+    model_results = []
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
+            for i, image in enumerate(image_list):
+                kwarg_dict = {"image": image,
+                              "ra": diaobj.ra,
+                              "dec": diaobj.dec,
+                              "use_real_images": use_real_images,
+                              "grid_type": grid_type,
+                              "ra_grid": ra_grid,
+                              "dec_grid": dec_grid,
+                              "size": size,
+                              "pixel": pixel,
+                              "psfclass": psfclass,
+                              "band": band,
+                              "sedlist": sedlist,
+                              "source_phot_ops": source_phot_ops,
+                              "i": i,
+                              "num_total_images": num_total_images,
+                              "num_detect_images": num_detect_images,
+                              "prebuilt_psf_matrix": prebuilt_psf_matrix,
+                              "prebuilt_sn_matrix": prebuilt_sn_matrix,
+                              "subtract_background": subtract_background,
+                              "base_pointing": base_pointing,
+                              "base_sca": base_sca}
+                model_results.append(pool.apply_async(build_model_for_one_image, kwds=kwarg_dict))
+            pool.close()
+            pool.join()
+            # import pickle
+            # SNLogger.debug("model results length: " + str(len(model_results)))
+            # bg_array, sn_array = model_results[0].get()
+            # SNLogger.debug(f"bg array to be saved {bg_array}")
+            # SNLogger.debug(f"sn array to be saved {sn_array}")
+            # with open("testdata/reg_bg_array.pkl", "wb") as f:
+            #     pickle.dump(bg_array, f)
+            # with open("testdata/reg_sn_array.pkl", "wb") as f:
+            #     pickle.dump(sn_array, f)
+>>>>>>> parallel
 
-        whole_sca_wcs = image.get_wcs()
-        object_x, object_y = whole_sca_wcs.world_to_pixel(diaobj.ra, diaobj.dec)
+    else:
+        for i, image in enumerate(image_list):
+            kwarg_dict = {"image": image,
+                          "ra": diaobj.ra,
+                          "dec": diaobj.dec,
+                          "use_real_images": use_real_images,
+                          "grid_type": grid_type,
+                          "ra_grid": ra_grid,
+                          "dec_grid": dec_grid,
+                          "size": size,
+                          "pixel": pixel,
+                          "psfclass": psfclass,
+                          "band": band,
+                          "sedlist": sedlist,
+                          "source_phot_ops": source_phot_ops,
+                          "i": i,
+                          "num_total_images": num_total_images,
+                          "num_detect_images": num_detect_images,
+                          "prebuilt_psf_matrix": prebuilt_psf_matrix,
+                          "prebuilt_sn_matrix": prebuilt_sn_matrix,
+                          "subtract_background": subtract_background,
+                          "base_pointing": base_pointing,
+                          "base_sca": base_sca}
+            bg_model, transient_model = build_model_for_one_image(**kwarg_dict)
 
+<<<<<<< HEAD
         # Build the model for the background using the correct psf and the
         # grid we made in the previous section.
 
@@ -261,6 +341,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
         elif (image.mjd < diaobj.mjd_start or image.mjd > diaobj.mjd_end) and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
+=======
+    for result in model_results:
+        if nprocs > 1:
+            bg_model, transient_model = result.get()
+        else:
+            bg_model, transient_model = result
+        psf_matrix.append(bg_model)
+        if transient_model is not None:
+            sn_matrix.append(transient_model)
+>>>>>>> parallel
 
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:

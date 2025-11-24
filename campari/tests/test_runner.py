@@ -40,6 +40,7 @@ def create_default_test_args(cfg):
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
+    test_args.nprocs = 10
     test_args.ra = None
     test_args.dec = None
     test_args.image_collection = "snpitdb"
