@@ -572,6 +572,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               base_pointing=None, base_sca=None):
     # Passing in None for the PSF means we use the Roman PSF.
     pointing, sca = image.pointing, image.sca
+    SNLogger.debug(f"Building model for image {i} with pointing {pointing} and sca {sca}")
 
     whole_sca_wcs = image.get_wcs()
     object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)

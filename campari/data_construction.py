@@ -73,58 +73,6 @@ def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background=subtract_background))
 
-<<<<<<< HEAD
-        sca_loc = image.get_wcs().world_to_pixel(ra, dec)
-        cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
-
-        x_list.append(sca_loc[0])
-        y_list.append(sca_loc[1])
-        x_cutout_list.append(cutout_loc[0])
-        y_cutout_list.append(cutout_loc[1])
-
-        if truth == "truth":
-            raise RuntimeError("Truth is broken.")
-            # In the future, I'd like to manually insert an array of ones for
-            # the error, or something.
-
-        """
-        try:
-            zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
-        except:
-            zero = -99
-
-        if zero < 0:
-            zero =
-        im = cutout * zero
-        """
-
-        # If we are not fitting the background we subtract it here.
-        # When subtract_background is False, we are including the background
-        # level as a free parameter in our fit, so it should not be subtracted
-        # here.
-        bg = 0
-        if subtract_background:
-            if not truth == "truth":
-                # However, if we are subtracting the background, we want to get
-                # rid of it here, either by reading the SKY_MEAN value from the
-                # image header...
-                # Clean this up before pushing TODO!
-                try:
-                    bg = image_cutout.get_fits_header()["SKY_MEAN"]
-                except KeyError:
-                    SNLogger.warning("Using an override of 0")
-                    bg = 0
-
-            elif truth == "truth":
-                # ....or manually calculating it!
-                bg = calculate_background_level(imagedata)
-
-        bgflux.append(bg)
-
-        image_cutout._data -= bg
-
-        cutout_image_list.append(image_cutout)
-=======
     for r in results:
         if nprocs > 1:
             res = r.get()
@@ -132,14 +80,10 @@ def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=
             res = r
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
->>>>>>> parallel
 
     return cutout_image_list, image_list, bgflux
 
 
-<<<<<<< HEAD
-def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
-=======
 def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None, subtract_background=None):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
@@ -158,7 +102,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
 
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
     num_nans = np.isnan(image_cutout.data).sum()
-    SNLogger.debug(f"MJD of cutout image: {image_cutout.mjd}")
     if num_nans > 0:
         SNLogger.warning(
             f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
@@ -192,7 +135,11 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
             # However, if we are subtracting the background, we want to get
             # rid of it here, either by reading the SKY_MEAN value from the
             # image header...
-            bg = image_cutout.get_fits_header()["SKY_MEAN"]
+            try:
+                bg = image_cutout.get_fits_header()["SKY_MEAN"]
+            except KeyError:
+                SNLogger.warning("Could not find SKY_MEAN in header, setting bg to 0")
+                bg = 0
         elif truth == "truth":
             # ....or manually calculating it!
             bg = calculate_background_level(imagedata)
@@ -202,7 +149,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix):
->>>>>>> parallel
     """This function takes the data from the images and puts it into the form
     such that we can analytically solve for the best fit using linear algebra.
 
