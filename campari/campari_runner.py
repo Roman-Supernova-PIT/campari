@@ -73,6 +73,7 @@ class campari_runner:
 
         self.save_to_db = kwargs["save_to_db"]
         self.add_truth_to_lc = kwargs["add_truth_to_lc"]
+        self.nprocs = kwargs["nprocs"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
@@ -237,6 +238,7 @@ class campari_runner:
         image_list = self.get_exposures(diaobj)
         sedlist = self.get_sedlist(diaobj.id, image_list)
 
+
         # This has to go after get_exposures because the infs break the simdex.
         if diaobj.mjd_start is None:
             diaobj.mjd_start = -np.inf
@@ -272,7 +274,8 @@ class campari_runner:
         # self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
         # SNLogger.debug("Created a grid of simulation parameters with a total of"
         #                f" {self.param_grid.shape[1]} combinations.")
-        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
+        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]
+        #  # Repeat the SNID for each combination of parameters
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
@@ -385,7 +388,7 @@ class campari_runner:
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
                            base_sca=self.base_sca, save_model=self.save_model, prebuilt_psf_matrix=prebuilt_psf_matrix,
-                           prebuilt_sn_matrix=prebuilt_sn_matrix)
+                           prebuilt_sn_matrix=prebuilt_sn_matrix, nprocs=self.nprocs)
 
         return lightcurve_model
 

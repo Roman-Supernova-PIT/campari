@@ -9,8 +9,10 @@ import warnings
 # Common Library
 import matplotlib
 from matplotlib import pyplot as plt
+from multiprocessing import Pool
 import numpy as np
 import pandas as pd
+import pickle
 import pytest
 
 # Astronomy Library
@@ -23,7 +25,7 @@ from roman_imsim.utils import roman_utils
 
 # SNPIT
 from campari import RomanASP
-from campari.data_construction import find_all_exposures
+from campari.data_construction import find_all_exposures, construct_one_image
 from campari.io import (
     build_lightcurve,
     read_healpix_file,
@@ -37,6 +39,7 @@ from campari.model_building import (
     make_regular_grid,
 )
 from campari.plotting import plot_lc
+from campari.campari_runner import campari_runner
 from campari.utils import (calc_mag_and_err,
                            calculate_background_level,
                            calculate_local_surface_brightness,
@@ -813,3 +816,58 @@ def test_calculate_surface_brightness():
         np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
         "The local surface brightness does not match the expected value.",
     )
+
+
+def test_construct_one_image(cfg, campari_test_data):
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl" , "rb") as f:
+        image_list = pickle.load(f)
+
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl" , "rb") as f:
+        reg_cutout_list = pickle.load(f)
+
+    ra = 7.551093401915147
+    dec = -44.80718106491529
+    size = 19
+    truth = "simple_model"
+    subtract_background = True
+
+    for nprocs in [10, 1]:
+        SNLogger.debug(f"Testing construct_one_image with nprocs={nprocs}")
+        cutout_image_list = []
+        results = []
+        if nprocs > 1:
+            with Pool(nprocs) as pool:
+                for indx, image in enumerate(image_list):
+                    SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                    results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                               "ra": ra, "dec": dec, "size": size,
+                                                                               "truth": truth,
+                                                                               "subtract_background": subtract_background}))
+
+                pool.close()
+                pool.join()
+        else:
+            for indx, image in enumerate(image_list):
+                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                results.append(construct_one_image(indx=indx, image=image,
+                                                ra=ra, dec=dec, size=size, truth=truth,
+                                                subtract_background=subtract_background))
+
+        for r in results:
+            if nprocs > 1:
+                res = r.get()
+            else:
+                res = r
+            cutout_image_list.append(res[0])
+
+        for cutout, reg_cutout in zip(cutout_image_list, reg_cutout_list):
+            np.testing.assert_allclose(cutout.data, reg_cutout.data, atol=1e-7)
+            np.testing.assert_allclose(cutout.noise, reg_cutout.noise, atol=1e-7)
+            np.testing.assert_array_equal(cutout.flags, reg_cutout.flags)
+            np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
+
+
+
+
+
+
