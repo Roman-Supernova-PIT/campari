@@ -148,7 +148,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     return image_cutout, bg
 
 
-def prep_data_for_fit(images, sn_matrix, wgt_matrix):
+def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     """This function takes the data from the images and puts it into the form
     such that we can analytically solve for the best fit using linear algebra.
 
