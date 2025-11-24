@@ -238,7 +238,6 @@ class campari_runner:
         image_list = self.get_exposures(diaobj)
         sedlist = self.get_sedlist(diaobj.id, image_list)
 
-
         # This has to go after get_exposures because the infs break the simdex.
         if diaobj.mjd_start is None:
             diaobj.mjd_start = -np.inf

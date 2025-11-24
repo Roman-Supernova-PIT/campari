@@ -37,6 +37,7 @@ from campari.model_building import (
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
+    build_model_for_one_image,
 )
 from campari.plotting import plot_lc
 from campari.campari_runner import campari_runner
@@ -867,7 +868,32 @@ def test_construct_one_image(cfg, campari_test_data):
             np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
 
 
+def test_build_model_one_image():
 
+    with open(pathlib.Path(__file__).parent / "testdata/reg_ra_grid.pkl", "rb") as f:
+        ra_grid = pickle.load(f)
+    with open(pathlib.Path(__file__).parent / "testdata/reg_dec_grid.pkl", "rb") as f:
+        dec_grid = pickle.load(f)
+    with open(pathlib.Path(__file__).parent / "testdata/reg_bg_array.pkl", "rb") as f:
+        reg_bg_array = pickle.load(f)
+    with open(pathlib.Path(__file__).parent / "testdata/reg_sn_array.pkl", "rb") as f:
+        reg_sn_array = pickle.load(f)
 
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl", "rb") as f:
+        image_list = pickle.load(f)
+    ra = 7.551093401915147
+    dec = -44.80718106491529
+    size = 19
+
+    bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec, use_real_images=True,
+                                                   grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
+                                                   pixel=False, psfclass="ou24PSF", band="Y106", sedlist=None,
+                                                   source_phot_ops=True, i=0, num_total_images=2,
+                                                   num_detect_images=1, prebuilt_psf_matrix=None,
+                                                   prebuilt_sn_matrix=None, subtract_background=True,
+                                                   base_pointing=None, base_sca=None)
+
+    np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
+    np.testing.assert_equal(sn_array, reg_sn_array) # We expect Nones here
 
 

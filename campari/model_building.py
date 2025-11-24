@@ -365,7 +365,8 @@ def construct_transient_scene(
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps, image=image, stamp_size=stampsize
+        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps,
+        image=image, stamp_size=stampsize
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
 
@@ -560,16 +561,16 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
     return ra_grid, dec_grid
 
 
-def build_model_for_one_image(image=None, diaobj=None, use_real_images=None, grid_type=None, ra_grid=None,
+def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, psfclass=None, band=None, sedlist=None,
-                              source_phot_ops=True, i=None, num_total_images=None, num_detect_images=None,
+                              source_phot_ops=None, i=None, num_total_images=None, num_detect_images=None,
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background=None,
                               base_pointing=None, base_sca=None):
     # Passing in None for the PSF means we use the Roman PSF.
     pointing, sca = image.pointing, image.sca
 
     whole_sca_wcs = image.get_wcs()
-    object_x, object_y = whole_sca_wcs.world_to_pixel(diaobj.ra, diaobj.dec)
+    object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
 
     # Build the model for the background using the correct psf and the
     # grid we made in the previous section.
@@ -629,6 +630,7 @@ def build_model_for_one_image(image=None, diaobj=None, use_real_images=None, gri
     sn_index = i - (num_total_images - num_detect_images)
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
+        SNLogger.debug("Constructing transient model array for image " + str(i) + " ---------------")
         if use_real_images:
             pointing = pointing
             sca = sca
