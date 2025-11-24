@@ -188,6 +188,9 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
 
+    SNLogger.debug(f"ra: {ra}, dec: {dec}")
+    SNLogger.debug(f"error zero index: {error[0]}")
+
     wgt_matrix = []
 
     for i, wcs in enumerate(wcs_list):
@@ -196,11 +199,15 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
             xx = xx.flatten()
             yy = yy.flatten()
+
             object_x, object_y = wcs.world_to_pixel(ra, dec)
+
             dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
+            SNLogger.debug(f"x: {object_x}, y: {object_y}")
 
             wgt = np.ones(size**2)
             wgt = 5 * np.exp(-(dist**2) / gaussian_var)
+            SNLogger.debug(f"wgt max and min before cutoff: {np.max(wgt)}, {np.min(wgt)}")
             # NOTE: This 5 is here because when I made this function I was
             # checking my work by plotting and the *5 made it easier to see. I
             # thought the overall normalization
@@ -221,7 +228,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             wgt[np.where(dist > cutoff)] = 0
             if error[i] is None:
                 error[i] = np.ones_like(wgt)
-            SNLogger.debug(f"wgt before: {np.mean(wgt)}")
+                SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         else:
             SNLogger.debug("No Gaussian weighting applied in get_weights")
             wgt = np.ones(size**2)

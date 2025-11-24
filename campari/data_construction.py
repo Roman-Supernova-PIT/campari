@@ -5,6 +5,7 @@ import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import numpy as np
+from multiprocessing import Pool
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
@@ -24,7 +25,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 huge_value = 1e32
 
 
-def construct_images(image_list, diaobj, size, subtract_background=True):
+def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=None):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -47,76 +48,104 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
     bgflux = []
     cutout_image_list = []
 
-    x_list = []
-    y_list = []
-    x_cutout_list = []
-    y_cutout_list = []
+    results = []
 
-    for indx, image in enumerate(image_list):
+    SNLogger.debug(f"ra: {ra}")
+    SNLogger.debug(f"dec: {dec}")
+    SNLogger.debug(f"size: {size}")
+    SNLogger.debug(f"subtract_background: {subtract_background}")
 
-        imagedata, errordata, flags = image.get_data(which="all", cache=True)
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
+            for indx, image in enumerate(image_list):
+                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                           "ra": ra, "dec": dec, "size": size,
+                                                                           "truth": truth,
+                                                                           "subtract_background": subtract_background}))
 
-        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
-        num_nans = np.isnan(image_cutout.data).sum()
-        if num_nans > 0:
-            SNLogger.warning(
-                f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
-                " image. These will be given a weight of zero."
-            )
-            SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans / size**2:.2%}")
+            pool.close()
+            pool.join()
+    else:
+        for indx, image in enumerate(image_list):
+            SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+            results.append(construct_one_image(indx=indx, image=image,
+                                               ra=ra, dec=dec, size=size, truth=truth,
+                                               subtract_background=subtract_background))
 
-        sca_loc = image.get_wcs().world_to_pixel(ra, dec)
-        cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
-
-        x_list.append(sca_loc[0])
-        y_list.append(sca_loc[1])
-        x_cutout_list.append(cutout_loc[0])
-        y_cutout_list.append(cutout_loc[1])
-
-        if truth == "truth":
-            raise RuntimeError("Truth is broken.")
-            # In the future, I'd like to manually insert an array of ones for
-            # the error, or something.
-
-        """
-        try:
-            zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
-        except:
-            zero = -99
-
-        if zero < 0:
-            zero =
-        im = cutout * zero
-        """
-
-        # If we are not fitting the background we subtract it here.
-        # When subtract_background is False, we are including the background
-        # level as a free parameter in our fit, so it should not be subtracted
-        # here.
-        bg = 0
-        if subtract_background:
-            if not truth == "truth":
-                # However, if we are subtracting the background, we want to get
-                # rid of it here, either by reading the SKY_MEAN value from the
-                # image header...
-                # Clean this up before pushing TODO!
-                try:
-                    bg = image_cutout.get_fits_header()["SKY_MEAN"]
-                except KeyError:
-                    SNLogger.warning("Using an override of 0")
-                    bg = 0
-
-            elif truth == "truth":
-                # ....or manually calculating it!
-                bg = calculate_background_level(imagedata)
-
-        bgflux.append(bg)
-
-        image_cutout._data -= bg
-
-        cutout_image_list.append(image_cutout)
+    for r in results:
+        if nprocs > 1:
+            res = r.get()
+        else:
+            res = r
+        cutout_image_list.append(res[0])
+        bgflux.append(res[1])
 
     return cutout_image_list, image_list, bgflux
+
+
+def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None, subtract_background=None):
+    """Constructs a single Roman image in the format required for the
+    linear algebra operations. This is the function that is called in parallel
+    by campari.data_construction.construct_images
+
+    Inputs:
+    image: snappl.image.Image object, the image to be used.
+    indx: index of the image in the list.
+
+    Returns:
+    cutout_image: snappl.image.Image object, cutout on the object location.
+    image: snappl.image.Image object of the entire SCA.
+
+    """
+    imagedata, errordata, flags = image.get_data(which="all", cache=True)
+
+    image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    num_nans = np.isnan(image_cutout.data).sum()
+    if num_nans > 0:
+        SNLogger.warning(
+            f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
+            " image. These will be given a weight of zero."
+        )
+        SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans / size**2:.2%}")
+
+    if truth == "truth":
+        raise RuntimeError("Truth is broken.")
+        # In the future, I'd like to manually insert an array of ones for
+        # the error, or something.
+
+    """
+    try:
+        zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
+    except:
+        zero = -99
+
+    if zero < 0:
+        zero =
+    im = cutout * zero
+    """
+
+    # If we are not fitting the background we subtract it here.
+    # When subtract_background is False, we are including the background
+    # level as a free parameter in our fit, so it should not be subtracted
+    # here.
+    bg = 0
+    if subtract_background:
+        if not truth == "truth":
+            # However, if we are subtracting the background, we want to get
+            # rid of it here, either by reading the SKY_MEAN value from the
+            # image header...
+            try:
+                bg = image_cutout.get_fits_header()["SKY_MEAN"]
+            except KeyError:
+                SNLogger.warning("Could not find SKY_MEAN in header, setting bg to 0")
+                bg = 0
+        elif truth == "truth":
+            # ....or manually calculating it!
+            bg = calculate_background_level(imagedata)
+    image_cutout._data -= bg
+    SNLogger.debug(f"Subtracted a background level of {bg}")
+    return image_cutout, bg
 
 
 def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
