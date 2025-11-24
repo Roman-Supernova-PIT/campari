@@ -69,7 +69,7 @@ def test_get_image_collection_missing_provenance():
     provenance_tag = "nonexistent_tag"
     process = "load_ou2024_image"
     dbclient = SNPITDBClient()
-    with pytest.raises(KeyError):
+    with pytest.raises(ValueError):
         ImageCollection().get_collection(
             collection=image_collection, provenance_tag=provenance_tag, process=process, dbclient=dbclient
         )
