@@ -819,7 +819,8 @@ def test_calculate_surface_brightness():
     )
 
 
-def test_construct_one_image(cfg, campari_test_data):
+@pytest.mark.parametrize("nprocs", [(10), (1)])
+def test_construct_one_image(cfg, campari_test_data, nprocs):
     with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl" , "rb") as f:
         image_list = pickle.load(f)
 
@@ -832,52 +833,45 @@ def test_construct_one_image(cfg, campari_test_data):
     truth = "simple_model"
     subtract_background = True
 
-    for nprocs in [10, 1]:
-        SNLogger.debug(f"Testing construct_one_image with nprocs={nprocs}")
-        cutout_image_list = []
-        results = []
-        if nprocs > 1:
-            with Pool(nprocs) as pool:
-                for indx, image in enumerate(image_list):
-                    SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
-                    results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
-                                                                               "ra": ra, "dec": dec, "size": size,
-                                                                               "truth": truth,
-                                                                               "subtract_background": subtract_background}))
-
-                pool.close()
-                pool.join()
-        else:
+    SNLogger.debug(f"Testing construct_one_image with nprocs={nprocs}")
+    cutout_image_list = []
+    results = []
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
                 SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
-                results.append(construct_one_image(indx=indx, image=image,
-                                                ra=ra, dec=dec, size=size, truth=truth,
-                                                subtract_background=subtract_background))
+                results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                            "ra": ra, "dec": dec, "size": size,
+                                                                            "truth": truth,
+                                                                            "subtract_background": subtract_background}))
 
-        for r in results:
-            if nprocs > 1:
-                res = r.get()
-            else:
-                res = r
-            cutout_image_list.append(res[0])
+            pool.close()
+            pool.join()
+    else:
+        for indx, image in enumerate(image_list):
+            SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+            results.append(construct_one_image(indx=indx, image=image,
+                                            ra=ra, dec=dec, size=size, truth=truth,
+                                            subtract_background=subtract_background))
 
-        for cutout, reg_cutout in zip(cutout_image_list, reg_cutout_list):
-            np.testing.assert_allclose(cutout.data, reg_cutout.data, atol=1e-7)
-            np.testing.assert_allclose(cutout.noise, reg_cutout.noise, atol=1e-7)
-            np.testing.assert_array_equal(cutout.flags, reg_cutout.flags)
-            np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
+    for r in results:
+        if nprocs > 1:
+            res = r.get()
+        else:
+            res = r
+        cutout_image_list.append(res[0])
+
+    for cutout, reg_cutout in zip(cutout_image_list, reg_cutout_list):
+        np.testing.assert_allclose(cutout.data, reg_cutout.data, atol=1e-7)
+        np.testing.assert_allclose(cutout.noise, reg_cutout.noise, atol=1e-7)
+        np.testing.assert_array_equal(cutout.flags, reg_cutout.flags)
+        np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
 
 
 def test_build_model_one_image():
 
-    with open(pathlib.Path(__file__).parent / "testdata/reg_ra_grid.pkl", "rb") as f:
-        ra_grid = pickle.load(f)
-    with open(pathlib.Path(__file__).parent / "testdata/reg_dec_grid.pkl", "rb") as f:
-        dec_grid = pickle.load(f)
-    with open(pathlib.Path(__file__).parent / "testdata/reg_bg_array.pkl", "rb") as f:
-        reg_bg_array = pickle.load(f)
-    with open(pathlib.Path(__file__).parent / "testdata/reg_sn_array.pkl", "rb") as f:
-        reg_sn_array = pickle.load(f)
+    with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
+        ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
 
     with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl", "rb") as f:
         image_list = pickle.load(f)
@@ -888,7 +882,7 @@ def test_build_model_one_image():
     bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec, use_real_images=True,
                                                    grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
                                                    pixel=False, psfclass="ou24PSF", band="Y106", sedlist=None,
-                                                   source_phot_ops=True, i=0, num_total_images=2,
+                                                   source_phot_ops=True, image_index=0, num_total_images=2,
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
                                                    prebuilt_sn_matrix=None, subtract_background=True,
                                                    base_pointing=None, base_sca=None)

@@ -273,8 +273,7 @@ class campari_runner:
         # self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
         # SNLogger.debug("Created a grid of simulation parameters with a total of"
         #                f" {self.param_grid.shape[1]} combinations.")
-        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]
-        #  # Repeat the SNID for each combination of parameters
+        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1] # Repeat the SNID for each combination of parameters
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""

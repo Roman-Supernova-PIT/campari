@@ -563,9 +563,10 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, psfclass=None, band=None, sedlist=None,
-                              source_phot_ops=None, i=None, num_total_images=None, num_detect_images=None,
+                              source_phot_ops=None, image_index=None, num_total_images=None, num_detect_images=None,
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background=None,
                               base_pointing=None, base_sca=None):
+
     # Passing in None for the PSF means we use the Roman PSF.
     pointing, sca = image.pointing, image.sca
 
@@ -584,7 +585,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     # If no grid, we still need something that can be concatenated in the
     # linear algebra steps, so we initialize an empty array by default.
     background_model_array = np.empty((size**2, 0))
-    SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
+    SNLogger.debug("Constructing background model array for image " + str(image_index) + " ---------------")
     if grid_type != "none" and prebuilt_psf_matrix is None:
         background_model_array = construct_static_scene(
             ra_grid,
@@ -610,7 +611,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         # model term when we are on the image that is being modeled, otherwise we add a term that is all zeros.
         # This is the same as to why we have to make the rest of the SN model zeroes in the other images.
         for j in range(num_total_images):
-            if i == j:
+            if image_index == j:
                 bg = np.ones(size**2).reshape(-1, 1)
             else:
                 bg = np.zeros(size**2).reshape(-1, 1)
@@ -627,10 +628,10 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     # of sedlist. Therefore, we subtract by the number of
     # predetection images: num_total_images - num_detect_images.
     # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
-    sn_index = i - (num_total_images - num_detect_images)
+    sn_index = image_index - (num_total_images - num_detect_images)
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
-        SNLogger.debug("Constructing transient model array for image " + str(i) + " ---------------")
+        SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
         if use_real_images:
             pointing = pointing
             sca = sca
@@ -642,7 +643,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         # first supernova image, we want to be on the first element
         # of sedlist. Therefore, we subtract by the number of
         # predetection images: num_total_images - num_detect_images.
-        sn_index = i - (num_total_images - num_detect_images)
+        sn_index = image_index - (num_total_images - num_detect_images)
         SNLogger.debug(f"Using SED #{sn_index}")
         sed = sedlist[sn_index]
         # object_x and object_y are the exact coords of the SN in the SCA frame.
@@ -671,13 +672,9 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             image=image,
         )
 
-
-#        sn_matrix.append(psf_source_array)
-
-    elif sn_index >= 0 and prebuilt_sn_matrix is not None:
-        SNLogger.debug("Using prebuilt SN matrix for transient model")
-        psf_source_array = None
     else:
         psf_source_array = None
+        if sn_index >= 0 and prebuilt_sn_matrix is not None:
+            SNLogger.debug("Using prebuilt SN matrix for transient model")
 
     return background_model_array, psf_source_array
