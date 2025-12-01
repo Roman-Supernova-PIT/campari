@@ -1538,6 +1538,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
         SNLogger.debug(e)
         raise e
 
+
 def test_both_shifted_21mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1583,6 +1584,107 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_both_shifted_21mag_host_ou2024_more():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_shifted_22mag_host_200_ou2024.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += ["--save_model"]
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    # ]
+    cmd += ["--nprocs", "15"]
+
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "ou24PSF_slow"
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_ou24PSF_slow_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "both_shifted_21mag_host_ou24PSF_slow_diagnostic"
+        generate_diagnostic_plots("123_R062_ou24PSF_slow", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_noiseless_aligned_nohost_ou2024_more():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_nohost_ou2024.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
+    #spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    #cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += ["--save_model"]
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    # ]
+    cmd += ["--nprocs", "15"]
+
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "ou24PSF_slow"
+
+    photops_index = cmd.index("--no-photometry-campari-source_phot_ops")
+    cmd[photops_index] = "--photometry-campari-source_phot_ops"
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        np.testing.assert_allclose(lc["flux"], flux, atol=1e-7)
+    except AssertionError as e:
+        plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
+        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
         raise e
