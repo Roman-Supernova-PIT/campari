@@ -44,7 +44,8 @@ def create_default_test_args(cfg):
     test_args.ra = None
     test_args.dec = None
     test_args.image_collection = "snpitdb"
-    test_args.image_path = None
+    test_args.image_collection_basepath = None
+    test_args.image_collection_subset = "threefile"
 
     test_args.diaobject_position_provenance_tag = None
     test_args.diaobject_position_process = None

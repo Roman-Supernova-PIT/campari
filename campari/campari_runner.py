@@ -54,7 +54,8 @@ class campari_runner:
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
         self.image_collection = kwargs["image_collection"]
-        self.image_path = kwargs["image_path"]
+        self.image_collection_basepath = kwargs["image_collection_basepath"]
+        self.image_collection_subset = kwargs["image_collection_subset"]
 
         self.ra = kwargs["ra"]
         self.dec = kwargs["dec"]
@@ -301,15 +302,17 @@ class campari_runner:
                 SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
                 SNLogger.debug("max transient images: " + str(self.max_transient_images))
                 image_list, self.img_coll_prov = find_all_exposures(diaobj=diaobj,
-                                                                maxbg=self.max_no_transient_images,
-                                                                maxdet=self.max_transient_images,
-                                                                band=self.band,
-                                                                image_selection_start=self.image_selection_start,
-                                                                image_selection_end=self.image_selection_end,
-                                                                image_collection=self.image_collection,
-                                                                dbclient=self.dbclient,
-                                                                provenance_tag=self.image_provenance_tag,
-                                                                process=self.image_process)
+                                                                    maxbg=self.max_no_transient_images,
+                                                                    maxdet=self.max_transient_images,
+                                                                    band=self.band,
+                                                                    image_selection_start=self.image_selection_start,
+                                                                    image_selection_end=self.image_selection_end,
+                                                                    image_collection=self.image_collection,
+                                                                    image_collection_subset=self.image_collection_subset,
+                                                                    image_collection_basepath=self.image_collection_basepath,
+                                                                    dbclient=self.dbclient,
+                                                                    provenance_tag=self.image_provenance_tag,
+                                                                    process=self.image_process)
                 mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
                 mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
@@ -514,8 +517,9 @@ class campari_runner:
                           (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
-        my_image_collection = my_image_collection.get_collection(self.image_collection, subset="threefile",
-                                                                 base_path=self.image_path)
+        my_image_collection = my_image_collection.get_collection(self.image_collection,
+                                                                 subset=self.image_collection_subset,
+                                                                 base_path=self.image_collection_basepath)
         images = []
         if all(len(line.split(",")) == 3 for line in img_list_lines):
             self.pointing_list = []

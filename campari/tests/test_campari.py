@@ -204,7 +204,6 @@ def test_find_all_exposures():
     diaobj.mjd_end = 62958.0
     image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
                                        maxdet=24,
-                                       sca_list=None,
                                        truth="simple_model", image_collection="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
@@ -542,15 +541,13 @@ def test_construct_static_scene(cfg):
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
-    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
-
     wcs = snappl_image.get_wcs()
 
     ra_grid = np.array([7.47193824, 7.47204612, 7.472154, 7.4718731, 7.47198098])
     dec_grid = np.array([-44.8280889, -44.82804109, -44.82799327, -44.82801657, -44.82796875])
 
     psf_background = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
-                                            stampsize=size, band="Y106", util_ref=util_ref)
+                                            stampsize=size, band="Y106", image=snappl_image)
 
     test_psf_background = np.load(pathlib.Path(__file__).parent / "testdata/test_psf_bg.npy")
 

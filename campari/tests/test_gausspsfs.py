@@ -34,7 +34,8 @@ base_cmd = [
         "--no-photometry-campari-source_phot_ops",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
-        "--image_path", "/photometry_test_data/simple_gaussian_test/sig1.0",
+        "--image-collection-basepath", "/photometry_test_data/simple_gaussian_test/sig1.0",
+        "--image-collection-subset", "threefile",
         "--no-save-to-db"
     ]
 
