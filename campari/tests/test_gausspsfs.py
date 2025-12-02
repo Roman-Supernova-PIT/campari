@@ -1642,7 +1642,7 @@ def test_both_shifted_21mag_host_ou2024_more():
 def test_noiseless_aligned_nohost_ou2024_more():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_nohost_ou2024.txt",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_nophotops.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
     #spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
@@ -1657,9 +1657,6 @@ def test_noiseless_aligned_nohost_ou2024_more():
 
     psfclass_index = cmd.index("--photometry-campari-psfclass")
     cmd[psfclass_index + 1] = "ou24PSF_slow"
-
-    photops_index = cmd.index("--no-photometry-campari-source_phot_ops")
-    cmd[photops_index] = "--photometry-campari-source_phot_ops"
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
