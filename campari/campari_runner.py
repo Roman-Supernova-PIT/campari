@@ -23,6 +23,7 @@ from campari.io import (
     build_lightcurve,
     build_lightcurve_sim,
     save_lightcurve,
+    update_debug_file
 )
 from campari.run_one_object import run_one_object
 from campari.utils import banner
@@ -73,6 +74,9 @@ class campari_runner:
 
         self.save_to_db = kwargs["save_to_db"]
         self.add_truth_to_lc = kwargs["add_truth_to_lc"]
+        self.write_ecsv = kwargs["write_ecsv"]
+        self.write_parquet = kwargs["write_parquet"]
+        self.output_filename = kwargs["output_filename"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
@@ -248,6 +252,7 @@ class campari_runner:
 
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
         self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
+        update_debug_file({"ABORT_IF_ZERO": 100}, run_name=str(diaobj.name)+"_campari")
 
     def decide_run_mode(self):
         """Decide which run mode to use based on the input configuration."""
@@ -295,6 +300,11 @@ class campari_runner:
 
             no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
             SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
+            update_debug_file({"NUM_TOTAL_IMAGES": len(image_list),
+                               "NUM_TRANSIENT_IMAGES": len(image_list) - len(no_transient_images),
+                               "BAND": self.band,
+                               "GRID_TYPE": self.grid_type},
+                              run_name=str(diaobj.name)+"_campari")
 
             if (
                 self.max_no_transient_images != 0
@@ -430,9 +440,22 @@ class campari_runner:
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
             testrun = getattr(self, "testrun", None)
-            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
-                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=testrun, dbclient=self.dbclient)
+
+            filetypes = []
+            filetypes.append("ecsv") if self.write_ecsv else None
+            filetypes.append("parquet") if self.write_parquet else None
+            if filetypes == []:
+                filetypes = ["ecsv"]
+            # Presave locally before database upload
+            for filetype in filetypes:
+                save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                                save_to_database=False, new_provenance=self.create_ltcv_provenance,
+                                testrun=testrun, dbclient=self.dbclient, filetype=filetype, filename=self.output_filename)
+            # Then save to DB if desired
+            if self.save_to_db:
+                save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                                save_to_database=True, new_provenance=self.create_ltcv_provenance,
+                                testrun=testrun, dbclient=self.dbclient)
 
         # Now, save the images
 

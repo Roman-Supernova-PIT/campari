@@ -252,6 +252,27 @@ def main():
     parser.add_argument("--add-truth-to-lc", action=argparse.BooleanOptionalAction, default=False, help="If True, "
                         "will add the truth fluxes from ou2024 to the lightcurve output. Default False.")
 
+    parser.add_argument("--write-ecsv", action=argparse.BooleanOptionalAction, default=False,
+                        help="If True, will write the lightcurve to an ECSV file. If neither --write-ecsv nor "
+                        "--write-parquet is given, will write to ecsv by default. If both are provided, will"
+                        " write to both. Default False.")
+    parser.add_argument(
+        "--write-parquet", "--write-pq",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+        help="If True, will write the lightcurve to a Parquet file. If neither --write-ecsv nor "
+        "--write-parquet is given, will write to ecsv by default. If both are provided, will"
+        " write to both. Default False.",
+    )
+
+    parser.add_argument(
+        "--output-filename",
+        type=str,
+        default=None,
+        help="If given, will use this filename (without extension) when writing lightcurves to disk. "
+        "If not given, will use the default naming scheme.",
+    )
+
     if cfg is not None:
         cfg.augment_argparse(parser)
     args = parser.parse_args(leftovers)
