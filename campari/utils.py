@@ -237,8 +237,6 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
         SNLogger.debug(f"error max min {np.nanmax(error[i]), np.nanmin(error[i])}")
         inv_var = 1 / (error[i].flatten()) ** 2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
-        #inv_var[np.where(inv_var > 1)] = 1  # Avoid ridiculously high weights
-        #SNLogger.debug(f"inv_var norm before: {np.linalg.norm(inv_var)}")
         wgt *= inv_var
         SNLogger.debug(f"wgt max min {np.nanmax(wgt), np.nanmin(wgt)}")
         SNLogger.debug(f"wgt after: {np.nanmean(wgt)}")

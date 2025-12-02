@@ -21,7 +21,6 @@ from astropy.table import Table, QTable
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
-from roman_imsim.utils import roman_utils
 
 
 # SNPIT
@@ -41,7 +40,6 @@ from campari.model_building import (
     build_model_for_one_image,
 )
 from campari.plotting import plot_lc
-from campari.campari_runner import campari_runner
 from campari.utils import (calc_mag_and_err,
                            calculate_background_level,
                            calculate_local_surface_brightness,
@@ -147,8 +145,6 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # this fail, so I put the rtol at just above that level.
             np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
 
-
-
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
     assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, (
@@ -157,7 +153,8 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     )
 
     if overwrite_meta:
-        SNLogger.debug("At this point, all the data columns match. I am now overwriting the metadata of lc2 with that of lc1.")
+        SNLogger.debug("At this point, all the data columns match."
+                       " I am now overwriting the metadata of lc2 with that of lc1.")
         # print the difference between the two meta dictionaries
         for key in lc1.meta:
             if key not in lc2.meta:
@@ -293,7 +290,8 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         # ugly :( never do in real life
         cfg._data = orig_config._data
 
-    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", overwrite_meta=overwrite_meta)
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
 
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
@@ -306,7 +304,8 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659 --image-collection ou2024 --no-save-to-db --photometry-campari-grid_options-gaussian_var 1000"
+        "--ra 7.5833264 --dec -44.809659 --image-collection ou2024"
+        " --no-save-to-db --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
@@ -316,7 +315,6 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_run_on_star so I am rerunning this test.")
         test_run_on_star(campari_test_data, cfg, overwrite_meta=False)
-
 
 
 def test_regression_function(campari_test_data, cfg, overwrite_meta):
@@ -374,7 +372,6 @@ def test_regression(campari_test_data, overwrite_meta):
 
     cfg = Config.get()
 
-    #curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
@@ -528,7 +525,6 @@ def test_calc_mag_and_err():
 
 
 def test_construct_static_scene(cfg):
-    config_file = pathlib.Path(cfg.value("system.ou24.config_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
 
@@ -680,7 +676,8 @@ def test_build_lc(cfg, overwrite_meta):
 
     lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
-                                        sky_background=[0.0] * len(image_list), pre_transient_images=1, post_transient_images=0)
+                                        sky_background=[0.0] * len(image_list), pre_transient_images=1,
+                                        post_transient_images=0)
 
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model)
@@ -718,37 +715,6 @@ def test_wcs_regression():
     x, y = wcs.world_to_pixel(ra_test, dec_test)
     np.testing.assert_allclose(x, x_test, atol=1e-7)
     np.testing.assert_allclose(y, y_test, atol=1e-7)
-
-
-# def test_find_all_exposures_with_img_list():
-#     band = "Y106"
-#     columns = ["pointing", "SCA"]
-#     image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-#     SNLogger.debug(image_df)
-#     ra = 7.551093401915147
-#     dec = -44.80718106491529
-#     transient_start = 62450.
-#     transient_end = 62881.
-#     max_no_transient_images = None
-#     max_transient_images = None
-#     image_selection_start = None
-#     image_selection_end = None
-#     diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
-#     diaobj.mjd_start = transient_start
-#     diaobj.mjd_end = transient_end
-
-#     image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
-#                                     maxdet=max_transient_images, band=band,
-#                                     image_selection_start=image_selection_start,
-#                                     image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
-
-#     SNLogger.debug(f"Found {len(image_list)} images")
-
-#     compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
-
-#     np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
-#     np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
-#     np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
 def test_read_healpix_file():
@@ -860,7 +826,8 @@ def test_construct_one_image(cfg, campari_test_data):
                     results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
                                                                                "ra": ra, "dec": dec, "size": size,
                                                                                "truth": truth,
-                                                                               "subtract_background": subtract_background}))
+                                                                               "subtract_background":
+                                                                               subtract_background}))
 
                 pool.close()
                 pool.join()
@@ -868,8 +835,8 @@ def test_construct_one_image(cfg, campari_test_data):
             for indx, image in enumerate(image_list):
                 SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
                 results.append(construct_one_image(indx=indx, image=image,
-                                                ra=ra, dec=dec, size=size, truth=truth,
-                                                subtract_background=subtract_background))
+                                                   ra=ra, dec=dec, size=size, truth=truth,
+                                                   subtract_background=subtract_background))
 
         for r in results:
             if nprocs > 1:
@@ -911,6 +878,4 @@ def test_build_model_one_image():
                                                    base_pointing=None, base_sca=None)
 
     np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
-    np.testing.assert_equal(sn_array, reg_sn_array) # We expect Nones here
-
-
+    np.testing.assert_equal(sn_array, reg_sn_array)  # We expect Nones here

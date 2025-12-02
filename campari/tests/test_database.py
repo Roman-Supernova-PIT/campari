@@ -13,8 +13,6 @@ from erfa import ErfaWarning
 
 # SNPIT
 from campari.data_construction import find_all_exposures
-from campari.io import build_lightcurve, save_lightcurve
-from campari.utils import campari_lightcurve_model
 
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject

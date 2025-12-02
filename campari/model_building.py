@@ -3,7 +3,6 @@ import warnings
 
 # Common Library
 import numpy as np
-import pathlib
 from scipy.interpolate import RegularGridInterpolator
 
 # Astronomy Library
@@ -13,10 +12,8 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
 from galsim import roman
-from roman_imsim.utils import roman_utils
 
 # SN-PIT
-from snappl.config import Config
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 
@@ -235,10 +232,8 @@ def generate_guess(imlist, ra_grid, dec_grid):
         # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
         xx = np.atleast_1d(xx)
         yy = np.atleast_1d(yy)
-        #SNLogger.debug(f"Generating guess for xx and yy {xx, yy}")
         for imval, imxval, imyval in zip(im.flatten(), imx.flatten(), imy.flatten()):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
-            #SNLogger.debug(f"Assigning grid point values {grid_point_vals}")
         all_vals += grid_point_vals
     return all_vals / len(wcslist)
 

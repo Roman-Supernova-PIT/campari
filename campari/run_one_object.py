@@ -354,7 +354,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
-            diaobj=diaobj, object_type=object_type, sky_background=sky_background, pre_transient_images=num_pre_transient_images,
+            diaobj=diaobj, object_type=object_type, sky_background=sky_background,
+            pre_transient_images=num_pre_transient_images,
             post_transient_images=num_post_transient_images
         )
 

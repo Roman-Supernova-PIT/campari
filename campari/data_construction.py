@@ -171,9 +171,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0] ** 2
     tot_num = len(images)
-    mjd = np.array([im.mjd for im in images])
 
-    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays

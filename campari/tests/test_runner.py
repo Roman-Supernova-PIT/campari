@@ -5,9 +5,6 @@ from types import SimpleNamespace
 # Common Library
 import numpy as np
 import pandas as pd
-import pytest
-
-from astropy.table import Table
 
 # SNPIT
 from campari.campari_runner import campari_runner
@@ -167,7 +164,6 @@ def test_get_exposures(cfg):
     test_args.image_collection = "ou2024"
 
     runner = campari_runner(**vars(test_args))
-    #runner.decide_run_mode()
     diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
@@ -181,13 +177,12 @@ def test_get_exposures(cfg):
     np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
     np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
 
-    #### Now try with an image list
+    # ### Now try with an image list
 
     test_args.object_collection = "ou24"
     test_args.SNID = 20172782
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
-    #runner.decide_run_mode()
 
     diaobj = DiaObject.find_objects(name=20172782, ra=1, dec=2, collection="manual")[0]
     diaobj.mjd_start = 62654.0
@@ -231,7 +226,6 @@ def test_get_SED_list(cfg):
         test_args.object_type = "SN"
 
         runner = campari_runner(**vars(test_args))
-        #runner.decide_run_mode()
         sedlist = runner.get_sedlist(test_args.diaobject_name, image_list)
         assert len(sedlist) == 1, "The length of the SED list is not 1"
         sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
@@ -317,7 +311,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
-    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", overwrite_meta=overwrite_meta)
+    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
         test_build_and_save_lc(cfg, overwrite_meta=False)
