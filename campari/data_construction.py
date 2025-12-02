@@ -5,6 +5,7 @@ import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import numpy as np
+from multiprocessing import Pool
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
@@ -24,7 +25,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 huge_value = 1e32
 
 
-def construct_images(image_list, diaobj, size, subtract_background=True):
+def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=None):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -47,74 +48,107 @@ def construct_images(image_list, diaobj, size, subtract_background=True):
     bgflux = []
     cutout_image_list = []
 
-    x_list = []
-    y_list = []
-    x_cutout_list = []
-    y_cutout_list = []
+    results = []
 
-    for indx, image in enumerate(image_list):
+    SNLogger.debug(f"ra: {ra}")
+    SNLogger.debug(f"dec: {dec}")
+    SNLogger.debug(f"size: {size}")
+    SNLogger.debug(f"subtract_background: {subtract_background}")
 
-        imagedata, errordata, flags = image.get_data(which="all", cache=True)
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
+            for indx, image in enumerate(image_list):
+                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                           "ra": ra, "dec": dec, "size": size,
+                                                                           "truth": truth,
+                                                                           "subtract_background": subtract_background}))
 
-        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
-        num_nans = np.isnan(image_cutout.data).sum()
-        if num_nans > 0:
-            SNLogger.warning(
-                f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
-                " image. These will be given a weight of zero."
-            )
-            SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans / size**2:.2%}")
+            pool.close()
+            pool.join()
+    else:
+        for indx, image in enumerate(image_list):
+            SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+            results.append(construct_one_image(indx=indx, image=image,
+                                               ra=ra, dec=dec, size=size, truth=truth,
+                                               subtract_background=subtract_background))
 
-        sca_loc = image.get_wcs().world_to_pixel(ra, dec)
-        cutout_loc = image_cutout.get_wcs().world_to_pixel(ra, dec)
-
-        x_list.append(sca_loc[0])
-        y_list.append(sca_loc[1])
-        x_cutout_list.append(cutout_loc[0])
-        y_cutout_list.append(cutout_loc[1])
-
-        if truth == "truth":
-            raise RuntimeError("Truth is broken.")
-            # In the future, I'd like to manually insert an array of ones for
-            # the error, or something.
-
-        """
-        try:
-            zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
-        except:
-            zero = -99
-
-        if zero < 0:
-            zero =
-        im = cutout * zero
-        """
-
-        # If we are not fitting the background we subtract it here.
-        # When subtract_background is False, we are including the background
-        # level as a free parameter in our fit, so it should not be subtracted
-        # here.
-        bg = 0
-        if subtract_background:
-            if not truth == "truth":
-                # However, if we are subtracting the background, we want to get
-                # rid of it here, either by reading the SKY_MEAN value from the
-                # image header...
-                bg = image_cutout.get_fits_header()["SKY_MEAN"]
-            elif truth == "truth":
-                # ....or manually calculating it!
-                bg = calculate_background_level(imagedata)
-
-        bgflux.append(bg)
-
-        image_cutout._data -= bg
-        SNLogger.debug(f"Subtracted a background level of {bg}")
-
-        cutout_image_list.append(image_cutout)
+    for r in results:
+        if nprocs > 1:
+            res = r.get()
+        else:
+            res = r
+        cutout_image_list.append(res[0])
+        bgflux.append(res[1])
 
     return cutout_image_list, image_list, bgflux
 
 
-def prep_data_for_fit(images, sn_matrix, wgt_matrix):
+def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None, subtract_background=None):
+    """Constructs a single Roman image in the format required for the
+    linear algebra operations. This is the function that is called in parallel
+    by campari.data_construction.construct_images
+
+    Inputs:
+    image: snappl.image.Image object, the image to be used.
+    indx: index of the image in the list.
+
+    Returns:
+    cutout_image: snappl.image.Image object, cutout on the object location.
+    image: snappl.image.Image object of the entire SCA.
+
+    """
+    imagedata, errordata, flags = image.get_data(which="all", cache=True)
+
+    image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    num_nans = np.isnan(image_cutout.data).sum()
+    if num_nans > 0:
+        SNLogger.warning(
+            f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
+            " image. These will be given a weight of zero."
+        )
+        SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans / size**2:.2%}")
+
+    if truth == "truth":
+        raise RuntimeError("Truth is broken.")
+        # In the future, I'd like to manually insert an array of ones for
+        # the error, or something.
+
+    """
+    try:
+        zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
+    except:
+        zero = -99
+
+    if zero < 0:
+        zero =
+    im = cutout * zero
+    """
+
+    # If we are not fitting the background we subtract it here.
+    # When subtract_background is False, we are including the background
+    # level as a free parameter in our fit, so it should not be subtracted
+    # here.
+    bg = 0
+    if subtract_background:
+        if not truth == "truth":
+            # However, if we are subtracting the background, we want to get
+            # rid of it here, either by reading the SKY_MEAN value from the
+            # image header...
+            try:
+                bg = image_cutout.get_fits_header()["SKY_MEAN"]
+            except KeyError:
+                SNLogger.warning("Could not find SKY_MEAN in header, setting bg to 0")
+                bg = 0
+        elif truth == "truth":
+            # ....or manually calculating it!
+            bg = calculate_background_level(imagedata)
+    image_cutout._data -= bg
+    SNLogger.debug(f"Subtracted a background level of {bg}")
+    return image_cutout, bg
+
+
+def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     """This function takes the data from the images and puts it into the form
     such that we can analytically solve for the best fit using linear algebra.
 
@@ -137,6 +171,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0] ** 2
     tot_num = len(images)
+
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
@@ -155,6 +190,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # others. We'll do this by initializing a matrix of zeros, and then filling
     # in the SN model in the correct place in the loop below:
 
+    SNLogger.debug("sn_matrix shape before: " + str(np.array(sn_matrix).shape))
     psf_zeros = np.zeros((np.size(image_data), tot_num))
     for i in range(det_num):
         sn_index = tot_num - det_num + i  # We only want to edit SN columns.
@@ -180,40 +216,35 @@ def find_all_exposures(
     band=None,
     maxbg=None,
     maxdet=None,
-    pointing_list=None,
-    sca_list=None,
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
     image_collection="snpitdb",
+    image_collection_subset=None,
+    image_collection_basepath=None,
     dbclient=None,
     provenance_tag=None,
-    process=None,
+    process=None
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
 
     Inputs:
-    ra, dec: the RA and DEC of the supernova
-    peak: the peak of the supernova
-    transient_start, transient_end: floats, the first and last MJD of a detection of the transient,
-        defines what which images contain transient light (and therefore recieve a single model point
-        at the location of the transient) and which do not.
+    diaobj: snappl.diaobj.DiaObj object, the Difference Imaging Object to find images for.
+    band: the band to consider
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    pointing_list: If this is passed in, only consider these pointings
-    sca_list: If this is passed in, only consider these SCAs
     truth: If "truth" use truth images, if "simple_model" use simple model
-            images.
-    band: the band to consider
+            images. For Open Universe 2024 simulations only.
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
-    explist: astropy.table.Table, the table of exposures that contain the
-    supernova. The columns are:
-        - pointing: the pointing of the exposure
-        - sca: the SCA of the exposure
-        - band: the band of the exposure
-        - date: the MJD of the exposure
-        - detected: whether the exposure contains a detection or not.
+    image_collection: str, the source of the images to be used. If "ou2024", use the Open Universe 2024 images.
+    image_collection_subset: str, subset argument provided to the image collection object to use for lookup.
+    image_collection_basepath: str, the path to the images to be used. If given, will use these images
+                     for image sources that require a base_path when using the ImageCollection object.
+    dbclient: snappl.dbclient.DBClient object, the database client to use to query for images.
+    provenance_tag: str, the provenance tag to use to find images.
+    process: str, the process name to use to find images.
+
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     SNLogger.debug(f"Using image collection: {image_collection}")
@@ -235,8 +266,11 @@ def find_all_exposures(
     SNLogger.debug(f"Using process: {process}")
     SNLogger.debug(f"db_client: {dbclient}")
 
+    # Dehardcode the 3 file thing
     img_collection = ImageCollection().get_collection(collection=image_collection, provenance_tag=provenance_tag,
-                                                      process=process, dbclient=dbclient)
+                                                      process=process, dbclient=dbclient,
+                                                      subset=image_collection_subset,
+                                                      base_path=image_collection_basepath)
 
     img_collection_prov = getattr(img_collection, "provenance", None)
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
@@ -275,10 +309,6 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
-
-    if pointing_list is not None:
-        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
-        SNLogger.debug(f"Filtered to {len(all_images)} images based on provided pointing list.")
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]

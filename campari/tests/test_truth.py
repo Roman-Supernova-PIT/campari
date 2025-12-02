@@ -132,7 +132,7 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
 
     lc_model = campari_lightcurve_model(
         flux=100.0, sigma_flux=10.0, image_list=image_list, cutout_image_list=cutout_image_list,
-        LSB=25.0, sky_background=[0.0] * len(image_list)
+        LSB=25.0, sky_background=[0.0] * len(image_list), pre_transient_images=1, post_transient_images=0
     )
 
     diaobj = DiaObject.find_objects(name=20172782, ra=7, dec=-41, collection="manual")[0]
@@ -151,7 +151,8 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     lc = add_truth_to_lc(lc, sn_path, "SN")
 
     lc_table = Table(data=lc.data, meta=lc.meta)
-    lc_table.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc_with_truth.ecsv", format="ascii.ecsv", overwrite=True)
+    lc_table.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc_with_truth.ecsv",
+                   format="ascii.ecsv", overwrite=True)
 
     compare_lightcurves(pathlib.Path(__file__).parent / "testdata/newly_built_lc_with_truth.ecsv",
                         pathlib.Path(__file__).parent / "testdata/saved_lc_file_with_truth.ecsv",

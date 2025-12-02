@@ -30,8 +30,12 @@
 # - {use_real_images: true}
 # - {psfclass: ou24PSF}
 # - grid_options:
+#     cutoff: 4
+#     error_floor: 1
+#     gaussian_var: 1000
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
+#     subsize: 4
 #     turn_grid_off: false
 #     type: none
 # - {ID: '40973166870'}
@@ -46,6 +50,8 @@
 # - {dec_err: 0.0}
 # - {ra_dec_covar: 0.0}
 # - {local_surface_brightness_Y106: 20.67947596585431}
+# - {pre_transient_images: 0}
+# - {post_transient_images: 0}
 # - __serialized_columns__:
 #     NEA:
 #       __class__: astropy.units.quantity.Quantity
@@ -81,4 +87,4 @@
 #       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
 mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
-62455.669 362914.23250740854 148.49828230360725 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.7621457523746 0.0004442646416137137 5.2373305260157546 5.485903580976412 108.0
+62455.669 360764.53998349665 148.49828230360725 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.768596144333205 0.00044691188731795916 5.2373305260157546 5.485903580976412 108.0

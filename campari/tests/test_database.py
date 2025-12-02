@@ -13,8 +13,6 @@ from erfa import ErfaWarning
 
 # SNPIT
 from campari.data_construction import find_all_exposures
-from campari.io import build_lightcurve, save_lightcurve
-from campari.utils import campari_lightcurve_model
 
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
@@ -99,9 +97,8 @@ def test_find_exposures():
     regression_pointings = np.load("/campari/campari/tests/testdata/test_find_exposures_pointings.npy")
     np.testing.assert_array_equal(pointings, regression_pointings)
 
-
-
 # This worked once but I am going to wait to re-enable until I have my own testing database set up.
+
 
 # def test_write_lc_to_db():
 #     dbclient = SNPITDBClient()

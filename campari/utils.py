@@ -45,6 +45,8 @@ class campari_lightcurve_model:
         galdec=None,
         object_type="SN",
         LSB=None,
+        pre_transient_images=None,
+        post_transient_images=None,
         sky_background=None,
         image_collection_prov=None,
     ):
@@ -116,6 +118,8 @@ class campari_lightcurve_model:
         self.galdec = galdec
         self.object_type = object_type
         self.LSB = LSB
+        self.pre_transient_images = pre_transient_images
+        self.post_transient_images = post_transient_images
         self.sky_background = sky_background
         self.image_collection_prov = image_collection_prov
 
@@ -157,7 +161,7 @@ def calculate_background_level(im):
     return bg
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -184,42 +188,59 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
 
+    SNLogger.debug(f"ra: {ra}, dec: {dec}")
+    SNLogger.debug(f"error zero index: {error[0]}")
+
     wgt_matrix = []
-    SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var}")
+
     for i, wcs in enumerate(wcs_list):
-        xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
-        xx = xx.flatten()
-        yy = yy.flatten()
-        object_x, object_y = wcs.world_to_pixel(ra, dec)
-        dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
+        if gaussian_var is not None:
+            SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var} with cutoff {cutoff}")
+            xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
+            xx = xx.flatten()
+            yy = yy.flatten()
 
-        wgt = np.ones(size**2)
-        wgt = 5 * np.exp(-(dist**2) / gaussian_var)
-        # NOTE: This 5 is here because when I made this function I was
-        # checking my work by plotting and the *5 made it easier to see. I
-        # thought the overall normalization
-        # of the weights did not matter. I was half right, they don't matter
-        # for the flux but they do matter for the size of the errors. Therefore
-        # there is some way that these weights are normalized, but I don't
-        # know exactly how that should be yet. Online sources speaking about
-        # weighted linear regression never seem to address normalization. TODO
+            object_x, object_y = wcs.world_to_pixel(ra, dec)
 
-        # Here, we throw out pixels that are more than 4 pixels away from the
-        # SN. The reason we do this is because by choosing an image size one
-        # has set a square top hat function centered on the SN. When that image
-        # is rotated pixels in the corners leave the image, and new pixels
-        # enter. By making a circular cutout, we minimize this problem. Of
-        # course this is not a perfect solution, because the pixellation of the
-        # circle means that still some pixels will enter and leave, but it
-        # seems to minimize the problem.
-        wgt[np.where(dist > cutoff)] = 0
-        if error is None:
-            error = np.ones_like(wgt)
-        SNLogger.debug(f"wgt before: {np.mean(wgt)}")
+            dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
+            SNLogger.debug(f"x: {object_x}, y: {object_y}")
+
+            wgt = np.ones(size**2)
+            wgt = 5 * np.exp(-(dist**2) / gaussian_var)
+            SNLogger.debug(f"wgt max and min before cutoff: {np.max(wgt)}, {np.min(wgt)}")
+            # NOTE: This 5 is here because when I made this function I was
+            # checking my work by plotting and the *5 made it easier to see. I
+            # thought the overall normalization
+            # of the weights did not matter. I was half right, they don't matter
+            # for the flux but they do matter for the size of the errors. Therefore
+            # there is some way that these weights are normalized, but I don't
+            # know exactly how that should be yet. Online sources speaking about
+            # weighted linear regression never seem to address normalization. TODO
+
+            # Here, we throw out pixels that are more than 4 pixels away from the
+            # SN. The reason we do this is because by choosing an image size one
+            # has set a square top hat function centered on the SN. When that image
+            # is rotated pixels in the corners leave the image, and new pixels
+            # enter. By making a circular cutout, we minimize this problem. Of
+            # course this is not a perfect solution, because the pixellation of the
+            # circle means that still some pixels will enter and leave, but it
+            # seems to minimize the problem.
+            wgt[np.where(dist > cutoff)] = 0
+            if error[i] is None:
+                error[i] = np.ones_like(wgt)
+                SNLogger.debug(f"wgt before: {np.mean(wgt)}")
+        else:
+            SNLogger.debug("No Gaussian weighting applied in get_weights")
+            wgt = np.ones(size**2)
+
+        error[i][np.where(error[i] <= error_floor)] = error_floor
+        SNLogger.debug(f"error max min {np.nanmax(error[i]), np.nanmin(error[i])}")
         inv_var = 1 / (error[i].flatten()) ** 2
+        inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
-
-        SNLogger.debug(f"wgt after: {np.mean(wgt)}")
+        SNLogger.debug(f"wgt max min {np.nanmax(wgt), np.nanmin(wgt)}")
+        SNLogger.debug(f"wgt after: {np.nanmean(wgt)}")
+        SNLogger.debug("------------")
         wgt_matrix.append(wgt)
     return wgt_matrix
 

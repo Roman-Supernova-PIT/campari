@@ -5,9 +5,6 @@ from types import SimpleNamespace
 # Common Library
 import numpy as np
 import pandas as pd
-import pytest
-
-from astropy.table import Table
 
 # SNPIT
 from campari.campari_runner import campari_runner
@@ -40,9 +37,12 @@ def create_default_test_args(cfg):
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
+    test_args.nprocs = 10
     test_args.ra = None
     test_args.dec = None
     test_args.image_collection = "snpitdb"
+    test_args.image_collection_basepath = None
+    test_args.image_collection_subset = "threefile"
 
     test_args.diaobject_position_provenance_tag = None
     test_args.diaobject_position_process = None
@@ -122,39 +122,39 @@ def test_runner_init(cfg):
     assert isinstance(runner.cfg, Config)
 
 
-def test_decide_run_mode(cfg):
-    test_args = create_default_test_args(cfg)
+# def test_decide_run_mode(cfg):
+#     test_args = create_default_test_args(cfg)
 
-    # First test passing a diaobject_name
-    test_args.diaobject_name = 20172782
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert runner.diaobject_name == 20172782
+#     # First test passing a diaobject_name
+#     test_args.diaobject_name = 20172782
+#     runner = campari_runner(**vars(test_args))
+#     runner.decide_run_mode()
+#     assert runner.diaobject_name == 20172782
 
 
-    # Now test passing RA and Dec
-    test_args.ra = 10.684
-    test_args.dec = 41.269
-    test_args.transient_start = 60000.0
-    test_args.transient_end = 60100.0
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
-    assert runner.ra == 10.684
-    assert runner.dec == 41.269
-    assert runner.transient_start is not None
-    assert runner.transient_end is not None
+#     # Now test passing RA and Dec
+#     test_args.ra = 10.684
+#     test_args.dec = 41.269
+#     test_args.transient_start = 60000.0
+#     test_args.transient_end = 60100.0
+#     runner = campari_runner(**vars(test_args))
+#     runner.decide_run_mode()
+#     assert runner.ra == 10.684
+#     assert runner.dec == 41.269
+#     assert runner.transient_start is not None
+#     assert runner.transient_end is not None
 
-    test_args.diaobject_collection = "ou24"
-    test_args.diaobject_name = 20172782
-    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
-    runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
+#     test_args.diaobject_collection = "ou24"
+#     test_args.diaobject_name = 20172782
+#     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
+#     runner = campari_runner(**vars(test_args))
+#     runner.decide_run_mode()
 
-    assert runner.diaobject_name == 20172782
-    columns = ["pointing", "sca"]
-    SNLogger.debug(pd.read_csv(test_args.img_list))
-    np.testing.assert_array_equal(runner.pointing_list,
-                                  pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
+#     assert runner.diaobject_name == 20172782
+#     columns = ["pointing", "sca"]
+#     SNLogger.debug(pd.read_csv(test_args.img_list))
+#     np.testing.assert_array_equal(runner.pointing_list,
+#                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
 
 def test_get_exposures(cfg):
@@ -164,7 +164,6 @@ def test_get_exposures(cfg):
     test_args.image_collection = "ou2024"
 
     runner = campari_runner(**vars(test_args))
-    runner.decide_run_mode()
     diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
@@ -177,6 +176,22 @@ def test_get_exposures(cfg):
     np.testing.assert_array_equal([a.mjd for a in image_list], compare_table["date"])
     np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
     np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
+
+    # ### Now try with an image list
+
+    test_args.object_collection = "ou24"
+    test_args.SNID = 20172782
+    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
+    runner = campari_runner(**vars(test_args))
+
+    diaobj = DiaObject.find_objects(name=20172782, ra=1, dec=2, collection="manual")[0]
+    diaobj.mjd_start = 62654.0
+    diaobj.mjd_end = 62958.0
+
+    runner.get_exposures(diaobj=diaobj)
+    columns = ["pointing", "sca"]
+    pointing_list = [int(im.pointing) for im in runner.image_list]
+    np.testing.assert_array_equal(pointing_list, pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
 
 def test_get_SED_list(cfg):
@@ -211,7 +226,6 @@ def test_get_SED_list(cfg):
         test_args.object_type = "SN"
 
         runner = campari_runner(**vars(test_args))
-        runner.decide_run_mode()
         sedlist = runner.get_sedlist(test_args.diaobject_name, image_list)
         assert len(sedlist) == 1, "The length of the SED list is not 1"
         sn_lam_test = np.load(pathlib.Path(__file__).parent / "testdata/sn_lam_test.npy")
@@ -297,7 +311,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
-    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", overwrite_meta=overwrite_meta)
+    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
         test_build_and_save_lc(cfg, overwrite_meta=False)
