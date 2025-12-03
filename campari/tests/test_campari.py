@@ -143,7 +143,11 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # difference of about 1e-9 pixels for the grid, which led to a
             # change in flux of 2e-7. I don't want switching WCS types to make
             # this fail, so I put the rtol at just above that level.
-            np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
+            # December 2025: In addition, when running with nprocs > 1
+            # the WCS objects are pickled and unpickled which can
+            # slightly change the numerical results. I found that it altered recovered flux
+            # by about 1.4 MICRO mags. So I am increasing the rtol to 6e-6 to allow for this.
+            np.testing.assert_allclose(lc1[col], lc2[col], rtol=6e-6), msg
 
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
@@ -363,14 +367,12 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
-
-def test_regression(campari_test_data, overwrite_meta):
+@pytest.mark.parametrize("nprocs", [(2), (1)])
+def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
-
-    cfg = Config.get()
 
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
@@ -391,6 +393,7 @@ def test_regression(campari_test_data, overwrite_meta):
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
+        f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"

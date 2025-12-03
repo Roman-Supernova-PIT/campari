@@ -450,7 +450,7 @@ class campari_runner:
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=testrun, dbclient=self.dbclient)
+                            testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
 
         # Now, save the images
 

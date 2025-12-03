@@ -187,7 +187,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     else:
         for i, image in enumerate(image_list):
-            bg_model, transient_model = build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict})
+            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
 
     for result in model_results:
         if nprocs > 1:

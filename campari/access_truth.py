@@ -118,7 +118,6 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
         img_collection = ImageCollection()
         img_collection = img_collection.get_collection("ou2024")
 
-
         band_map = {
             "r": "R062",
             "z": "Z087",
@@ -143,8 +142,17 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
             names=["object_id", "ra", "dec", "x", "y", "realized_flux", "flux", "mag", "obj_type"],
         )
         cat = cat[cat["object_id"] == ID]
-        sim_true_flux.append(cat["flux"].values[0])
-        sim_realized_flux.append(cat["realized_flux"].values[0])
+        SNLogger.debug(f"cat: {cat}")
+        try:
+            flux = cat["flux"].values[0]
+        except IndexError:
+            flux = np.nan
+        sim_true_flux.append(flux)
+        try:
+            realized_flux = cat["realized_flux"].values[0]
+        except IndexError:
+            realized_flux = np.nan
+        sim_realized_flux.append(realized_flux)
     sim_true_flux = np.array(sim_true_flux)
     sim_realized_flux = np.array(sim_realized_flux)
 

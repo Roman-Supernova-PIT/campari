@@ -205,7 +205,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     <output_path>/identifier_band_psftype_lc.ecsv
     """
     band = lc.meta["band"]
-    SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
+    SNLogger.debug(f"saving lightcurve for diaobject id={identifier}, band={band}, psftype={psftype}")
     SNLogger.debug(f"save_to_database = {save_to_database}")
     SNLogger.debug(f"new_provenance = {new_provenance}")
 
@@ -230,7 +230,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         if testrun is not None and ltcv_provenance_tag is not None:
             ltcv_provenance_tag += str(testrun)
         if new_provenance:
-            SNLogger.debug("Creating new provenance for lightcurve")
+            SNLogger.debug(f"Creating new provenance for lightcurve{f' with tag {ltcv_provenance_tag}' if ltcv_provenance_tag is not None else ''}")
             ltcvprov.save_to_db(tag=ltcv_provenance_tag)
         lc.save_to_db(dbclient=dbclient)
         lc.write()
