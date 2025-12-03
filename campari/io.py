@@ -88,8 +88,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     cfg = Config.get()
     SNLogger.debug("Attempting to build provenance for lightcurve")
     campari_version = campari.__version__
-    major = int(campari_version.split('.')[0])
-    minor = int(campari_version.split('.')[1])
+    major = int(campari_version.split(".")[0])
+    minor = int(campari_version.split(".")[1])
     cam_prov = Provenance(
         process="campari",
         major=major,
@@ -100,10 +100,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
         upstreams=upstreams,
     )
 
-
     meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
-
 
     data_dict = {
         "mjd": [],
@@ -210,7 +208,6 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
     SNLogger.debug(f"save_to_database = {save_to_database}")
     SNLogger.debug(f"new_provenance = {new_provenance}")
-
 
     if save_to_database:
         if output_path is not None:

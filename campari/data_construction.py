@@ -171,9 +171,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0] ** 2
     tot_num = len(images)
-    mjd = np.array([im.mjd for im in images])
 
-    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
@@ -218,35 +216,35 @@ def find_all_exposures(
     band=None,
     maxbg=None,
     maxdet=None,
-    sca_list=None,
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
     image_collection="snpitdb",
+    image_collection_subset=None,
+    image_collection_basepath=None,
     dbclient=None,
     provenance_tag=None,
-    process=None,
-    image_path=None,
+    process=None
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
 
     Inputs:
-    ra, dec: the RA and DEC of the supernova
-    peak: the peak of the supernova
-    transient_start, transient_end: floats, the first and last MJD of a detection of the transient,
-        defines what which images contain transient light (and therefore recieve a single model point
-        at the location of the transient) and which do not.
+    diaobj: snappl.diaobj.DiaObj object, the Difference Imaging Object to find images for.
+    band: the band to consider
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    sca_list: If this is passed in, only consider these SCAs
     truth: If "truth" use truth images, if "simple_model" use simple model
-            images.
-    band: the band to consider
+            images. For Open Universe 2024 simulations only.
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
     image_collection: str, the source of the images to be used. If "ou2024", use the Open Universe 2024 images.
-    image_path: str, the path to the images to be used. If given, will use these images
-                     for image sources that require a base_path.
+    image_collection_subset: str, subset argument provided to the image collection object to use for lookup.
+    image_collection_basepath: str, the path to the images to be used. If given, will use these images
+                     for image sources that require a base_path when using the ImageCollection object.
+    dbclient: snappl.dbclient.DBClient object, the database client to use to query for images.
+    provenance_tag: str, the provenance tag to use to find images.
+    process: str, the process name to use to find images.
+
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     SNLogger.debug(f"Using image collection: {image_collection}")
@@ -270,7 +268,9 @@ def find_all_exposures(
 
     # Dehardcode the 3 file thing
     img_collection = ImageCollection().get_collection(collection=image_collection, provenance_tag=provenance_tag,
-                                                      process=process, dbclient=dbclient, subset="threefile", base_path=image_path)
+                                                      process=process, dbclient=dbclient,
+                                                      subset=image_collection_subset,
+                                                      base_path=image_collection_basepath)
 
     img_collection_prov = getattr(img_collection, "provenance", None)
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:

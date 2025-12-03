@@ -3,7 +3,6 @@ import warnings
 
 # Common Library
 import numpy as np
-import pathlib
 from scipy.interpolate import RegularGridInterpolator
 
 # Astronomy Library
@@ -13,10 +12,8 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
 from galsim import roman
-from roman_imsim.utils import roman_utils
 
 # SN-PIT
-from snappl.config import Config
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 
@@ -235,16 +232,14 @@ def generate_guess(imlist, ra_grid, dec_grid):
         # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
         xx = np.atleast_1d(xx)
         yy = np.atleast_1d(yy)
-        #SNLogger.debug(f"Generating guess for xx and yy {xx, yy}")
         for imval, imxval, imyval in zip(im.flatten(), imx.flatten(), imy.flatten()):
             grid_point_vals[np.where((np.abs(xx - imxval) < 0.5) & (np.abs(yy - imyval) < 0.5))] = imval
-            #SNLogger.debug(f"Assigning grid point values {grid_point_vals}")
         all_vals += grid_point_vals
     return all_vals / len(wcslist)
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, util_ref=None, band=None, image=None, psfclass="ou24PSF"):
+                           pixel=False, band=None, image=None, psfclass="ou24PSF"):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -256,15 +251,10 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         i.e. x y location in the SCA.
     stampsize: int, the size of the stamp being used
     band: str, the bandpass being used
-    psf: Here you can provide a PSF to use, if you don't provide one, you must
-        provide a util_ref, and this function will calculate the Roman PSF
+    psf: Here you can provide a PSF to use, if you don't provide one,this function will calculate the Roman PSF
         instead.
     pixel: bool, If True, use a pixel tophat function to convolve the PSF with,
         otherwise use a delta function. Does not seem to hugely affect results.
-    util_ref: A roman_imsim.utils.roman_utils object, which is used to
-        calculate the PSF. If you provide this, you don't need to provide a PSF
-        and the Roman PSF will be calculated. Note
-        that this needs to be for the correct SCA/Pointing combination.
 
     Returns:
     A numpy array of the PSFs at each grid point, with the shape
@@ -293,8 +283,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = util_ref.visit if util_ref is not None else None
-    sca = util_ref.sca if util_ref is not None else None
+    pointing = image.pointing if image is not None else None
+    sca = image.sca if image is not None else None
 
     print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
@@ -579,22 +569,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     # Build the model for the background using the correct psf and the
     # grid we made in the previous section.
-
-    # if use_real_images:
-    #     SNLogger.debug("file used: " + str(pathlib.Path(Config.get().value("system.ou24.config_file"))))
-    #     util_ref = roman_utils(
-    #         config_file=pathlib.Path(Config.get().value("system.ou24.config_file")), visit=pointing, sca=sca
-    #     )
-
-    if int(pointing) >= 0 and int(pointing) <= 57364 and use_real_images:
-        util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
-                                   ("system.ou24.config_file")),
-                                   visit=pointing, sca=sca)
-    else:
-        util_ref = None
-        # Rob's simulated images have big placeholder pointings. This is a catch for those images.
-        SNLogger.warning("Pointing value is outside of the range of the TDS file.")
-
     # If no grid, we still need something that can be concatenated in the
     # linear algebra steps, so we initialize an empty array by default.
     background_model_array = np.empty((size**2, 0))
@@ -610,7 +584,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             pixel=pixel,
             image=image,
             psfclass=psfclass,
-            util_ref=util_ref,
             band=band,
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:
