@@ -3,7 +3,6 @@ import warnings
 
 # Common Library
 import numpy as np
-import pathlib
 from scipy.interpolate import RegularGridInterpolator
 
 # Astronomy Library
@@ -13,10 +12,8 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
 from galsim import roman
-from roman_imsim.utils import roman_utils
 
 # SN-PIT
-from snappl.config import Config
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 
@@ -28,7 +25,7 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
-def make_regular_grid(image_object, spacing=1.0, subsize=9):
+def make_regular_grid(image_object, spacing=1.0, subsize=4):
     """Generates a regular grid around a (RA, Dec) center, choosing step size.
 
     Parameters
@@ -224,7 +221,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
     imx = np.arange(0, size, 1)
     imy = np.arange(0, size, 1)
     imx, imy = np.meshgrid(imx, imy)
-    all_vals = np.zeros_like(ra_grid)
+    all_vals = np.atleast_1d(np.zeros_like(ra_grid))
 
     wcslist = [im.get_wcs() for im in imlist]
     imdata = [im.data.flatten() for im in imlist]
@@ -242,7 +239,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, util_ref=None, band=None, image=None, psfclass="ou24PSF"):
+                           pixel=False, band=None, image=None, psfclass="ou24PSF"):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -254,15 +251,10 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         i.e. x y location in the SCA.
     stampsize: int, the size of the stamp being used
     band: str, the bandpass being used
-    psf: Here you can provide a PSF to use, if you don't provide one, you must
-        provide a util_ref, and this function will calculate the Roman PSF
+    psf: Here you can provide a PSF to use, if you don't provide one,this function will calculate the Roman PSF
         instead.
     pixel: bool, If True, use a pixel tophat function to convolve the PSF with,
         otherwise use a delta function. Does not seem to hugely affect results.
-    util_ref: A roman_imsim.utils.roman_utils object, which is used to
-        calculate the PSF. If you provide this, you don't need to provide a PSF
-        and the Roman PSF will be calculated. Note
-        that this needs to be for the correct SCA/Pointing combination.
 
     Returns:
     A numpy array of the PSFs at each grid point, with the shape
@@ -291,9 +283,10 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = util_ref.visit
-    sca = util_ref.sca
+    pointing = image.pointing if image is not None else None
+    sca = image.sca if image is not None else None
 
+    print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
                                     include_photonOps=False, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
@@ -384,6 +377,7 @@ def make_grid(
     single_dec=None,
     cut_points_close_to_sn=False,
     spacing=0.75,
+    subsize=9,
 ):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -420,12 +414,12 @@ def make_grid(
     if grid_type not in ["regular", "adaptive", "contour", "single"]:
         raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
     if grid_type == "contour":
-        ra_grid, dec_grid = make_contour_grid(images[0])
+        ra_grid, dec_grid = make_contour_grid(images[0], subsize=subsize)
 
     elif grid_type == "adaptive":
-        ra_grid, dec_grid = make_adaptive_grid(images[0], percentiles=percentiles)
+        ra_grid, dec_grid = make_adaptive_grid(images[0], percentiles=percentiles, subsize=subsize)
     elif grid_type == "regular":
-        ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing)
+        ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing, subsize=subsize)
 
     if grid_type == "single":
         if single_ra is None or single_dec is None:
@@ -569,19 +563,13 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     # Passing in None for the PSF means we use the Roman PSF.
     pointing, sca = image.pointing, image.sca
+    SNLogger.debug(f"Building model for image {i} with pointing {pointing} and sca {sca}")
 
     whole_sca_wcs = image.get_wcs()
     object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
 
     # Build the model for the background using the correct psf and the
     # grid we made in the previous section.
-
-    if use_real_images:
-        SNLogger.debug("file used: " + str(pathlib.Path(Config.get().value("system.ou24.config_file"))))
-        util_ref = roman_utils(
-            config_file=pathlib.Path(Config.get().value("system.ou24.config_file")), visit=pointing, sca=sca
-        )
-
     # If no grid, we still need something that can be concatenated in the
     # linear algebra steps, so we initialize an empty array by default.
     background_model_array = np.empty((size**2, 0))
@@ -597,7 +585,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             pixel=pixel,
             image=image,
             psfclass=psfclass,
-            util_ref=util_ref,
             band=band,
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:

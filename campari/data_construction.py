@@ -110,7 +110,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
 
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
     num_nans = np.isnan(image_cutout.data).sum()
-    SNLogger.debug(f"MJD of cutout image: {image_cutout.mjd}")
     if num_nans > 0:
         SNLogger.warning(
             f"Cutout contains {num_nans} NaN values, likely because the cutout is near the edge of the"
@@ -152,7 +151,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     return image_cutout, bg
 
 
-def prep_data_for_fit(images, sn_matrix, wgt_matrix):
+def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     """This function takes the data from the images and puts it into the form
     such that we can analytically solve for the best fit using linear algebra.
 
@@ -175,6 +174,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     SNLogger.debug("Prep data for fit")
     size_sq = images[0].image_shape[0] ** 2
     tot_num = len(images)
+
     det_num = len(sn_matrix)
 
     # Flatten into 1D arrays
@@ -193,6 +193,7 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix):
     # others. We'll do this by initializing a matrix of zeros, and then filling
     # in the SN model in the correct place in the loop below:
 
+    SNLogger.debug("sn_matrix shape before: " + str(np.array(sn_matrix).shape))
     psf_zeros = np.zeros((np.size(image_data), tot_num))
     for i in range(det_num):
         sn_index = tot_num - det_num + i  # We only want to edit SN columns.
@@ -218,40 +219,35 @@ def find_all_exposures(
     band=None,
     maxbg=None,
     maxdet=None,
-    pointing_list=None,
-    sca_list=None,
     truth="simple_model",
     image_selection_start=None,
     image_selection_end=None,
     image_collection="snpitdb",
+    image_collection_subset=None,
+    image_collection_basepath=None,
     dbclient=None,
     provenance_tag=None,
-    process=None,
+    process=None
 ):
     """This function finds all the exposures that contain a given supernova,
     and returns a list of them.
 
     Inputs:
-    ra, dec: the RA and DEC of the supernova
-    peak: the peak of the supernova
-    transient_start, transient_end: floats, the first and last MJD of a detection of the transient,
-        defines what which images contain transient light (and therefore recieve a single model point
-        at the location of the transient) and which do not.
+    diaobj: snappl.diaobj.DiaObj object, the Difference Imaging Object to find images for.
+    band: the band to consider
     maxbg: the maximum number of background images to consider
     maxdet: the maximum number of detected images to consider
-    pointing_list: If this is passed in, only consider these pointings
-    sca_list: If this is passed in, only consider these SCAs
     truth: If "truth" use truth images, if "simple_model" use simple model
-            images.
-    band: the band to consider
+            images. For Open Universe 2024 simulations only.
     image_selection_start, image_selection_end: floats, the first and last MJD of images to be used in the algorithm.
-    explist: astropy.table.Table, the table of exposures that contain the
-    supernova. The columns are:
-        - pointing: the pointing of the exposure
-        - sca: the SCA of the exposure
-        - band: the band of the exposure
-        - date: the MJD of the exposure
-        - detected: whether the exposure contains a detection or not.
+    image_collection: str, the source of the images to be used. If "ou2024", use the Open Universe 2024 images.
+    image_collection_subset: str, subset argument provided to the image collection object to use for lookup.
+    image_collection_basepath: str, the path to the images to be used. If given, will use these images
+                     for image sources that require a base_path when using the ImageCollection object.
+    dbclient: snappl.dbclient.DBClient object, the database client to use to query for images.
+    provenance_tag: str, the provenance tag to use to find images.
+    process: str, the process name to use to find images.
+
     """
     SNLogger.debug(f"Finding all exposures for diaobj {diaobj.mjd_start, diaobj.mjd_end, diaobj.ra, diaobj.dec}")
     SNLogger.debug(f"Using image collection: {image_collection}")
@@ -273,8 +269,11 @@ def find_all_exposures(
     SNLogger.debug(f"Using process: {process}")
     SNLogger.debug(f"db_client: {dbclient}")
 
+    # Dehardcode the 3 file thing
     img_collection = ImageCollection().get_collection(collection=image_collection, provenance_tag=provenance_tag,
-                                                      process=process, dbclient=dbclient)
+                                                      process=process, dbclient=dbclient,
+                                                      subset=image_collection_subset,
+                                                      base_path=image_collection_basepath)
 
     img_collection_prov = getattr(img_collection, "provenance", None)
     if (image_selection_start is None or transient_start > image_selection_start) and transient_start is not None:
@@ -313,10 +312,6 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
-
-    if pointing_list is not None:
-        all_images = np.array([img for img in all_images if img.pointing in pointing_list])
-        SNLogger.debug(f"Filtered to {len(all_images)} images based on provided pointing list.")
 
     argsort = np.argsort([img.pointing for img in all_images])
     all_images = all_images[argsort]

@@ -129,8 +129,13 @@ def main():
 
     parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of images to use for lookup. ")
-    parser.add_argument("--image-subset", type=str, default=None, required=False,
-                        help="Subset of the image collection to use for lookup. ")
+    parser.add_argument("--image-collection-basepath", type=str, default=None, required=False,
+                        help="Path provided as the basepath to the ImageCollection object. In most cases, "
+                        "this is not needed because the basepath is configured for the database, you only"
+                        "really need this for manual collections. ")
+    # Changed subset this might break tests remove this before pushing! XXX TODO
+    parser.add_argument("--image-collection-subset", type=str, default=None, required=False,
+                        help="Subset argument provided to the image collection object to use for lookup. ")
     # Campari currently does not use this?
     ####################
     # FINDING THE IMAGES TO RUN SCENE MODELLING ON
@@ -181,7 +186,11 @@ def main():
         default=None,
         help="File with list of images. Note that if you pass an image list, the arguments "
         "--max_no_transient_images and --max_transient_images"
-        " will be ignored, and campari will use all the images in the list.",
+        " will be ignored, and campari will use all the images in the list."
+        "img_list can come in several formats. If each line has three entries separated by commas, "
+        "they will be interpreted as Pointing, SCA, band, and campari will look up the images in the "
+        "desired image collection. If each line has two entries, they will be interpreted as Pointing, SCA."
+        "If only one entry per line, it will be interpreted as a file path to an image relative to the base path.",
     )
 
     ####################
