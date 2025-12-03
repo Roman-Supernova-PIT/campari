@@ -188,9 +188,6 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
 
-    SNLogger.debug(f"ra: {ra}, dec: {dec}")
-    SNLogger.debug(f"error zero index: {error[0]}")
-
     wgt_matrix = []
 
     for i, wcs in enumerate(wcs_list):
