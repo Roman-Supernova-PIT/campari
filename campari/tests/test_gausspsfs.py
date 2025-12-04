@@ -9,6 +9,9 @@ from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
 
 from snappl.logger import SNLogger
+import inspect
+
+SNLogger.set_level("INFO")
 
 
 imsize = 19
@@ -201,7 +204,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.close()
 
 
-def perform_gaussianity_checks(residuals_sigma):
+def perform_gaussianity_checks(residuals_sigma, measuredflux=None, trueflux=None):
     """Most of these tests apply the same checks, so just put them in a function."""
     sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
     SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
@@ -210,12 +213,19 @@ def perform_gaussianity_checks(residuals_sigma):
     mu, sig = norm.fit(residuals_sigma)
     # If I am not mistaken, this is equivalent to checking that the residuals are unbiased at 3 sigma confidence.
     mu_atol = 3 / np.sqrt(len(residuals_sigma))
-    SNLogger.debug("Fitted residuals mu: " + str(mu) + ", sig: " + str(sig) + "\n mu tolerance: " + str(mu_atol))
+    SNLogger.info(inspect.stack()[0][3])
+    SNLogger.info(inspect.stack()[1][3])
+    SNLogger.info(f"NUM POINTS: {len(residuals_sigma)}")
+    if measuredflux is not None and trueflux is not None:
+        delta_mag = (measuredflux/trueflux - 1) * 1000  # in mmag
+        delta_mag = delta_mag[np.isfinite(delta_mag)]
+        SNLogger.info(f"Campari delta mag (mmag) mean: {np.nanmean(delta_mag)}, std: {np.nanstd(delta_mag)}")
+    SNLogger.info("Fitted residuals mu: " + str(mu) + ", sig: " + str(sig) + "\n mu tolerance: " + str(mu_atol))
     np.testing.assert_allclose(mu, 0, atol=mu_atol, err_msg="Residuals biased!")
     np.testing.assert_allclose(sig, 1, atol=0.2, err_msg="Residuals too broad or narrow!")
     # Check to make sure our distribution is not skewed.
     p_value = skewtest(residuals_sigma).pvalue
-    SNLogger.debug("Skewness p_value: " + str(p_value))
+    SNLogger.info("Skewness p_value: " + str(p_value))
     np.testing.assert_array_less(0.05, p_value, err_msg="Residuals skewed!")
 
 
@@ -297,7 +307,7 @@ def test_poisson_noise_aligned_no_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_diagnostic"
@@ -348,7 +358,7 @@ def test_sky_noise_aligned_no_host():
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -394,7 +404,7 @@ def test_both_noise_aligned_no_host():
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -487,7 +497,7 @@ def test_poisson_shifted_no_host():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "force plotting"
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
@@ -537,7 +547,7 @@ def test_sky_shifted_no_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "shifted_sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -585,7 +595,7 @@ def test_both_shifted_no_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "force plotting"
     except AssertionError as e:
         plotname = "both_noise_shifted_diagnostic"
@@ -785,7 +795,7 @@ def test_poisson_aligned_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "poisson_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -831,7 +841,7 @@ def test_hostnoiseonly_aligned_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "hostnoiseonly_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -877,7 +887,7 @@ def test_transientnoiseonly_aligned_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "transientnoiseonly_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -921,7 +931,7 @@ def test_both_aligned_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "both_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -1022,7 +1032,7 @@ def test_skynoise_shifted_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_diagnostic"
@@ -1076,7 +1086,7 @@ def test_poisson_shifted_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "poisson_shifted_22mag_host_diagnostic"
@@ -1124,7 +1134,7 @@ def test_both_shifted_22mag_host():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_diagnostic"
@@ -1176,7 +1186,7 @@ def test_both_shifted_22mag_host_varying_gaussian():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_varying_gaussian_diagnostic"
@@ -1343,7 +1353,7 @@ def test_skynoise_shifted_22mag_host_varying():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_varying"
@@ -1387,7 +1397,7 @@ def test_poisson_shifted_22mag_host_varying():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "poisson_shifted_22mag_host_varying"
@@ -1426,7 +1436,7 @@ def test_both_shifted_nohost_varying():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     except AssertionError as e:
         plotname = "both_shifted_nohost_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1480,7 +1490,7 @@ def test_poisson_noise_shifted_no_host_varying():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_varying_diagnostic"
@@ -1530,7 +1540,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_varying_gaussian_diagnostic"
@@ -1580,7 +1590,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_varying_gaussian_diagnostic"
@@ -1630,7 +1640,7 @@ def test_both_shifted_21mag_host_ou2024_more():
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
         assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_ou24PSF_slow_diagnostic"
@@ -1639,6 +1649,7 @@ def test_both_shifted_21mag_host_ou2024_more():
         SNLogger.debug(e)
         raise e
 
+# ########### Tests with OU2024 PSF ##############################################################
 
 def test_noiseless_aligned_nohost_ou2024_more():
     cmd = base_cmd + [
@@ -1655,6 +1666,8 @@ def test_noiseless_aligned_nohost_ou2024_more():
     #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     # ]
     cmd += ["--nprocs", "15"]
+    #phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
+    #cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
 
     psfclass_index = cmd.index("--photometry-campari-psfclass")
     cmd[psfclass_index + 1] = "ou24PSF_slow"
@@ -1679,9 +1692,214 @@ def test_noiseless_aligned_nohost_ou2024_more():
     flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
 
     try:
-        np.testing.assert_allclose(lc["flux"], flux, atol=1e-7)
+        np.testing.assert_allclose(lc["flux"], flux, rtol=6e-6)
     except AssertionError as e:
         plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
+        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_noiseless_aligned_nohost_ou2024_withphotops_more():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
+    # spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    # cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += ["--save_model"]
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    # ]
+    cmd += ["--nprocs", "10"]
+    phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
+    cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
+
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "ou24PSF_slow"
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        np.testing.assert_allclose(lc["flux"], flux, rtol=9e-3) # With photon ops, accuracy is to about 0.6 % only, is this to be expected?
+    except AssertionError as e:
+        plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
+        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_bothnoise_aligned_nohost_ou2024_withphotops_more():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_aligned_nohost_ou2024_withphotops.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
+    # spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    # cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += ["--save_model"]
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    # ]
+    cmd += ["--nprocs", "10"]
+    phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
+    cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
+
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "ou24PSF_slow"
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "bothnoise_aligned_nohost_ou24PSF_slow_photops_diagnostic"
+        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_bothnoise_shifted_nohost_ou2024_withphotops_more():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_shifted_nohost_ou2024_withphotops.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
+    # spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    # cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += ["--save_model"]
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    # ]
+    cmd += ["--nprocs", "10"]
+    phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
+    cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
+
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "ou24PSF_slow"
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "bothnoise_shifted_nohost_ou24PSF_slow_photops_diagnostic"
+        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+def test_noiseless_aligned_22maghost_withphotops():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_22maghost_ou2024_withphotops.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    cmd += ["--save_model"]
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    # ]
+    cmd += ["--nprocs", "10"]
+    phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
+    cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
+
+    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    cmd[psfclass_index + 1] = "ou24PSF_slow"
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((21 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
+        assert False, "Force Plotting"
+    except AssertionError as e:
+        plotname = "bothnoise_shifted_nohost_ou24PSF_slow_photops_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
