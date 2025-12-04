@@ -1,0 +1,1 @@
+Fixed two small bugs causing tests to fail

@@ -22,6 +22,7 @@ from snappl.lightcurve import Lightcurve
 from snappl.logger import SNLogger
 
 # Campari
+import campari
 from campari.utils import calc_mag_and_err
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -61,7 +62,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
 
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
-    SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band}")
+    SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
     upstreams = []
@@ -86,20 +87,21 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
 
     cfg = Config.get()
     SNLogger.debug("Attempting to build provenance for lightcurve")
+    campari_version = campari.__version__
+    major = int(campari_version.split(".")[0])
+    minor = int(campari_version.split(".")[1])
     cam_prov = Provenance(
         process="campari",
-        major=0,
-        minor=42,  # THIS CAN'T BE HARDCODED FOREVER XXX TODO
+        major=major,
+        minor=minor,
         params=cfg,
         keepkeys=["photometry.campari"],
         omitkeys=None,
         upstreams=upstreams,
     )
 
-
     meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
-
 
     data_dict = {
         "mjd": [],
@@ -120,9 +122,9 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     }
 
     for i, img in enumerate(image_list):
-        if img.mjd > diaobj.mjd_start and img.mjd < diaobj.mjd_end:
+        if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["pointing"].append(img.pointing)
+            data_dict["pointing"].append(int(img.pointing))
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["pix_x"].append(x)
@@ -145,6 +147,8 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None):
     # Note that this is only allowing for one band, not multiple bands. I don't think campari will ever
     # do multi-band fitting so this is probably fine.
     meta_dict[f"local_surface_brightness_{band}"] = lc_model.LSB
+    meta_dict["pre_transient_images"] = lc_model.pre_transient_images
+    meta_dict["post_transient_images"] = lc_model.post_transient_images
     SNLogger.debug(cam_prov.params)
 
     lc = Lightcurve(data=data_dict, meta=meta_dict)
@@ -168,11 +172,16 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
     Returns
     lc: a QTable containing the lightcurve data
     """
-
+    if isinstance(supernova, int) or isinstance(supernova, float):
+        supernova = [supernova]
     sim_mjd = np.arange(0, np.size(supernova), 1)
     data_dict = {"mjd": sim_mjd, "flux": flux, "flux_error": sigma_flux, "sim_flux": supernova}
     meta_dict = {}
     units = {"mjd": u.d, "sim_flux": "", "flux": "", "flux_error": ""}
+
+    SNLogger.debug(f"data_dict: {data_dict}")
+    SNLogger.debug(f"meta_dict: {meta_dict}")
+    SNLogger.debug(f"units: {units}")
     return QTable(data=data_dict, meta=meta_dict, units=units)
 
 
@@ -196,10 +205,9 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     <output_path>/identifier_band_psftype_lc.ecsv
     """
     band = lc.meta["band"]
-    SNLogger.debug(f"saving lightcurve for id={identifier}, band={band}, psftype={psftype}")
+    SNLogger.debug(f"saving lightcurve for diaobject id={identifier}, band={band}, psftype={psftype}")
     SNLogger.debug(f"save_to_database = {save_to_database}")
     SNLogger.debug(f"new_provenance = {new_provenance}")
-
 
     if save_to_database:
         if output_path is not None:
@@ -219,10 +227,10 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
 
     if save_to_database:
         ltcvprov = lc.provenance_object
-        if testrun is not None:
+        if testrun is not None and ltcv_provenance_tag is not None:
             ltcv_provenance_tag += str(testrun)
         if new_provenance:
-            SNLogger.debug("Creating new provenance for lightcurve")
+            SNLogger.debug(f"Creating new provenance for lightcurve{f' with tag {ltcv_provenance_tag}' if ltcv_provenance_tag is not None else ''}")
             ltcvprov.save_to_db(tag=ltcv_provenance_tag)
         lc.save_to_db(dbclient=dbclient)
         lc.write()

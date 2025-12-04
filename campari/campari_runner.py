@@ -1,7 +1,6 @@
 import pathlib
 
 import numpy as np
-import pandas as pd
 
 # Astronomy
 from astropy.io import fits
@@ -12,6 +11,7 @@ import galsim
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
+from snappl.imagecollection import ImageCollection
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
@@ -52,6 +52,9 @@ class campari_runner:
         self.diaobject_collection = kwargs["diaobject_collection"]
         self.transient_start = kwargs["transient_start"]
         self.transient_end = kwargs["transient_end"]
+        self.image_collection = kwargs["image_collection"]
+        self.image_collection_basepath = kwargs["image_collection_basepath"]
+        self.image_collection_subset = kwargs["image_collection_subset"]
 
         self.ra = kwargs["ra"]
         self.dec = kwargs["dec"]
@@ -73,6 +76,7 @@ class campari_runner:
 
         self.save_to_db = kwargs["save_to_db"]
         self.add_truth_to_lc = kwargs["add_truth_to_lc"]
+        self.nprocs = kwargs["nprocs"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.use_real_images = self.cfg.value("photometry.campari.use_real_images")
@@ -98,6 +102,7 @@ class campari_runner:
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
         self.spacing = self.cfg.value("photometry.campari.grid_options.spacing")
+        self.subsize = self.cfg.value("photometry.campari.grid_options.subsize")
         self.percentiles = self.cfg.value("photometry.campari.grid_options.percentiles")
         self.grid_type = self.cfg.value("photometry.campari.grid_options.type")
         self.base_pointing = self.cfg.value("photometry.campari_simulations.base_pointing")
@@ -112,6 +117,11 @@ class campari_runner:
         self.noise_maps = None
         self.galaxy_images = None
         self.galaxy_only_model_images = None
+        self.gaussian_var = self.cfg.value("photometry.campari.grid_options.gaussian_var")
+        if self.gaussian_var <= 0:
+            self.gaussian_var = None
+        self.cutoff = self.cfg.value("photometry.campari.grid_options.cutoff")
+        self.error_floor = self.cfg.value("photometry.campari.grid_options.error_floor")
         self.dbclient = SNPITDBClient()
         self.img_coll_prov = None
 
@@ -161,7 +171,6 @@ class campari_runner:
 
     def __call__(self):
         """Run the Campari pipeline."""
-        self.decide_run_mode()
         if not self.use_real_images:
             self.create_sim_param_grid()
 
@@ -176,12 +185,21 @@ class campari_runner:
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
                        f"process={self.diaobject_process}")
 
-        diaobjs = DiaObject.find_objects(collection=self.diaobject_collection, dbclient=self.dbclient,
-                                         provenance_tag=self.diaobject_provenance_tag,
-                                         process=self.diaobject_process, name=self.diaobject_name,
-                                         diaobject_id=self.diaobject_id,
-                                         ra=self.ra, dec=self.dec, mjd_discovery_min=self.transient_start,
-                                         mjd_discovery_max=self.transient_end)
+        arguments = {
+            "collection": self.diaobject_collection,
+            "dbclient": self.dbclient,
+            "provenance_tag": self.diaobject_provenance_tag,
+            "process": self.diaobject_process,
+            "name": self.diaobject_name,
+            "diaobject_id": self.diaobject_id,
+            "ra": self.ra,
+            "dec": self.dec,
+            "mjd_discovery_min": self.transient_start,
+            "mjd_discovery_max": self.transient_end}
+        filtered_args = {k: v for k, v in arguments.items() if v is not None}
+        # Database can't handle nones.
+
+        diaobjs = DiaObject.find_objects(**filtered_args)
 
         if len(diaobjs) == 0:
             raise ValueError(
@@ -192,6 +210,7 @@ class campari_runner:
             raise ValueError(f"Found multiple DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
                              f" ra={self.ra}, dec={self.dec}.")
         diaobj = diaobjs[0]
+        SNLogger.debug(f"Immediately after searching for objects the ID is: {diaobj.id}")
 
         # Get diaobject position using different methods depending on provenance.
         if self.diaobject_position_provenance_tag is None:
@@ -243,21 +262,6 @@ class campari_runner:
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
         self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
 
-    def decide_run_mode(self):
-        """Decide which run mode to use based on the input configuration."""
-
-        if self.img_list is not None:
-            columns = ["pointing", "sca"]
-            image_df = pd.read_csv(self.img_list, header=None, names=columns)
-            SNLogger.debug(f"Loaded image list from {self.img_list} with {len(image_df)} entries.")
-            # If provided a list, we want to make sure we continue searching until all the images are found. So we set:
-            self.max_no_transient_images = None
-            self.max_transient_images = None
-            self.pointing_list = image_df["pointing"].values
-        else:
-            image_df = None
-            self.pointing_list = None
-
     def create_sim_param_grid(self):
         raise NotImplementedError("Simulation parameter grid creation is broken. Will be made external later.")
         # """Create a grid of simulation parameters to run the pipeline on."""
@@ -266,49 +270,59 @@ class campari_runner:
         # self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
         # SNLogger.debug("Created a grid of simulation parameters with a total of"
         #                f" {self.param_grid.shape[1]} combinations.")
-        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]  # Repeat the SNID for each combination of parameters
+        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1] # Repeat the SNID for each combination of parameters
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
         if self.use_real_images:
-            SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
-            SNLogger.debug("max transient images: " + str(self.max_transient_images))
-            image_list, self.img_coll_prov = find_all_exposures(diaobj=diaobj,
-                                                                maxbg=self.max_no_transient_images,
-                                                                maxdet=self.max_transient_images,
-                                                                band=self.band,
-                                                                image_selection_start=self.image_selection_start,
-                                                                image_selection_end=self.image_selection_end,
-                                                                image_collection=self.image_collection,
-                                                                pointing_list=self.pointing_list,
-                                                                dbclient=self.dbclient,
-                                                                provenance_tag=self.image_provenance_tag,
-                                                                process=self.image_process)
-            mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
-            mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
+            if self.img_list is not None:
+                # If the user provided an image list, use that.
+                image_list = self.parse_img_list()
+                mjd_list = [im.mjd for im in image_list]
+                image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
+            else:
+                # Otherwise, go find images that match the criteria.
+                SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
+                SNLogger.debug("max transient images: " + str(self.max_transient_images))
+                image_list, \
+                    self.img_coll_prov = find_all_exposures(diaobj=diaobj,
+                                                            maxbg=self.max_no_transient_images,
+                                                            maxdet=self.max_transient_images,
+                                                            band=self.band,
+                                                            image_selection_start=self.image_selection_start,
+                                                            image_selection_end=self.image_selection_end,
+                                                            image_collection=self.image_collection,
+                                                            image_collection_subset=self.image_collection_subset,
+                                                            image_collection_basepath=self.image_collection_basepath,
+                                                            dbclient=self.dbclient,
+                                                            provenance_tag=self.image_provenance_tag,
+                                                            process=self.image_process)
+                mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+                mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
-            no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
-            SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
+                no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+                SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
+                no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
 
-            if (
-                self.max_no_transient_images != 0
-                and len(no_transient_images) == 0
-                and self.object_type != "star"
-                and self.img_list is None  # If passing an image list, I assume the user knows what they are doing.
-            ):
-                raise ValueError("No non-detection images were found. This may be because the transient is"
-                                 " detected in all images, or because the transient is outside the date range of"
-                                 " available images. If you are running on stars, this is expected behavior."
-                                 " If you are running on supernovae, consider increasing the date range.")
+                if (
+                    self.max_no_transient_images != 0
+                    and len(no_transient_images) == 0
+                    and self.object_type != "star"
+                ):
+                    raise ValueError("No non-detection images were found. This may be because the transient is"
+                                     " detected in all images, or because the transient is outside the date range of"
+                                     " available images. If you are running on stars, this is expected behavior."
+                                     " If you are running on supernovae, consider increasing the date range.")
         else:
             if self.max_no_transient_images is None or self.max_transient_images is None:
                 raise ValueError("Must specify --max_no_transient_images and --max_transient_images to run campari with"
                                  " simulated images.")
             num_images = self.max_no_transient_images + self.max_transient_images
 
-            faux_dates = np.linspace(60000, diaobj.mjd_start, self.max_no_transient_images).tolist() + \
-                np.linspace(diaobj.mjd_start, diaobj.mjd_end, self.max_transient_images).tolist()
+            faux_dates = np.linspace(60000, diaobj.mjd_start - 1, self.max_no_transient_images).tolist() + \
+                np.linspace(diaobj.mjd_start + 1, diaobj.mjd_end - 1, self.max_transient_images).tolist()
             faux_dates = np.array(faux_dates)
+
             # fake dates for simulated images
             image_list = []
             for i in range(num_images):
@@ -325,10 +339,22 @@ class campari_runner:
                 img.pointing = self.base_pointing
                 img.sca = self.base_sca
 
+        mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+        mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
+        no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
+        transient_images = [a for a in image_list if (a.mjd >= mjd_start) and (a.mjd <= mjd_end)]
+
+        SNLogger.debug(f"Found a total of {len(image_list)} images for this object, ")
+        SNLogger.debug(f"of which {len(no_transient_images)} are non-detection images")
+        SNLogger.debug(f"and {len(transient_images)} are detection images.")
+
+        self.image_list = image_list
+        SNLogger.debug("setting image list")
         recovered_pointings = [int(a.pointing) for a in image_list]
-        self.pointing_list = self.pointing_list.astype(int) if self.pointing_list is not None else None
-        if self.img_list is not None and not np.array_equiv(np.sort(recovered_pointings),
-                                                            np.sort(self.pointing_list)):
+        self.pointing_list = np.array(self.pointing_list).astype(int) if getattr(self, "pointing_list", None) \
+            is not None else None
+        if (self.img_list is not None and self.pointing_list is not None) \
+                and not np.array_equiv(np.sort(recovered_pointings), np.sort(self.pointing_list)):
             SNLogger.warning(
                 "Unable to find the object in all the pointings in the image list. Specifically, the"
                 " following pointings were not found: "
@@ -375,11 +401,12 @@ class campari_runner:
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
-                           avoid_non_linearity=self.avoid_non_linearity,
+                           avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
                            spacing=self.spacing, percentiles=self.percentiles, sim_galaxy_scale=sim_galaxy_scale,
                            sim_galaxy_offset=sim_galaxy_offset, base_pointing=self.base_pointing,
                            base_sca=self.base_sca, save_model=self.save_model, prebuilt_psf_matrix=prebuilt_psf_matrix,
-                           prebuilt_sn_matrix=prebuilt_sn_matrix)
+                           prebuilt_sn_matrix=prebuilt_sn_matrix, nprocs=self.nprocs, gaussian_var=self.gaussian_var,
+                           cutoff=self.cutoff, error_floor=self.error_floor)
 
         return lightcurve_model
 
@@ -391,7 +418,14 @@ class campari_runner:
             psftype = self.transient_psfclass.lower()
 
         if self.use_real_images:
-            identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
+            # identifier is a string that will be used to name the lightcurve file when saving debug files.
+            # TODO: Come up with a better name for this.
+            if self.save_to_db:
+
+                identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
+            else:
+                identifier = str(diaobj.name)
+
             # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
                 lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
@@ -418,7 +452,7 @@ class campari_runner:
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=testrun, dbclient=self.dbclient)
+                            testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
 
         # Now, save the images
 
@@ -430,6 +464,7 @@ class campari_runner:
             debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
+            np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
 
             # Save the ra and dec grids
             ra_grid = np.atleast_1d(lc_model.ra_grid)
@@ -451,7 +486,45 @@ class campari_runner:
 
             if not self.use_real_images:
                 np.save(debug_dir / f"{fileroot}_galaxy_images.npy", lc_model.galaxy_images)
-                np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
+
                 SNLogger.debug(f"Saved galaxy and noise images to {debug_dir}")
         else:
             SNLogger.info("Not saving debug files.")
+
+    def parse_img_list(self):
+        """Parse the image list file if provided."""
+        with open(self.img_list) as ifp:
+            img_list_lines = ifp.readlines()
+        img_list_lines = [line.strip() for line in img_list_lines if
+                          (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        my_image_collection = ImageCollection()
+        # De-harcode this threefile thing
+        my_image_collection = my_image_collection.get_collection(self.image_collection,
+                                                                 subset=self.image_collection_subset,
+                                                                 base_path=self.image_collection_basepath)
+        images = []
+        if all(len(line.split(",")) == 3 for line in img_list_lines):
+            self.pointing_list = []
+            # each line of file is pointing sca band
+            for line in img_list_lines:
+                vals = line.split(",")
+                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]), band=vals[2]))
+                self.pointing_list.append(int(vals[0]))
+        elif all(len(line.split(",")) == 2 for line in img_list_lines):
+            # each line of file is pointing sca
+            self.pointing_list = []
+            for line in img_list_lines:
+                vals = line.split(",")
+                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]),
+                              band=self.band))
+                self.pointing_list.append(int(vals[0]))
+        elif all(len(line.split(",")) == 1 for line in img_list_lines):
+            # each line of file is path to image
+            self.pointing_list = None
+            for line in img_list_lines:
+                images.append(my_image_collection.get_image(path=line))
+        else:
+            raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"
+                             " pointing and sca.")
+
+        return images
