@@ -66,11 +66,9 @@ def test_simulate_images():
         noise=0,
         deltafcn_profile=False,
         size=size,
-        psfclass="ou24PSF",
         bg_gal_flux=bg_gal_flux,
         base_sca=base_sca,
         base_pointing=base_pointing,
-        source_phot_ops=False,
         sim_galaxy_scale=None,
         sim_galaxy_offset=None,
         bulge_hlr=1.6,
@@ -128,7 +126,6 @@ def test_simulate_supernova():
     supernova_image = simulate_supernova(snx=2044, sny=2044,
                                          snx0=2044, sny0=2044, stampsize=11,
                                          flux=1000, sed=sed,
-                                         source_phot_ops=False,
                                          base_pointing=662, base_sca=11,
                                          random_seed=12345)
 
