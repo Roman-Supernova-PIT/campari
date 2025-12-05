@@ -459,10 +459,13 @@ class campari_runner:
             images_and_model = np.array(
                 [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
             )
+            if lc_model.cutout_image_list is not None:
+                img_mjds = [im.mjd for im in lc_model.cutout_image_list]
             debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
             np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
+            np.save(debug_dir / f"{fileroot}_img_mjds.npy", img_mjds)
 
             # Save the ra and dec grids
             ra_grid = np.atleast_1d(lc_model.ra_grid)

@@ -12,6 +12,7 @@ photometry:
     subtract_background: true
     use_real_images: true
     psfclass: ou24PSF
+    testrun: 6
 
     grid_options:
       type: contour
