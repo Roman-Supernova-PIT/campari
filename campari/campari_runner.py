@@ -457,9 +457,11 @@ class campari_runner:
 
         if self.save_debug:
             fileroot = f"{identifier}_{self.band}_{psftype}"
+
             images_and_model = np.array(
                 [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
             )
+
             debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
