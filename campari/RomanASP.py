@@ -234,18 +234,18 @@ def main():
 
     parser.add_argument("--ltcv-provenance-id", type=str,
                         help="the provenance id for lightcurve. Default None.", default=None)
-    # Campari currently does not use this?
+                        # This seems to not be used anywhere yet
 
     parser.add_argument("--ltcv-process", type=str,
                         help="A string to identify the process of the "
-                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+                        "lightcurve. Default campari.", default="campari")
     parser.add_argument("--ltcv-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the "
-                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+                        "lightcurve. Default None.", default=None)
 
-    parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=False,
+    parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=True,
                         help="If True, will create and write provenances to the database."
-                             " Default False.")  # Campari currently does not use this?
+                             " Default False.")
 
     parser.add_argument("--diaobject-position-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the program that determines the "

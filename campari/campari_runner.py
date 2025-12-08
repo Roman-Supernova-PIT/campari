@@ -15,8 +15,10 @@ from snappl.imagecollection import ImageCollection
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
+from snappl.provenance import Provenance
 
 # Campari
+import campari
 from campari.access_truth import add_truth_to_lc
 from campari.data_construction import find_all_exposures
 from campari.io import (
@@ -247,6 +249,11 @@ class campari_runner:
         image_list = self.get_exposures(diaobj)
         sedlist = self.get_sedlist(diaobj.id, image_list)
 
+        SNLogger.debug("Building Campari provenance")
+        self.cam_prov = self.build_campari_provenance(image_list=image_list, diaobj=diaobj,
+                                                      obj_pos_prov=self.diaobject_position_provenance_tag,
+                                                      dbclient=self.dbclient)
+
         # This has to go after get_exposures because the infs break the simdex.
         if diaobj.mjd_start is None:
             diaobj.mjd_start = -np.inf
@@ -426,7 +433,7 @@ class campari_runner:
 
             # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
-                lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
+                lc = build_lightcurve(diaobj, lc_model, cam_prov=self.cam_prov)
                 if self.add_truth_to_lc:
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
@@ -526,3 +533,42 @@ class campari_runner:
                              " pointing and sca.")
 
         return images
+
+    def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
+        upstreams = []
+
+        if image_list[0].provenance_id is not None:
+            SNLogger.debug("Getting provenance for images")
+            upstreams.append(Provenance.get_by_id(image_list[0].provenance_id, dbclient=dbclient))
+        else:
+            SNLogger.warning("Image provenance ID is None; setting imgprov to None. This should only happen in tests.")
+
+        if diaobj.provenance_id is not None:
+            SNLogger.debug("Getting provenance for diaobject")
+            upstreams.append(Provenance.get_by_id(diaobj.provenance_id, dbclient=dbclient))
+        else:
+            SNLogger.warning(
+                "Diaobject provenance ID is None; setting objprov to None. This should only happen in tests."
+            )
+
+        if obj_pos_prov is not None:
+            SNLogger.debug("Getting provenance for diaobject position")
+            upstreams.append(obj_pos_prov)
+        else:
+            SNLogger.warning("No diaobject position provenance ID provided; skipping.")
+
+        cfg = Config.get()
+        SNLogger.debug("Attempting to build provenance for lightcurve")
+        campari_version = campari.__version__
+        major = int(campari_version.split(".")[0])
+        minor = int(campari_version.split(".")[1])
+        cam_prov = Provenance(
+            process="campari",
+            major=major,
+            minor=minor,
+            params=cfg,
+            keepkeys=["photometry.campari"],
+            omitkeys=None,
+            upstreams=upstreams,
+        )
+        return cam_prov
