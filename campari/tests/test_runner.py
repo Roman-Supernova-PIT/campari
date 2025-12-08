@@ -15,6 +15,7 @@ from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snappl.config import Config
 from snappl.logger import SNLogger
+from snappl.provenance import Provenance
 ROMAN_IMAGE_SIZE = 4088  # Roman images are 4088x4088 pixels (4096 minus 4 on each edge)
 
 
@@ -303,6 +304,18 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     diaobj = DiaObject.find_objects(name=test_args.diaobject_name, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = -np.inf
     diaobj.mjd_end = np.inf
+
+    upstreams = []
+    runner.cam_prov = Provenance(
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,
+        keepkeys=["photometry.campari"],
+        omitkeys=None,
+        upstreams=upstreams,
+    )
+
     runner.build_and_save_lightcurve(diaobj, lc_model, None)
 
     output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))

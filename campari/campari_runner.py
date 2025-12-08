@@ -563,7 +563,7 @@ class campari_runner:
         major = int(campari_version.split(".")[0])
         minor = int(campari_version.split(".")[1])
         cam_prov = Provenance(
-            process="campari",
+            process=self.ltcv_process,
             major=major,
             minor=minor,
             params=cfg,
