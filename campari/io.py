@@ -64,41 +64,6 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
-    # upstreams = []
-
-    # if lc_model.image_list[0].provenance_id is not None:
-    #     SNLogger.debug("Getting provenance for images")
-    #     upstreams.append(Provenance.get_by_id(lc_model.image_list[0].provenance_id, dbclient=dbclient))
-    # else:
-    #     SNLogger.warning("Image provenance ID is None; setting imgprov to None. This should only happen in tests.")
-
-    # if diaobj.provenance_id is not None:
-    #     SNLogger.debug("Getting provenance for diaobject")
-    #     upstreams.append(Provenance.get_by_id(diaobj.provenance_id, dbclient=dbclient))
-    # else:
-    #     SNLogger.warning("Diaobject provenance ID is None; setting objprov to None. This should only happen in tests.")
-
-    # if obj_pos_prov is not None:
-    #     SNLogger.debug("Getting provenance for diaobject position")
-    #     upstreams.append(obj_pos_prov)
-    # else:
-    #     SNLogger.warning("No diaobject position provenance ID provided; skipping.")
-
-    # cfg = Config.get()
-    # SNLogger.debug("Attempting to build provenance for lightcurve")
-    # campari_version = campari.__version__
-    # major = int(campari_version.split(".")[0])
-    # minor = int(campari_version.split(".")[1])
-    # cam_prov = Provenance(
-    #     process="campari",
-    #     major=major,
-    #     minor=minor,
-    #     params=cfg,
-    #     keepkeys=["photometry.campari"],
-    #     omitkeys=None,
-    #     upstreams=upstreams,
-    # )
-
     meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
 
