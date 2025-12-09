@@ -47,6 +47,7 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     ra_grid, dec_grid: 1D numpy arrays of floats
         The RA and DEC of the grid points.
     """
+    SNLogger.debug(f"Making regular grid with spacing {spacing} and subsize {subsize}")
     wcs = image_object.get_wcs()
     size = image_object.image_shape[0]
     if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
@@ -69,11 +70,15 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
     SNLogger.debug(f"Grid spacing: {spacing}")
+    SNLogger.debug(f"Grid x values: {x}")
+    old_difference = int((size - 4) / 2)
+    SNLogger.debug(f"Old woudld have been {old_difference + np.arange(0, 4, 0.75)} ")
 
     xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
     SNLogger.debug(f"Built a grid with {np.size(xx)} points")
+    import pdb; pdb.set_trace()
 
     # Astropy takes (y, x) order:
     ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
@@ -286,7 +291,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     pointing = image.pointing if image is not None else None
     sca = image.sca if image is not None else None
 
-    print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
                                     include_photonOps=False, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
@@ -295,8 +299,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
-        if a % 50 == 0:
-            SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()

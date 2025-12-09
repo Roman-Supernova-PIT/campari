@@ -138,8 +138,9 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
             try:
                 bg = image_cutout.get_fits_header()["SKY_MEAN"]
             except KeyError:
-                SNLogger.warning("Could not find SKY_MEAN in header, setting bg to 0")
-                bg = 0
+                SNLogger.warning("Could not find SKY_MEAN in header, setting bg to 10")
+                SNLogger.warning("AAAA MANUALLY DOING BG = 10 AAAAAAAAAAAAAAAAAA")
+                bg = 10
         elif truth == "truth":
             # ....or manually calculating it!
             bg = calculate_background_level(imagedata)
