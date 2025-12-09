@@ -73,7 +73,6 @@ class campari_runner:
 
         self.ltcv_provenance_tag = kwargs["ltcv_provenance_tag"]
         self.ltcv_process = kwargs["ltcv_process"]
-        self.ltcv_provenance_id = kwargs["ltcv_provenance_id"]
         self.create_ltcv_provenance = kwargs["create_ltcv_provenance"]
 
         self.save_to_db = kwargs["save_to_db"]
@@ -144,9 +143,8 @@ class campari_runner:
         SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
         if kwargs["save_to_db"]:
             if not self.create_ltcv_provenance:
-                if not (self.ltcv_provenance_id is not None or
-                        (self.ltcv_provenance_tag is not None and self.ltcv_process is not None)):
-                    raise ValueError("Must provide either ltcv_provenance_id or both"
+                if self.ltcv_provenance_tag is None and self.ltcv_process is None:
+                    raise ValueError("Must provide both"
                           " ltcv_provenance_tag and ltcv_process.")
 
         # PSF for when not using the Roman PSF:

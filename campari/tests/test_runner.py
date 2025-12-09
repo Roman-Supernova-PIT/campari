@@ -53,7 +53,6 @@ def create_default_test_args(cfg):
     test_args.image_provenance_tag = None
     test_args.image_process = None
     test_args.ltcv_provenance_tag = None
-    test_args.ltcv_provenance_id = None
     test_args.ltcv_process = None
     test_args.create_ltcv_provenance = False
     test_args.save_to_db = False

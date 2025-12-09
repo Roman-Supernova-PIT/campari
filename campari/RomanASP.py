@@ -232,9 +232,6 @@ def main():
     parser.add_argument("--diaobject-id", type=str, default=None,
                         help="the diaobject id. Default None.")
 
-    parser.add_argument("--ltcv-provenance-id", type=str,
-                        help="the provenance id for lightcurve. Default None.", default=None)
-                        # This seems to not be used anywhere yet
 
     parser.add_argument("--ltcv-process", type=str,
                         help="A string to identify the process of the "
