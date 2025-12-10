@@ -340,6 +340,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
+         "--photometry-campari-psf-galaxy_class", "ou24PSF",
+         "--photometry-campari-psf-transient_class", "ou24PSF_slow",
          "--no-photometry-campari-source_phot_ops",
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
@@ -383,13 +385,14 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
 
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-psfclass ou24PSF "
+        "--photometry-campari-psf-galaxy_class ou24PSF"
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
+        "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-source_phot_ops "
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
@@ -584,11 +587,24 @@ def test_construct_transient_scene():
 
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
+    cfg = Config.get()
+    orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
+    # This will need to go away once the PSF object is split in phot ops and non phot ops
 
-    psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
-                                          stampsize=25, x=2044,
-                                          y=2044, sed=sed,
-                                          flux=1, photOps=False)
+    try:
+        cfg._static = False
+        cfg.set_value( "photometry.campari.fetch_SED", False )
+        cfg._static = True
+
+        psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
+                                            stampsize=25, x=2044,
+                                            y=2044, sed=sed,
+                                            flux=1)
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", orig_transient_photops)
+        cfg._static = True
+
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True)
@@ -769,6 +785,8 @@ def test_handle_partial_overlap():
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
+        " --photometry-campari-psf-galaxy_class ou24PSF "
+        " --photometry-campari-psf-transient_class ou24PSF_slow"
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "

@@ -93,6 +93,8 @@ class campari_runner:
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
+        self.galaxy_photon_ops = self.cfg.value("photometry.campari.psf.galaxy_photon_ops")
+        self.transient_photon_ops = self.cfg.value("photometry.campari.psf.transient_photon_ops")
         self.bg_gal_flux_all = self.cfg.value("photometry.campari_simulations.bg_gal_flux")
         self.sim_galaxy_scale_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_scale")
         self.sim_galaxy_offset_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_offset")
@@ -129,7 +131,8 @@ class campari_runner:
             self.grid_type = "regular"
             self.spacing = 9
             self.size = 11
-            self.source_phot_ops = False
+            self.transient_photon_ops = False
+            self.galaxy_photon_ops = False
             self.fetch_SED = False
             self.make_initial_guess = False
 
@@ -394,12 +397,12 @@ class campari_runner:
         SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
-                           size=self.size, band=self.band, psfclass=self.psfclass,
+                           size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
                            subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
-                           pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
+                           pixel=self.pixel, do_xshift=self.do_xshift,
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
@@ -413,12 +416,11 @@ class campari_runner:
         return lightcurve_model
 
     def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
-
         lc_model.image_collection_prov = self.img_coll_prov if self.use_real_images else None
-        if self.psfclass == "ou24PSF" or self.psfclass == "ou24PSF_slow":
+        if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
         else:
-            psftype = self.psfclass.lower()
+            psftype = self.transient_psfclass.lower()
 
         if self.use_real_images:
             # identifier is a string that will be used to name the lightcurve file when saving debug files.
