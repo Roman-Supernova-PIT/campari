@@ -588,6 +588,7 @@ def test_construct_transient_scene():
                                / "testdata/test_psf_source.npy")
     cfg = Config.get()
     orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
+    # This will need to go away once the PSF object is split in phot ops and non phot ops
 
     try:
         cfg._static = False
