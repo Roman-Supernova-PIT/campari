@@ -188,7 +188,6 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
 
-
     wgt_matrix = []
 
     for i, wcs in enumerate(wcs_list):
@@ -228,17 +227,13 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
                 error[i] = np.ones_like(wgt)
                 SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         else:
-            SNLogger.debug("No Gaussian weighting applied in get_weights")
+
             wgt = np.ones(size**2)
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
-        SNLogger.debug(f"error max min {np.nanmax(error[i]), np.nanmin(error[i])}")
         inv_var = 1 / (error[i].flatten()) ** 2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
-        SNLogger.debug(f"wgt max min {np.nanmax(wgt), np.nanmin(wgt)}")
-        SNLogger.debug(f"wgt after: {np.nanmean(wgt)}")
-        SNLogger.debug("------------")
         wgt_matrix.append(wgt)
     return wgt_matrix
 

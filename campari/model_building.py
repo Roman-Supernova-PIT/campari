@@ -78,7 +78,6 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     xx = xx.flatten()
     yy = yy.flatten()
     SNLogger.debug(f"Built a grid with {np.size(xx)} points")
-    import pdb; pdb.set_trace()
 
     # Astropy takes (y, x) order:
     ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
@@ -632,7 +631,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         # of sedlist. Therefore, we subtract by the number of
         # predetection images: num_total_images - num_detect_images.
         sn_index = i - (num_total_images - num_detect_images)
-        SNLogger.debug(f"Using SED #{sn_index}")
         sed = sedlist[sn_index]
         # object_x and object_y are the exact coords of the SN in the SCA frame.
         # x and y are the pixels the image has been cut out on, and
