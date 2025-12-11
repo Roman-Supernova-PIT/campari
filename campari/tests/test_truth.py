@@ -32,6 +32,7 @@ from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
 from snappl.config import Config
 from snappl.logger import SNLogger
+from snappl.provenance import Provenance
 
 
 @pytest.fixture(scope="module")
@@ -139,8 +140,21 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     diaobj.mjd_start = 62001.0
     diaobj.mjd_end = np.inf
 
+    cfg = Config.get()
+    upstreams = []
+    cam_prov = Provenance(
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,
+        keepkeys=["photometry.campari"],
+        omitkeys=None,
+        upstreams=upstreams,
+    )
+
+
     # The data values are arbitary, just to check that the lc is constructed properly.
-    lc = build_lightcurve(diaobj, lc_model)
+    lc = build_lightcurve(diaobj, lc_model, cam_prov=cam_prov)
     lc_table = Table(data=lc.data, meta=lc.meta)
     lc_table.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv", format="ascii.ecsv", overwrite=True)
 

@@ -54,6 +54,7 @@ from snappl.imagecollection import ImageCollection
 from snappl.config import Config
 from snappl.lightcurve import Lightcurve
 from snappl.logger import SNLogger
+from snappl.provenance import Provenance
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -143,7 +144,11 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # difference of about 1e-9 pixels for the grid, which led to a
             # change in flux of 2e-7. I don't want switching WCS types to make
             # this fail, so I put the rtol at just above that level.
-            np.testing.assert_allclose(lc1[col], lc2[col], rtol=3e-7), msg
+            # December 2025: In addition, when running with nprocs > 1
+            # the WCS objects are pickled and unpickled which can
+            # slightly change the numerical results. I found that it altered recovered flux
+            # by about 1.4 MICRO mags. So I am increasing the rtol to 6e-6 to allow for this.
+            np.testing.assert_allclose(lc1[col], lc2[col], rtol=6e-6), msg
 
     unique_to_col1s = col1s.difference(col2s)
     unique_to_col2s = col2s.difference(col1s)
@@ -335,6 +340,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background",
+         "--photometry-campari-psf-galaxy_class", "ou24PSF",
+         "--photometry-campari-psf-transient_class", "ou24PSF_slow",
          "--no-photometry-campari-source_phot_ops",
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
@@ -363,14 +370,12 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
-
-def test_regression(campari_test_data, overwrite_meta):
+@pytest.mark.parametrize("nprocs", [(2), (1)])
+def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
-
-    cfg = Config.get()
 
     curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
@@ -380,17 +385,19 @@ def test_regression(campari_test_data, overwrite_meta):
 
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-psfclass ou24PSF "
+        "--photometry-campari-psf-galaxy_class ou24PSF"
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background "
+        "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-source_phot_ops "
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
+        f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
@@ -580,11 +587,24 @@ def test_construct_transient_scene():
 
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
+    cfg = Config.get()
+    orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
+    # This will need to go away once the PSF object is split in phot ops and non phot ops
 
-    psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
-                                          stampsize=25, x=2044,
-                                          y=2044, sed=sed,
-                                          flux=1, photOps=False)
+    try:
+        cfg._static = False
+        cfg.set_value( "photometry.campari.fetch_SED", False )
+        cfg._static = True
+
+        psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
+                                            stampsize=25, x=2044,
+                                            y=2044, sed=sed,
+                                            flux=1)
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", orig_transient_photops)
+        cfg._static = True
+
 
     np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True)
@@ -680,8 +700,19 @@ def test_build_lc(cfg, overwrite_meta):
                                         sky_background=[0.0] * len(image_list), pre_transient_images=1,
                                         post_transient_images=0)
 
+    upstreams = []
+    cam_prov = Provenance(
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,
+        keepkeys=["photometry.campari"],
+        omitkeys=None,
+        upstreams=upstreams,
+    )
+
     # The data values are arbitary, just to check that the lc is constructed properly.
-    lc = build_lightcurve(diaobj, lc_model)
+    lc = build_lightcurve(diaobj, lc_model, cam_prov=cam_prov)
 
     lc = Table(data=lc.data, meta=lc.meta)
     lc.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv", format="ascii.ecsv", overwrite=True)
@@ -754,6 +785,8 @@ def test_handle_partial_overlap():
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
+        " --photometry-campari-psf-galaxy_class ou24PSF "
+        " --photometry-campari-psf-transient_class ou24PSF_slow"
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "
@@ -803,7 +836,8 @@ def test_calculate_surface_brightness():
     )
 
 
-def test_construct_one_image(cfg, campari_test_data):
+@pytest.mark.parametrize("nprocs", [(10), (1)])
+def test_construct_one_image(cfg, campari_test_data, nprocs):
     with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl" , "rb") as f:
         image_list = pickle.load(f)
 
@@ -839,30 +873,24 @@ def test_construct_one_image(cfg, campari_test_data):
                                                    ra=ra, dec=dec, size=size, truth=truth,
                                                    subtract_background=subtract_background))
 
-        for r in results:
-            if nprocs > 1:
-                res = r.get()
-            else:
-                res = r
-            cutout_image_list.append(res[0])
+    for r in results:
+        if nprocs > 1:
+            res = r.get()
+        else:
+            res = r
+        cutout_image_list.append(res[0])
 
-        for cutout, reg_cutout in zip(cutout_image_list, reg_cutout_list):
-            np.testing.assert_allclose(cutout.data, reg_cutout.data, atol=1e-7)
-            np.testing.assert_allclose(cutout.noise, reg_cutout.noise, atol=1e-7)
-            np.testing.assert_array_equal(cutout.flags, reg_cutout.flags)
-            np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
+    for cutout, reg_cutout in zip(cutout_image_list, reg_cutout_list):
+        np.testing.assert_allclose(cutout.data, reg_cutout.data, atol=1e-7)
+        np.testing.assert_allclose(cutout.noise, reg_cutout.noise, atol=1e-7)
+        np.testing.assert_array_equal(cutout.flags, reg_cutout.flags)
+        np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
 
 
 def test_build_model_one_image():
 
-    with open(pathlib.Path(__file__).parent / "testdata/reg_ra_grid.pkl", "rb") as f:
-        ra_grid = pickle.load(f)
-    with open(pathlib.Path(__file__).parent / "testdata/reg_dec_grid.pkl", "rb") as f:
-        dec_grid = pickle.load(f)
-    with open(pathlib.Path(__file__).parent / "testdata/reg_bg_array.pkl", "rb") as f:
-        reg_bg_array = pickle.load(f)
-    with open(pathlib.Path(__file__).parent / "testdata/reg_sn_array.pkl", "rb") as f:
-        reg_sn_array = pickle.load(f)
+    with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
+        ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
 
     with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl", "rb") as f:
         image_list = pickle.load(f)
@@ -873,7 +901,7 @@ def test_build_model_one_image():
     bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec, use_real_images=True,
                                                    grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
                                                    pixel=False, psfclass="ou24PSF", band="Y106", sedlist=None,
-                                                   source_phot_ops=True, i=0, num_total_images=2,
+                                                   source_phot_ops=True, image_index=0, num_total_images=2,
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
                                                    prebuilt_sn_matrix=None, subtract_background=True,
                                                    base_pointing=None, base_sca=None)
