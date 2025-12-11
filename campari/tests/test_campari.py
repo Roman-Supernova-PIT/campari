@@ -432,7 +432,7 @@ def test_make_regular_grid():
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         img = FITSImageStdHeaders(header=fits.Header(wcs_dict), path="/dev/null", data=np.zeros((25, 25)))
         ra_grid, dec_grid = make_regular_grid(img,
-                                              spacing=3.0)
+                                              spacing=3.0, subsize=9.0)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
             "RA vals do not match"
         np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \

@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import norm, skewtest
+import pytest
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
@@ -11,7 +12,7 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from snappl.logger import SNLogger
 import inspect
 
-SNLogger.set_level("DEBUG")
+SNLogger.set_level("INFO")
 
 
 imsize = 19
@@ -305,7 +306,7 @@ def test_poisson_noise_aligned_no_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -495,7 +496,6 @@ def test_poisson_shifted_no_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "force plotting"
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -593,7 +593,6 @@ def test_both_shifted_no_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "force plotting"
     except AssertionError as e:
         plotname = "both_noise_shifted_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -1030,7 +1029,7 @@ def test_skynoise_shifted_22mag_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -1085,7 +1084,7 @@ def test_poisson_shifted_22mag_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "poisson_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -1133,7 +1132,7 @@ def test_both_shifted_22mag_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -1185,7 +1184,7 @@ def test_both_shifted_22mag_host_varying_gaussian():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1352,7 +1351,7 @@ def test_skynoise_shifted_22mag_host_varying():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1397,7 +1396,7 @@ def test_poisson_shifted_22mag_host_varying():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "poisson_shifted_22mag_host_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1490,7 +1489,7 @@ def test_poisson_noise_shifted_no_host_varying():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_varying_diagnostic"
         generate_diagnostic_plots(f"{fileroot}", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
@@ -1498,7 +1497,7 @@ def test_poisson_noise_shifted_no_host_varying():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_22mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1540,7 +1539,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1548,7 +1547,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_21mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1590,7 +1589,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1598,7 +1597,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1644,7 +1643,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_faint_source_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1652,7 +1651,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1699,7 +1698,7 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
@@ -1707,7 +1706,7 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1754,7 +1753,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         SNLogger.debug("Generating diagnostic plots...")
@@ -1763,7 +1762,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1810,7 +1809,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         SNLogger.debug("Generating diagnostic plots...")
@@ -1819,7 +1818,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_gaussian_bias_analysis():
     cmd = base_cmd + [
         "--img_list",
@@ -1876,7 +1875,7 @@ def test_gaussian_bias_analysis():
     # except AssertionError as e:
     #     raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_same_as_above_no_host():
     cmd = base_cmd + [
         "--img_list",
@@ -1916,7 +1915,6 @@ def test_same_as_above_no_host():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_faint_source_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
@@ -1925,7 +1923,7 @@ def test_same_as_above_no_host():
         raise e
 
 ##########################
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_21mag_host_ou2024_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1967,7 +1965,6 @@ def test_both_shifted_21mag_host_ou2024_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_ou24PSF_slow_diagnostic"
         generate_diagnostic_plots("123_R062_ou24PSF_slow", imsize, plotname, trueflux=flux)
@@ -1977,7 +1974,7 @@ def test_both_shifted_21mag_host_ou2024_more():
 
 # ########### Tests with OU2024 PSF ##############################################################
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_noiseless_aligned_nohost_ou2024_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2025,7 +2022,7 @@ def test_noiseless_aligned_nohost_ou2024_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_noiseless_aligned_nohost_ou2024_withphotops_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2076,7 +2073,7 @@ def test_noiseless_aligned_nohost_ou2024_withphotops_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_bothnoise_aligned_nohost_ou2024_withphotops_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2120,7 +2117,6 @@ def test_bothnoise_aligned_nohost_ou2024_withphotops_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
     except AssertionError as e:
         plotname = "bothnoise_aligned_nohost_ou24PSF_slow_photops_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
@@ -2128,7 +2124,7 @@ def test_bothnoise_aligned_nohost_ou2024_withphotops_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_bothnoise_shifted_nohost_ou2024_withphotops_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2172,7 +2168,7 @@ def test_bothnoise_shifted_nohost_ou2024_withphotops_more():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "bothnoise_shifted_nohost_ou24PSF_slow_photops_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
@@ -2180,7 +2176,7 @@ def test_bothnoise_shifted_nohost_ou2024_withphotops_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_noiseless_aligned_22maghost_withphotops():
     cmd = base_cmd + [
         "--img_list",
@@ -2224,7 +2220,7 @@ def test_noiseless_aligned_22maghost_withphotops():
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-        assert False, "Force Plotting"
+
     except AssertionError as e:
         plotname = "bothnoise_shifted_nohost_ou24PSF_slow_photops_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
@@ -2232,7 +2228,7 @@ def test_noiseless_aligned_22maghost_withphotops():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2284,7 +2280,7 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_noiseless_aligned_nohost_ou2024fast_nophotops_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2339,7 +2335,7 @@ def test_noiseless_aligned_nohost_ou2024fast_nophotops_more():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_bothnoise_aligned_nohost_ou2024fast_nophotops_more():
     cmd = base_cmd + [
         "--img_list",

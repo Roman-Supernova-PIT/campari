@@ -69,15 +69,10 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
-    SNLogger.debug(f"Grid spacing: {spacing}")
-    SNLogger.debug(f"Grid x values: {x}")
-    old_difference = int((size - 4) / 2)
-    SNLogger.debug(f"Old woudld have been {old_difference + np.arange(0, 4, 0.75)} ")
 
     xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
-    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
     # Astropy takes (y, x) order:
     ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
