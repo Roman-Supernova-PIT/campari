@@ -9,7 +9,7 @@ photometry:
     make_initial_guess: true
     method: lsqr
     pixel: false
-    subtract_background: true
+    subtract_background_method: calculate
     use_real_images: true
 
     psf:
