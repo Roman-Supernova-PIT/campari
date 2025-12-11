@@ -2335,7 +2335,6 @@ def test_noiseless_aligned_nohost_ou2024fast_nophotops_more():
         SNLogger.debug(e)
         raise e
 
-@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_bothnoise_aligned_nohost_ou2024fast_nophotops_more():
     cmd = base_cmd + [
         "--img_list",
@@ -2355,7 +2354,14 @@ def test_bothnoise_aligned_nohost_ou2024fast_nophotops_more():
     # cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
 
     psfclass_index = cmd.index("--photometry-campari-psfclass")
-    cmd[psfclass_index + 1] = "ou24PSF"
+    #cmd[psfclass_index + 1] = "ou24PSF"
+    del(cmd[psfclass_index + 1])
+    del(cmd[psfclass_index])
+
+    cmd.append("--photometry-campari-psf-transient_class")
+    cmd.append("ou2024")
+    cmd.append("--photometry-campari-psf-galaxy_class")
+    cmd.append("ou2024")
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 

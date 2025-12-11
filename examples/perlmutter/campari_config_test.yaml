@@ -11,7 +11,12 @@ photometry:
     pixel: false
     subtract_background: true
     use_real_images: true
-    psfclass: ou24PSF
+
+    psf:
+      galaxy_photon_ops: false
+      transient_photon_ops: false
+      galaxy_class: ou24PSF
+      transient_class: ou24PSF_slow
 
     grid_options:
       type: contour
