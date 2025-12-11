@@ -976,7 +976,7 @@ def test_noiseless_shifted_22mag_host():
 
     np.testing.assert_allclose(lc["flux"], flux, atol=1, rtol=1e-3)
 
-    # The 3.691204 comes from the fact that we set an error floor of 1 on each pixel. If we did not, this error
+    # The 4.14 comes from the fact that we set an error floor of 1 on each pixel. If we did not, this error
     # would be zero for the noiseless case, but this causes issues with the inverse variance in other cases so
     # we keep it.
     # The tolerance has to be higher here because the rotation and changing in PSF sizes.
