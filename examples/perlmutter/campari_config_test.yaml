@@ -9,9 +9,8 @@ photometry:
     make_initial_guess: true
     method: lsqr
     pixel: false
-    subtract_background: true
+    subtract_background_method: calculate
     use_real_images: true
-    psfclass: ou24PSF
 
     psf:
       galaxy_photon_ops: false
