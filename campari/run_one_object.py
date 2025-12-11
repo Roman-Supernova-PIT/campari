@@ -62,9 +62,9 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, subtract_background=None, psfclass=None,
+                   use_real_images=None, subtract_background=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
-                   grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
+                   grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
@@ -115,10 +115,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            size=size, psfclass=psfclass,
+                            size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
-                            source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
         sim_lc = simulated_lightcurve.sim_lc
@@ -170,67 +169,24 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     # Build the backgrounds loop
     model_results = []
+    kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
+                  "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel, "psfclass": psfclass,
+                  "band": band,
+                  "sedlist": sedlist, "source_phot_ops": source_phot_ops, "num_total_images": num_total_images,
+                  "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
+                  "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background": subtract_background,
+                  "base_pointing": base_pointing, "base_sca": base_sca}
     if nprocs > 1:
         with Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
-                kwarg_dict = {"image": image,
-                              "ra": diaobj.ra,
-                              "dec": diaobj.dec,
-                              "use_real_images": use_real_images,
-                              "grid_type": grid_type,
-                              "ra_grid": ra_grid,
-                              "dec_grid": dec_grid,
-                              "size": size,
-                              "pixel": pixel,
-                              "psfclass": psfclass,
-                              "band": band,
-                              "sedlist": sedlist,
-                              "source_phot_ops": source_phot_ops,
-                              "i": i,
-                              "num_total_images": num_total_images,
-                              "num_detect_images": num_detect_images,
-                              "prebuilt_psf_matrix": prebuilt_psf_matrix,
-                              "prebuilt_sn_matrix": prebuilt_sn_matrix,
-                              "subtract_background": subtract_background,
-                              "base_pointing": base_pointing,
-                              "base_sca": base_sca}
-                model_results.append(pool.apply_async(build_model_for_one_image, kwds=kwarg_dict))
+                model_results.append(pool.apply_async(build_model_for_one_image,
+                                                      kwds={"image": image, "image_index": i, **kwarg_dict}))
             pool.close()
             pool.join()
-            # import pickle
-            # SNLogger.debug("model results length: " + str(len(model_results)))
-            # bg_array, sn_array = model_results[0].get()
-            # SNLogger.debug(f"bg array to be saved {bg_array}")
-            # SNLogger.debug(f"sn array to be saved {sn_array}")
-            # with open("testdata/reg_bg_array.pkl", "wb") as f:
-            #     pickle.dump(bg_array, f)
-            # with open("testdata/reg_sn_array.pkl", "wb") as f:
-            #     pickle.dump(sn_array, f)
 
     else:
         for i, image in enumerate(image_list):
-            kwarg_dict = {"image": image,
-                          "ra": diaobj.ra,
-                          "dec": diaobj.dec,
-                          "use_real_images": use_real_images,
-                          "grid_type": grid_type,
-                          "ra_grid": ra_grid,
-                          "dec_grid": dec_grid,
-                          "size": size,
-                          "pixel": pixel,
-                          "psfclass": psfclass,
-                          "band": band,
-                          "sedlist": sedlist,
-                          "source_phot_ops": source_phot_ops,
-                          "i": i,
-                          "num_total_images": num_total_images,
-                          "num_detect_images": num_detect_images,
-                          "prebuilt_psf_matrix": prebuilt_psf_matrix,
-                          "prebuilt_sn_matrix": prebuilt_sn_matrix,
-                          "subtract_background": subtract_background,
-                          "base_pointing": base_pointing,
-                          "base_sca": base_sca}
-            bg_model, transient_model = build_model_for_one_image(**kwarg_dict)
+            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
 
     for result in model_results:
         if nprocs > 1:

@@ -4,8 +4,9 @@ import warnings
 # Common Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-import numpy as np
 from multiprocessing import Pool
+import numpy as np
+
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
@@ -25,7 +26,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 huge_value = 1e32
 
 
-def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=None):
+def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=1):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -91,7 +92,14 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
 
     Inputs:
     image: snappl.image.Image object, the image to be used.
-    indx: index of the image in the list.
+    indx: int, index of the image in the list.
+    ra/dec: float, the RA and DEC of the SN
+    size: int, the size of the cutout to be made (size x size)
+    subtract_background: If False, the background level is fit as a free
+        parameter in the forward modelling. Otherwise, we subtract it here.
+    truth: str, either "truth" or "simple_model", whether to use truth images
+        or OU2024 simple model images.
+    
 
     Returns:
     cutout_image: snappl.image.Image object, cutout on the object location.
@@ -131,18 +139,13 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # here.
     bg = 0
     if subtract_background:
-        if not truth == "truth":
-            # However, if we are subtracting the background, we want to get
-            # rid of it here, either by reading the SKY_MEAN value from the
-            # image header...
-            try:
-                bg = image_cutout.get_fits_header()["SKY_MEAN"]
-            except KeyError:
-                SNLogger.warning("Could not find SKY_MEAN in header, setting bg to 0")
-                bg = 0
-        elif truth == "truth":
-            # ....or manually calculating it!
+        if truth == "truth":
+            # We can manually calculate the background level from the truth, as these have no "SKY_MEAN" header.
             bg = calculate_background_level(imagedata)
+        else:
+            # or we can read it from the image header if it's available.
+            bg = image_cutout.get_fits_header()["SKY_MEAN"] if "SKY_MEAN" in image_cutout.get_fits_header() else 0
+
     image_cutout._data -= bg
     SNLogger.debug(f"Subtracted a background level of {bg}")
     return image_cutout, bg
