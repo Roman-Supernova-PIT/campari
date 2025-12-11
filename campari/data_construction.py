@@ -144,7 +144,10 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
             bg = calculate_background_level(imagedata)
         else:
             # or we can read it from the image header if it's available.
+            bg = calculate_background_level(imagedata)
+            SNLogger.debug(f"Background  Calculated: {bg}")
             bg = image_cutout.get_fits_header()["SKY_MEAN"] if "SKY_MEAN" in image_cutout.get_fits_header() else 0
+            SNLogger.debug(f"Background from header: {bg}")
 
     image_cutout._data -= bg
     SNLogger.debug(f"Subtracted a background level of {bg}")

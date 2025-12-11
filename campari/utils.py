@@ -142,6 +142,20 @@ def calculate_background_level(im):
     bg, float, the estimated background level.
 
     """
+
+    from astropy.stats import sigma_clipped_stats, SigmaClip
+    from photutils.segmentation import detect_threshold, detect_sources
+    from photutils.utils import circular_footprint
+    sigma_clip = SigmaClip(sigma=3.0, maxiters=10)
+    threshold = detect_threshold(im, nsigma=2.0, sigma_clip=sigma_clip)
+    segment_img = detect_sources(im, threshold, npixels=10)
+    footprint = circular_footprint(radius=5)
+    mask = segment_img.make_source_mask(footprint=footprint)
+    mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
+    print(np.array((mean, median, std)))
+    return mean
+
+
     size = im.shape[0]
     bgarr = np.concatenate(
         (
