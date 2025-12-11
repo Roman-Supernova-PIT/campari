@@ -15,8 +15,10 @@ from snappl.imagecollection import ImageCollection
 from snappl.sed import Flat_SED, OU2024_Truth_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
+from snappl.provenance import Provenance
 
 # Campari
+import campari
 from campari.access_truth import add_truth_to_lc
 from campari.data_construction import find_all_exposures
 from campari.io import (
@@ -71,7 +73,6 @@ class campari_runner:
 
         self.ltcv_provenance_tag = kwargs["ltcv_provenance_tag"]
         self.ltcv_process = kwargs["ltcv_process"]
-        self.ltcv_provenance_id = kwargs["ltcv_provenance_id"]
         self.create_ltcv_provenance = kwargs["create_ltcv_provenance"]
 
         self.save_to_db = kwargs["save_to_db"]
@@ -92,6 +93,8 @@ class campari_runner:
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
+        self.galaxy_photon_ops = self.cfg.value("photometry.campari.psf.galaxy_photon_ops")
+        self.transient_photon_ops = self.cfg.value("photometry.campari.psf.transient_photon_ops")
         self.bg_gal_flux_all = self.cfg.value("photometry.campari_simulations.bg_gal_flux")
         self.sim_galaxy_scale_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_scale")
         self.sim_galaxy_offset_all = self.cfg.value("photometry.campari_simulations.sim_galaxy_offset")
@@ -128,7 +131,8 @@ class campari_runner:
             self.grid_type = "regular"
             self.spacing = 9
             self.size = 11
-            self.source_phot_ops = False
+            self.transient_photon_ops = False
+            self.galaxy_photon_ops = False
             self.fetch_SED = False
             self.make_initial_guess = False
 
@@ -142,9 +146,8 @@ class campari_runner:
         SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
         if kwargs["save_to_db"]:
             if not self.create_ltcv_provenance:
-                if not (self.ltcv_provenance_id is not None or
-                        (self.ltcv_provenance_tag is not None and self.ltcv_process is not None)):
-                    raise ValueError("Must provide either ltcv_provenance_id or both"
+                if self.ltcv_provenance_tag is None and self.ltcv_process is None:
+                    raise ValueError("Must provide both"
                           " ltcv_provenance_tag and ltcv_process.")
 
         # PSF for when not using the Roman PSF:
@@ -247,6 +250,11 @@ class campari_runner:
         image_list = self.get_exposures(diaobj)
         sedlist = self.get_sedlist(diaobj.id, image_list)
 
+        SNLogger.debug("Building Campari provenance")
+        self.cam_prov = self.build_campari_provenance(image_list=image_list, diaobj=diaobj,
+                                                      obj_pos_prov=self.diaobject_position_provenance_tag,
+                                                      dbclient=self.dbclient)
+
         # This has to go after get_exposures because the infs break the simdex.
         if diaobj.mjd_start is None:
             diaobj.mjd_start = -np.inf
@@ -267,8 +275,7 @@ class campari_runner:
         # self.param_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
         # SNLogger.debug("Created a grid of simulation parameters with a total of"
         #                f" {self.param_grid.shape[1]} combinations.")
-        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1]
-        #  # Repeat the SNID for each combination of parameters
+        # self.diaobject_name = self.diaobject_name * self.param_grid.shape[1] # Repeat the SNID for each combination of parameters
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
@@ -390,12 +397,12 @@ class campari_runner:
         SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
-                           size=self.size, band=self.band, psfclass=self.psfclass,
+                           size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
                            subtract_background=self.subtract_background,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
-                           pixel=self.pixel, source_phot_ops=self.source_phot_ops, do_xshift=self.do_xshift,
+                           pixel=self.pixel, do_xshift=self.do_xshift,
                            bg_gal_flux=bg_gal_flux, do_rotation=self.do_rotation, airy=self.airy,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
@@ -409,12 +416,11 @@ class campari_runner:
         return lightcurve_model
 
     def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
-
         lc_model.image_collection_prov = self.img_coll_prov if self.use_real_images else None
-        if self.psfclass == "ou24PSF" or self.psfclass == "ou24PSF_slow":
+        if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
         else:
-            psftype = self.psfclass.lower()
+            psftype = self.transient_psfclass.lower()
 
         if self.use_real_images:
             # identifier is a string that will be used to name the lightcurve file when saving debug files.
@@ -427,7 +433,7 @@ class campari_runner:
 
             # Only save a lightcurve if there were detection images with measured fluxes:
             if lc_model.flux is not None:
-                lc = build_lightcurve(diaobj, lc_model, obj_pos_prov=self.diaobject_position_provenance_tag)
+                lc = build_lightcurve(diaobj, lc_model, cam_prov=self.cam_prov)
                 if self.add_truth_to_lc:
                     lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
@@ -451,7 +457,7 @@ class campari_runner:
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=testrun, dbclient=self.dbclient)
+                            testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
 
         # Now, save the images
 
@@ -530,3 +536,42 @@ class campari_runner:
                              " pointing and sca.")
 
         return images
+
+    def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
+        upstreams = []
+
+        if image_list[0].provenance_id is not None:
+            SNLogger.debug("Getting provenance for images")
+            upstreams.append(Provenance.get_by_id(image_list[0].provenance_id, dbclient=dbclient))
+        else:
+            SNLogger.warning("Image provenance ID is None; setting imgprov to None. This should only happen in tests.")
+
+        if diaobj.provenance_id is not None:
+            SNLogger.debug("Getting provenance for diaobject")
+            upstreams.append(Provenance.get_by_id(diaobj.provenance_id, dbclient=dbclient))
+        else:
+            SNLogger.warning(
+                "Diaobject provenance ID is None; setting objprov to None. This should only happen in tests."
+            )
+
+        if obj_pos_prov is not None:
+            SNLogger.debug("Getting provenance for diaobject position")
+            upstreams.append(obj_pos_prov)
+        else:
+            SNLogger.warning("No diaobject position provenance ID provided; skipping.")
+
+        cfg = Config.get()
+        SNLogger.debug("Attempting to build provenance for lightcurve")
+        campari_version = campari.__version__
+        major = int(campari_version.split(".")[0])
+        minor = int(campari_version.split(".")[1])
+        cam_prov = Provenance(
+            process=self.ltcv_process,
+            major=major,
+            minor=minor,
+            params=cfg,
+            keepkeys=["photometry.campari"],
+            omitkeys=None,
+            upstreams=upstreams,
+        )
+        return cam_prov

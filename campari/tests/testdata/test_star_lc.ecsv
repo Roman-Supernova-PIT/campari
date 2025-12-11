@@ -44,7 +44,11 @@
 # - {band: Y106}
 # - {diaobject_position_id: null}
 # - {provenance_id: 3c1ed416-6d3f-ae02-480d-652891ee92c4}
+<<<<<<< HEAD
 # - {diaobject_id: e99b071d-c6f7-40ab-91f2-812a7bcbf70c}
+=======
+# - {diaobject_id: 99bd8678-65e4-4b36-b1dd-f359f5d22b77}
+>>>>>>> 683011c5cb03bd3087bc5181c75f50d015f9f394
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
