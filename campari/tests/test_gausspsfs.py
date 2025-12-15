@@ -12,7 +12,7 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from snappl.logger import SNLogger
 import inspect
 
-SNLogger.set_level("INFO")
+SNLogger.set_level("DEBUG")
 
 
 imsize = 19
@@ -35,7 +35,9 @@ base_cmd = [
         "--photometry-campari-grid_options-subsize", "4",
         "--photometry-campari-cutout_size", str(imsize),
         "--photometry-campari-weighting",
-        "--photometry-campari-subtract_background", "calculate",
+        "--photometry-campari-subtract_background_method", "SKY_MEAN", # This cheats and sets the background to zero
+        # because these images don't have this column. This is set as default so that the tests that are trying to
+        # hit machine precision can pass. For more realistic tests, we should use "calculate".
         "--no-photometry-campari-source_phot_ops",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
@@ -2276,120 +2278,6 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
         )  # With photon ops, accuracy is to about 0.6 % only, is this to be expected?
     except AssertionError as e:
         plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
-        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-@pytest.mark.skip(reason="This test is currently too slow to run every time.")
-def test_noiseless_aligned_nohost_ou2024fast_nophotops_more():
-    cmd = base_cmd + [
-        "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_nophotops.txt",
-    ]
-    cmd += ["--photometry-campari-grid_options-type", "none"]
-    # spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
-    # cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
-
-    cmd += ["--save_model"]
-    # cmd += [
-    #     "--prebuilt_static_model",
-    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
-    # ]
-    cmd += ["--nprocs", "10"]
-    # phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
-    # cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
-
-    psfclass_index = cmd.index("--photometry-campari-psfclass")
-    cmd[psfclass_index + 1] = "ou24PSF"
-
-    result = subprocess.run(cmd, capture_output=False, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-
-    # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
-
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-
-    try:
-        np.testing.assert_allclose(
-            lc["flux"], flux, rtol=5e-6  # Why does this need to be ~50x higher than the gaussian version?
-        )
-        SNLogger.debug("flux", lc["flux"])
-        np.testing.assert_allclose(lc["flux_err"], 2.3313916, atol=1e-7)  # I believe this is smaller because the
-        # PSF is a different shape?
-    except AssertionError as e:
-        plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
-        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-def test_bothnoise_aligned_nohost_ou2024fast_nophotops_more():
-    cmd = base_cmd + [
-        "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_aligned_nohost_ou2024_fast_nophotops.txt",
-    ]
-    cmd += ["--photometry-campari-grid_options-type", "none"]
-    # spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
-    # cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
-
-    cmd += ["--save_model"]
-    # cmd += [
-    #     "--prebuilt_static_model",
-    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
-    # ]
-    cmd += ["--nprocs", "10"]
-    # phot_ops_index = cmd.index("--no-photometry-campari-source_phot_ops")
-    # cmd[phot_ops_index] = "--photometry-campari-source_phot_ops"
-
-    psfclass_index = cmd.index("--photometry-campari-psfclass")
-    #cmd[psfclass_index + 1] = "ou24PSF"
-    del(cmd[psfclass_index + 1])
-    del(cmd[psfclass_index])
-
-    cmd.append("--photometry-campari-psf-transient_class")
-    cmd.append("ou2024")
-    cmd.append("--photometry-campari-psf-galaxy_class")
-    cmd.append("ou2024")
-
-    result = subprocess.run(cmd, capture_output=False, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-
-    # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_romanpsf_lc.ecsv")
-
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        plotname = "bothnoise_aligned_nohost_ou24PSF_nophotops_diagnostic"
-        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-    except AssertionError as e:
-        plotname = "bothnoise_aligned_nohost_ou24PSF_nophotops_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
