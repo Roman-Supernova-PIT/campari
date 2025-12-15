@@ -353,7 +353,7 @@ def construct_transient_scene(
     )
 
     cfg = Config.get()
-    snpsfclass = cfg.value("photometry.campari.psf.galaxy_class")
+    snpsfclass = cfg.value("photometry.campari.psf.transient_class")
     photOps = cfg.value("photometry.campari.psf.galaxy_photon_ops")
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
