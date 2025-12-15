@@ -3,7 +3,6 @@ photometry:
     cutout_size: 11
     initial_flux_guess: 3000
     fetch_SED: false
-    source_phot_ops: true
     use_roman: true
     weighting: true
     make_initial_guess: true
@@ -13,8 +12,6 @@ photometry:
     use_real_images: true
 
     psf:
-      galaxy_photon_ops: false
-      transient_photon_ops: false
       galaxy_class: ou24PSF
       transient_class: ou24PSF_slow
 

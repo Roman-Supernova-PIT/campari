@@ -270,7 +270,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     cfg = Config.get()
     psfclass = cfg.value("photometry.campari.psf.galaxy_class")
-    include_photonOps = cfg.value("photometry.campari.psf.galaxy_photon_ops")
 
     num_grid_points = np.size(x_sca)
 
@@ -293,7 +292,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
-                                    include_photonOps=include_photonOps, seed=None, image=image)
+                                    seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
@@ -354,8 +353,7 @@ def construct_transient_scene(
 
     cfg = Config.get()
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
-    photOps = cfg.value("photometry.campari.psf.galaxy_photon_ops")
-    if not photOps:
+    if "photon" not in snpsfclass:
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
         # run, I'd want to know.
@@ -363,7 +361,7 @@ def construct_transient_scene(
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps,
+        snpsfclass, pointing=pointing, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
@@ -562,7 +560,7 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
-                              source_phot_ops=None, image_index=None, num_total_images=None, num_detect_images=None,
+                              image_index=None, num_total_images=None, num_detect_images=None,
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
                               base_pointing=None, base_sca=None):
 

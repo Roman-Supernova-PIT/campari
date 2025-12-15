@@ -171,13 +171,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Build the backgrounds loop
     cfg = Config.get()
     psfclass = cfg.get().value("photometry.campari.psf.transient_class")
-    source_phot_ops = cfg.get().value("photometry.campari.source_phot_ops")
 
     model_results = []
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
                   "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
                   "band": band,
-                  "sedlist": sedlist, "source_phot_ops": source_phot_ops, "num_total_images": num_total_images,
+                  "sedlist": sedlist, "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method,
                   "base_pointing": base_pointing, "base_sca": base_sca}
