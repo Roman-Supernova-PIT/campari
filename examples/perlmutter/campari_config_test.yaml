@@ -16,7 +16,7 @@ photometry:
 
     psf:
       galaxy_photon_ops: false
-      transient_photon_ops: true
+      transient_photon_ops: false
       transient_class: ou24PSF
       galaxy_class: ou24PSF
 

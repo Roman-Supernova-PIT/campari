@@ -385,7 +385,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
 
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-psf-galaxy_class ou24PSF"
+        "--photometry-campari-psf-galaxy_class ou24PSF "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
@@ -786,7 +786,7 @@ def test_handle_partial_overlap():
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
         " --photometry-campari-psf-galaxy_class ou24PSF "
-        " --photometry-campari-psf-transient_class ou24PSF_slow"
+        " --photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
         "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops "

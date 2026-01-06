@@ -224,13 +224,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
+    sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
+
     if save_model:
         psf_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
         np.save(psf_matrix_path, psf_matrix)
 
         sn_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
         np.save(sn_matrix_path, sn_matrix)
 
         SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
