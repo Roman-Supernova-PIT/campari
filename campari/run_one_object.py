@@ -170,9 +170,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Build the backgrounds loop
     model_results = []
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
-                  "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel, "psfclass": psfclass,
+                  "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
                   "band": band,
-                  "sedlist": sedlist, "source_phot_ops": source_phot_ops, "num_total_images": num_total_images,
+                  "sedlist": sedlist, "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background": subtract_background,
                   "base_pointing": base_pointing, "base_sca": base_sca}
@@ -221,13 +221,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    snpsfclass = Config.get().value("photometry.campari.psf.transient_class")
+    psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
+
     if save_model:
         psf_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
             / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
         np.save(psf_matrix_path, psf_matrix)
 
         sn_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+            / f"sn_matrix_{snpsfclass}_{diaobj.id}_{num_total_images}_images.npy"
         np.save(sn_matrix_path, sn_matrix)
 
         SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
