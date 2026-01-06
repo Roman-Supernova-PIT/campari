@@ -353,7 +353,7 @@ def construct_transient_scene(
     )
 
     cfg = Config.get()
-    psfclass = cfg.value("photometry.campari.psf.transient_class")
+    snpsfclass = cfg.value("photometry.campari.psf.transient_class")
     photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
     if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
@@ -361,8 +361,7 @@ def construct_transient_scene(
         # run, I'd want to know.
         SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
-
-    SNLogger.debug(f"Using psf class {psfclass}")
+    SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
         snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps,
         image=image, stamp_size=stampsize
@@ -660,8 +659,8 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             x=object_x,
             y=object_y,
             sed=sed,
-            psfclass=psfclass,
-            photOps=source_phot_ops,
+           # psfclass=psfclass,
+           # photOps=source_phot_ops,
             image=image,
         )
 

@@ -110,6 +110,8 @@ class campari_runner:
         self.base_sca = self.cfg.value("photometry.campari_simulations.base_sca")
         self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
         self.save_debug = self.cfg.value("photometry.campari_io.save_debug")
+        self.transient_psfclass = self.cfg.value("photometry.campari.psf.transient_class")
+        self.galaxy_psfclass = self.cfg.value("photometry.campari.psf.galaxy_class")
         try:
             self.testrun = self.cfg.value("photometry.campari.testrun")
         except Exception:

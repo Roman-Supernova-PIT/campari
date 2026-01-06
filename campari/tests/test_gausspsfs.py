@@ -24,6 +24,8 @@ base_cmd = [
         "--transient_end", "60060",
         "--photometry-campari-psfclass", "gaussian",
         "--photometry-campari-use_real_images",
+        "--photometry-campari-psf-transient_class", "gaussian",
+        "--photometry-campari-psf-galaxy_class", "gaussian",
         "--diaobject-collection", "manual",
         "--no-photometry-campari-fetch_SED",
         "--photometry-campari-grid_options-spacing", "1",
