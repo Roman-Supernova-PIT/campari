@@ -659,8 +659,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             x=object_x,
             y=object_y,
             sed=sed,
-           # psfclass=psfclass,
-           # photOps=source_phot_ops,
             image=image,
         )
 
