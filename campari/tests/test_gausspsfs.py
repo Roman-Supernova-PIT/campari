@@ -12,8 +12,8 @@ from snappl.logger import SNLogger
 
 from campari.tests.plotting_temp import generate_diagnostic_plots
 
-
-imsize = 7 # CHANGE THIS BACK AAAAAAAAAAAA
+imsize = 19
+#imsize = 7 # CHANGE THIS BACK AAAAAAAAAAAA
 base_cmd = [
         "python", "../RomanASP.py",
         "--diaobject-name", "123",
@@ -1024,26 +1024,28 @@ def test_both_shifted_22mag_realisticgalaxy_host():
         SNLogger.debug(e)
         raise e
 
-
-def test_no_transient_realisticgalaxy_host():
+def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_gaussims_unalignedattempt2_nonoise_22hostmag_faintsource_realgal_seed45.txt",
+                / "testdata/test_gaussims_nonoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
+
     ]
 
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
-    cmd[spacing_index + 1] = "0.5"  # Finer grid spacing
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    transient_index = cmd.index("--transient_end")
-    cmd[transient_index + 1] = "60010"  # No transient present
-    # cmd += ["--save_model"]
+    #transient_index = cmd.index("--transient_end")
+    #cmd[transient_index + 1] = "60010"  # No transient present
+    cmd += ["--save_model"]
     # realsitic_galaxy_gridmodel
-    cmd += [
-        "--prebuilt_static_model",
-        pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic.npy",
-    ]
+    #cmd += [
+    #    "--prebuilt_static_model",
+        #   pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic.npy",
+    #    pathlib.Path(__file__).parent
+    #    / "testdata/psf_matrix_gaussian_a0332a3d-785d-4d04-950b-5ec4202d0aa7_75_images64_points.npy",
+    #]
     # cmd += [
     #     "--prebuilt_transient_model",
     #     pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic_SN.npy",
@@ -1072,8 +1074,126 @@ def test_no_transient_realisticgalaxy_host():
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
-        plotname = "notransient_nonoise_hostrealistic_diagnostic"
+        plotname = "fainttransient_nonoise_hostrealistic_diagnostic"
+        #plotname = "whatisgoingon_3_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
+
+def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent
+        / "testdata/test_gaussims_bothnoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
+    ]
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
+
+    # transient_index = cmd.index("--transient_end")
+    # cmd[transient_index + 1] = "60010"  # No transient present
+    #cmd += ["--save_model"]
+    # realsitic_galaxy_gridmodel
+    cmd += [
+        "--prebuilt_static_model", pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
+     ]
+    # cmd += [
+    #     "--prebuilt_transient_model",
+    #     pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic_SN.npy",
+    # ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((24 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+        plotname = "fainttransient_bothnoise_hostrealistic_diagnostic"
+        # plotname = "whatisgoingon_3_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+    except AssertionError as e:
+        plotname = "fainttransient_nonoise_hostrealistic_diagnostic"
+        # plotname = "whatisgoingon_3_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+def test_no_transient_realisticgalaxy_host():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent
+#        / "testdata/test_gaussims_unalignedattempt2_nonoise_22hostmag_faintsource_realgal_seed45.txt",
+        / "testdata/test_gaussims_whatisgoingon_3seed45.txt"
+    ]
+
+    cmd += ["--photometry-campari-grid_options-type", "regular"]
+    spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
+    cmd[spacing_index + 1] = "0.5"  # Finer grid spacing
+
+    transient_index = cmd.index("--transient_end")
+    cmd[transient_index + 1] = "60010"  # No transient present
+    #cmd += ["--save_model"]
+    # realsitic_galaxy_gridmodel
+    cmd += [
+       "--prebuilt_static_model",
+    #   pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic.npy",
+       pathlib.Path(__file__).parent / "testdata/psf_matrix_gaussian_a0332a3d-785d-4d04-950b-5ec4202d0aa7_75_images64_points.npy",
+       ]
+    # cmd += [
+    #     "--prebuilt_transient_model",
+    #     pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic_SN.npy",
+    # ]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((24 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+    except AssertionError as e:
+        #plotname = "notransient_nonoise_hostrealistic_diagnostic"
+        plotname = "whatisgoingon_3_diagnostic"
+        generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+#
