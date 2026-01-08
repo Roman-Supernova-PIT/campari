@@ -2,7 +2,6 @@ import pathlib
 import subprocess
 
 import numpy as np
-from matplotlib import pyplot as plt
 from scipy.stats import norm, skewtest
 
 from astropy.table import Table
@@ -10,10 +9,9 @@ from photutils.aperture import CircularAperture, aperture_photometry
 
 from snappl.logger import SNLogger
 
-from campari.tests.plotting_temp import generate_diagnostic_plots
+from campari.plotting import generate_diagnostic_plots
 
 imsize = 19
-#imsize = 7 # CHANGE THIS BACK AAAAAAAAAAAA
 base_cmd = [
         "python", "../RomanASP.py",
         "--diaobject-name", "123",
