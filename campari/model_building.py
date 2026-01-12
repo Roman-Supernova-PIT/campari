@@ -353,7 +353,8 @@ def construct_transient_scene(
 
     cfg = Config.get()
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
-    if "photon" not in snpsfclass:
+    photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
+    if not photOps:
         # While I want to do this sometimes, it is very rare that you actually
         # want to do this. Thus if it was accidentally on while doing a normal
         # run, I'd want to know.
