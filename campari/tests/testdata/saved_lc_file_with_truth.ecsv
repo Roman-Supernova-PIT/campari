@@ -24,7 +24,6 @@
 # - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
-# - {source_phot_ops: true}
 # - {use_roman: true}
 # - {weighting: true}
 # - {make_initial_guess: true}
@@ -32,8 +31,7 @@
 # - {pixel: false}
 # - {subtract_background_method: calculate}
 # - {use_real_images: true}
-# - {psfclass: ou24PSF}
-# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1
@@ -48,8 +46,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: ff02850c-9049-b4e6-4b56-11d2b3d66e53}
-# - {diaobject_id: 333b7e06-a849-4b7d-bbbe-7ed74eddb779}
+# - {provenance_id: a0d49e9e-8e08-c2d2-5f84-a38ddda76403}
+# - {diaobject_id: 70e456fa-ecf3-41bf-8354-26310655ce76}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

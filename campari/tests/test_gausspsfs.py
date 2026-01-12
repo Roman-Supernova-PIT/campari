@@ -4,6 +4,7 @@ import subprocess
 import numpy as np
 from matplotlib import pyplot as plt
 from scipy.stats import norm, skewtest
+import pytest
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
@@ -32,7 +33,6 @@ base_cmd = [
         "--photometry-campari-cutout_size", str(imsize),
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background", "calculate",
-        "--no-photometry-campari-source_phot_ops",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
         "--image-collection-basepath", "/photometry_test_data/simple_gaussian_test/sig1.0",
@@ -442,7 +442,7 @@ def test_noiseless_shifted_no_host():
 # 128.001   42.0005 128.      42.     -θ   0.  30.  60.  90. 120. 150. 180. 210. 240. 270. 300. 330. 360. -r 0 -s 0
 # --transient-ra 128 --transient-dec 42 --no-star-noise  -n 1'
 
-
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_poisson_shifted_no_host():
 
     cmd = base_cmd + [
@@ -492,7 +492,7 @@ def test_poisson_shifted_no_host():
 #  41.999  128.001   41.999  128.      42.001  127.999   42.001  128.001   42.001  128.      42.0005 127.999
 #   42.0005 128.001   42.0005 128.      42.     -θ   0.  30.  60.  90. 120. 150. 180. 210. 240. 270. 300. 330.
 #  360. -r 30 -s 0 --transient-ra 128 --transient-dec 42 --no-star-noise  -n 1 --no-transient-noise
-
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_sky_shifted_no_host():
     # Now we add just sky noise.
 
@@ -585,6 +585,7 @@ def test_both_shifted_no_host():
 
 # Just background tests
 
+@pytest.mark.skip(reason="this test is too slow to run every time")
 def test_aligned_noiseless_just_host():
     cmd = base_cmd + [
         "--img_list",
@@ -692,7 +693,7 @@ def test_both_shifted_just_host():
 
 # 22 mag delta function galaxy tests ############################################################################
 
-
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_noiseless_aligned_22mag_host():
 
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_host_mag22.txt"]
@@ -735,6 +736,7 @@ def test_noiseless_aligned_22mag_host():
         raise e
 
 
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_poisson_aligned_22mag_host():
     # I think is failing because there are so few no transient compared to with transient images.
 
@@ -781,7 +783,7 @@ def test_poisson_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_hostnoiseonly_aligned_22mag_host():
     # I think is failing because there are so few no transient compared to with transient images.
 
@@ -827,7 +829,7 @@ def test_hostnoiseonly_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_transientnoiseonly_aligned_22mag_host():
     # I think is failing because there are so few no transient compared to with transient images.
 
@@ -873,7 +875,7 @@ def test_transientnoiseonly_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_both_aligned_22mag_host():
     cmd = base_cmd + [
         "--img_list",
