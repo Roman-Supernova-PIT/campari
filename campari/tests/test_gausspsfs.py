@@ -89,7 +89,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         if i == 0:
             plt.title("Input Image")
-        im = plt.imshow(ims[i], origin="lower")
+        im = plt.imshow(np.log10(ims[i]), origin="lower")
         vmin, vmax = im.get_clim()
         xticks = np.arange(0, imsize, 5) - 0.5
 
@@ -112,7 +112,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
             plt.xticks(xticks)
             plt.yticks(xticks)
             plt.grid(True)
-        plt.imshow(modelims[i], origin="lower", vmin=vmin, vmax=vmax)
+        plt.imshow(np.log10(modelims[i]), origin="lower", vmin=vmin, vmax=vmax)
         plt.colorbar()
 
         ################################
@@ -135,8 +135,9 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-4, 4, 100)
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
-        mu, sig = norm.fit(pixel_pull)
-        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+        #SNLogger.debug(f"Pixel pulls stats: mean {np.mean(pixel_pull)}, std {np.std(pixel_pull)}")
+        #mu, sig = norm.fit(pixel_pull)
+        #plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
 
         plt.legend()
 
