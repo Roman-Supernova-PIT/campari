@@ -137,7 +137,7 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     plt.scatter(ra_grid, dec_grid)
 
 
-def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None):
+def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
     SNLogger.debug("Generating diagnostic plots....")
     lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
     ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
@@ -234,6 +234,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     plt.savefig("/campari_debug_dir/" + plotname + ".png")
     plt.close()
 
+    plt.clf()
+    lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
     SNLogger.debug("Generated image diagnostics and saved to /campari_debug_dir/" + plotname + ".png")
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
@@ -305,16 +307,18 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
 
 
-lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+# lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-mjd = lc["mjd"]
-peakflux = 10 ** ((24 - 33) / -2.5)
-start_mjd = 60010
-peak_mjd = 60030
-end_mjd = 60060
-flux = np.zeros(len(mjd))
-flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-imsize = 7
-plotname = "justshifted_nonoise_22mag_hostrealistic_diagnostic"
-# generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
+# mjd = lc["mjd"]
+# peakflux = 10 ** ((24 - 33) / -2.5)
+# start_mjd = 60010
+# peak_mjd = 60030
+# end_mjd = 60060
+# flux = np.zeros(len(mjd))
+# flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+# flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+# imsize = 19
+# plotname = "fainttransient_nonoise_hostrealistic_diagnostic"
+# lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + 75**2)
+# generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux, err_fudge=75)
