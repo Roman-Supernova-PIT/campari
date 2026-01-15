@@ -3,7 +3,7 @@ import subprocess
 
 import numpy as np
 from matplotlib import pyplot as plt
-from scipy.stats import norm, skewtest
+from scipy.stats import norm, skewtest, skew
 import pytest
 
 from astropy.table import Table
@@ -131,8 +131,11 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-4, 4, 100)
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
-        mu, sig = norm.fit(pixel_pull)
-        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+        try:
+            mu, sig = norm.fit(pixel_pull)
+            plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+        except Exception as e:
+            SNLogger.debug(f"Failed to fit normal distribution: {e}")
 
         plt.legend()
 
@@ -152,9 +155,11 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
                      label="Campari Fit - Truth")
 
         residuals = lc["flux"] - trueflux
-        window_size = 3
-        rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
-        plt.plot(lc["mjd"][window_size - 1:], rolling_avg, label="Rolling Average", color="orange")
+
+        if len(residuals) > 6:
+            window_size = 3
+            rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
+            plt.plot(lc["mjd"][window_size - 1:], rolling_avg, label="Rolling Average", color="orange")
 
         if ap_sums is not None and ap_err is not None:
             SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
@@ -164,7 +169,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
                          yerr=np.sqrt(lc["flux_err"]**2 + np.array(ap_err)**2), marker="o", linestyle="None",
                          label="Campari - Aperture Phot", color="green")
 
-        SNLogger.debug(f"campari std: {np.std(lc['flux_fit'] - trueflux)}")
+#        SNLogger.debug(f"campari std: {np.std(lc['flux_fit'] - trueflux)}")
 
         plt.axhline(0, color="black", linestyle="--")
         plt.legend()
@@ -181,7 +186,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
 
         mu, sig = norm.fit(pull)
-        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+        skew_value = skew(pull)
+        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}, \n skew={skew_value:.2f}", color="red")
         plt.legend()
 
         plt.subplot(2, 2, 3)
