@@ -99,8 +99,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     size: int, the size of the cutout to be made (size x size)
     subtract_background_method: str, the method used to calculate the background to be removed. 
         - If "fit", the background level is fit as a free parameter in the forward modelling.
-        - If "calc" or "calculate", the background level is calculated using photutils.
-        - If it is any other string, it is assumed that this is a column name in the fits header that the background 
+        - If "calculate", the background level is calculated using photutils.
+        - If it is any other string, it is assumed that this is a keyword name in the FITS header that the background 
         level is stored in.
     truth: str, either "truth" or "simple_model", whether to use truth images
         or OU2024 simple model images.
@@ -143,7 +143,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # level as a free parameter in our fit, so it should not be subtracted
     # here.
     bg = 0
-    if subtract_background_method == "calc" or subtract_background_method == "calculate":
+    if subtract_background_method == "calculate":
         bg = calculate_background_level(imagedata)
         SNLogger.debug(f"Background Calculated: {bg}")
     elif subtract_background_method == "fit":
