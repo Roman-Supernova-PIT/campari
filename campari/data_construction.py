@@ -101,7 +101,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         - If "fit", the background level is fit as a free parameter in the forward modelling.
         - If "calculate", the background level is calculated using photutils.
         - If it is any other string, it is assumed that this is a keyword name in the FITS header that the background 
-        level is stored in.
+        level is stored in. If the keyword is not found, an error is raised.
     truth: str, either "truth" or "simple_model", whether to use truth images
         or OU2024 simple model images.
     
@@ -150,9 +150,11 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         bg = 0
     else:
         SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
-        bg = image_cutout.get_fits_header()[subtract_background_method] if subtract_background_method in image_cutout.get_fits_header() else 0
-        if bg == 0:
-            SNLogger.warning("Background level not found in header, setting to 0.")
+        bg = image_cutout.get_fits_header()[subtract_background_method] if subtract_background_method in image_cutout.get_fits_header() else None
+
+        if bg is None:
+            raise ValueError(f"Could not find background level in header with keyword "
+                             f"'{subtract_background_method}' for image {indx}.")
         SNLogger.debug(f"Background from header: {bg}")
 
     image_cutout._data -= bg
