@@ -280,7 +280,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     args = ["_", "--diaobject-name", "40973166870", "-f", "Y106", "-i",
             f"{campari_test_data}/test_image_list_star.csv", "--diaobject-collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
-            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659",
+            "--ra", "7.5833264", "--dec", "-44.809659", "--photometry-campari-psf-transient_class", "ou24PSF_slow",
             "--image-collection", "ou2024", "--no-save-to-db", "--photometry-campari-grid_options-gaussian_var", "1000"]
     orig_argv = sys.argv
     orig_config = Config.get(clone=cfg)
@@ -308,7 +308,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         "python ../RomanASP.py --diaobject-name 40973166870 -f Y106 -i"
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
-        "--no-photometry-campari-source_phot_ops "
+        "--photometry-campari-psf-transient_class" " ou24PSF_slow "
         "--ra 7.5833264 --dec -44.809659 --image-collection ou2024"
         " --no-save-to-db --photometry-campari-grid_options-gaussian_var 1000"
     )
@@ -346,7 +346,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
-         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc"
+         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc",
          ]
 
     SNLogger.debug(f"Args for test: {' '.join(a)}")
@@ -405,7 +405,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
-        test_regression_function(campari_test_data, cfg, overwrite_meta=False)
+        test_regression(campari_test_data, cfg, overwrite_meta=False)
 
 
 def test_plot_lc():
@@ -553,6 +553,7 @@ def test_construct_static_scene(cfg):
     psf_background = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
                                             stampsize=size, band="Y106", image=snappl_image)
 
+
     test_psf_background = np.load(pathlib.Path(__file__).parent / "testdata/test_psf_bg.npy")
 
     np.testing.assert_allclose(psf_background, test_psf_background, atol=1e-7)
@@ -585,8 +586,7 @@ def test_construct_transient_scene():
                      wave_type="Angstrom",
                      flux_type="fphotons")
 
-    comparison_image = np.load(pathlib.Path(__file__).parent
-                               / "testdata/test_psf_source.npy")
+
     cfg = Config.get()
     orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
     # This will need to go away once the PSF object is split in phot ops and non phot ops
@@ -605,11 +605,13 @@ def test_construct_transient_scene():
         cfg.set_value("photometry.campari.fetch_SED", orig_transient_photops)
         cfg._static = True
 
-
-    np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
-                               atol=1e-6, verbose=True)
+    comparison_image = np.load(pathlib.Path(__file__).parent
+                               / "testdata/test_psf_source.npy")
 
     try:
+        np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
+                               atol=1e-6, verbose=True)
+
         np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
                                    verbose=True)
 
@@ -888,15 +890,15 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
 
 
 def test_build_model_one_image():
-
-    with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
-        ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
-
-    with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl", "rb") as f:
-        image_list = pickle.load(f)
     ra = 7.551093401915147
     dec = -44.80718106491529
     size = 19
+
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl", "rb") as f:
+        image_list = pickle.load(f)
+
+    with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
+        ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
 
     bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec, use_real_images=True,
                                                    grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
@@ -905,6 +907,7 @@ def test_build_model_one_image():
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
                                                    prebuilt_sn_matrix=None, subtract_background=True,
                                                    base_pointing=None, base_sca=None)
+
 
     np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
     np.testing.assert_equal(sn_array, reg_sn_array)  # We expect Nones here
