@@ -338,7 +338,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     assert not curfile.exists()
 
     a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-psfclass", "ou24PSF", "--photometry-campari-use_real_images",
+         "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background_method", "SKY_MEAN",
