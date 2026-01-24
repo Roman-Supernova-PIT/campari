@@ -779,7 +779,7 @@ def test_handle_partial_overlap():
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
-        " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
+        " --photometry-campari-use_real_images "
         " --photometry-campari-psf-galaxy_class ou24PSF "
         " --photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
