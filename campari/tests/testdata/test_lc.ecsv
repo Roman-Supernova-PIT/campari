@@ -30,9 +30,8 @@
 # - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background: true}
+# - {subtract_background_method: SKY_MEAN}
 # - {use_real_images: true}
-# - {psfclass: ou24PSF}
 # - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
@@ -48,8 +47,8 @@
 # - {dec: -44.80718106491529}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 40d15afa-e35f-3ec9-bce7-f09ac7ccf1c2}
-# - {diaobject_id: 8f56f3f3-f6e4-4ee1-abcc-fe77014749e7}
+# - {provenance_id: 312d8bc8-3754-bf34-f4a2-19085abfa7cb}
+# - {diaobject_id: 1ac7fbdf-e0b4-472a-9d1f-598a346c3c45}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

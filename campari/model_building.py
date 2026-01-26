@@ -240,7 +240,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, band=None, image=None, psfclass="ou24PSF"):
+                           pixel=False, band=None, image=None):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -561,9 +561,9 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 
 
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
-                              dec_grid=None, size=None, pixel=False, psfclass=None, band=None, sedlist=None,
+                              dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
                               source_phot_ops=None, image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background=None,
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
                               base_pointing=None, base_sca=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
@@ -589,14 +589,13 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             size,
             pixel=pixel,
             image=image,
-            psfclass=psfclass,
             band=band,
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:
         SNLogger.debug("Using prebuilt PSF matrix for background model")
         background_model_array = None
 
-    if not subtract_background and prebuilt_psf_matrix is None:
+    if subtract_background_method == "fit" and prebuilt_psf_matrix is None:
         # If we did not manually subtract the background, we need to fit in the forward model. Since the
         # background is a constant, we add a term to the model that is all ones. But we only want the background
         # to be present in the model for the image it is associated with. Therefore, we only add the background
