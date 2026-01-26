@@ -420,6 +420,7 @@ def test_both_noise_aligned_no_host():
 #   42.0005 128.      42.     -θ   0.  30.  60.  90. 120. 150. 180. 210. 240. 270. 300. 330. 360. -r 0 -s 0
 # --transient-ra 128 --transient-dec 42 --no-star-noise --no-transient-noise -n 1
 
+@pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_noiseless_shifted_no_host():
 
     cmd = base_cmd + [
@@ -1322,7 +1323,7 @@ def test_noiseless_shifted_22mag_host_varying():
     # The tolerance has to be higher here because the rotation and changing in PSF sizes.
     np.testing.assert_allclose(lc["flux_err"], 4.14, rtol=1.1e-2)
 
-
+@pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_skynoise_shifted_22mag_host_varying():
     cmd = base_cmd + [
         "--img_list",
@@ -1369,7 +1370,7 @@ def test_skynoise_shifted_22mag_host_varying():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_poisson_shifted_22mag_host_varying():
     cmd = base_cmd + [
         "--img_list",
@@ -1514,7 +1515,6 @@ def test_poisson_noise_shifted_no_host_varying():
         SNLogger.debug(e)
         raise e
 
-@pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_22mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1525,10 +1525,10 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
     cmd += ["--save_model"]
-    # cmd += [
-    #     "--prebuilt_static_model",
-    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
-    # ]
+    cmd += [
+         "--prebuilt_static_model",
+         "/campari_debug_dir/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
+     ]
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
@@ -1632,11 +1632,11 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    cmd += ["--save_model"]
-    # cmd += [
-    #     "--prebuilt_static_model",
-    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
-    # ]
+    #cmd += ["--save_model"]
+    cmd += [
+         "--prebuilt_static_model",
+         "/campari_debug_dir/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
+     ]
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
@@ -1754,9 +1754,9 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
     psfclass_index = cmd.index("--photometry-campari-psf-galaxy_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -1789,14 +1789,16 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(e)
         raise e
 
-@pytest.mark.skip(reason="This test is currently too slow to run every time.")
+# Right now this is failing due to a bias. I believe this is
+# due to some bias resulting from the low SNR + Poisson noise when doing PSF fitting. More work is needed, come
+# back to this! XXX XXX XXX TODO XXX
+@pytest.mark.xfail
 def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
         / "testdata/test_gaussims_bothnoise_shifted_22maghost_faintsource_regulargaussian_evenfainter.txt",
     ]
-    # File is mislabeled, there is a host present
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Even Finer grid spacing
@@ -1812,9 +1814,9 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
     psfclass_index = cmd.index("--photometry-campari-psf-galaxy_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -1840,7 +1842,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
 
     except AssertionError as e:
-        plotname = "poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
+        plotname = "bothnoise_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         SNLogger.debug("Generating diagnostic plots...")
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
@@ -1869,9 +1871,9 @@ def test_gaussian_bias_analysis():
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
     psfclass_index = cmd.index("--photometry-campari-psf-galaxy_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
 
     SNLogger.debug("Running command...")
     SNLogger.debug(" ".join(cmd))
@@ -1922,9 +1924,9 @@ def test_same_as_above_no_host():
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
     psfclass_index = cmd.index("--photometry-campari-psf-galaxy_class")
-    cmd[psfclass_index + 1] = "varying_gaussian"
+    cmd[psfclass_index + 1] = "gaussian"
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
