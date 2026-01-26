@@ -15,6 +15,10 @@ from snappl.logger import SNLogger
 
 SNLogger.set_level("INFO")
 
+# Note that to run these tests one needs to have an up to date checkout of
+# photometry_test_data
+# https://github.com/Roman-Supernova-PIT/photometry_test_data
+
 
 imsize = 19
 base_cmd = [
