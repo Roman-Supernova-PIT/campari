@@ -62,7 +62,7 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, subtract_background=None,
+                   use_real_images=None, subtract_background_method=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
@@ -99,7 +99,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if use_real_images:
         cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
-                                                                         subtract_background=subtract_background,
+                                                                         subtract_background_method=
+                                                                         subtract_background_method,
                                                                          nprocs=nprocs)
         noise_maps = [im.noise for im in cutout_image_list]
 
@@ -170,11 +171,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Build the backgrounds loop
     model_results = []
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
-                  "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel, "psfclass": psfclass,
+                  "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
                   "band": band,
-                  "sedlist": sedlist, "source_phot_ops": source_phot_ops, "num_total_images": num_total_images,
+                  "sedlist": sedlist,
+                  "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
-                  "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background": subtract_background,
+                  "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method,
                   "base_pointing": base_pointing, "base_sca": base_sca}
     if nprocs > 1:
         with Pool(nprocs) as pool:
@@ -221,13 +223,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
+    sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
+
     if save_model:
         psf_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
         np.save(psf_matrix_path, psf_matrix)
 
         sn_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
         np.save(sn_matrix_path, sn_matrix)
 
         SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
@@ -258,7 +263,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if not make_initial_guess:
         x0test = np.zeros(psf_matrix.shape[1])
 
-    if not subtract_background:
+    if subtract_background_method == "fit":
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
@@ -268,9 +273,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if method == "lsqr":
 
         wgt_matrix = np.sqrt(wgt_matrix)
-
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix, x0=x0test, atol=1e-12,
+                              images*wgt_matrix,  atol=1e-12, x0=x0test,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +

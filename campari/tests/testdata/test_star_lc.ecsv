@@ -20,15 +20,15 @@
 # - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
-# - {source_phot_ops: false}
+# - {source_phot_ops: true}
 # - {use_roman: true}
 # - {weighting: true}
 # - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background: true}
+# - {subtract_background_method: SKY_MEAN}
 # - {use_real_images: true}
-# - {psfclass: ou24PSF}
+# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1
@@ -43,12 +43,7 @@
 # - {dec: -44.809659}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 3c1ed416-6d3f-ae02-480d-652891ee92c4}
-<<<<<<< HEAD
-# - {diaobject_id: e99b071d-c6f7-40ab-91f2-812a7bcbf70c}
-=======
 # - {diaobject_id: 99bd8678-65e4-4b36-b1dd-f359f5d22b77}
->>>>>>> 683011c5cb03bd3087bc5181c75f50d015f9f394
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -91,4 +86,4 @@
 #       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
 mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
-62455.669 360764.53998349665 148.49828230360725 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.768596144333205 0.00044691188731795916 5.2373305260157546 5.485903580976412 108.0
+62455.669 358947.2808195439 140.32042735334673 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.77407908404276 0.00042443828491140997 5.237330526571221 5.485903585548659 108.0

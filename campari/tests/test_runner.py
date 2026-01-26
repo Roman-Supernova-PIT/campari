@@ -70,7 +70,7 @@ def create_default_test_args(cfg):
     test_args.noise = config.value("photometry.campari_simulations.noise")
     test_args.method = config.value("photometry.campari.method")
     test_args.make_initial_guess = config.value("photometry.campari.make_initial_guess")
-    test_args.subtract_background = config.value("photometry.campari.subtract_background")
+    test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
     test_args.bg_gal_flux_all = config.value("photometry.campari_simulations.bg_gal_flux")
