@@ -85,11 +85,10 @@ class campari_runner:
         self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
         self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
-        self.psfclass = self.cfg.value("photometry.campari.psfclass")
         self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
-        self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
+        self.subtract_background_method = self.cfg.value("photometry.campari.subtract_background_method")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
@@ -110,6 +109,8 @@ class campari_runner:
         self.base_sca = self.cfg.value("photometry.campari_simulations.base_sca")
         self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
         self.save_debug = self.cfg.value("photometry.campari_io.save_debug")
+        self.transient_psfclass = self.cfg.value("photometry.campari.psf.transient_class")
+        self.galaxy_psfclass = self.cfg.value("photometry.campari.psf.galaxy_class")
         try:
             self.testrun = self.cfg.value("photometry.campari.testrun")
         except Exception:
@@ -399,7 +400,7 @@ class campari_runner:
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
                            size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
-                           subtract_background=self.subtract_background,
+                           subtract_background_method=self.subtract_background_method,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, do_xshift=self.do_xshift,
