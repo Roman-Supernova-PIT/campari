@@ -43,13 +43,8 @@
 # - {dec: -44.809659}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-<<<<<<< HEAD
-# - {provenance_id: 4b5b029d-aaf9-486f-3edf-a7ea7f8a9e4a}
-# - {diaobject_id: eaeaaed5-8bb4-4d49-abf5-b3cbb3232472}
-=======
 # - {provenance_id: 45a0e92f-603e-320a-fdb3-d2b85e010409}
 # - {diaobject_id: 3e356277-1a73-4d23-b93b-42956c5aedde}
->>>>>>> 98b5a56e06daaf5746fa0ccfc2be8953e6b13953
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
