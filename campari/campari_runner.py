@@ -85,7 +85,6 @@ class campari_runner:
         self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
         self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
-        self.psfclass = self.cfg.value("photometry.campari.psfclass")
         self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
