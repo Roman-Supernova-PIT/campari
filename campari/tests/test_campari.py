@@ -405,7 +405,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
-        test_regression(campari_test_data, cfg, overwrite_meta=False)
+        test_regression(campari_test_data, cfg=cfg, overwrite_meta=False, nprocs=nprocs)
 
 
 def test_plot_lc():
