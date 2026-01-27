@@ -200,7 +200,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
                      label="Campari Fit - Truth", ms=1)
         plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
         plt.yscale("log")
-        plt.ylim(1e3, 1e5)
+        plt.legend()
+        plt.ylim(1e2)
 
         plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
         SNLogger.info("Generated light curve diagnostics and saved to /campari_debug_dir/" + plotname + "_lc.png")
