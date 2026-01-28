@@ -46,7 +46,7 @@ base_cmd = [
 def test_nohost_bothnoise_HsiaoTemplate():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_initial_SED_testseed45.txt",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_Hsiao_sed_redo_seed45.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
@@ -99,7 +99,7 @@ def test_nohost_bothnoise_HsiaoTemplate():
 def test_nohost_bothnoise_FlatSED():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_flatSEDseed45.txt",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_flat_sed_redo_seed45.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
@@ -108,20 +108,6 @@ def test_nohost_bothnoise_FlatSED():
     cmd += ["--diaobject-name", "124"]
 
     cmd.append("--photometry-campari-psf-transient_class")
-    cmd.append("ou24PSF_slow_photonshoot")
-    cmd.append("--photometry-campari-psf-galaxy_class")
-    cmd.append("ou24PSF_slow_photonshoot")
-    SNLogger.debug(cmd)
-
-    result = subprocess.run(cmd, capture_output=False, text=True)
-
-    if result.returncode != 0:
-        raise RuntimeError(
-            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-        )
-
-    # Check accuracy
-    lc = Table.read("/campari_out_dir/124_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
