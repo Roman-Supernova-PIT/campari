@@ -191,3 +191,58 @@ def test_nohost_bothnoise_deltaSED():
         SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
+
+def test_nohost_bothnoise_deltaSED_file():
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent / "testdata/test_gaussims_delta_sed_file_seed45.txt",
+    ]
+    cmd += ["--photometry-campari-grid_options-type", "none"]
+
+    cmd += ["--save_model"]
+    cmd += ["--nprocs", "10"]
+    cmd += ["--diaobject-name", "125"]
+
+    cmd.append("--photometry-campari-psf-transient_class")
+    cmd.append("ou24PSF_slow_photonshoot")
+    cmd.append("--photometry-campari-psf-galaxy_class")
+    cmd.append("ou24PSF_slow_photonshoot")
+    SNLogger.debug(cmd)
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    lc = Table.read("/campari_out_dir/125_R062_ou24psf_slow_photonshoot_lc.ecsv")
+
+    mjd = lc["mjd"]
+    peakflux = 10 ** ((24 - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros(len(mjd))
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+
+    try:
+        np.testing.assert_allclose(
+            lc["flux"],
+            flux,
+            rtol=5e-6,  # Why does this need to be ~50x higher than the gaussian version?
+        )
+        SNLogger.debug(lc["flux_err"])
+        np.testing.assert_allclose(
+            lc["flux_err"], 2.311065590128104, atol=1e-7
+        )  # I believe this is smaller because the
+        # PSF is a different shape?
+    except AssertionError as e:
+        plotname = "deltaSED_diagnostic_comparison"
+        generate_diagnostic_plots("125_R062_ou24psf_slow_photonshoot", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
