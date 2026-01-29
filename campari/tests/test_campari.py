@@ -338,7 +338,6 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     assert not curfile.exists()
 
     a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-use_real_images",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
          "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
          "--photometry-campari-subtract_background_method", "SKY_MEAN",
@@ -388,7 +387,6 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
         "--photometry-campari-psf-galaxy_class ou24PSF "
-        "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
@@ -779,7 +777,6 @@ def test_handle_partial_overlap():
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
-        " --photometry-campari-use_real_images "
         " --photometry-campari-psf-galaxy_class ou24PSF "
         " --photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
@@ -893,13 +890,12 @@ def test_build_model_one_image():
     with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
         ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
 
-    bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec, use_real_images=True,
+    bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec,
                                                    grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
                                                    pixel=False, band="Y106", sedlist=None,
                                                    source_phot_ops=True, image_index=0, num_total_images=2,
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
-                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate",
-                                                   base_pointing=None, base_sca=None)
+                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate")
 
 
     np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
