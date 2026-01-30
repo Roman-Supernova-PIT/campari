@@ -199,7 +199,7 @@ class campari_runner:
             "mjd_discovery_max": self.transient_end}
         filtered_args = {k: v for k, v in arguments.items() if v is not None}
         # Database can't handle nones.
-
+        SNLogger.debug("Filtered args for diaobject search: " + str(filtered_args))
         diaobjs = DiaObject.find_objects(**filtered_args)
 
         if len(diaobjs) == 0:
@@ -303,7 +303,11 @@ class campari_runner:
                                                             dbclient=self.dbclient,
                                                             provenance_tag=self.image_provenance_tag,
                                                             process=self.image_process)
+
+                # This is repeating logic from inside find_all_exposures, I think it should be moved there.
                 mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
+                # Override with discovery date if start date is not present.
+                mjd_start = diaobj.mjd_discovery if diaobj.mjd_discovery is not None else mjd_start
                 mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
                 no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]

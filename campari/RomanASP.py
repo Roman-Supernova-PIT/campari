@@ -95,7 +95,7 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("--diaobject-name", type=int, default=None,
+    parser.add_argument("--diaobject-name", default=None,
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
