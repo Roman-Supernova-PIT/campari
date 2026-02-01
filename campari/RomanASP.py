@@ -193,6 +193,12 @@ def main():
         "If only one entry per line, it will be interpreted as a file path to an image relative to the base path.",
     )
 
+    parser.add_argument(
+        "--SED_file",
+        default=None,
+        help="A 2 column csv file giving wavelength (Angstrom) and flux (flambda) to use as the SED. ",
+    )
+
     ####################
     # What does it mean to run on stars??????  Assume constant flux? No
     # host galaxy?  Ideally, the code to run on stars should be exactly

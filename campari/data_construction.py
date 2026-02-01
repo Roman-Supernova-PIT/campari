@@ -4,6 +4,7 @@ import warnings
 # Common Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
+import multiprocessing as mp
 from multiprocessing import Pool
 import numpy as np
 
@@ -59,6 +60,8 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
     if nprocs > 1:
+        mp.set_start_method("spawn")
+        SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
                 SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
