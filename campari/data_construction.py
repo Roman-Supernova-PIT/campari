@@ -145,7 +145,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     bg = 0
     if subtract_background_method == "calculate":
         bg = calculate_background_level(imagedata)
-        SNLogger.debug(f"Background Calculated: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
     else:
@@ -155,10 +154,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
-        SNLogger.debug(f"Background from header: {bg}")
 
     image_cutout._data -= bg
-    SNLogger.debug(f"Subtracted a background level of {bg}")
     return image_cutout, bg
 
 
@@ -265,6 +262,9 @@ def find_all_exposures(
     SNLogger.debug(f"image_selection_start: {image_selection_start}")
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
+    if transient_start is None and diaobj.mjd_discovery is not None:
+        # From Sidecar, the start date is called mjd_discovery
+        transient_start = diaobj.mjd_discovery
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec

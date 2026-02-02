@@ -41,6 +41,7 @@ photometry:
 
   campari_io:
     save_debug: true
+    test_num: 1
 
 
   campari_simulations:
