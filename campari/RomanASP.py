@@ -242,7 +242,7 @@ def main():
 
     parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=True,
                         help="If True, will create and write provenances to the database."
-                             " Default False.")
+                             " Default True.")
 
     parser.add_argument("--diaobject-position-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the program that determines the "
@@ -268,6 +268,8 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
+    import pprint
+    pprint.pprint( Config.get()._data )
     runner = campari_runner(**vars(args))
     runner()
 

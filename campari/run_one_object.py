@@ -6,6 +6,7 @@ import warnings
 
 import numpy as np
 from numpy.linalg import LinAlgError
+import multiprocessing as mp
 from multiprocessing import Pool
 import scipy.sparse as sp
 
@@ -179,6 +180,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method,
                   "base_pointing": base_pointing, "base_sca": base_sca}
     if nprocs > 1:
+        #mp.set_start_method("spawn")
+        SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
                 model_results.append(pool.apply_async(build_model_for_one_image,

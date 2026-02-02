@@ -460,6 +460,7 @@ class campari_runner:
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
             testrun = getattr(self, "testrun", None)
+            SNLogger.debug("USING TESTRUN=" + str(testrun))
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
                             testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
