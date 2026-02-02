@@ -8,6 +8,7 @@ import numpy as np
 from numpy.linalg import LinAlgError
 from multiprocessing import Pool
 import scipy.sparse as sp
+import tracemalloc
 
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
@@ -59,6 +60,18 @@ Adapted from code by Pedro Bernardinelli
 """
 # Global variables
 huge_value = 1e32
+SNLogger.set_level("DEBUG")
+
+def print_top_ten(flag):
+    SNLogger.info(flag)
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+
+    SNLogger.info("[ Top 10 ]")
+    printout = ""
+    for stat in top_stats[:10]:
+        printout += str(stat) + "\n"
+    SNLogger.info(printout)
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
@@ -97,6 +110,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
+    tracemalloc.start()
     if use_real_images:
         cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                                          subtract_background_method=
@@ -130,6 +144,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         sim_galra = simulated_lightcurve.galra
         sim_galdec = simulated_lightcurve.galdec
         object_type = "SN"
+
+    print_top_ten("After constructing images:")
 
     # Build the background grid
     if not grid_type == "none":
@@ -198,6 +214,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         psf_matrix.append(bg_model)
         if transient_model is not None:
             sn_matrix.append(transient_model)
+
+    print_top_ten("After building model:")
 
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:
