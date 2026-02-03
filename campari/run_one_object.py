@@ -169,6 +169,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
+    cfg = Config.get()
+    psfclass = cfg.get().value("photometry.campari.psf.transient_class")
+
     model_results = []
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
                   "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,

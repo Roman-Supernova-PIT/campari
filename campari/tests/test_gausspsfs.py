@@ -2,9 +2,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pathlib
 import pytest
-from scipy.stats import norm, skewtest
 import subprocess
 
+from scipy.stats import norm, skewtest, skew
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
@@ -137,7 +137,14 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-4, 4, 100)
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
-        mu, sig = norm.fit(pixel_pull)
+        pixel_pull = pixel_pull[np.isfinite(pixel_pull)]
+        pixel_pull = pixel_pull[~np.isnan(pixel_pull)]
+        try:
+            mu, sig = norm.fit(pixel_pull)
+        except Exception as e:
+            # If we happen to not get a fit, just log it and move on. Don't want to fail the test over a plot.
+            SNLogger.debug(f"Failed to fit normal distribution: {e}")
+
         plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
 
         plt.legend()
@@ -159,6 +166,13 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         residuals = lc["flux"] - trueflux
 
+        minimum_rolling_average_points = 6
+
+        if len(residuals) > minimum_rolling_average_points:
+            window_size = 3
+            rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
+            plt.plot(lc["mjd"][window_size - 1:], rolling_avg, label="Rolling Average", color="orange")
+
         from scipy.stats import binned_statistic
         bin_means, bin_edges, binnumber = binned_statistic(lc["mjd"], residuals, statistic="mean", bins=10)
         bin_std, _, _ = binned_statistic(lc["mjd"], residuals, statistic="std", bins=10)
@@ -167,15 +181,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         plt.ylim(-750, 750)
 
-        # if ap_sums is not None and ap_err is not None:
-        #     SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
-        #     plt.errorbar(lc["mjd"], np.array(ap_sums) - trueflux, yerr=ap_err, marker="o", linestyle="None",
-        #                  label="Aperture Phot - Truth", color="red")
-        #     plt.errorbar(lc["mjd"], lc["flux"] - np.array(ap_sums),
-        #                  yerr=np.sqrt(lc["flux_err"]**2 + np.array(ap_err)**2), marker="o", linestyle="None",
-        #                  label="Campari - Aperture Phot", color="green")
-
-        SNLogger.debug(f"campari std: {np.std(lc['flux'] - trueflux)}")
+#        SNLogger.debug(f"campari std: {np.std(lc['flux_fit'] - trueflux)}")
 
         plt.axhline(0, color="black", linestyle="--")
         plt.legend()
@@ -192,7 +198,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
 
         mu, sig = norm.fit(pull)
-        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+        skew_value = skew(pull)
+        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}, \n skew={skew_value:.2f}", color="red")
         plt.legend()
 
         plt.subplot(2, 2, 3)
@@ -718,7 +725,9 @@ def test_both_shifted_just_host():
 
 # 22 mag delta function galaxy tests ############################################################################
 
-
+# Note: These tests are maintained rather than full removal because they are useful for debugging when
+# the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_noiseless_aligned_22mag_host():
 
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_host_mag22.txt"]
@@ -899,7 +908,9 @@ def test_transientnoiseonly_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
-
+# Note: These tests are maintained rather than full removal because they are useful for debugging when
+# the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_both_aligned_22mag_host():
     cmd = base_cmd + [
         "--img_list",
@@ -1528,7 +1539,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    cmd += ["--save_model"]
+    #cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          "/campari_debug_dir/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
