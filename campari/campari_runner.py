@@ -85,8 +85,6 @@ class campari_runner:
         self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
         self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
-        self.transient_psfclass = self.cfg.value("photometry.campari.psf.transient_class")
-        self.galaxy_psfclass = self.cfg.value("photometry.campari.psf.galaxy_class")
         self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
@@ -461,9 +459,11 @@ class campari_runner:
 
         if self.save_debug:
             fileroot = f"{identifier}_{self.band}_{psftype}"
+
             images_and_model = np.array(
                 [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
             )
+
             debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
@@ -525,6 +525,7 @@ class campari_runner:
             # each line of file is path to image
             self.pointing_list = None
             for line in img_list_lines:
+                SNLogger.debug(f"Looking for path {line}.")
                 images.append(my_image_collection.get_image(path=line))
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"

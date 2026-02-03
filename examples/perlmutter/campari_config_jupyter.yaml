@@ -70,6 +70,12 @@ system:
     sed_path: /campari_sed_dir
     debug_dir: /campari_debug_dir
 
+  db:
+    url: https://c3-sn.lbl.gov/roman_snpit_nov2025
+    username: ou2024nov
+    password: null
+    passwordfile: /global/homes/c/cmeldorf/secrets/roman_snpit_ou2024_nov_ou2024nov
+
   ou24:
     simdex_server: https://roman-desc-simdex.rknop.net
     config_file: /campari/examples/perlmutter/tds.yaml
@@ -78,7 +84,7 @@ system:
     images: /sims_dir/RomanTDS/images/simple_model
     tds_base: /photometry_test_data/ou2024
 
-  db:
-    url: https://c3-sn.lbl.gov/roman_snpit_ou2024
-    username: campari
-    passwordfile: /global/homes/c/cmeldorf/secrets/roman_snpit_ou2024_campari
+  # db:
+  #   url: https://c3-sn.lbl.gov/roman_snpit_ou2024
+  #   username: campari
+  #   passwordfile: /global/homes/c/cmeldorf/secrets/roman_snpit_ou2024_campari
