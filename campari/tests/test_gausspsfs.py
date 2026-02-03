@@ -131,11 +131,15 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-4, 4, 100)
         plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
+        pixel_pull = pixel_pull[np.isfinite(pixel_pull)]
+        pixel_pull = pixel_pull[~np.isnan(pixel_pull)]
         try:
             mu, sig = norm.fit(pixel_pull)
-            plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
         except Exception as e:
+            # If we happen to not get a fit, just log it and move on. Don't want to fail the test over a plot.
             SNLogger.debug(f"Failed to fit normal distribution: {e}")
+
+        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
 
         plt.legend()
 
@@ -156,7 +160,9 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         residuals = lc["flux"] - trueflux
 
-        if len(residuals) > 6:
+        minimum_rolling_average_points = 6
+
+        if len(residuals) > minimum_rolling_average_points:
             window_size = 3
             rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
             plt.plot(lc["mjd"][window_size - 1:], rolling_avg, label="Rolling Average", color="orange")
@@ -701,6 +707,8 @@ def test_both_shifted_just_host():
 
 # 22 mag delta function galaxy tests ############################################################################
 
+# Note: These tests are maintained rather than full removal because they are useful for debugging when
+# the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
 @pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_noiseless_aligned_22mag_host():
 
@@ -883,6 +891,8 @@ def test_transientnoiseonly_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
+# Note: These tests are maintained rather than full removal because they are useful for debugging when
+# the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
 @pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_both_aligned_22mag_host():
     cmd = base_cmd + [
