@@ -6,21 +6,24 @@ import warnings
 
 import numpy as np
 from numpy.linalg import LinAlgError
+from multiprocessing import Pool
 import scipy.sparse as sp
 
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-import galsim
-from roman_imsim.utils import roman_utils
 
 # SN-PIT
 from campari.data_construction import construct_images, prep_data_for_fit
-from campari.model_building import construct_static_scene, construct_transient_scene, generate_guess, make_grid
+from campari.model_building import (
+    generate_guess,
+    make_grid,
+    build_model_for_one_image,
+)
 from campari.simulation import simulate_images
 from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -59,13 +62,16 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, subtract_background=None, psfclass=None,
+                   use_real_images=None, subtract_background_method=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
-                   grid_type=None, pixel=None, source_phot_ops=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
+                   grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
                    sim_galaxy_offset=None, base_pointing=662, base_sca=11,
-                   draw_method_for_non_roman_psf="no_pixel"):
+                   save_model=False, prebuilt_psf_matrix=None,
+                   prebuilt_sn_matrix=None, gaussian_var=None,
+                   cutoff=None, error_floor=None, subsize=None,
+                   nprocs=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -73,21 +79,35 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     util_ref = None
 
     percentiles = []
-    roman_bandpasses = galsim.roman.getBandpasses()
 
     num_total_images = len(image_list)
-    transient_image_list = [a for a in image_list if a.mjd > diaobj.mjd_start and a.mjd < diaobj.mjd_end]
+    transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
     num_detect_images = len(transient_image_list)
 
+    no_transient_images = [a for a in image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
+
+    transient_mjds = [a.mjd for a in transient_image_list]
+    no_transient_mjds = [a.mjd for a in no_transient_images]
+    transient_argsort = np.argsort(transient_mjds)
+    no_transient_argsort = np.argsort(no_transient_mjds)
+
+    transient_image_list = [transient_image_list[i] for i in transient_argsort]
+    no_transient_images = [no_transient_images[i] for i in no_transient_argsort]
+
+    image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
+    # but still sorted by MJD.
+
     if use_real_images:
-        cutout_image_list, image_list = construct_images(image_list, diaobj, size,
-                                                         subtract_background=subtract_background)
+        cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
+                                                                         subtract_background_method=
+                                                                         subtract_background_method,
+                                                                         nprocs=nprocs)
+        noise_maps = [im.noise for im in cutout_image_list]
 
         # We didn't simulate anything, so set these simulation only vars to none.
         sim_galra = None
         sim_galdec = None
         galaxy_images = None
-        noise_maps = None
 
     else:
         # Simulate the images of the SN and galaxy.
@@ -96,13 +116,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             simulate_images(image_list=image_list, diaobj=diaobj,
                             sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
                             do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            size=size, psfclass=psfclass,
+                            size=size,
                             deltafcn_profile=deltafcn_profile,
                             input_psf=airy, bg_gal_flux=bg_gal_flux,
-                            source_phot_ops=source_phot_ops,
                             mismatch_seds=mismatch_seds, base_pointing=base_pointing,
                             base_sca=base_sca)
         sim_lc = simulated_lightcurve.sim_lc
+        sky_background = np.zeros(len(sim_lc))
         image_list = simulated_lightcurve.image_list
         cutout_image_list = simulated_lightcurve.cutout_image_list
         galaxy_images = simulated_lightcurve.galaxy_images
@@ -117,7 +137,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
                                       percentiles=percentiles, single_ra=sim_galra,
-                                      single_dec=sim_galdec, spacing=spacing)
+                                      single_dec=sim_galdec, spacing=spacing,
+                                      subsize=subsize)
     else:
         ra_grid = np.array([])
         dec_grid = np.array([])
@@ -144,100 +165,51 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if len(no_transient_cutouts) > 0:
         LSB = calculate_local_surface_brightness(no_transient_cutouts, cutout_pix=2)
     else:
-        LSB = None
+        # This is used for stars only, essentially. LSB just can't be None.
+        LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
-    for i, image in enumerate(image_list):
-        # Passing in None for the PSF means we use the Roman PSF.
-        pointing, sca = image.pointing, image.sca
+    model_results = []
+    kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
+                  "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
+                  "band": band,
+                  "sedlist": sedlist,
+                  "num_total_images": num_total_images,
+                  "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
+                  "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method,
+                  "base_pointing": base_pointing, "base_sca": base_sca}
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
+            for i, image in enumerate(image_list):
+                model_results.append(pool.apply_async(build_model_for_one_image,
+                                                      kwds={"image": image, "image_index": i, **kwarg_dict}))
+            pool.close()
+            pool.join()
 
-        whole_sca_wcs = image.get_wcs()
-        object_x, object_y = whole_sca_wcs.world_to_pixel(diaobj.ra, diaobj.dec)
+    else:
+        for i, image in enumerate(image_list):
+            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
 
-        # Build the model for the background using the correct psf and the
-        # grid we made in the previous section.
-
-        # TODO: Put this in snappl
-        if use_real_images:
-            util_ref = roman_utils(config_file=pathlib.Path(Config.get().value
-                                   ("photometry.campari.galsim.tds_file")),
-                                   visit=pointing, sca=sca)
-
-        # If no grid, we still need something that can be concatenated in the
-        # linear algebra steps, so we initialize an empty array by default.
-        background_model_array = np.empty((size**2, 0))
-        SNLogger.debug("Constructing background model array for image " + str(i) + " ---------------")
-        if grid_type != "none":
-            background_model_array = \
-                construct_static_scene(ra_grid, dec_grid,
-                                       whole_sca_wcs,
-                                       object_x, object_y, size,
-                                       pixel=pixel, image=image, psfclass=psfclass,
-                                       util_ref=util_ref, band=band)
-
-        if not subtract_background:
-            # If we did not manually subtract the background, we need to fit in the forward model. Since the
-            # background is a constant, we add a term to the model that is all ones. But we only want the background
-            # to be present in the model for the image it is associated with. Therefore, we only add the background
-            # model term when we are on the image that is being modeled, otherwise we add a term that is all zeros.
-            # This is the same as to why we have to make the rest of the SN model zeroes in the other images.
-            for j in range(num_total_images):
-                if i == j:
-                    bg = np.ones(size**2).reshape(-1, 1)
-                else:
-                    bg = np.zeros(size**2).reshape(-1, 1)
-                background_model_array =\
-                    np.concatenate([background_model_array, bg], axis=1)
-
-        # Add the array of the model points and the background (if using)
-        # to the matrix of all components of the model.
-        psf_matrix.append(background_model_array)
-
-        # The arrays below are the length of the number of images that contain the object
-        # Therefore, when we iterate onto the
-        # first object image, we want to be on the first element
-        # of sedlist. Therefore, we subtract by the number of
-        # predetection images: num_total_images - num_detect_images.
-        # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
-        sn_index = i - (num_total_images - num_detect_images)
-        if sn_index >= 0:
-            if use_real_images:
-                pointing = pointing
-                sca = sca
-            else:
-                pointing = base_pointing
-                sca = base_sca
-            # sedlist is the length of the number of supernova
-            # detection images. Therefore, when we iterate onto the
-            # first supernova image, we want to be on the first element
-            # of sedlist. Therefore, we subtract by the number of
-            # predetection images: num_total_images - num_detect_images.
-            sn_index = i - (num_total_images - num_detect_images)
-            SNLogger.debug(f"Using SED #{sn_index}")
-            sed = sedlist[sn_index]
-            # object_x and object_y are the exact coords of the SN in the SCA frame.
-            # x and y are the pixels the image has been cut out on, and
-            # hence must be ints. Before, I had object_x and object_y as SN coords in the cutout frame, hence this
-            # switch.
-            # In snappl, centers of pixels occur at integers, so the center of the lower left pixel is (0,0).
-            # Therefore, if you are at (0.2, 0.2), you are in the lower left pixel, but at (0.6, 0.6), you have
-            # crossed into the next pixel, which is (1,1). So we need to round everything between -0.5 and 0.5 to 0,
-            # and everything between 0.5 and 1.5 to 1, etc. This code below does that, and follows how snappl does
-            # it. For more detail, see the docstring of get_stamp in the PSF class definition of snappl.
-            x = int(np.floor(object_x + 0.5))
-            y = int(np.floor(object_y + 0.5))
-            SNLogger.debug(f"x, y, object_x, object_y, {x, y, object_x, object_y}")
-            psf_source_array =\
-                construct_transient_scene(x0=x, y0=y, pointing=pointing, sca=sca,
-                                          stampsize=size, x=object_x,
-                                          y=object_y, sed=sed, psfclass=psfclass,
-                                          photOps=source_phot_ops, image=image)
-
-            sn_matrix.append(psf_source_array)
+    for result in model_results:
+        if nprocs > 1:
+            bg_model, transient_model = result.get()
+        else:
+            bg_model, transient_model = result
+        psf_matrix.append(bg_model)
+        if transient_model is not None:
+            sn_matrix.append(transient_model)
 
     banner("Lin Alg Section")
-    psf_matrix = np.vstack(np.array(psf_matrix))
-    SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    if prebuilt_psf_matrix is None:
+        psf_matrix = np.vstack(np.array(psf_matrix))
+        SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    else:
+        psf_matrix = prebuilt_psf_matrix
+        SNLogger.debug(f"Using prebuilt PSF matrix of shape {psf_matrix.shape}")
+
+    if prebuilt_sn_matrix is not None:
+        sn_matrix = prebuilt_sn_matrix
+        SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
 
     # Add in the supernova images to the matrix in the appropriate location
     # so that it matches up with the image it represents.
@@ -246,13 +218,30 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Get the weights
 
     if weighting:
-        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec)
+        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, gaussian_var=gaussian_var,
+                                 cutoff=cutoff, error_floor=error_floor)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
+    sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
+
+    if save_model:
+        psf_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
+            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+        np.save(psf_matrix_path, psf_matrix)
+
+        sn_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
+            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+        np.save(sn_matrix_path, sn_matrix)
+
+        SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
+        SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")
+
     images, err, sn_matrix, wgt_matrix =\
-        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix)
+        prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
     # Combine the background model and the supernova model into one matrix.
+
     psf_matrix = np.hstack([psf_matrix, sn_matrix])
 
     # Calculate amount of the PSF cut out by setting a distance cap
@@ -266,11 +255,15 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     banner("Solving Photometry")
 
+    mjd = np.array([im.mjd for im in cutout_image_list])
+    num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
+    num_post_transient_images = np.sum(mjd > diaobj.mjd_end)
+
     # These if statements can definitely be written more elegantly.
     if not make_initial_guess:
         x0test = np.zeros(psf_matrix.shape[1])
 
-    if not subtract_background:
+    if subtract_background_method == "fit":
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
@@ -278,16 +271,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"image shape: {images.shape}")
 
     if method == "lsqr":
+
+        wgt_matrix = np.sqrt(wgt_matrix)
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix, x0=x0test, atol=1e-12,
+                              images*wgt_matrix,  atol=1e-12, x0=x0test,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
-
-    inv_cov = psf_matrix.T @ np.diag(wgt_matrix) @ psf_matrix
+    inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
 
     try:
         cov = np.linalg.inv(inv_cov)
@@ -320,8 +314,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
-            diaobj=diaobj, object_type=object_type
+            diaobj=diaobj, object_type=object_type, sky_background=sky_background,
+            pre_transient_images=num_pre_transient_images,
+            post_transient_images=num_post_transient_images
         )
 
     return lightcurve_model
-

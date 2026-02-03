@@ -5,12 +5,15 @@ import warnings
 import numpy as np
 
 # Astronomy Library
+from astropy.stats import sigma_clipped_stats, SigmaClip
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
+from photutils.segmentation import detect_threshold, detect_sources
+from photutils.utils import circular_footprint
 
 # SN-PIT
-from snpit_utils.logger import SNLogger
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -44,7 +47,11 @@ class campari_lightcurve_model:
         galra=None,
         galdec=None,
         object_type="SN",
-        LSB=None
+        LSB=None,
+        pre_transient_images=None,
+        post_transient_images=None,
+        sky_background=None,
+        image_collection_prov=None,
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -91,6 +98,8 @@ class campari_lightcurve_model:
             The type of transient object, default is "SN".
         LSB : float
             The local surface brightness around the transient location in mag/arcsec^2.
+        sky_background: list
+            The sky background fluxes subtracted out of each image cutout.
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -112,6 +121,10 @@ class campari_lightcurve_model:
         self.galdec = galdec
         self.object_type = object_type
         self.LSB = LSB
+        self.pre_transient_images = pre_transient_images
+        self.post_transient_images = post_transient_images
+        self.sky_background = sky_background
+        self.image_collection_prov = image_collection_prov
 
 
 def gaussian(x, A, mu, sigma):
@@ -121,9 +134,7 @@ def gaussian(x, A, mu, sigma):
 
 def calculate_background_level(im):
     """A function for naively estimating the background level from a given
-    image. This may be replaced by a more sophisticated function later.
-    For now, we take the corners of the image, sigma clip, and then return
-    the median as the background level.
+    image. 
 
     Inputs:
     im, numpy array of floats, the image to be used.
@@ -132,26 +143,26 @@ def calculate_background_level(im):
     bg, float, the estimated background level.
 
     """
-    size = im.shape[0]
-    bgarr = np.concatenate(
-        (
-            im[0 : size // 4, 0 : size // 4].flatten(),
-            im[0:size, 3 * (size // 4) : size].flatten(),
-            im[3 * (size // 4) : size, 0 : size // 4].flatten(),
-            im[3 * (size // 4) : size, 3 * (size // 4) : size].flatten(),
-        )
-    )
-    if len(bgarr) == 0:
-        bg = 0
+
+    sigma_clip = SigmaClip(sigma=3.0, maxiters=40)
+    threshold = detect_threshold(im, nsigma=2.0, sigma_clip=sigma_clip)
+    SNLogger.debug(threshold)
+    segment_img = detect_sources(im, threshold, npixels=10)
+    SNLogger.debug(f"segment_img: {segment_img}")
+    if segment_img is not None:
+        footprint = circular_footprint(radius=10)
+        mask = segment_img.make_source_mask(footprint=footprint)
     else:
-        pc = np.percentile(bgarr, 84)
-        bgarr = bgarr[bgarr < pc]
-        bg = np.median(bgarr)
+        mask = None
+        SNLogger.warning("Photutils did not find any sources in the image. Are you sure this is the right image?")
+    mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
+    SNLogger.debug(f"Background level: {mean}")
+    SNLogger.debug(f"Background std: {std}")
+    return mean
 
-    return bg
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -179,41 +190,51 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4):
     error = [im.noise for im in images]
 
     wgt_matrix = []
-    SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var}")
+
     for i, wcs in enumerate(wcs_list):
-        xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
-        xx = xx.flatten()
-        yy = yy.flatten()
-        object_x, object_y = wcs.world_to_pixel(ra, dec)
-        dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
+        if gaussian_var is not None:
+            SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var} with cutoff {cutoff}")
+            xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
+            xx = xx.flatten()
+            yy = yy.flatten()
 
-        wgt = np.ones(size**2)
-        wgt = 5 * np.exp(-(dist**2) / gaussian_var)
-        # NOTE: This 5 is here because when I made this function I was
-        # checking my work by plotting and the *5 made it easier to see. I
-        # thought the overall normalization
-        # of the weights did not matter. I was half right, they don't matter
-        # for the flux but they do matter for the size of the errors. Therefore
-        # there is some way that these weights are normalized, but I don't
-        # know exactly how that should be yet. Online sources speaking about
-        # weighted linear regression never seem to address normalization. TODO
+            object_x, object_y = wcs.world_to_pixel(ra, dec)
 
-        # Here, we throw out pixels that are more than 4 pixels away from the
-        # SN. The reason we do this is because by choosing an image size one
-        # has set a square top hat function centered on the SN. When that image
-        # is rotated pixels in the corners leave the image, and new pixels
-        # enter. By making a circular cutout, we minimize this problem. Of
-        # course this is not a perfect solution, because the pixellation of the
-        # circle means that still some pixels will enter and leave, but it
-        # seems to minimize the problem.
-        wgt[np.where(dist > cutoff)] = 0
-        if error is None:
-            error = np.ones_like(wgt)
-        SNLogger.debug(f"wgt before: {np.mean(wgt)}")
+            dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
+            SNLogger.debug(f"x: {object_x}, y: {object_y}")
+
+            wgt = np.ones(size**2)
+            wgt = 5 * np.exp(-(dist**2) / gaussian_var)
+            SNLogger.debug(f"wgt max and min before cutoff: {np.max(wgt)}, {np.min(wgt)}")
+            # NOTE: This 5 is here because when I made this function I was
+            # checking my work by plotting and the *5 made it easier to see. I
+            # thought the overall normalization
+            # of the weights did not matter. I was half right, they don't matter
+            # for the flux but they do matter for the size of the errors. Therefore
+            # there is some way that these weights are normalized, but I don't
+            # know exactly how that should be yet. Online sources speaking about
+            # weighted linear regression never seem to address normalization. TODO
+
+            # Here, we throw out pixels that are more than 4 pixels away from the
+            # SN. The reason we do this is because by choosing an image size one
+            # has set a square top hat function centered on the SN. When that image
+            # is rotated pixels in the corners leave the image, and new pixels
+            # enter. By making a circular cutout, we minimize this problem. Of
+            # course this is not a perfect solution, because the pixellation of the
+            # circle means that still some pixels will enter and leave, but it
+            # seems to minimize the problem.
+            wgt[np.where(dist > cutoff)] = 0
+            if error[i] is None:
+                error[i] = np.ones_like(wgt)
+                SNLogger.debug(f"wgt before: {np.mean(wgt)}")
+        else:
+
+            wgt = np.ones(size**2)
+
+        error[i][np.where(error[i] <= error_floor)] = error_floor
         inv_var = 1 / (error[i].flatten()) ** 2
+        inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
-
-        SNLogger.debug(f"wgt after: {np.mean(wgt)}")
         wgt_matrix.append(wgt)
     return wgt_matrix
 

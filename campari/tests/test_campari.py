@@ -1,5 +1,6 @@
 # Standard Libary
 import os
+import uuid
 import pathlib
 import sys
 import tempfile
@@ -8,23 +9,23 @@ import warnings
 # Common Library
 import matplotlib
 from matplotlib import pyplot as plt
+from multiprocessing import Pool
 import numpy as np
 import pandas as pd
+import pickle
 import pytest
 
 # Astronomy Library
-from astropy.table import QTable, Table
-import astropy.units as u
+from astropy.io import fits
+from astropy.table import Table, QTable
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
-from roman_imsim.utils import roman_utils
 
 
 # SNPIT
 from campari import RomanASP
-from campari.access_truth import extract_object_from_healpix
-from campari.data_construction import find_all_exposures
+from campari.data_construction import find_all_exposures, construct_one_image
 from campari.io import (
     build_lightcurve,
     read_healpix_file,
@@ -36,6 +37,7 @@ from campari.model_building import (
     make_adaptive_grid,
     make_contour_grid,
     make_regular_grid,
+    build_model_for_one_image,
 )
 from campari.plotting import plot_lc
 from campari.utils import (calc_mag_and_err,
@@ -45,11 +47,14 @@ from campari.utils import (calc_mag_and_err,
                            make_sim_param_grid,
                            campari_lightcurve_model)
 import snappl
+from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.image import FITSImageStdHeaders
 from snappl.imagecollection import ImageCollection
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.lightcurve import Lightcurve
+from snappl.logger import SNLogger
+from snappl.provenance import Provenance
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -57,17 +62,151 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
-    return cfg.value("photometry.campari.paths.campari_test_data")
+    return cfg.value("system.paths.campari_test_data")
+
+
+def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
+    # lc1 is new, lc2 is old
+
+    lc1 = QTable.read(lc1_path, format="ascii.ecsv")
+    lc2 = QTable.read(lc2_path, format="ascii.ecsv")
+    col1s = lc1.columns
+    col2s = lc2.columns
+    col1s = set(col1s)
+    col2s = set(col2s)
+
+    bothcols = col1s & col2s
+
+    metacols1 = lc1.meta.keys()
+    metacols2 = lc2.meta.keys()
+    metacols1 = set(metacols1)
+    metacols2 = set(metacols2)
+
+    bothmetacols = metacols1 & metacols2
+    SNLogger.debug("OLD METADATA:")
+    SNLogger.debug(lc2.meta)
+    SNLogger.debug("NEW METADATA:")
+    SNLogger.debug(lc1.meta)
+
+    SNLogger.debug("OLD LIGHTCURVE DATA:")
+    SNLogger.debug(lc2)
+    SNLogger.debug("NEW LIGHTCURVE DATA:")
+    SNLogger.debug(lc1)
+
+    for col in bothcols:
+        SNLogger.debug(f"Checking col {col}")
+        # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
+        # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
+        # roughly log10(2^24)=7 significant figures.  As such,
+        # errors of 1e-7 can very easily come from things like order
+        # of operations (even in system libraries).  64-bit floats
+        # (i.e. doubles) have a 53-bit mantissa, and log10(2^53)=16,
+        # so you have 15 or 16 sig figs which "ought to be enough
+        # for anybody".  HOWEVER, you *can* get errors much larger
+        # than this, depending on your order of operations.  For
+        # example, try the following code:
+        #
+        #   import numpy
+        #   a = numpy.float32( 1e8 )
+        #   print( f"a={a}" )
+        #   b = numpy.float32( 1 )
+        #   print( f"b={b}" )
+        #   print( a - ( a - b ) )
+        #   print( a - a + b )
+        #
+        # If you know algebra, you know that the last two numbers
+        # printed out should be exactly the same.  However, you get
+        # either a 100% differerence, or an *infinite* difference,
+        # depending on how you define relative difference in this
+        # case.
+        #
+        # The numpy libraries try to be a bit clever when doing
+        # things like .sum() to avoid the worst of floating-point
+        # underflow, but it's a thing worth being aware of.
+        # Relative errors of 1e-7 (for floats) or 1e-16 (for
+        # doubles) can easily arise from floating-point underflow;
+        # whether or not you're worried about those errors depends
+        # on how confident you are that the order of operations is
+        # identical in two different test cases.  Bigger errors
+        # *can* arise from floating point underflow, but never just
+        # wave your hands and say, "eh, the tests are passing, it's
+        # just underflow!"  Understand how underflow did it.  If it
+        # did, and you're not worried, document that.  But,
+        # probably, you should be worried, and you should
+        # restructure the order of operations in your code to avoid
+        # underflow errors bigger than the number of sig figs in a
+        # floating point number.)
+        msg = f"The lightcurves do not match for column {col}"
+        if isinstance(lc1[col][0], str) or isinstance(lc1[col][0], np.str_):
+            np.testing.assert_array_equal(lc1[col], lc2[col]), msg
+        else:
+            # Switching from one type of WCS to another gave rise in a
+            # difference of about 1e-9 pixels for the grid, which led to a
+            # change in flux of 2e-7. I don't want switching WCS types to make
+            # this fail, so I put the rtol at just above that level.
+            # December 2025: In addition, when running with nprocs > 1
+            # the WCS objects are pickled and unpickled which can
+            # slightly change the numerical results. I found that it altered recovered flux
+            # by about 1.4 MICRO mags. So I am increasing the rtol to 7e-6 to allow for this.
+            np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6), msg
+
+    unique_to_col1s = col1s.difference(col2s)
+    unique_to_col2s = col2s.difference(col1s)
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, (
+        "The columns in the lightcurves do not match."
+        + f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
+    )
+
+    if overwrite_meta:
+        SNLogger.debug("At this point, all the data columns match."
+                       " I am now overwriting the metadata of lc2 with that of lc1.")
+        # print the difference between the two meta dictionaries
+        for key in lc1.meta:
+            if key not in lc2.meta:
+                SNLogger.debug(f"Metadata key {key} is missing in lc2")
+            elif lc1.meta[key] != lc2.meta[key]:
+                SNLogger.debug(f"Metadata difference: {key} - {lc1.meta[key]} vs {lc2.meta[key]}")
+
+        lc2.meta = lc1.meta
+        lc2.write(lc2_path, format="ascii.ecsv", overwrite=True)
+        return None
+
+    for col in bothmetacols:
+        msg = f"The lightcurves do not match for meta column {col}"
+        if "provenance" in col or "diaobject_id" in col:
+            continue
+            # We want to check provenances at the end. Otherwise, the code will fail when it detects that the
+            # provenance is different before it can tell us which column is different.
+        SNLogger.debug(f"Checking meta col {col}")
+        if isinstance(lc1.meta[col], str) or isinstance(lc2.meta[col], str):
+            np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
+        elif isinstance(lc1.meta[col], type(None)) or isinstance(lc2.meta[col], type(None)):
+            np.testing.assert_equal(lc1.meta[col], lc2.meta[col]), msg
+        elif isinstance(lc1.meta[col], dict) or isinstance(lc2.meta[col], dict):
+            np.testing.assert_equal(lc1.meta[col], lc2.meta[col]), msg
+        else:
+            np.testing.assert_allclose(lc1.meta[col], lc2.meta[col], rtol=3e-7), msg
+
+    unique_to_col1s = metacols1.difference(metacols2)
+    unique_to_col2s = metacols2.difference(metacols1)
+    assert len(unique_to_col1s) == 0 and len(unique_to_col2s) == 0, "The meta columns in the LCs do not match." + \
+        f" Unique to lc1: {unique_to_col1s}, Unique to lc2: {unique_to_col2s}. However, all common columns matched."
+
+    for col in bothmetacols:
+        msg = f"The lightcurves do not match for meta column {col}"
+        if "provenance" in col:
+            SNLogger.debug(f"Checking meta col {col}")
+            np.testing.assert_array_equal(str(lc1.meta[col]), str(lc2.meta[col])), msg
 
 
 def test_find_all_exposures():
-    diaobj = DiaObject.find_objects(id=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    SNLogger.debug(f"URL {Config.get().value('system.db.url')}")
+    diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
-    image_list = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
-                                    maxdet=24,
-                                    pointing_list=None, sca_list=None,
-                                    truth="simple_model")
+    image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106", maxbg=24,
+                                       maxdet=24,
+                                       truth="simple_model", image_collection="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
     argsort = np.argsort(compare_table["date"])
@@ -91,35 +230,61 @@ def test_find_all_exposures():
 
 def test_savelightcurve():
     with tempfile.TemporaryDirectory() as output_dir:
-        lc_file = output_dir + "/" + "test_test_test_lc.ecsv"
+        lc_file = output_dir + "/" + "test_Y106_test_lc.ecsv"
         lc_file = pathlib.Path(lc_file)
 
-        data_dict = {"MJD": [1, 2, 3, 4, 5], "true_flux": [1, 2, 3, 4, 5],
-                     "measured_flux": [1, 2, 3, 4, 5]}
-        units = {"MJD": u.d, "true_flux": "",  "measured_flux": ""}
-        meta_dict = {}
-        lc = QTable(data=data_dict, meta=meta_dict, units=units)
-        lc["filter"] = "test"
-        # save_lightcurve defaults to saving to photometry.campari.paths.output_dir
+        meta_dict = {
+                "provenance_id": uuid.uuid4(),
+                "diaobject_id": uuid.uuid4(),
+                "iau_name": "ACoolLightcurve",
+                "ra": 70.0,
+                "ra_err": 1e-5,
+                "dec": 40.0,
+                "dec_err": 1e-5,
+                "local_surface_brightness_Y106": 18.0,
+                "band": "Y106",
+                "ra_dec_covar": 0.0,
+                "diaobject_position_id": uuid.uuid4(),
+
+            }
+
+        data_dict = {
+                "mjd": [60000.0, 60001.0],
+                "flux": [1000.0, 1100.0],
+                "flux_err": [50.0, 55.0],
+                "zpt": [25.0, 25.0],
+                "NEA": [5.0, 5.0],
+                "sky_background": [200.0, 210.0],
+                "pointing": [12345, 12346],
+                "sca": [3, 3],
+                "sky_rms": [30, 30],
+                "pix_x": [1, 1],
+                "pix_y": [1, 1]
+            }
+        lc = Lightcurve(data=data_dict, meta=meta_dict)
+        # save_lightcurve defaults to saving to system.paths.lightcurves
         save_lightcurve(lc=lc, identifier="test", psftype="test", output_path=output_dir)
         assert lc_file.is_file()
         # TODO: look at contents?
 
 
-def test_run_on_star(campari_test_data, cfg):
+def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    args = ["_", "-s", "40973166870", "-f", "Y106", "-i",
-            f"{campari_test_data}/test_image_list_star.csv", "--object_collection", "manual",
+    args = ["_", "--diaobject-name", "40973166870", "-f", "Y106", "-i",
+            f"{campari_test_data}/test_image_list_star.csv", "--diaobject-collection", "manual",
             "--object_type", "star", "--photometry-campari-grid_options-type", "none",
-            "--no-photometry-campari-source_phot_ops", "--ra", "7.5833264", "--dec", "-44.809659"]
+            "--photometry-campari-subtract_background_method", "SKY_MEAN",
+            "--ra", "7.5833264", "--dec", "-44.809659", "--photometry-campari-psf-transient_class", "ou24PSF_slow",
+            "--image-collection", "ou2024", "--no-save-to-db", "--photometry-campari-grid_options-gaussian_var", "1000"]
     orig_argv = sys.argv
+    orig_config = Config.get(clone=cfg)
 
     try:
         sys.argv = args
@@ -128,188 +293,121 @@ def test_run_on_star(campari_test_data, cfg):
         assert False, str(ex)
     finally:
         sys.argv = orig_argv
+        # ugly :( never do in real life
+        cfg._data = orig_config._data
 
-    current = pd.read_csv(curfile, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv", comment="#", delimiter=" ")
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
 
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col])
-        else:
-            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
-
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
     # Make sure it runs from the command line
     err_code = os.system(
-        "python ../RomanASP.py -s 40973166870 -f Y106 -i"
-        f" {campari_test_data}/test_image_list_star.csv --object_collection manual "
+        "python ../RomanASP.py --diaobject-name 40973166870 -f Y106 -i"
+        f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
-        "--no-photometry-campari-source_phot_ops "
-        "--ra 7.5833264 --dec -44.809659"
+        "--photometry-campari-subtract_background_method SKY_MEAN "
+        "--photometry-campari-psf-transient_class" " ou24PSF_slow "
+        "--ra 7.5833264 --dec -44.809659 --image-collection ou2024"
+        " --no-save-to-db --photometry-campari-grid_options-gaussian_var 1000",
     )
     assert err_code == 0, "The test run on a star failed. Check the logs"
 
-    current = pd.read_csv(curfile, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
-                             comment="#", delimiter=" ")
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
 
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        if col == "filter":
-            # filter is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col])
-        else:
-            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_run_on_star so I am rerunning this test.")
+        test_run_on_star(campari_test_data, cfg, overwrite_meta=False)
 
 
-def test_regression_function(campari_test_data):
+def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    a = ["_", "-s", "20172782", "-f", "Y106", "-i",
-         f"{campari_test_data}/test_image_list.csv",
-         "--photometry-campari-psfclass", "ou24PSF",
+    a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--photometry-campari-use_real_images",
-         "--no-photometry-campari-fetch_SED",
-         "--photometry-campari-grid_options-type", "contour",
-         "--photometry-campari-cutout_size", "19",
-         "--photometry-campari-weighting",
-         "--photometry-campari-subtract_background",
-         "--no-photometry-campari-source_phot_ops"]
+         "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
+         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
+         "--photometry-campari-subtract_background_method", "SKY_MEAN",
+         "--photometry-campari-psf-galaxy_class", "ou24PSF",
+         "--photometry-campari-psf-transient_class", "ou24PSF_slow",
+         "--no-photometry-campari-source_phot_ops",
+         "--photometry-campari-grid_options-gaussian_var", "1000",
+         "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
+         "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
+         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc",
+         ]
+
+    SNLogger.debug(f"Args for test: {' '.join(a)}")
+
     orig_argv = sys.argv
+    orig_config = Config.get(clone=cfg)
     try:
         sys.argv = a
         RomanASP.main()
         cfg = Config.get()
-        current = pd.read_csv(curfile, comment="#", delimiter=" ")
-        comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
-                                 comment="#", delimiter=" ")
 
-        for col in current.columns:
-            SNLogger.debug(f"Checking col {col}")
-            # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
-            # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
-            # roughly log10(2^24)=7 significant figures.  As such,
-            # errors of 1e-7 can very easily come from things like order
-            # of operations (even in system libraries).  64-bit floats
-            # (i.e. doubles) have a 53-bit mantissa, and log10(2^53)=16,
-            # so you have 15 or 16 sig figs which "ought to be enough
-            # for anybody".  HOWEVER, you *can* get errors much larger
-            # than this, depending on your order of operations.  For
-            # example, try the following code:
-            #
-            #   import numpy
-            #   a = numpy.float32( 1e8 )
-            #   print( f"a={a}" )
-            #   b = numpy.float32( 1 )
-            #   print( f"b={b}" )
-            #   print( a - ( a - b ) )
-            #   print( a - a + b )
-            #
-            # If you know algebra, you know that the last two numbers
-            # printed out should be exactly the same.  However, you get
-            # either a 100% differerence, or an *infinite* difference,
-            # depending on how you define relative difference in this
-            # case.
-            #
-            # The numpy libraries try to be a bit clever when doing
-            # things like .sum() to avoid the worst of floating-point
-            # underflow, but it's a thing worth being aware of.
-            # Relative errors of 1e-7 (for floats) or 1e-16 (for
-            # doubles) can easily arise from floating-point underflow;
-            # whether or not you're worried about those errors depends
-            # on how confident you are that the order of operations is
-            # identical in two different test cases.  Bigger errors
-            # *can* arise from floating point underflow, but never just
-            # wave your hands and say, "eh, the tests are passing, it's
-            # just underflow!"  Understand how underflow did it.  If it
-            # did, and you're not worried, document that.  But,
-            # probably, you should be worried, and you should
-            # restructure the order of operations in your code to avoid
-            # underflow errors bigger than the number of sig figs in a
-            # floating point number.)
+        compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
+                            overwrite_meta=overwrite_meta)
 
-            msg = f"The lightcurves do not match for column {col}"
-            if col == "filter":
-                # band is the only string column, so we check it with array_equal
-                np.testing.assert_array_equal(current[col], comparison[col]), msg
-            else:
-                percent = 100 * np.max((current[col] - comparison[col])
-                                       / comparison[col])
-                msg2 = f"difference is {percent} %"
-                msg = msg+msg2
-                # Switching from one type of WCS to another gave rise in a
-                # difference of about 1e-9 pixels for the grid, which led to a
-                # change in flux of 2e-7. I don't want switching WCS types to make
-                # this fail, so I put the rtol at just above that level.
-                np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
-
-            # check output
     finally:
         sys.argv = orig_argv
+        # ugly :( never do in real life
+        cfg._data = orig_config._data
 
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
+        test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
-def test_regression(campari_test_data):
+@pytest.mark.parametrize("nprocs", [(2), (1)])
+def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
-    cfg = Config.get()
-
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py -s 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-psfclass ou24PSF "
+        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        "--photometry-campari-psf-galaxy_class ou24PSF "
         "--photometry-campari-use_real_images "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
-        "--photometry-campari-subtract_background "
+        "--photometry-campari-subtract_background_method SKY_MEAN "
+        "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-source_phot_ops "
+        "--save_model --image-collection ou2024 "
+        " --no-save-to-db --add-truth-to-lc"
+        " --diaobject-collection ou2024"
+        f" --nprocs {nprocs}"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = pd.read_csv(curfile, comment="#", delimiter=" ")
-    comparison = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
-                             comment="#", delimiter=" ")
-
-    for col in current.columns:
-        SNLogger.debug(f"Checking col {col}")
-        msg = f"The lightcurves do not match for column {col}"
-        if col == "filter":
-            # band is the only string column, so we check it with array_equal
-            np.testing.assert_array_equal(current[col], comparison[col]), msg
-        else:
-            percent = 100 * np.max((current[col] - comparison[col])
-                                   / comparison[col])
-            msg2 = f"difference is {percent} %"
-            msg = msg+msg2
-            # We check agreement against a few times 32-bit ulp epsilon, rtol ~1e-7.
-            np.testing.assert_allclose(current[col], comparison[col], rtol=3e-7), msg
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
+        test_regression(campari_test_data, cfg=cfg, overwrite_meta=False, nprocs=nprocs)
 
 
 def test_plot_lc():
@@ -339,10 +437,11 @@ def test_make_regular_grid():
                         7.673839, 7.673765, 7.673692])
     test_dec = np.array([-44.263969, -44.263897, -44.263825, -44.263918, -44.263846,
                          -44.263774, -44.263868, -44.263796, -44.263724])
+    wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         img = FITSImageStdHeaders(header=wcs_dict, path=None)
         ra_grid, dec_grid = make_regular_grid(img,
-                                              spacing=3.0)
+                                              spacing=3.0, subsize=9.0)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
             "RA vals do not match"
         np.testing.assert_allclose(dec_grid, test_dec, atol=1e-9), \
@@ -357,6 +456,7 @@ def test_make_adaptive_grid():
     image_size = 11
     wcs_dict["NAXIS1"] = image_size
     wcs_dict["NAXIS2"] = image_size
+    wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
@@ -384,6 +484,7 @@ def test_make_contour_grid():
     test_ra = [7.67357048, 7.67360506, 7.67363963, 7.67367421]
     test_dec = [-44.26421364, -44.26419683, -44.26418002, -44.26416321]
     atol = 1e-9
+    wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
@@ -397,20 +498,11 @@ def test_make_contour_grid():
 
 
 def test_calculate_background_level():
-    test_data = np.ones((12, 12))
-    test_data[5:7, 5:7] = 1000
-
-    # Add some outliers to prevent all of
-    # the data from being sigma clipped.
-    test_data[0:2, 0:12:2] = 123
-    test_data[-3:-1, 0:12:2] = 123
-    test_data[0:12:2, 0:2] = 123
-    test_data[0:12:2, -1:-3] = 123
-
-    expected_output = 1
+    rng1 = np.random.default_rng(seed=424242424242424)
+    test_data = rng1.normal(loc=20, scale=5, size=(265, 265))
+    expected_output = 20
     output = calculate_background_level(test_data)
-    msg = f"Expected {expected_output}, but got {output}"
-    assert np.isclose(output, expected_output, rtol=1e-7), msg
+    np.testing.assert_allclose(output, expected_output, rtol=1e-3) # 0.1% accuracy, should be good enough?
 
 
 def test_calc_mag_and_err():
@@ -434,7 +526,6 @@ def test_calc_mag_and_err():
 
 
 def test_construct_static_scene(cfg):
-    config_file = pathlib.Path(cfg.value("photometry.campari.galsim.tds_file"))
     pointing = 43623  # These numbers are arbitrary for this test.
     sca = 7
 
@@ -447,15 +538,14 @@ def test_construct_static_scene(cfg):
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
-    util_ref = roman_utils(config_file=config_file, visit=pointing, sca=sca)
-
     wcs = snappl_image.get_wcs()
 
     ra_grid = np.array([7.47193824, 7.47204612, 7.472154, 7.4718731, 7.47198098])
     dec_grid = np.array([-44.8280889, -44.82804109, -44.82799327, -44.82801657, -44.82796875])
 
     psf_background = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
-                                            stampsize=size, band="Y106", util_ref=util_ref)
+                                            stampsize=size, band="Y106", image=snappl_image)
+
 
     test_psf_background = np.load(pathlib.Path(__file__).parent / "testdata/test_psf_bg.npy")
 
@@ -489,18 +579,32 @@ def test_construct_transient_scene():
                      wave_type="Angstrom",
                      flux_type="fphotons")
 
+
+    cfg = Config.get()
+    orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
+    # This will need to go away once the PSF object is split in phot ops and non phot ops
+
+    try:
+        cfg._static = False
+        cfg.set_value( "photometry.campari.fetch_SED", False )
+        cfg._static = True
+
+        psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
+                                            stampsize=25, x=2044,
+                                            y=2044, sed=sed,
+                                            flux=1)
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.fetch_SED", orig_transient_photops)
+        cfg._static = True
+
     comparison_image = np.load(pathlib.Path(__file__).parent
                                / "testdata/test_psf_source.npy")
 
-    psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
-                                          stampsize=25, x=2044,
-                                          y=2044, sed=sed,
-                                          flux=1, photOps=False)
-
-    np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
+    try:
+        np.testing.assert_allclose(np.sum(psf_image), np.sum(comparison_image),
                                atol=1e-6, verbose=True)
 
-    try:
         np.testing.assert_allclose(psf_image, comparison_image, atol=1e-7,
                                    verbose=True)
 
@@ -533,7 +637,7 @@ def test_construct_transient_scene():
                       f"image has been saved to {im_path}. Error: {e}"
 
 
-def test_build_lc():
+def test_build_lc(cfg, overwrite_meta):
     exposures = pd.DataFrame(
         {
             "pointing": [5934, 35198],
@@ -558,6 +662,7 @@ def test_build_lc():
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+    SNLogger.debug(f"Snappl image: {snappl_image.provenance_id}")
 
     wcs = snappl_image.get_wcs()
 
@@ -578,28 +683,40 @@ def test_build_lc():
         image_list.append(img)
         cutout_image_list.append(img)
 
-    diaobj = DiaObject.find_objects(id=20172782, ra=7, dec=-41, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=20172782, ra=7, dec=-41, collection="manual")[0]
     diaobj.mjd_start = 62001.0
     diaobj.mjd_end = np.inf
 
-    lc_model = campari_lightcurve_model(flux=100, sigma_flux=10, image_list=image_list,
-                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj)
+    lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
+                                        cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
+                                        sky_background=[0.0] * len(image_list), pre_transient_images=1,
+                                        post_transient_images=0)
+
+    upstreams = []
+    cam_prov = Provenance(
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,
+        keepkeys=["photometry.campari"],
+        omitkeys=None,
+        upstreams=upstreams,
+    )
 
     # The data values are arbitary, just to check that the lc is constructed properly.
-    lc = build_lightcurve(diaobj, lc_model)
-    saved_lc = Table.read(pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv", format="ascii.ecsv")
+    lc = build_lightcurve(diaobj, lc_model, cam_prov=cam_prov)
 
-    for i in lc.columns:
-        if not isinstance(saved_lc[i][0], str):
-            SNLogger.debug(f"Checking column {i}, lc: {lc[i].value}, saved_lc: {saved_lc[i]}")
-            np.testing.assert_allclose(lc[i].value, saved_lc[i])
-        else:
-            np.testing.assert_array_equal(lc[i].value, saved_lc[i])
-    for key in list(lc.meta.keys()):
-        if not isinstance(saved_lc.meta[key], str):
-            np.testing.assert_allclose(lc.meta[key], saved_lc.meta[key])
-        else:
-            np.testing.assert_array_equal(lc.meta[key], saved_lc.meta[key])
+    lc = Table(data=lc.data, meta=lc.meta)
+    lc.write(pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv", format="ascii.ecsv", overwrite=True)
+
+    compare_lightcurves(
+        pathlib.Path(__file__).parent / "testdata/newly_built_lc.ecsv",
+        pathlib.Path(__file__).parent / "testdata/saved_lc_file.ecsv",
+        overwrite_meta=overwrite_meta
+    )
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_build_lc so I am rerunning this test.")
+        test_build_lc(cfg, overwrite_meta=False)
 
 
 def test_wcs_regression():
@@ -622,37 +739,6 @@ def test_wcs_regression():
     x, y = wcs.world_to_pixel(ra_test, dec_test)
     np.testing.assert_allclose(x, x_test, atol=1e-7)
     np.testing.assert_allclose(y, y_test, atol=1e-7)
-
-
-def test_find_all_exposures_with_img_list():
-    band = "Y106"
-    columns = ["pointing", "SCA"]
-    image_df = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_image_list.csv", header=None, names=columns)
-    SNLogger.debug(image_df)
-    ra = 7.551093401915147
-    dec = -44.80718106491529
-    transient_start = 62450.
-    transient_end = 62881.
-    max_no_transient_images = None
-    max_transient_images = None
-    image_selection_start = None
-    image_selection_end = None
-    diaobj = DiaObject.find_objects(id=1, ra=ra, dec=dec, collection="manual")[0]
-    diaobj.mjd_start = transient_start
-    diaobj.mjd_end = transient_end
-
-    image_list = find_all_exposures(diaobj=diaobj, maxbg=max_no_transient_images,
-                                    maxdet=max_transient_images, band=band,
-                                    image_selection_start=image_selection_start,
-                                    image_selection_end=image_selection_end, pointing_list=image_df["pointing"].values)
-
-    SNLogger.debug(f"Found {len(image_list)} images")
-
-    compare_table = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_img_list_exposures.csv")
-
-    np.testing.assert_array_equal(np.array([img.mjd for img in image_list]), compare_table["date"])
-    np.testing.assert_array_equal(np.array([img.sca for img in image_list]), compare_table["sca"])
-    np.testing.assert_array_equal(np.array([img.pointing for img in image_list]), compare_table["pointing"])
 
 
 def test_read_healpix_file():
@@ -680,7 +766,7 @@ def test_make_sim_param_grid():
 def test_handle_partial_overlap():
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("photometry.campari.paths.debug_dir")) / "30617531_Y106_romanpsf_images.npy"
+    curfile = pathlib.Path(cfg.value("system.paths.debug_dir")) / "30617531_Y106_romanpsf_images.npy"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -688,17 +774,22 @@ def test_handle_partial_overlap():
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
-        f"python ../RomanASP.py -s 30617531 -f Y106 -i {image_file}"
-        " --ra 7.446894 --dec -44.771605 --object_collection manual"
-        " --photometry-campari-psfclass ou24PSF --photometry-campari-use_real_images "
+        f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
+        " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
+        " --photometry-campari-use_real_images "
+        " --photometry-campari-psf-galaxy_class ou24PSF "
+        " --photometry-campari-psf-transient_class ou24PSF_slow "
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background --photometry-campari-source_phot_ops"
+        "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate --photometry-campari-source_phot_ops "
+        "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
+        " --photometry-campari-grid_options-gaussian_var 1000"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     current = np.load(curfile, allow_pickle=True)
     comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 
@@ -709,9 +800,11 @@ def test_calculate_surface_brightness():
     sca = 3
 
     band = "Y106"
-
-    img_collection = ImageCollection()
-    img_collection = img_collection.get_collection("ou2024")
+    dbclient = SNPITDBClient()
+    image_collection = "snpitdb"
+    img_collection = ImageCollection().get_collection(
+        collection=image_collection, provenance_tag="ou2024", process="load_ou2024_image", dbclient=dbclient
+    )
     snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
 
     pointing = 13205
@@ -719,7 +812,10 @@ def test_calculate_surface_brightness():
     snappl_image_2 = img_collection.get_image(pointing=35198, sca=2, band=band)
 
     # Both of these test images contain this SN
-    diaobj = DiaObject.find_objects(id=20172782,  collection="ou2024")[0]
+    provenance_tag = "ou2024"
+    process = "load_ou2024_diaobject"
+    diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
+                                    provenance_tag=provenance_tag, process=process, name=20172782)[0]
     ra, dec = diaobj.ra, diaobj.dec
     cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
     cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
@@ -730,3 +826,78 @@ def test_calculate_surface_brightness():
         np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
         "The local surface brightness does not match the expected value.",
     )
+
+
+@pytest.mark.parametrize("nprocs", [(10), (1)])
+def test_construct_one_image(cfg, campari_test_data, nprocs):
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl" , "rb") as f:
+        image_list = pickle.load(f)
+
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl" , "rb") as f:
+        reg_cutout_list = pickle.load(f)
+
+    ra = 7.551093401915147
+    dec = -44.80718106491529
+    size = 19
+    truth = "simple_model"
+    subtract_background_method = "SKY_MEAN"
+
+    for nprocs in [10, 1]:
+        SNLogger.debug(f"Testing construct_one_image with nprocs={nprocs}")
+        cutout_image_list = []
+        results = []
+        if nprocs > 1:
+            with Pool(nprocs) as pool:
+                for indx, image in enumerate(image_list):
+                    SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                    results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                               "ra": ra, "dec": dec, "size": size,
+                                                                               "truth": truth,
+                                                                               "subtract_background_method":
+                                                                               subtract_background_method}))
+
+                pool.close()
+                pool.join()
+        else:
+            for indx, image in enumerate(image_list):
+                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                results.append(construct_one_image(indx=indx, image=image,
+                                                   ra=ra, dec=dec, size=size, truth=truth,
+                                                   subtract_background_method=subtract_background_method))
+
+    for r in results:
+        if nprocs > 1:
+            res = r.get()
+        else:
+            res = r
+        cutout_image_list.append(res[0])
+
+    for cutout, reg_cutout in zip(cutout_image_list, reg_cutout_list):
+        np.testing.assert_allclose(cutout.data, reg_cutout.data, atol=1e-7)
+        np.testing.assert_allclose(cutout.noise, reg_cutout.noise, atol=1e-7)
+        np.testing.assert_array_equal(cutout.flags, reg_cutout.flags)
+        np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
+
+
+def test_build_model_one_image():
+    ra = 7.551093401915147
+    dec = -44.80718106491529
+    size = 19
+
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl", "rb") as f:
+        image_list = pickle.load(f)
+
+    with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
+        ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
+
+    bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec, use_real_images=True,
+                                                   grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
+                                                   pixel=False, band="Y106", sedlist=None,
+                                                   source_phot_ops=True, image_index=0, num_total_images=2,
+                                                   num_detect_images=1, prebuilt_psf_matrix=None,
+                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate",
+                                                   base_pointing=None, base_sca=None)
+
+
+    np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
+    np.testing.assert_equal(sn_array, reg_sn_array)  # We expect Nones here

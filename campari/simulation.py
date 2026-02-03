@@ -12,8 +12,8 @@ from roman_imsim.utils import roman_utils
 from campari.utils import campari_lightcurve_model
 from snappl.imagecollection import ImageCollection
 from snappl.psf import PSF
-from snpit_utils.config import Config
-from snpit_utils.logger import SNLogger
+from snappl.config import Config
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -26,8 +26,8 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 def simulate_images(image_list=None, diaobj=None,
                     sim_galaxy_scale=None, sim_galaxy_offset=None, do_xshift=None,
                     do_rotation=None, noise=None, deltafcn_profile=None,
-                    size=11, input_psf=None, psfclass=None,
-                    bg_gal_flux=None, source_phot_ops=True, sim_lc=None,
+                    size=11, input_psf=None,
+                    bg_gal_flux=None, sim_lc=None,
                     mismatch_seds=False, base_pointing=662, base_sca=11,
                     sim_gal_ra_offset=None, sim_gal_dec_offset=None,
                     bulge_hlr=None, disk_hlr=None):
@@ -70,10 +70,15 @@ def simulate_images(image_list=None, diaobj=None,
     galra: float, the RA of the galaxy.
     galdec: float, the DEC of the galaxy.
     """
-
+    source_phot_ops = Config.get().value("photometry.campari.psf.transient_photon_ops")
     ra = diaobj.ra
     dec = diaobj.dec
     band = image_list[0].band
+
+    galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
+    if galaxy_psfclass not in ["ou24PSF", "ou24PSF_slow"]:
+        raise ValueError("Currently, only the ou24PSF and ou24PSF_slow are supported for simulation galaxy PSFs.")
+    transient_psfclass = Config.get().value("photometry.campari.psf.transient_class")
 
     if sim_gal_ra_offset is not None and sim_gal_dec_offset is not None:
         galra = ra + sim_gal_ra_offset
@@ -109,7 +114,7 @@ def simulate_images(image_list=None, diaobj=None,
     galaxy_images = []
 
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}")
-    file_path = pathlib.Path(Config.get().value("photometry.campari.galsim.tds_file"))
+    file_path = pathlib.Path(Config.get().value("system.ou24.config_file"))
     util_ref = roman_utils(config_file=file_path, visit=base_pointing, sca=base_sca)
     SNLogger.debug(f"image list {image_list}")
     for i, image_object in enumerate(image_list):
@@ -170,7 +175,7 @@ def simulate_images(image_list=None, diaobj=None,
 
         pointx, pointy = cutoutgalwcs.toImage(galra, galdec, units="deg")
 
-        if psfclass in ["ou24PSF", "ou24PSF_slow"]:
+        if transient_psfclass in ["ou24PSF", "ou24PSF_slow"]:
             sim_psf = util_ref.getPSF(cutout_pixel[0] + 1, cutout_pixel[1] + 1, pupil_bin=8)
         else:
             sim_psf = input_psf
@@ -216,7 +221,6 @@ def simulate_images(image_list=None, diaobj=None,
                 SNLogger.debug(f"sed: {sed}")
 
                 # When using the ou24PSF, we want to use the slower and more accurate ou24PSF_slow for SN.
-                sn_psfclass = "ou24PSF_slow" if psfclass == "ou24PSF" else psfclass
                 supernova_image = simulate_supernova(
                     snx=cutout_loc[0],
                     sny=cutout_loc[1],
@@ -229,7 +233,7 @@ def simulate_images(image_list=None, diaobj=None,
                     base_sca=base_sca,
                     stampsize=size,
                     image=image_object,
-                    psfclass=sn_psfclass)
+                    psfclass=transient_psfclass)
 
                 a += supernova_image
                 sn_storage.append(supernova_image)
@@ -386,10 +390,9 @@ def simulate_supernova(snx=None, sny=None, snx0=None, sny0=None, flux=None, sed=
     SNLogger.debug(f"Simulating supernova at ({snx}, {sny}) with flux {flux} ")
     SNLogger.debug(f"Using base pointing {base_pointing} and SCA {base_sca}.")
     SNLogger.debug(f"source_phot_ops: {source_phot_ops} and sed {sed}")
-    SNLogger.debug(f"Using psfclass {psfclass}")
+    SNLogger.debug(f"Using SN psfclass {psfclass}")
 
     psf_object = PSF.get_psf_object(psfclass, pointing=base_pointing, sca=base_sca,
                                     size=stampsize, include_photonOps=source_phot_ops, sed=sed, seed=None, image=image, stamp_size=stampsize)
     psf_image = psf_object.get_stamp(x0=snx0, y0=sny0, x=snx, y=sny, flux=flux)
-    SNLogger.debug(type(psf_image))
     return psf_image

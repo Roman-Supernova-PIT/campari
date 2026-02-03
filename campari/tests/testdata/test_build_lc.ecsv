@@ -2,37 +2,92 @@
 # ---
 # datatype:
 # - {name: mjd, unit: d, datatype: float64}
-# - {name: flux_fit, datatype: float64}
-# - {name: flux_fit_err, datatype: float64}
-# - {name: mag_fit, unit: mag, datatype: float64}
-# - {name: mag_fit_err, unit: mag, datatype: float64}
-# - {name: filter, datatype: string}
-# - {name: zpt, datatype: float64}
+# - {name: flux, unit: ct / s, datatype: float64}
+# - {name: flux_err, unit: ct / s, datatype: float64}
+# - {name: zpt, unit: mag, datatype: float64}
+# - {name: NEA, unit: pix2, datatype: float64}
+# - {name: sky_rms, unit: ct / s, datatype: float64}
 # - {name: pointing, datatype: int64}
 # - {name: sca, datatype: int64}
-# - {name: x, datatype: float64}
-# - {name: y, datatype: float64}
+# - {name: pix_x, unit: pix, datatype: float64}
+# - {name: pix_y, unit: pix, datatype: float64}
+# - {name: mag_fit, datatype: float64}
+# - {name: mag_fit_err, datatype: float64}
 # - {name: x_cutout, datatype: float64}
 # - {name: y_cutout, datatype: float64}
+# - {name: sky_background, datatype: float64}
 # meta: !!omap
-# - {ID: 20172782}
-# - {obj_ra: 7.731890048839705}
-# - {obj_dec: -44.4589649005717}
+# - {cutout_size: 11}
+# - {initial_flux_guess: 3000}
+# - {fetch_SED: false}
+# - {source_phot_ops: true}
+# - {use_roman: true}
+# - {weighting: true}
+# - {make_initial_guess: true}
+# - {method: lsqr}
+# - {pixel: false}
+# - {subtract_background_method: calculate}
+# - {use_real_images: true}
+# - {psfclass: ou24PSF}
+# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
+# - grid_options:
+#     cutoff: 4
+#     error_floor: 1
+#     gaussian_var: -1
+#     percentiles: [0, 90, 98, 100]
+#     spacing: 0.75
+#     subsize: 4
+#     turn_grid_off: false
+#     type: contour
+# - {ID: '20172782'}
+# - {ra: 7.731890048839705}
+# - {dec: -44.4589649005717}
+# - {band: Y106}
+# - {diaobject_position_id: null}
+# - {provenance_id: b8aa3e1f-960c-57f5-c302-55fe1dcf0e98}
+# - {diaobject_id: 9b5d5710-6250-4119-a5d8-cb7cf92d67d8}
+# - {iau_name: null}
+# - {ra_err: 0.0}
+# - {dec_err: 0.0}
+# - {ra_dec_covar: 0.0}
+# - {local_surface_brightness_Y106: 19.0}
+# - {pre_transient_images: null}
+# - {post_transient_images: null}
 # - __serialized_columns__:
-#     mag_fit:
+#     NEA:
 #       __class__: astropy.units.quantity.Quantity
-#       unit: &id001 !astropy.units.Unit {unit: mag}
-#       value: !astropy.table.SerializedColumn {name: mag_fit}
-#     mag_fit_err:
+#       unit: !astropy.units.Unit {unit: pix2}
+#       value: !astropy.table.SerializedColumn {name: NEA}
+#     flux:
 #       __class__: astropy.units.quantity.Quantity
-#       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: mag_fit_err}
+#       unit: !astropy.units.Unit {unit: ct / s}
+#       value: !astropy.table.SerializedColumn {name: flux}
+#     flux_err:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: ct / s}
+#       value: !astropy.table.SerializedColumn {name: flux_err}
 #     mjd:
 #       __class__: astropy.units.quantity.Quantity
 #       unit: !astropy.units.Unit {unit: d}
 #       value: !astropy.table.SerializedColumn {name: mjd}
+#     pix_x:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: &id001 !astropy.units.Unit {unit: pix}
+#       value: !astropy.table.SerializedColumn {name: pix_x}
+#     pix_y:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: *id001
+#       value: !astropy.table.SerializedColumn {name: pix_y}
+#     sky_rms:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: ct / s}
+#       value: !astropy.table.SerializedColumn {name: sky_rms}
+#     zpt:
+#       __class__: astropy.units.quantity.Quantity
+#       unit: !astropy.units.Unit {unit: mag}
+#       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
-mjd flux_fit flux_fit_err mag_fit mag_fit_err filter zpt pointing sca x y x_cutout y_cutout
-1.0 1.0 0.1 32.66165575332671 0.10857362047581294 Y106 15.023547191066584 1 1 13848.534340948023 9543.537199372693 13848.534340948023 9543.537199372693
-2.0 2.0 0.2 31.90908076416676 0.10857362047581294 Y106 15.023547191066584 1 1 13848.534340948023 9543.537199372693 13848.534340948023 9543.537199372693
-3.0 3.0 0.3 31.468852616527556 0.10857362047581293 Y106 15.023547191066584 1 1 13848.534340948023 9543.537199372693 13848.534340948023 9543.537199372693
+mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
+1.0 1.0 0.1 15.023547191066584 0.0 0.0 1 1 13848.534340948023 9543.537199372693 32.66165575332671 0.10857362047581294 13848.534340948023 9543.537199372693 0.0
+2.0 2.0 0.2 15.023547191066584 0.0 0.0 1 1 13848.534340948023 9543.537199372693 31.90908076416676 0.10857362047581294 13848.534340948023 9543.537199372693 0.0
+3.0 3.0 0.3 15.023547191066584 0.0 0.0 1 1 13848.534340948023 9543.537199372693 31.468852616527556 0.10857362047581293 13848.534340948023 9543.537199372693 0.0

@@ -1,29 +1,29 @@
 photometry:
   campari:
+
     cutout_size: 11
     initial_flux_guess: 3000
-    fetch_SED: true
+    fetch_SED: false
     source_phot_ops: true
     use_roman: true
     weighting: true
     make_initial_guess: true
     method: lsqr
     pixel: false
-    subtract_background: true
+    subtract_background_method: calculate
     use_real_images: true
-    save_debug: true
-    psfclass: ou24PSF
 
-    paths:
-      sims_sed_library: /home/rubin_sim_data/sims_sed_library
-      campari_test_data: /campari_test_data
-      sed_path: /campari_sed_dir
-      output_dir: /campari_out_dir
-      debug_dir: /campari_debug_dir
+    psf:
+      galaxy_photon_ops: false
+      transient_photon_ops: false
+      galaxy_class: ou24PSF
+      transient_class: ou24PSF_slow
 
-    # OMG
-    galsim:
-      tds_file: /campari/examples/perlmutter/tds.yaml
+    psf:
+      galaxy_photon_ops: false
+      transient_photon_ops: false
+      transient_class: ou24PSF
+      galaxy_class: ou24PSF
 
     grid_options:
       type: contour
@@ -34,33 +34,53 @@ photometry:
       - 100
       spacing: 0.75
       turn_grid_off: false
+      gaussian_var: -1 # Gaussian weighting off by default
+      cutoff: 4
+      error_floor: 1
+      subsize: 4
 
-    simulations:
-      avoid_non_linearity: false
-      background_level: 0
-      bg_gal_flux: 100000.0
-      deltafcn_profile: false
-      do_rotation: true
-      do_xshift: true
-      mismatch_seds: false
-      noise: 0
-      sim_gal_dec_offset: 0.00001
-      sim_gal_ra_offset: 0.00001
-      single_grid_point: false
-      sim_galaxy_scale: 1.0
-      sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
-      base_pointing: 276
-      base_sca: 10
-      run_name: whatever
-
-ou24:
-  config_file: /sn_info_dir/tds.yaml
-  sn_truth_dir: /snana_pq_dir
-  sims_sed_library: /home/rubin_sim_data/sims_sed_library
-  images: /sims_dir/RomanTDS/images/simple_model
-  tds_base: /photometry_test_data/ou2024
-
-ou24psf:
-  config_file: /campari/examples/perlmutter/tds.yaml
+  campari_io:
+    save_debug: true
 
 
+  campari_simulations:
+    avoid_non_linearity: false
+    background_level: 0
+    bg_gal_flux: 100000.0
+    deltafcn_profile: false
+    do_rotation: true
+    do_xshift: true
+    mismatch_seds: false
+    noise: 0
+    sim_gal_dec_offset: 0.00001
+    sim_gal_ra_offset: 0.00001
+    single_grid_point: false
+    sim_galaxy_scale: 1.0
+    sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
+    base_pointing: 276
+    base_sca: 10
+    run_name: whatever
+  snappl:
+    simdex_server: https://roman-desc-simdex.rknop.net
+
+system:
+  paths:
+    lightcurves: /campari_out_dir # So Cole can run tests.
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    campari_test_data: /campari_test_data
+    output_dir: /campari_out_dir
+    sed_path: /campari_sed_dir
+    debug_dir: /campari_debug_dir
+
+  ou24:
+    simdex_server: https://roman-desc-simdex.rknop.net
+    config_file: /campari/examples/perlmutter/tds.yaml
+    sn_truth_dir: /snana_pq_dir
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    images: /sims_dir/RomanTDS/images/simple_model
+    tds_base: /photometry_test_data/ou2024
+
+  db:
+    url: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    username: campari
+    passwordfile: /secrets/roman_snpit_ou2024_campari
