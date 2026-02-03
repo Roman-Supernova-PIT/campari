@@ -60,7 +60,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
     if nprocs > 1:
-        mp.set_start_method("spawn")
         SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
