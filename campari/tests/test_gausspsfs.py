@@ -7,7 +7,9 @@ from scipy.stats import norm, skewtest
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
 
+from snappl.config import Config
 from snappl.logger import SNLogger
+
 
 from campari.plotting import generate_diagnostic_plots
 
@@ -41,10 +43,24 @@ base_cmd = [
         "--no-save-to-db"
     ]
 
+cfg = Config.get()
+debug_dir = cfg.value("system.paths.debug_dir")
+
+def create_true_flux(mjd, peakmag):
+    # This creates a linear up-down lightcurve peaking at peakmag. Looks like a triangle.
+    peakflux = 10 ** ((peakmag - 33) / -2.5)
+    start_mjd = 60010
+    peak_mjd = 60030
+    end_mjd = 60060
+    flux = np.zeros_like(mjd)
+    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
+    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    return flux
+
 
 def perform_aperture_photometry(fileroot, imsize, aperture_radius=4):
-    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
-    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    noise_maps = np.load(f"{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+    ims = np.load(f"{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
     lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
 
     ap_sums = []
@@ -107,14 +123,7 @@ def test_noiseless_aligned_no_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     np.testing.assert_allclose(lc["flux"], flux, atol=1e-7)
 
@@ -153,14 +162,7 @@ def test_poisson_noise_aligned_no_host():
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     np.testing.assert_allclose(lc["flux"], ap_sums, rtol=3e-3)
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -168,7 +170,7 @@ def test_poisson_noise_aligned_no_host():
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -202,14 +204,8 @@ def test_sky_noise_aligned_no_host():
     SNLogger.debug("Loaded this lc: " + str(lc))
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
@@ -219,7 +215,7 @@ def test_sky_noise_aligned_no_host():
     except AssertionError as e:
         plotname = "sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -249,14 +245,7 @@ def test_both_noise_aligned_no_host():
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     try:
@@ -265,7 +254,7 @@ def test_both_noise_aligned_no_host():
     except AssertionError as e:
         plotname = "both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -295,14 +284,7 @@ def test_noiseless_shifted_no_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     np.testing.assert_allclose(lc["flux"], flux, rtol=1e-7, atol=0)
 
@@ -344,21 +326,14 @@ def test_poisson_shifted_no_host():
     np.testing.assert_allclose(lc["flux"], ap_sums, rtol=3e-3)
     # np.testing.assert_allclose(lc["flux_err"], ap_err, rtol=3e-3)
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -392,14 +367,7 @@ def test_sky_shifted_no_host():
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -407,7 +375,7 @@ def test_sky_shifted_no_host():
     except AssertionError as e:
         plotname = "shifted_sky_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -439,14 +407,7 @@ def test_both_shifted_no_host():
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
     SNLogger.debug(f"Expected fluxes: {flux}")
 
     try:
@@ -456,7 +417,7 @@ def test_both_shifted_no_host():
     except AssertionError as e:
         plotname = "shifted_both_noise_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -482,11 +443,11 @@ def test_aligned_noiseless_just_host():
 
     plotname = "noiseless_aligned_just_host_diagnostic"
     generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
-    SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+    SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
 
     fileroot = "123_R062_gaussian"
-    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
-    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    ims = np.load(f"{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
     residuals = ims - modelims
     np.testing.assert_allclose(residuals, 0, atol=20)
 
@@ -515,9 +476,9 @@ def test_both_aligned_just_host():
         )
 
     fileroot = "123_R062_gaussian"
-    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
-    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
-    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    noise_maps = np.load(f"{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+    ims = np.load(f"{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
     residuals = ims - modelims
     pixel_pulls = residuals / noise_maps
     try:
@@ -525,7 +486,7 @@ def test_both_aligned_just_host():
     except AssertionError as e:
         plotname = "both_aligned_just_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -554,9 +515,9 @@ def test_both_shifted_just_host():
         )
 
     fileroot = "123_R062_gaussian"
-    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
-    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
-    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    noise_maps = np.load(f"{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+    ims = np.load(f"{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
     residuals = ims - modelims
     pixel_pulls = residuals / noise_maps
     try:
@@ -564,7 +525,7 @@ def test_both_shifted_just_host():
     except AssertionError as e:
         plotname = "both_shifted_just_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -589,14 +550,7 @@ def test_noiseless_aligned_22mag_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         np.testing.assert_allclose(lc["flux"], flux, atol=1e-7)
@@ -608,7 +562,7 @@ def test_noiseless_aligned_22mag_host():
     except AssertionError as e:
         plotname = "noiseless_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -640,14 +594,7 @@ def test_poisson_aligned_22mag_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -655,7 +602,7 @@ def test_poisson_aligned_22mag_host():
     except AssertionError as e:
         plotname = "poisson_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -686,14 +633,7 @@ def test_hostnoiseonly_aligned_22mag_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -701,7 +641,7 @@ def test_hostnoiseonly_aligned_22mag_host():
     except AssertionError as e:
         plotname = "hostnoiseonly_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -732,14 +672,7 @@ def test_transientnoiseonly_aligned_22mag_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -747,7 +680,7 @@ def test_transientnoiseonly_aligned_22mag_host():
     except AssertionError as e:
         plotname = "transientnoiseonly_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -776,14 +709,7 @@ def test_both_aligned_22mag_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -791,7 +717,7 @@ def test_both_aligned_22mag_host():
     except AssertionError as e:
         plotname = "both_aligned_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -822,14 +748,7 @@ def test_both_shifted_22mag_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((21 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=21)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -837,6 +756,6 @@ def test_both_shifted_22mag_host():
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e

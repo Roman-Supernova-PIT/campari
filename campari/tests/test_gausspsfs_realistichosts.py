@@ -9,7 +9,11 @@ from astropy.table import Table
 from snappl.logger import SNLogger
 
 from campari.plotting import generate_diagnostic_plots
-from campari.tests.gausspsfs import perform_gaussianity_checks
+from campari.tests.gausspsfs import perform_gaussianity_checks, create_true_flux
+
+
+from snappl.config import Config
+
 
 imsize = 19
 base_cmd = [
@@ -42,6 +46,8 @@ base_cmd = [
     ]
 
 
+cfg = Config.get()
+debug_dir = cfg.value("system.paths.debug_dir")
 
 def test_both_shifted_22mag_realisticgalaxy_host():
     cmd = base_cmd + [
@@ -53,7 +59,6 @@ def test_both_shifted_22mag_realisticgalaxy_host():
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.5"  # Finer grid spacing
-    #cmd += ["--save_model"]
     # realsitic_galaxy_gridmodel
     cmd += [
         "--prebuilt_static_model",
@@ -74,14 +79,8 @@ def test_both_shifted_22mag_realisticgalaxy_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((24 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=24)
+
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -89,7 +88,7 @@ def test_both_shifted_22mag_realisticgalaxy_host():
     except AssertionError as e:
         plotname = "justshifted_nonoise_22mag_hostrealistic_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -120,14 +119,7 @@ def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((24 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=24)
 
     try:
         # With the more realistic galaxies, it is harder for campari to perfectly model the galaxy.
@@ -142,7 +134,7 @@ def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
     except AssertionError as e:
         plotname = "fainttransient_nonoise_hostrealistic_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux, err_fudge=75)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -181,14 +173,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((24 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=24)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -196,7 +181,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     except AssertionError as e:
         plotname = "fainttransient_nonoise_hostrealistic_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -221,10 +206,6 @@ def test_no_transient_realisticgalaxy_host():
        "--prebuilt_static_model",
        pathlib.Path(__file__).parent / "testdata/psf_matrix_gaussian_a0332a3d-785d-4d04-950b-5ec4202d0aa7_75_images64_points.npy",
        ]
-    # cmd += [
-    #     "--prebuilt_transient_model",
-    #     pathlib.Path(__file__).parent / "testdata/prebuilt_models/justshifted_realistic_SN.npy",
-    # ]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -236,14 +217,7 @@ def test_no_transient_realisticgalaxy_host():
     # Check accuracy
     lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
 
-    mjd = lc["mjd"]
-    peakflux = 10 ** ((24 - 33) / -2.5)
-    start_mjd = 60010
-    peak_mjd = 60030
-    end_mjd = 60060
-    flux = np.zeros(len(mjd))
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    flux = create_true_flux(lc["mjd"], peakmag=24)
 
     try:
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -251,7 +225,7 @@ def test_no_transient_realisticgalaxy_host():
     except AssertionError as e:
         plotname = "whatisgoingon_3_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 

@@ -305,20 +305,3 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         # plt.ylim(1e3, 1e5)
 
         plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
-
-
-# lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
-
-# mjd = lc["mjd"]
-# peakflux = 10 ** ((24 - 33) / -2.5)
-# start_mjd = 60010
-# peak_mjd = 60030
-# end_mjd = 60060
-# flux = np.zeros(len(mjd))
-# flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-# flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-
-# imsize = 19
-# plotname = "fainttransient_nonoise_hostrealistic_diagnostic"
-# lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + 75**2)
-# generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux, err_fudge=75)
