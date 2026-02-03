@@ -1539,7 +1539,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    cmd += ["--save_model"]
+    #cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          "/campari_debug_dir/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
