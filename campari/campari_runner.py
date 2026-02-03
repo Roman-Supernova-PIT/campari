@@ -85,11 +85,10 @@ class campari_runner:
         self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
         self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
         self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
-        self.psfclass = self.cfg.value("photometry.campari.psfclass")
         self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
-        self.subtract_background = self.cfg.value("photometry.campari.subtract_background")
+        self.subtract_background_method = self.cfg.value("photometry.campari.subtract_background_method")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
@@ -401,7 +400,7 @@ class campari_runner:
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
                            size=self.size, band=self.band,
                            fetch_SED=self.fetch_SED, sedlist=sedlist, use_real_images=self.use_real_images,
-                           subtract_background=self.subtract_background,
+                           subtract_background_method=self.subtract_background_method,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, do_xshift=self.do_xshift,
@@ -465,9 +464,11 @@ class campari_runner:
 
         if self.save_debug:
             fileroot = f"{identifier}_{self.band}_{psftype}"
+
             images_and_model = np.array(
                 [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
             )
+
             debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
@@ -529,6 +530,7 @@ class campari_runner:
             # each line of file is path to image
             self.pointing_list = None
             for line in img_list_lines:
+                SNLogger.debug(f"Looking for path {line}.")
                 images.append(my_image_collection.get_image(path=line))
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"

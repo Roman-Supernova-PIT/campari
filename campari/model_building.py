@@ -48,6 +48,7 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     ra_grid, dec_grid: 1D numpy arrays of floats
         The RA and DEC of the grid points.
     """
+    SNLogger.debug(f"Making regular grid with spacing {spacing} and subsize {subsize}")
     wcs = image_object.get_wcs()
     size = image_object.image_shape[0]
     if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
@@ -69,12 +70,10 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
-    SNLogger.debug(f"Grid spacing: {spacing}")
 
     xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
-    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
     # Astropy takes (y, x) order:
     ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
@@ -240,7 +239,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, band=None, image=None, psfclass="ou24PSF"):
+                           pixel=False, band=None, image=None):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -291,7 +290,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     pointing = image.pointing if image is not None else None
     sca = image.sca if image is not None else None
 
-    print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
     psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
                                     include_photonOps=include_photonOps, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
@@ -300,8 +298,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
-        if a % 50 == 0:
-            SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
@@ -561,9 +557,9 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 
 
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
-                              dec_grid=None, size=None, pixel=False, psfclass=None, band=None, sedlist=None,
+                              dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
                               source_phot_ops=None, image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background=None,
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
                               base_pointing=None, base_sca=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
@@ -589,14 +585,13 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             size,
             pixel=pixel,
             image=image,
-            psfclass=psfclass,
             band=band,
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:
         SNLogger.debug("Using prebuilt PSF matrix for background model")
         background_model_array = None
 
-    if not subtract_background and prebuilt_psf_matrix is None:
+    if subtract_background_method == "fit" and prebuilt_psf_matrix is None:
         # If we did not manually subtract the background, we need to fit in the forward model. Since the
         # background is a constant, we add a term to the model that is all ones. But we only want the background
         # to be present in the model for the image it is associated with. Therefore, we only add the background

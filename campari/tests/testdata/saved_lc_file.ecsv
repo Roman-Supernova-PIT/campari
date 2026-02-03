@@ -26,9 +26,8 @@
 # - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background: true}
+# - {subtract_background_method: calculate}
 # - {use_real_images: true}
-# - {psfclass: ou24PSF}
 # - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
@@ -44,8 +43,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: c98a0d50-4990-42d0-aa32-e628c24effd5}
-# - {diaobject_id: c82db660-552d-4831-9c0d-a7c0801fa974}
+# - {provenance_id: 2a3b7df8-7b13-8879-332d-4150ee2ceea0}
+# - {diaobject_id: a49d9f6b-922a-4b1a-89fe-5e99e0470635}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
