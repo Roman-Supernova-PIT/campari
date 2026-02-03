@@ -67,6 +67,8 @@ def print_top_ten(flag):
     SNLogger.info(flag)
     snapshot = tracemalloc.take_snapshot()
     top_stats = snapshot.statistics('lineno')
+    current, peak = tracemalloc.get_traced_memory()
+    SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
 
     SNLogger.info("[ Top 10 ]")
     printout = ""

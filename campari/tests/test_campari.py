@@ -59,6 +59,7 @@ from snappl.provenance import Provenance
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
+SNLogger.set_level("DEBUG")
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
