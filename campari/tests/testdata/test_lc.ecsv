@@ -30,9 +30,8 @@
 # - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background: true}
+# - {subtract_background_method: SKY_MEAN}
 # - {use_real_images: true}
-# - {psfclass: ou24PSF}
 # - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
@@ -96,4 +95,4 @@
 #       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
 mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background sim_realized_flux sim_true_flux sim_realized_mag sim_true_mag
-62455.669 539.5731168363459 122.9102688542674 15.023547191066584 0.0 0.0 35198 2 1036.0534837027858 978.2483375181504 25.8315299941391 0.24732167831873064 9.053483702814368 9.248337522387217 108.0 1040.0 1069.10031 25.119072405079763 25.089109614636662
+62455.669 925.921163666617 259.3483398067261 15.023547191066584 0.0 0.0 35198 2 1036.0534837027858 978.2483375181504 25.245220726260385 0.30411215686766857 9.053483702785725 9.248337518150347 108.0 1040.0 1069.10031 25.119072405079763 25.089109614636662
