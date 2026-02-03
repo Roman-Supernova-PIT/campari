@@ -439,7 +439,7 @@ def test_make_regular_grid():
                          -44.263774, -44.263868, -44.263796, -44.263724])
     wcs_dict = fits.Header(wcs_dict)
     for wcs in [snappl.wcs.AstropyWCS.from_header(wcs_dict)]:
-        img = FITSImageStdHeaders(header=fits.Header(wcs_dict), path="/dev/null", data=np.zeros((25, 25)))
+        img = FITSImageStdHeaders(header=wcs_dict, path=None)
         ra_grid, dec_grid = make_regular_grid(img,
                                               spacing=3.0, subsize=9.0)
         np.testing.assert_allclose(ra_grid, test_ra, atol=1e-9), \
@@ -462,7 +462,7 @@ def test_make_adaptive_grid():
                                  / "testdata/images.npy")
         SNLogger.debug(f"compare_images shape: {compare_images.shape}")
         image = compare_images[0].reshape(11, 11)
-        img_obj = FITSImageStdHeaders(header=fits.Header(wcs_dict), data=image, path="/dev/null")
+        img_obj = FITSImageStdHeaders(header=wcs_dict, data=image, path=None)
         ra_grid, dec_grid = make_adaptive_grid(img_obj, percentiles=[99])
         test_ra = [7.67356034, 7.67359491, 7.67362949, 7.67366407, 7.67369864,]
         test_dec = [-44.26425446, -44.26423765, -44.26422084, -44.26420403,
@@ -489,7 +489,7 @@ def test_make_contour_grid():
         compare_images = np.load(pathlib.Path(__file__).parent
                                  / "testdata/images.npy")
         image = compare_images[0].reshape(11, 11)
-        img_obj = FITSImageStdHeaders(header=fits.Header(wcs_dict), data=image, path="/dev/null")
+        img_obj = FITSImageStdHeaders(header=wcs_dict, data=image, path=None)
         ra_grid, dec_grid = make_contour_grid(img_obj)
         msg = f"RA vals do not match to {atol:.1e}."
         np.testing.assert_allclose(ra_grid[:4], test_ra, atol=atol, rtol=1e-9), msg
@@ -672,10 +672,7 @@ def test_build_lc(cfg, overwrite_meta):
     for i in range(len(explist["date"])):
         img = FITSImageStdHeaders(
             header=None,
-            data=np.zeros((4085, 4085)),
-            noise=np.zeros((4085, 4085)),
-            flags=np.zeros((4085, 4085)),
-            path="/dev/null"
+            path=None
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]

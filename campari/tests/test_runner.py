@@ -204,10 +204,7 @@ def test_get_SED_list(cfg):
 
     img = FITSImageStdHeaders(
         header=None,
-        path="/dev/null",
-        data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-        noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-        flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+        path=None,
     )
     img.mjd = 62535.424
     img.band = "Y106"
@@ -274,10 +271,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     for i in range(len(exposures["date"])):
         img = FITSImageStdHeaders(
             header=None,
-            path="/dev/null",
-            data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-            noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-            flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            path=None,
         )
         img.mjd = exposures["date"][i]
         img.band = exposures["filter"][i]

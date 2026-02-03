@@ -140,6 +140,9 @@ def simulate_images(image_list=None, diaobj=None,
         input_header["BAND"] = image_object.band
         input_header["POINTING"] = image_object.pointing
         input_header["SCA"] = image_object.sca
+        image_object.data = np.zeros((4088, 4088))
+        image_object.noise = np.ones((4088, 4088))
+        image_object.flags = np.zeros((4088, 4088)).astype(np.uint8)
 
         image_object.set_fits_header(input_header)
 
@@ -149,6 +152,10 @@ def simulate_images(image_list=None, diaobj=None,
         cutoutgalwcs = cutout_object.get_wcs().get_galsim_wcs()  # rename this
         cutout_loc = full_image_wcs.world_to_pixel(ra, dec)
         cutout_pixel = (int(np.floor(cutout_loc[0] + 0.5)), int(np.floor(cutout_loc[1] + 0.5)))
+
+        image_object.data = None
+        image_object.noise = None
+        image_object.flags = None # These are meaningless, delete to save memory.
 
         if mismatch_seds:
             SNLogger.debug("INTENTIONALLY MISMATCHING SEDS, 1a SED")
