@@ -7,6 +7,7 @@ import warnings
 # Common Library
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import yaml
 
 # Astronomy Library
@@ -151,7 +152,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
                     overwrite=True, save_to_database=False, dbclient=None,
                     new_provenance=False, diaobj_pos=None, ltcv_provenance_tag=None,
-                    ltcvprocess=None, testrun=None):
+                    ltcvprocess=None, testrun=None, filetype="ecsv", filename=None):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -186,7 +187,18 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     base_output_path = pathlib.Path(base_output_path)
     base_output_path.mkdir(exist_ok=True, parents=True)
 
-    filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
+    filepath = f"{identifier}_{band}_{psftype}_lc" if not save_to_database else None
+    filepath = f"{filename}" if filename is not None else filepath
+
+    if filename is not None and Path(filename).is_absolute():
+        SNLogger.warning("Absolute filepath provided; ignoring output_path.")
+        filepath = f"{filename}"
+
+    filepath = Path(filepath)
+    # Add the filetype suffix if not present, and save to the correct extension
+    if not filepath.suffix == f".{filetype}":
+        SNLogger.debug(f"Adding suffix .{filetype} to filepath {filepath}")
+        filepath = filepath.with_suffix(f".{filetype}")
 
     if save_to_database:
         ltcvprov = lc.provenance_object
@@ -199,7 +211,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         lc.write()
     else:
         lc.write(
-            base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
+            base_dir=output_path, filepath=filepath, filetype=filetype, overwrite=overwrite
         )
     # Return the lc so we can have the snappl generated filepath
     return lc
@@ -228,3 +240,39 @@ def read_healpix_file(healpix_file):
         healpix_list = pd.read_csv(healpix_file, header=None).values.flatten().tolist()
 
     return healpix_list, nside
+
+
+def update_debug_file(key_dict, run_name=None):
+    """This function updates the debug file with the given key-value pairs.
+    It also creates the debug file if it does not exist.
+
+    Parameters
+    ----------
+    key_dict: dict, the key-value pairs to update the debug file with
+
+    Returns
+    -------
+    None
+    """
+    debug_file = Config.get().value("system.paths.debug_dir")
+    debug_file = pathlib.Path(debug_file) / f"{run_name}_debug.yaml"
+
+    if not debug_file.exists():
+        SNLogger.info(f"Debug file {debug_file} does not exist. Creating new debug file from template.")
+        template_path = pathlib.Path(__file__).parent / "debug_output_template.txt"
+        with open(template_path, "r") as f:
+            debug_data = yaml.safe_load(f)
+
+    else:
+        with open(debug_file, "r") as f:
+            debug_data = yaml.safe_load(f)
+
+    for new_key in list(key_dict.keys()):
+        value = key_dict.pop(new_key)
+        key_dict[new_key.upper()] = value
+        if new_key.upper() not in debug_data:
+            del key_dict[new_key.upper()]
+            SNLogger.warning(f"Key {new_key} not in existing debug file. Skipping update for this key.")
+    debug_data.update(key_dict)
+    with open(debug_file, "w") as f:
+        yaml.dump(debug_data, f)

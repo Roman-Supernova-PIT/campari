@@ -14,6 +14,7 @@ import numpy as np
 import pandas as pd
 import pickle
 import pytest
+import yaml
 
 # Astronomy Library
 from astropy.io import fits
@@ -30,6 +31,7 @@ from campari.io import (
     build_lightcurve,
     read_healpix_file,
     save_lightcurve,
+    update_debug_file,
 )
 from campari.model_building import (
     construct_static_scene,
@@ -831,6 +833,30 @@ def test_calculate_surface_brightness():
     )
 
 
+def test_update_debug_file():
+    run_name = "test_debug"
+    curfile = "/campari_debug_dir/test_debug_debug.yaml"
+    pathlib.Path(curfile).unlink(missing_ok=True)
+
+    update_debug_file({}, run_name=run_name)
+    assert pathlib.Path(curfile).is_file(), "The debug file was not created."
+
+    test_data_dict = { "abort_if_zero": 1, "num_total_images": 5, "num_transient_images": 3,
+                       "band": "Y106", "grid_type": "regular", "grid_points": 10 }
+
+    update_debug_file(test_data_dict, run_name=run_name)
+    with open(curfile, "r") as f:
+        loaded_dict = yaml.safe_load(f)
+    SNLogger.debug(f"Loaded debug file contents: {loaded_dict}")
+    assert loaded_dict == test_data_dict, "The debug file contents do not match the expected data."
+
+    bad_dict = {"non_existent_key": 123}
+    update_debug_file(bad_dict, run_name=run_name)
+    with open(curfile, "r") as f:
+        loaded_dict = yaml.safe_load(f)
+    SNLogger.debug(f"Loaded debug file contents after bad update: {loaded_dict}")
+    assert loaded_dict == test_data_dict, "The debug file contents changed after a bad update."
+    
 @pytest.mark.parametrize("nprocs", [(10), (1)])
 def test_construct_one_image(cfg, campari_test_data, nprocs):
     with open(pathlib.Path(__file__).parent / "testdata/reg_test_imglist.pkl" , "rb") as f:

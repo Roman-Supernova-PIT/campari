@@ -57,6 +57,9 @@ def create_default_test_args(cfg):
     test_args.create_ltcv_provenance = False
     test_args.save_to_db = False
     test_args.add_truth_to_lc = False
+    test_args.write_ecsv = True
+    test_args.write_parquet = False
+    test_args.output_filename = None
 
     config = cfg
 
@@ -326,8 +329,98 @@ def test_build_and_save_lc(cfg, overwrite_meta):
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
-    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
-                        overwrite_meta=overwrite_meta)
+    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", overwrite_meta=overwrite_meta)
+
+    old_ecsv_filepath = filepath
+    filepath.unlink()
+    test_args.write_ecsv = False
+    test_args.write_parquet = True
+    runner = campari_runner(**vars(test_args))
+    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    filename = "20172782_Y106_romanpsf_lc.parquet"
+    filepath = output_dir / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+    assert not old_ecsv_filepath.exists(), f"Old lightcurve file {old_ecsv_filepath} should not exist."
+
+    filepath.unlink()
+    test_args.write_ecsv = True
+    test_args.write_parquet = True
+    runner = campari_runner(**vars(test_args))
+    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    filename = "20172782_Y106_romanpsf_lc.ecsv"
+    filepath = output_dir / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+    filename = "20172782_Y106_romanpsf_lc.parquet"
+    filepath_parquet = output_dir / filename
+    assert filepath_parquet.exists(), f"Lightcurve file {filename} was not created."
+    filepath.unlink()
+    filepath_parquet.unlink()
+
+    assert not old_ecsv_filepath.exists(), f"Old lightcurve file {old_ecsv_filepath} should not exist."
+    assert not filepath_parquet.exists(), f"Old lightcurve file {filepath_parquet} should not exist."
+    assert not filepath.exists(), f"Old lightcurve file {filepath} should not exist."
+
+    test_args.output_filename = "testfilename"
+    test_args.write_ecsv = True
+    test_args.write_parquet = True
+    runner = campari_runner(**vars(test_args))
+    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    filename = "testfilename.ecsv"
+    filepath = output_dir / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+    filepath.unlink()
+    filename = "testfilename.parquet"
+    filepath_parquet = output_dir / filename
+    assert filepath_parquet.exists(), f"Lightcurve file {filename} was not created."
+    filepath_parquet.unlink()
+
+    assert not filepath_parquet.exists(), f"Old lightcurve file {filepath_parquet} should not exist."
+    assert not filepath.exists(), f"Old lightcurve file {filepath} should not exist."
+
+    test_args.output_filename = pathlib.Path(__file__).parent / "testdata/test_save_lc"
+    test_args.write_ecsv = True
+    test_args.write_parquet = True
+    runner = campari_runner(**vars(test_args))
+    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    filename = "test_save_lc.ecsv"
+    filepath = pathlib.Path(__file__).parent / "testdata" / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+    filepath.unlink()
+    assert not filepath.exists(), f"Old lightcurve file {filepath} should not exist."
+
+    filename = "test_save_lc.parquet"
+    filepath = pathlib.Path(__file__).parent / "testdata" / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+    filepath.unlink()
+    assert not filepath.exists(), f"Old lightcurve file {filepath} should not exist."
+
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
+        test_build_and_save_lc(cfg, overwrite_meta=False)
+
+    # Check it works when the suffix is provided
+    test_args.output_filename = pathlib.Path(__file__).parent / "testdata/test_save_lc.ecsv"
+    test_args.write_ecsv = True
+    test_args.write_parquet = True
+    runner = campari_runner(**vars(test_args))
+    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    filename = "test_save_lc.ecsv"
+    filepath = pathlib.Path(__file__).parent / "testdata" / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+    filepath.unlink()
+    assert not filepath.exists(), f"Old lightcurve file {filepath} should not exist."
+
+    # Will still write to parquet even if ecsv suffix is provided if --write_parquet is True
+    filename = "test_save_lc.parquet"
+    filepath = pathlib.Path(__file__).parent / "testdata" / filename
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+    filepath.unlink()
+    assert not filepath.exists(), f"Old lightcurve file {filepath} should not exist."
+
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
         test_build_and_save_lc(cfg, overwrite_meta=False)
