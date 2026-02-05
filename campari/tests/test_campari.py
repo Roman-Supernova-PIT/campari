@@ -310,7 +310,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--photometry-campari-subtract_background_method SKY_MEAN "
-        "--photometry-campari-psf-transient_class" " ou24PSF_slow "
+        "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--ra 7.5833264 --dec -44.809659 --image-collection ou2024"
         " --no-save-to-db --photometry-campari-grid_options-gaussian_var 1000",
     )
@@ -343,7 +343,6 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--photometry-campari-subtract_background_method", "SKY_MEAN",
          "--photometry-campari-psf-galaxy_class", "ou24PSF",
          "--photometry-campari-psf-transient_class", "ou24PSF_slow",
-         "--no-photometry-campari-source_phot_ops",
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
@@ -393,7 +392,6 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
-        "--no-photometry-campari-source_phot_ops "
         "--save_model --image-collection ou2024 "
         " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
@@ -579,7 +577,7 @@ def test_construct_transient_scene():
 
 
     cfg = Config.get()
-    orig_transient_photops = cfg.value( "photometry.campari.psf.transient_photon_ops" )
+    orig_fetch_SED = cfg.value( "photometry.campari.fetch_SED" )
     # This will need to go away once the PSF object is split in phot ops and non phot ops
 
     try:
@@ -588,12 +586,13 @@ def test_construct_transient_scene():
         cfg._static = True
 
         psf_image = construct_transient_scene(x0=2044, y0=2044, pointing=43623, sca=7,
-                                            stampsize=25, x=2044,
-                                            y=2044, sed=sed,
-                                            flux=1)
+                                              stampsize=25, x=2044,
+                                              y=2044, sed=sed,
+                                              flux=1)
+
     finally:
         cfg._static = False
-        cfg.set_value("photometry.campari.fetch_SED", orig_transient_photops)
+        cfg.set_value("photometry.campari.fetch_SED", orig_fetch_SED)
         cfg._static = True
 
     comparison_image = np.load(pathlib.Path(__file__).parent
@@ -767,7 +766,7 @@ def test_make_sim_param_grid():
 def test_handle_partial_overlap():
     cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("system.paths.debug_dir")) / "30617531_Y106_romanpsf_images.npy"
+    curfile = pathlib.Path(cfg.value("system.paths.debug_dir")) / "30617531_Y106_ou24psf_slow_photonshoot_images.npy"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -777,11 +776,11 @@ def test_handle_partial_overlap():
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
-        " --photometry-campari-psf-galaxy_class ou24PSF "
-        " --photometry-campari-psf-transient_class ou24PSF_slow "
+        " --photometry-campari-psf-galaxy_class ou24PSF_photonshoot "
+        " --photometry-campari-psf-transient_class ou24PSF_slow_photonshoot " # This was OU24 PSF and PSF_slow in a different branch?
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate --photometry-campari-source_phot_ops "
+        "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate "
         "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
         " --photometry-campari-grid_options-gaussian_var 1000"
     )
@@ -893,10 +892,12 @@ def test_build_model_one_image():
     bg_array, sn_array = build_model_for_one_image(image=image_list[0], ra=ra, dec=dec,
                                                    grid_type="contour", ra_grid=ra_grid, dec_grid=dec_grid, size=size,
                                                    pixel=False, band="Y106", sedlist=None,
-                                                   source_phot_ops=True, image_index=0, num_total_images=2,
+                                                   image_index=0, num_total_images=2,
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
                                                    prebuilt_sn_matrix=None, subtract_background_method="calculate")
 
+    reg_bg_array = np.load(pathlib.Path(__file__).parent / "testdata/reg_bg_array.npy")
+    reg_sn_array = np.load(pathlib.Path(__file__).parent / "testdata/reg_sn_array.npy", allow_pickle=True)
 
     np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
     np.testing.assert_equal(sn_array, reg_sn_array)  # We expect Nones here
