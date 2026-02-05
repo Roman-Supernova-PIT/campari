@@ -8,9 +8,12 @@ from astropy.io import fits
 from astropy.table import Table
 
 import snappl
+from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
 
+cfg = Config.get()
+debug_dir = cfg.value("system.paths.debug_dir")
 
 
 
@@ -140,13 +143,13 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
 def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
     SNLogger.debug("Generating diagnostic plots....")
     lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
-    ims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
-    modelims = np.load(f"/campari_debug_dir/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
-    noise_maps = np.load(f"/campari_debug_dir/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+    ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    noise_maps = np.load(f"/{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
 
     galra, galdec = 128.00003, 42.00003
 
-    hdul = fits.open("/campari_debug_dir/" + str(fileroot) + "_wcs.fits")
+    hdul = fits.open(f"/{debug_dir}/" + str(fileroot) + "_wcs.fits")
     cutout_wcs_list = []
     for i, savedwcs in enumerate(hdul):
         if i == 0:
@@ -231,12 +234,12 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         ################################
     plt.subplots_adjust(hspace=0.3)
-    plt.savefig("/campari_debug_dir/" + plotname + ".png")
+    plt.savefig(f"{debug_dir}/" + plotname + ".png")
     plt.close()
 
     plt.clf()
     lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
-    SNLogger.debug("Generated image diagnostics and saved to /campari_debug_dir/" + plotname + ".png")
+    SNLogger.debug(f"Generated image diagnostics and saved to {debug_dir}/" + plotname + ".png")
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
     if trueflux is not None:
@@ -304,4 +307,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.yscale("log")
         # plt.ylim(1e3, 1e5)
 
-        plt.savefig("/campari_debug_dir/" + plotname + "_lc.png")
+        plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
+
+    SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")

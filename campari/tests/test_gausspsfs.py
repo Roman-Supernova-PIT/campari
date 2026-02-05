@@ -1,3 +1,4 @@
+import inspect
 from matplotlib import pyplot as plt
 import numpy as np
 import pathlib
@@ -46,6 +47,7 @@ base_cmd = [
 cfg = Config.get()
 debug_dir = cfg.value("system.paths.debug_dir")
 
+
 def create_true_flux(mjd, peakmag):
     # This creates a linear up-down lightcurve peaking at peakmag. Looks like a triangle.
     peakflux = 10 ** ((peakmag - 33) / -2.5)
@@ -53,8 +55,10 @@ def create_true_flux(mjd, peakmag):
     peak_mjd = 60030
     end_mjd = 60060
     flux = np.zeros_like(mjd)
-    flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
+    before_peak = np.where(mjd < peak_mjd)
+    after_peak = np.where(mjd >= peak_mjd)
+    flux[before_peak] = peakflux * (mjd[before_peak] - start_mjd) / (peak_mjd - start_mjd)
+    flux[after_peak] = peakflux * (mjd[after_peak] - end_mjd) / (peak_mjd - end_mjd)
     return flux
 
 
@@ -84,7 +88,7 @@ def perform_aperture_photometry(fileroot, imsize, aperture_radius=4):
     return ap_sums, ap_err
 
 
-def perform_gaussianity_checks(residuals_sigma):
+def perform_gaussianity_checks(residuals_sigma, measuredflux=None, trueflux=None):
     """Most of these tests apply the same checks, so just put them in a function."""
     sub_one_sigma = np.sum(np.abs(residuals_sigma) < 1)
     SNLogger.debug(f"Campari fraction within 1 sigma: {sub_one_sigma / len(residuals_sigma)}")
