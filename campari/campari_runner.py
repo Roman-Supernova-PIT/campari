@@ -252,11 +252,8 @@ class campari_runner:
         if diaobj.mjd_end is None:
             diaobj.mjd_end = np.inf
 
-#       param_grid_row = self.param_grid[:, index] if self.param_grid is not None else None
-        param_grid_row = None  # Tear all this out into external program in a future PR.
-
-        lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
-        self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
+        lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
+        self.build_and_save_lightcurve(diaobj, lightcurve_model)
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
@@ -287,7 +284,6 @@ class campari_runner:
 
             no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
             SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
-            no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
 
             if (
                 self.max_no_transient_images != 0
@@ -339,7 +335,7 @@ class campari_runner:
             sedlist.append(sed_obj.get_sed(snid=name, mjd=img.mjd))
         return sedlist
 
-    def call_run_one_object(self, diaobj, image_list, sedlist, param_grid_row):
+    def call_run_one_object(self, diaobj, image_list, sedlist):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
 
         prebuilt_psf_matrix = np.load(self.prebuilt_static_model) if self.prebuilt_static_model is not None else None
@@ -366,7 +362,22 @@ class campari_runner:
 
         return lightcurve_model
 
-    def build_and_save_lightcurve(self, diaobj, lc_model, param_grid_row):
+    def build_and_save_lightcurve(self, diaobj, lc_model):
+        """ Build the lightcurve object and save it locally and/or to the database. Note that if no measurements
+        are made, e.g. if no exposures with the transient are found, no lightcurve is saved.
+        
+        Inputs:
+        ---------
+        diaobj: DiaObject
+            The DiaObject for which the lightcurve is being built.
+        lc_model: LightcurveModel
+            The lightcurve model returned by run_one_object.
+
+        Returns:
+        ---------
+        None, but the lightcurve is saved locally and/or to the database.
+        
+        """
         lc_model.image_collection_prov = self.img_coll_prov
         if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
