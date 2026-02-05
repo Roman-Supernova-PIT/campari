@@ -20,7 +20,6 @@
 # - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
-# - {source_phot_ops: true}
 # - {use_roman: true}
 # - {weighting: true}
 # - {make_initial_guess: true}
@@ -43,8 +42,8 @@
 # - {dec: -44.809659}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 4b5b029d-aaf9-486f-3edf-a7ea7f8a9e4a}
-# - {diaobject_id: 90e1802b-86fb-403a-ad88-c9cd4544d437}
+# - {provenance_id: 728e9b35-9c70-afb5-9d93-90d328521e73}
+# - {diaobject_id: 73b7f355-ab0a-4174-b473-a4239075830e}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -87,4 +86,4 @@
 #       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
 mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
-62455.669 358947.2808195439 140.32042735334673 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.77407908404276 0.00042443828491140997 5.237330526571221 5.485903585548659 108.0
+62455.669 358946.94104248745 140.32030417896212 15.023547191066584 0.0 0.0 35198 2 286.23733052601574 1091.4859035809764 18.77408011179376 0.000424438314106539 5.237330526571221 5.485903585548659 108.0

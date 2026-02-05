@@ -3,9 +3,9 @@ from matplotlib import pyplot as plt
 import numpy as np
 import pathlib
 import pytest
-from scipy.stats import norm, skewtest
 import subprocess
 
+from scipy.stats import norm, skewtest, skew
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
@@ -546,7 +546,9 @@ def test_both_shifted_just_host():
 
 # 22 mag delta function galaxy tests ############################################################################
 
-
+# Note: These tests are maintained rather than full removal because they are useful for debugging when
+# the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_noiseless_aligned_22mag_host():
 
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_host_mag22.txt"]
@@ -699,7 +701,9 @@ def test_transientnoiseonly_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
-
+# Note: These tests are maintained rather than full removal because they are useful for debugging when
+# the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
+@pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_both_aligned_22mag_host():
     cmd = base_cmd + [
         "--img_list",
@@ -1314,7 +1318,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    cmd += ["--save_model"]
+    #cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          "/campari_debug_dir/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
