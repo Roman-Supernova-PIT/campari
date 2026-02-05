@@ -558,8 +558,7 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
                               image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
-                              base_pointing=None, base_sca=None):
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
     pointing, sca = image.pointing, image.sca
@@ -618,12 +617,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
-        if use_real_images:
-            pointing = pointing
-            sca = sca
-        else:
-            pointing = base_pointing
-            sca = base_sca
         # sedlist is the length of the number of supernova
         # detection images. Therefore, when we iterate onto the
         # first supernova image, we want to be on the first element

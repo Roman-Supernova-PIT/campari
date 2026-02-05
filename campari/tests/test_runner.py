@@ -61,7 +61,6 @@ def create_default_test_args(cfg):
     config = cfg
 
     test_args.size = config.value("photometry.campari.cutout_size")
-    test_args.use_real_images = config.value("photometry.campari.use_real_images")
     test_args.avoid_non_linearity = config.value("photometry.campari_simulations.avoid_non_linearity")
     test_args.deltafcn_profile = config.value("photometry.campari_simulations.deltafcn_profile")
     test_args.do_xshift = config.value("photometry.campari_simulations.do_xshift")
@@ -72,17 +71,12 @@ def create_default_test_args(cfg):
     test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.bg_gal_flux_all = config.value("photometry.campari_simulations.bg_gal_flux")
-    test_args.sim_galaxy_scale_all = config.value("photometry.campari_simulations.sim_galaxy_scale")
-    test_args.sim_galaxy_offset_all = config.value("photometry.campari_simulations.sim_galaxy_offset")
     test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")
     test_args.initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
     test_args.spacing = config.value("photometry.campari.grid_options.spacing")
     test_args.percentiles = config.value("photometry.campari.grid_options.percentiles")
     test_args.grid_type = config.value("photometry.campari.grid_options.type")
-    test_args.base_pointing = config.value("photometry.campari_simulations.base_pointing")
-    test_args.base_sca = config.value("photometry.campari_simulations.base_sca")
     test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
