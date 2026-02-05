@@ -89,9 +89,6 @@ class campari_runner:
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
-        self.galaxy_photon_ops = self.cfg.value("photometry.campari.psf.galaxy_photon_ops")
-        self.transient_photon_ops = self.cfg.value("photometry.campari.psf.transient_photon_ops")
-        self.source_phot_ops = self.cfg.value("photometry.campari.source_phot_ops")
         self.mismatch_seds = self.cfg.value("photometry.campari_simulations.mismatch_seds")
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
@@ -124,8 +121,6 @@ class campari_runner:
             self.grid_type = "regular"
             self.spacing = 9
             self.size = 11
-            self.transient_photon_ops = False
-            self.galaxy_photon_ops = False
             self.fetch_SED = False
             self.make_initial_guess = False
 
