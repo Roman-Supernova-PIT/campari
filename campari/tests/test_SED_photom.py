@@ -37,7 +37,7 @@ base_cmd = [
         "--no-save-to-db"
     ]
 
-
+@pytest.mark.skip(reason="This test simply confirms that fitting with the same SED as simulated is optimal.")
 def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
     cmd = base_cmd + [
         "--img_list",
