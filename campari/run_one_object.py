@@ -20,7 +20,6 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.simulation import simulate_images
 from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
 from snappl.config import Config
 from snappl.logger import SNLogger
@@ -62,21 +61,17 @@ huge_value = 1e32
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
-                   use_real_images=None, subtract_background_method=None,
+                   subtract_background_method=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
-                   avoid_non_linearity=None, spacing=None, percentiles=None, sim_galaxy_scale=1,
-                   sim_galaxy_offset=None, base_pointing=662, base_sca=11,
+                   avoid_non_linearity=None, spacing=None, percentiles=None,
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None,
                    nprocs=None):
     psf_matrix = []
     sn_matrix = []
-
-    # This is a catch for when I'm doing my own simulated WCSs
-    util_ref = None
 
     percentiles = []
 
@@ -97,39 +92,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
-    if use_real_images:
-        cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
-                                                                         subtract_background_method=
-                                                                         subtract_background_method,
-                                                                         nprocs=nprocs)
-        noise_maps = [im.noise for im in cutout_image_list]
+    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
+                                                                     subtract_background_method=
+                                                                     subtract_background_method,
+                                                                     nprocs=nprocs)
+    noise_maps = [im.noise for im in cutout_image_list]
 
-        # We didn't simulate anything, so set these simulation only vars to none.
-        sim_galra = None
-        sim_galdec = None
-        galaxy_images = None
+    sim_galra = None
+    sim_galdec = None
+    galaxy_images = None
 
-    else:
-        # Simulate the images of the SN and galaxy.
-        banner("Simulating Images")
-        simulated_lightcurve, util_ref = \
-            simulate_images(image_list=image_list, diaobj=diaobj,
-                            sim_galaxy_scale=sim_galaxy_scale, sim_galaxy_offset=sim_galaxy_offset,
-                            do_xshift=do_xshift, do_rotation=do_rotation, noise=noise,
-                            size=size,
-                            deltafcn_profile=deltafcn_profile,
-                            input_psf=airy, bg_gal_flux=bg_gal_flux,
-                            mismatch_seds=mismatch_seds, base_pointing=base_pointing,
-                            base_sca=base_sca)
-        sim_lc = simulated_lightcurve.sim_lc
-        sky_background = np.zeros(len(sim_lc))
-        image_list = simulated_lightcurve.image_list
-        cutout_image_list = simulated_lightcurve.cutout_image_list
-        galaxy_images = simulated_lightcurve.galaxy_images
-        noise_maps = simulated_lightcurve.noise_maps
-        sim_galra = simulated_lightcurve.galra
-        sim_galdec = simulated_lightcurve.galdec
-        object_type = "SN"
 
     # Build the background grid
     if not grid_type == "none":
@@ -171,16 +143,15 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Build the backgrounds loop
     cfg = Config.get()
     psfclass = cfg.get().value("photometry.campari.psf.transient_class")
-    source_phot_ops = cfg.get().value("photometry.campari.source_phot_ops")
 
     model_results = []
-    kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "use_real_images": use_real_images, "grid_type": grid_type,
+    kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "grid_type": grid_type,
                   "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
                   "band": band,
-                  "sedlist": sedlist, "source_phot_ops": source_phot_ops, "num_total_images": num_total_images,
+                  "sedlist": sedlist,
+                  "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
-                  "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method,
-                  "base_pointing": base_pointing, "base_sca": base_sca}
+                  "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
     if nprocs > 1:
         with Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
@@ -226,13 +197,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
+    galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
+    sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
+
     if save_model:
         psf_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"psf_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
         np.save(psf_matrix_path, psf_matrix)
 
         sn_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
-            / f"sn_matrix_{psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
         np.save(sn_matrix_path, sn_matrix)
 
         SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
@@ -273,9 +247,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if method == "lsqr":
 
         wgt_matrix = np.sqrt(wgt_matrix)
-
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix, x0=x0test, atol=1e-12,
+                              images*wgt_matrix,  atol=1e-12, x0=x0test,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
@@ -302,18 +275,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     galaxy_only_model_images = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
         if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
 
-    if use_real_images:
-        # Eventually I might completely separate out simulated SNe, though I
-        # am hesitant to do that as I want them to be treated identically as
-        # possible. In the meantime, just return zeros for the simulated lc
-        # if we aren't simulating.
-        sim_lc = np.zeros(num_detect_images)
-
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            LSB=LSB, best_fit_model_values=X, sim_lc=sim_lc, image_list=image_list,
+            LSB=LSB, best_fit_model_values=X, image_list=image_list,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,

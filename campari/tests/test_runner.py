@@ -61,8 +61,6 @@ def create_default_test_args(cfg):
     config = cfg
 
     test_args.size = config.value("photometry.campari.cutout_size")
-    test_args.use_real_images = config.value("photometry.campari.use_real_images")
-    test_args.psfclass = config.value("photometry.campari.psfclass")
     test_args.avoid_non_linearity = config.value("photometry.campari_simulations.avoid_non_linearity")
     test_args.deltafcn_profile = config.value("photometry.campari_simulations.deltafcn_profile")
     test_args.do_xshift = config.value("photometry.campari_simulations.do_xshift")
@@ -73,25 +71,16 @@ def create_default_test_args(cfg):
     test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.bg_gal_flux_all = config.value("photometry.campari_simulations.bg_gal_flux")
-    test_args.sim_galaxy_scale_all = config.value("photometry.campari_simulations.sim_galaxy_scale")
-    test_args.sim_galaxy_offset_all = config.value("photometry.campari_simulations.sim_galaxy_offset")
-    test_args.source_phot_ops = config.value("photometry.campari.source_phot_ops")
-    test_args.transient_photon_ops = config.value("photometry.campari.psf.transient_photon_ops")
-    # This will need to go away once the PSF object is split in phot ops and non phot ops
-    test_args.galaxy_photon_ops = config.value("photometry.campari.psf.galaxy_photon_ops")
     test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")
     test_args.initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
     test_args.spacing = config.value("photometry.campari.grid_options.spacing")
     test_args.percentiles = config.value("photometry.campari.grid_options.percentiles")
     test_args.grid_type = config.value("photometry.campari.grid_options.type")
-    test_args.base_pointing = config.value("photometry.campari_simulations.base_pointing")
-    test_args.base_sca = config.value("photometry.campari_simulations.base_sca")
     test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
-    test_args.pointing_list = None
+    test_args.observation_id_list = None
 
     test_args.find_obj_prov_tag = None
     test_args.find_obj_process = None
@@ -176,9 +165,13 @@ def test_get_exposures(cfg):
     argsort = np.argsort(compare_table["date"])
     compare_table = compare_table[argsort]
 
-    np.testing.assert_array_equal([a.mjd for a in image_list], compare_table["date"])
-    np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
-    np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
+    mjd_list = [a.mjd for a in image_list]
+    order = np.argsort(mjd_list)
+    mjd_list = np.array(mjd_list)[order]
+
+    np.testing.assert_array_equal(mjd_list, compare_table["date"])
+    np.testing.assert_array_equal(np.array([a.sca for a in image_list])[order], compare_table["sca"])
+    np.testing.assert_array_equal(np.array([int(a.observation_id) for a in image_list])[order], compare_table["pointing"])
 
     # ### Now try with an image list
 
@@ -192,9 +185,11 @@ def test_get_exposures(cfg):
     diaobj.mjd_end = 62958.0
 
     runner.get_exposures(diaobj=diaobj)
-    columns = ["pointing", "sca"]
-    pointing_list = [int(im.pointing) for im in runner.image_list]
-    np.testing.assert_array_equal(pointing_list, pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
+    columns = ["observation_id", "sca"]
+    observation_id_list = [int(im.observation_id) for im in runner.image_list]
+    observation_id_list = observation_id_list.sort()
+    compare_list = pd.read_csv(test_args.img_list, names=columns)["observation_id"].tolist().sort()
+    np.testing.assert_array_equal(observation_id_list, compare_list)
 
 
 def test_get_SED_list(cfg):
@@ -255,16 +250,16 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     model_images = None
     exposures = pd.DataFrame(data={"date": [1.0, 2.0, 3.0], "filter": ["Y106", "Y106", "Y106"],
                                    "detected": [True, True, True],
-                                   "pointing": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
+                                   "observation_id": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
                                    "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
 
     # Getting a WCS to use
-    pointing = 5934
+    observation_id = 5934
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
-    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+    snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 
@@ -281,7 +276,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         )
         img.mjd = exposures["date"][i]
         img.band = exposures["filter"][i]
-        img.pointing = exposures["pointing"][i]
+        img.observation_id = exposures["observation_id"][i]
         img.sca = exposures["sca"][i]
         img._wcs = wcs
         image_list.append(img)
@@ -318,7 +313,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         upstreams=upstreams,
     )
 
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.build_and_save_lightcurve(diaobj, lc_model)
 
     output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"

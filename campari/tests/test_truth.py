@@ -86,7 +86,7 @@ def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
 def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     exposures = pd.DataFrame(
         {
-            "pointing": [5934, 35198],
+            "observation_id": [5934, 35198],
             "sca": [3, 2],
             "date": [62000.40235, 62495.605],
             "detected": [False, True],
@@ -102,12 +102,12 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     explist.sort(["detected", "sca"])
 
     # Getting a WCS to use
-    pointing = 5934
+    observation_id = 5934
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
-    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+    snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 
@@ -124,7 +124,7 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
         )
         img.mjd = explist["date"][i]
         img.filter = explist["filter"][i]
-        img.pointing = explist["pointing"][i]
+        img.observation_id = explist["observation_id"][i]
         img.sca = explist["sca"][i]
         img._wcs = wcs
         img.band = "Y106"
