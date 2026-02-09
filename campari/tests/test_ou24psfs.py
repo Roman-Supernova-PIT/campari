@@ -7,10 +7,10 @@ import pytest
 from astropy.table import Table
 
 from snappl.logger import SNLogger
+from snappl.config import Config
 
 from campari.tests.test_gausspsfs import generate_diagnostic_plots, perform_gaussianity_checks
 
-import pytest
 
 
 imsize = 19
@@ -46,7 +46,12 @@ base_cmd = [
     ]
 
 
+cfg = Config.get()
+debug_dir = cfg.value("system.paths.debug_dir")
 
+out_dir = cfg.value("system.paths.output_dir")
+
+@pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_noiseless_aligned_nohost_ou2024fast_nophotops_more():
     cmd = base_cmd + [
         "--img_list",
