@@ -299,19 +299,18 @@ class campari_runner:
         SNLogger.debug(f"Found a total of {len(image_list)} images for this object, ")
         SNLogger.debug(f"of which {len(no_transient_images)} are non-detection images")
         SNLogger.debug(f"and {len(transient_images)} are detection images.")
-
         self.image_list = image_list
         SNLogger.debug("setting image list")
-        recovered_pointings = [int(a.pointing) for a in image_list]
-        self.pointing_list = np.array(self.pointing_list).astype(int) if getattr(self, "pointing_list", None) \
+        recovered_observation_ids = [int(a.observation_id) for a in image_list]
+        self.observation_id_list = np.array(self.observation_id_list).astype(int) if getattr(self, "observation_id_list", None) \
             is not None else None
-        if (self.img_list is not None and self.pointing_list is not None) \
-                and not np.array_equiv(np.sort(recovered_pointings), np.sort(self.pointing_list)):
+        if (self.img_list is not None and self.observation_id_list is not None) \
+                and not np.array_equiv(np.sort(recovered_observation_ids), np.sort(self.observation_id_list)):
             SNLogger.warning(
-                "Unable to find the object in all the pointings in the image list. Specifically, the"
-                " following pointings were not found: "
-                f"{np.setdiff1d(self.pointing_list, recovered_pointings)}. A total of "
-                f"{len(np.setdiff1d(self.pointing_list, recovered_pointings))} were missing."
+                "Unable to find the object in all the observation_ids in the image list. Specifically, the"
+                " following observation_ids were not found: "
+                f"{np.setdiff1d(self.observation_id_list, recovered_observation_ids)}. A total of "
+                f"{len(np.setdiff1d(self.observation_id_list, recovered_observation_ids))} were missing."
             )
 
         SNLogger.debug(f"Found {len(image_list)} exposures")
@@ -450,29 +449,29 @@ class campari_runner:
                                                                  base_path=self.image_collection_basepath)
         images = []
         if all(len(line.split(",")) == 3 for line in img_list_lines):
-            self.pointing_list = []
-            # each line of file is pointing sca band
+            self.observation_id_list = []
+            # each line of file is observation_id sca band
             for line in img_list_lines:
                 vals = line.split(",")
-                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]), band=vals[2]))
-                self.pointing_list.append(int(vals[0]))
+                images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]), band=vals[2]))
+                self.observation_id_list.append(int(vals[0]))
         elif all(len(line.split(",")) == 2 for line in img_list_lines):
-            # each line of file is pointing sca
-            self.pointing_list = []
+            # each line of file is observation_id sca
+            self.observation_id_list = []
             for line in img_list_lines:
                 vals = line.split(",")
-                images.append(my_image_collection.get_image(pointing=vals[0], sca=int(vals[1]),
+                images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]),
                               band=self.band))
-                self.pointing_list.append(int(vals[0]))
+                self.observation_id_list.append(int(vals[0]))
         elif all(len(line.split(",")) == 1 for line in img_list_lines):
             # each line of file is path to image
-            self.pointing_list = None
+            self.observation_id_list = None
             for line in img_list_lines:
                 SNLogger.debug(f"Looking for path {line}.")
                 images.append(my_image_collection.get_image(path=line))
         else:
-            raise ValueError("Invalid img_list. Should be either paths, lines of pointing sca band, or lines of"
-                             " pointing and sca.")
+            raise ValueError("Invalid img_list. Should be either paths, lines of observation_id sca band, or lines of"
+                             " observation_id and sca.")
 
         return images
 
