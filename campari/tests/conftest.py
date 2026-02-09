@@ -36,6 +36,6 @@ def pytest_generate_tests(metafunc):
     if "overwrite_meta" in metafunc.fixturenames and option_value is not None:
         metafunc.parametrize("overwrite_meta", [option_value])
 
-@pytest.fixture(scope="session", autouse=True)
-def init_config():
-    Config.init("/campari/examples/perlmutter/campari_config_test.yaml", setdefault=True)
+# @pytest.fixture(scope="session", autouse=True)
+# def init_config():
+#     Config.init("/campari/examples/perlmutter/campari_config_test.yaml", setdefault=True)

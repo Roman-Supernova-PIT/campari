@@ -64,17 +64,17 @@ system:
   paths:
     lightcurves: /campari_out_dir # So Cole can run tests.
     sims_sed_library: /home/rubin_sim_data/sims_sed_library
-    campari_test_data: /campari_test_data
-    output_dir: /campari_out_dir
-    sed_path: /campari_sed_dir
-    debug_dir: /campari_debug_dir
+    campari_test_data: /scratch/campari_test_data
+    output_dir: /scratch/campari_out_dir
+    sed_path: /scratch/campari_sed_dir
+    debug_dir: /scratch/campari_debug_dir
 
   ou24:
     simdex_server: https://roman-desc-simdex.rknop.net
-    config_file: /campari/examples/perlmutter/tds.yaml
-    sn_truth_dir: /snana_pq_dir
+    config_file: /scratch/campari/examples/perlmutter/tds.yaml
+    sn_truth_dir: /ou2024_snana
     sims_sed_library: /home/rubin_sim_data/sims_sed_library
-    images: /sims_dir/RomanTDS/images/simple_model
+    images: /ou2024/RomanTDS/images/simple_model
     tds_base: /photometry_test_data/ou2024
 
   db:

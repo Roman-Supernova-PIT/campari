@@ -115,7 +115,8 @@ gal:
 
 input:
     obseq_data:
-        file_name: /sims_dir/RomanTDS/Roman_TDS_obseq_11_6_23.fits
+        file_name: /ou2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits # Updated 2/7/26 for new podman image
+        # file_name: /sims_dir/RomanTDS/Roman_TDS_obseq_11_6_23.fits
         visit: 80840
         SCA: '@image.SCA'
     roman_psf:
@@ -125,7 +126,7 @@ input:
         file_name: /cwork/mat90/RomanDESC_sims_2024/roman_rubin_cats_v1.1.2_faint/skyCatalog.yaml 
         edge_pix: 512
         mjd: { type: ObSeqData, field: mjd }
-        exptime: { type: ObSeqData, field: exptime }          
+        exptime: { type: ObSeqData, field: exptime }
         obj_types: ['diffsky_galaxy', 'star', 'snana']
 
 output:
