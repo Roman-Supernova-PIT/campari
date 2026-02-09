@@ -2,10 +2,19 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
+from scipy.stats import norm
+
 from astropy.io import fits
+from astropy.table import Table
 
 import snappl
+from snappl.config import Config
 from snappl.logger import SNLogger
+from snappl.wcs import AstropyWCS
+
+cfg = Config.get()
+debug_dir = cfg.value("system.paths.debug_dir")
+
 
 
 def plot_images(fileroot, size=11):
@@ -129,3 +138,175 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin="lower", cmap="gray")
     plt.scatter(ra_grid, dec_grid)
+
+
+def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
+    SNLogger.debug("Generating diagnostic plots....")
+    lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
+    ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
+    modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    noise_maps = np.load(f"/{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+
+    galra, galdec = 128.00003, 42.00003
+
+    hdul = fits.open(f"/{debug_dir}/" + str(fileroot) + "_wcs.fits")
+    cutout_wcs_list = []
+    for i, savedwcs in enumerate(hdul):
+        if i == 0:
+            continue
+        newwcs = AstropyWCS.from_header(savedwcs.header)
+        cutout_wcs_list.append(newwcs)
+
+    numcols = 4
+    plt.figure(figsize=(numcols * 5, ims.shape[0] * 5))
+    for i in range(ims.shape[0]):
+        k = 0
+        k += 1
+        plt.subplot(ims.shape[0], numcols, numcols * i + k)
+
+        galx, galy = cutout_wcs_list[i].world_to_pixel(galra, galdec)
+        plt.scatter(galx, galy, c="b", s=100, marker="*")
+        if i >= lc.meta["pre_transient_images"] and i < ims.shape[0] - lc.meta["post_transient_images"]:
+            plt.scatter(
+                lc["x_cutout"][i - lc.meta["pre_transient_images"]],
+                lc["y_cutout"][i - lc.meta["pre_transient_images"]],
+                color="red",
+                marker="+",
+                s=100,
+            )
+
+        if i == 0:
+            plt.title("Input Image")
+        im = plt.imshow(ims[i], origin="lower")
+
+        vmin, vmax = im.get_clim()
+        xticks = np.arange(0, imsize, 5) - 0.5
+
+        if imsize < 30:
+            plt.xticks(xticks)
+            plt.yticks(xticks)
+            plt.grid(True)
+        plt.colorbar()
+
+        ###########################################################################
+
+        k += 1
+        plt.subplot(ims.shape[0], numcols, numcols * i + k)
+        if i == 0:
+            plt.title("Model Image")
+        plt.scatter(galx, galy, c="b", s=100, marker="*")
+        plt.xlim(-0.5, imsize - 0.5)
+        plt.ylim(-0.5, imsize - 0.5)
+
+        if imsize < 30:
+            plt.xticks(xticks)
+            plt.yticks(xticks)
+            plt.grid(True)
+        plt.imshow(modelims[i], origin="lower", vmin=vmin, vmax=vmax)
+        plt.colorbar()
+
+        ################################
+        k += 1
+        plt.subplot(ims.shape[0], numcols, numcols * i + k)
+        if i == 0:
+            plt.title("Residuals")
+        plt.imshow((ims[i] - modelims[i]), origin="lower", vmin=-200, vmax=200, cmap="seismic")
+
+        # ###############################
+        k += 1
+        plt.subplot(ims.shape[0], numcols, numcols * i + k)
+        if i == 0:
+            plt.title("Pixel Pulls")
+        bins = np.linspace(-4, 4, 50)
+        residuals = (modelims[i] - ims[i]).flatten()
+        pixel_pull = (modelims[i].flatten() - ims[i].flatten()) / noise_maps[i].flatten()
+        pixel_pull = pixel_pull[np.where(np.abs(residuals) >= 1)]  # Remove zero residuals from the no transient images.
+        plt.hist(pixel_pull, bins=bins, density=True, alpha=0.5, label="Pixel Pulls")
+        normal_dist = norm(loc=0, scale=1)
+        x = np.linspace(-4, 4, 100)
+        plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
+        mu, sig = norm.fit(pixel_pull)
+        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+
+        plt.legend()
+
+        plt.colorbar()
+
+        ################################
+    plt.subplots_adjust(hspace=0.3)
+    plt.savefig(f"{debug_dir}/" + plotname + ".png")
+    plt.close()
+
+    plt.clf()
+    lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+    SNLogger.debug(f"Generated image diagnostics and saved to {debug_dir}/" + plotname + ".png")
+    SNLogger.debug("Now generating light curve diagnostics...")
+    # Now plot a light curve
+    if trueflux is not None:
+        plt.subplot(2, 2, 1)
+        plt.errorbar(
+            lc["mjd"],
+            lc["flux"] - trueflux,
+            yerr=lc["flux_err"],
+            marker="o",
+            linestyle="None",
+            label="Campari Fit - Truth",
+        )
+
+        residuals = lc["flux"] - trueflux
+        window_size = 3
+        rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
+        plt.plot(lc["mjd"][window_size - 1 :], rolling_avg, label="Rolling Average", color="orange")
+
+        if ap_sums is not None and ap_err is not None:
+            SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
+            plt.errorbar(
+                lc["mjd"],
+                np.array(ap_sums) - trueflux,
+                yerr=ap_err,
+                marker="o",
+                linestyle="None",
+                label="Aperture Phot - Truth",
+                color="red",
+            )
+            plt.errorbar(
+                lc["mjd"],
+                lc["flux"] - np.array(ap_sums),
+                yerr=np.sqrt(lc["flux_err"] ** 2 + np.array(ap_err) ** 2),
+                marker="o",
+                linestyle="None",
+                label="Campari - Aperture Phot",
+                color="green",
+            )
+
+        SNLogger.debug(f"campari std: {np.std(lc['flux'] - trueflux)}")
+
+        plt.axhline(0, color="black", linestyle="--")
+        plt.legend()
+        plt.xlabel("MJD")
+        plt.ylabel("Flux (e-)")
+        plt.xlim(np.min(lc["mjd"]) - 10, np.max(lc["mjd"]) + 10)
+        plt.title(plotname + " Light Curve Residuals")
+
+        plt.subplot(2, 2, 2)
+        pull = (lc["flux"] - trueflux) / lc["flux_err"]
+        plt.hist(pull, bins=10, alpha=0.5, label="Campari Pull", density=True)
+        normal_dist = norm(loc=0, scale=1)
+        x = np.linspace(-5, 5, 100)
+        plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
+
+        mu, sig = norm.fit(pull)
+        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+        plt.legend()
+
+        plt.subplot(2, 2, 3)
+        plt.errorbar(
+            lc["mjd"], lc["flux"], yerr=lc["flux_err"], marker="o", linestyle="None", label="Campari Fit - Truth", ms=1
+        )
+        plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
+        plt.yscale("log")
+        # plt.ylim(1e3, 1e5)
+
+        plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
+
+    SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
