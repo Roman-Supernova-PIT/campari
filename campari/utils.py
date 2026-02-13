@@ -232,13 +232,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             wgt = np.ones(size**2)
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
-        nans = np.size(error[i][np.isnan(error[i])])
-        SNLogger.debug(f"num nans in error: {nans}")
         inv_var = 1 / (error[i].flatten())**2
-        nans = np.size(inv_var[np.isnan(inv_var)])
-        SNLogger.debug(f"num nans: {nans}")
         inv_var = np.nan_to_num(inv_var, nan=0.0)
-        SNLogger.debug(f"num zeros in inv_var: {np.sum(inv_var == 0)}")
         wgt *= inv_var
         wgt_matrix.append(wgt)
     return wgt_matrix
