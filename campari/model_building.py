@@ -349,19 +349,20 @@ def construct_transient_scene(
 
     cfg = Config.get()
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
-    photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
-    if not photOps:
-        # While I want to do this sometimes, it is very rare that you actually
-        # want to do this. Thus if it was accidentally on while doing a normal
-        # run, I'd want to know.
-        SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
+    # photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
+    # if not photOps:
+    #     # While I want to do this sometimes, it is very rare that you actually
+    #     # want to do this. Thus if it was accidentally on while doing a normal
+    #     # run, I'd want to know.
+    #     SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize
     )
-    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
+    SNLogger.debug(f"Constructed transient scene with sum pixel value {np.sum(psf_image)}")
 
     return psf_image.flatten()
 
@@ -647,6 +648,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             y=object_y,
             sed=sed,
             image=image,
+            flux=1.0
         )
 
     else:

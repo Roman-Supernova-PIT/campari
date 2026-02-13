@@ -18,7 +18,7 @@
 # - {name: sky_background, datatype: float64}
 # meta: !!omap
 # - {cutout_size: 11}
-# - {initial_flux_guess: 3000}
+# - {initial_flux_guess: 300000}
 # - {fetch_SED: false}
 # - {use_roman: true}
 # - {weighting: true}
@@ -27,6 +27,7 @@
 # - {pixel: false}
 # - {subtract_background_method: calculate}
 # - {use_real_images: true}
+# - {psfclass: ou24PSF}
 # - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
@@ -42,8 +43,8 @@
 # - {dec: -44.4589649005717}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 67d28436-a291-fbbc-58a3-55c44ee10e12}
-# - {diaobject_id: c26836b4-4fa5-455a-9258-da5e0b008269}
+# - {provenance_id: e7fb5668-2f8f-51d2-ec78-a4a42780ba90}
+# - {diaobject_id: 02b5150c-bfb0-4f8f-8eb3-a949f6c307d9}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

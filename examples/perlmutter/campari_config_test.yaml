@@ -2,7 +2,7 @@ photometry:
   campari:
 
     cutout_size: 11
-    initial_flux_guess: 3000
+    initial_flux_guess: 300000
     fetch_SED: false
     use_roman: true
     weighting: true

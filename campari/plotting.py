@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from scipy.stats import norm
+from scipy.stats import norm, binned_statistic
 
 from astropy.io import fits
 from astropy.table import Table
@@ -142,10 +142,19 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
 
 def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
     SNLogger.debug("Generating diagnostic plots....")
-    lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
+    cfg = Config.get()
+    debug_dir = cfg.value("system.paths.debug_dir")
+    out_dir = cfg.value("system.paths.output_dir")
+    lc = Table.read(f"/{out_dir}/{fileroot}_lc.ecsv")
     ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
     modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
     noise_maps = np.load(f"/{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+
+    SNLogger.debug("Trueflux times central value")
+    SNLogger.debug(0.22099323570728302 * trueflux[0])
+
+    SNLogger.debug("Max pixel value in first image: %f", np.max(ims[0]))
+    SNLogger.debug("Max pixel value in first model image: %f", np.max(modelims[0]))
 
     galra, galdec = 128.00003, 42.00003
 
@@ -210,7 +219,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.subplot(ims.shape[0], numcols, numcols * i + k)
         if i == 0:
             plt.title("Residuals")
-        plt.imshow((ims[i] - modelims[i]), origin="lower", vmin=-200, vmax=200, cmap="seismic")
+        maxval = np.max(np.abs(ims[i] - modelims[i]))
+        plt.imshow((ims[i] - modelims[i]), origin="lower", vmin=-maxval, vmax=maxval, cmap="seismic")
 
         # ###############################
         k += 1
@@ -221,6 +231,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         residuals = (modelims[i] - ims[i]).flatten()
         pixel_pull = (modelims[i].flatten() - ims[i].flatten()) / noise_maps[i].flatten()
         pixel_pull = pixel_pull[np.where(np.abs(residuals) >= 1)]  # Remove zero residuals from the no transient images.
+        pixel_pull = pixel_pull[np.isfinite(pixel_pull)]  # Remove any infinite values
         plt.hist(pixel_pull, bins=bins, density=True, alpha=0.5, label="Pixel Pulls")
         normal_dist = norm(loc=0, scale=1)
         x = np.linspace(-4, 4, 100)
@@ -255,8 +266,9 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
         residuals = lc["flux"] - trueflux
         window_size = 3
-        rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
-        plt.plot(lc["mjd"][window_size - 1 :], rolling_avg, label="Rolling Average", color="orange")
+        if len(residuals) >= window_size:
+            rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
+            plt.plot(lc["mjd"][window_size - 1 :], rolling_avg, label="Rolling Average", color="orange")
 
         if ap_sums is not None and ap_err is not None:
             SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
@@ -277,6 +289,12 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
                 linestyle="None",
                 label="Campari - Aperture Phot",
                 color="green",
+            )
+
+            non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
+            image_sums = [np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)]
+            plt.errorbar(
+                lc["mjd"], np.array(image_sums) - trueflux, yerr=0, marker="o", linestyle="None", label="Image Sum - Truth", color="purple"
             )
 
         SNLogger.debug(f"campari std: {np.std(lc['flux'] - trueflux)}")
@@ -306,6 +324,19 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
         plt.yscale("log")
         # plt.ylim(1e3, 1e5)
+
+        plt.subplot(2,2,4)
+        plt.errorbar(lc["flux"], pull, yerr=None, marker="o", linestyle="None")
+        bins = np.linspace(min(lc["flux"]), max(lc["flux"]), 5)
+        bin_means, bin_edges, _ = binned_statistic(lc["flux"], pull, statistic="mean", bins=bins)
+        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+        plt.axhline(0, color="black", linestyle="--")
+        plt.xlabel("Flux")
+        plt.ylabel("Pull")
+        bin_stds, _, _ = binned_statistic(lc["flux"], pull, statistic="std", bins=bins)
+        plt.errorbar(bin_centers, bin_means, yerr=bin_stds, fmt="o", color="red", label="Binned Mean Pull with Std Dev")
+        plt.legend()
 
         plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
 
