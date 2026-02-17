@@ -300,11 +300,11 @@ class campari_runner:
         SNLogger.debug(f"and {len(transient_images)} are detection images.")
         self.image_list = image_list
         SNLogger.debug("setting image list")
-        recovered_observation_ids = [int(a.observation_id) for a in image_list]
-        self.observation_id_list = np.array(self.observation_id_list).astype(int) if getattr(self, "observation_id_list", None) \
+        recovered_observation_ids = [a.observation_id for a in image_list]
+        self.observation_id_list = np.array(self.observation_id_list) if getattr(self, "observation_id_list", None) \
             is not None else None
         if (self.img_list is not None and self.observation_id_list is not None) \
-                and not np.array_equiv(np.sort(recovered_observation_ids), np.sort(self.observation_id_list)):
+                and len(np.setdiff1d(self.observation_id_list, recovered_observation_ids)) > 0:
             SNLogger.warning(
                 "Unable to find the object in all the observation_ids in the image list. Specifically, the"
                 " following observation_ids were not found: "
@@ -453,7 +453,7 @@ class campari_runner:
             for line in img_list_lines:
                 vals = line.split(",")
                 images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]), band=vals[2]))
-                self.observation_id_list.append(int(vals[0]))
+                self.observation_id_list.append(vals[0])
         elif all(len(line.split(",")) == 2 for line in img_list_lines):
             # each line of file is observation_id sca
             self.observation_id_list = []
@@ -461,7 +461,7 @@ class campari_runner:
                 vals = line.split(",")
                 images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]),
                               band=self.band))
-                self.observation_id_list.append(int(vals[0]))
+                self.observation_id_list.append(vals[0])
         elif all(len(line.split(",")) == 1 for line in img_list_lines):
             # each line of file is path to image
             self.observation_id_list = None

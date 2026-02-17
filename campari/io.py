@@ -88,7 +88,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     for i, img in enumerate(image_list):
         if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["observation_id"].append(str(img.observation_id))
+            data_dict["observation_id"].append(img.observation_id)
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["pix_x"].append(x)
