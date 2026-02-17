@@ -108,21 +108,27 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(seed):
 
 @pytest.mark.slow()
 # 51 is two sigma skewed, p ~ 0.04, is this admissible?
-@pytest.mark.parametrize("seed", [49, 50, 51, 52])
+@pytest.mark.parametrize("seed", [45, 46, 47, 48, 49, 50, 51, 52])
 def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(seed):
 
     diaobject_name = "111" + str(seed)
     diaobject_name_index = base_cmd.index("--diaobject-name") + 1
     base_cmd[diaobject_name_index] = diaobject_name
 
+    if "--no-photometry-campari-make_initial_guess" in base_cmd:
+        initial_guess_index = base_cmd.index("--no-photometry-campari-make_initial_guess")
+        base_cmd[initial_guess_index] = "--photometry-campari-make_initial_guess"
 
-    initial_guess_index = base_cmd.index("--no-photometry-campari-make_initial_guess")
-    base_cmd[initial_guess_index] = "--photometry-campari-make_initial_guess"
+    # Screwed up the naming on some of these
+    if seed > 48:
+        underscore = "_"
+    else:
+        underscore = ""
 
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / f"testdata/test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more_seed{seed}.txt",
+        / f"testdata/test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{seed}.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
     cmd += ["--nprocs", "100"]
@@ -425,6 +431,49 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     except AssertionError as e:
         plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
+        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+################ Realistic Galaxies Below Here ################
+@pytest.mark.slow()
+#@pytest.mark.parametrize("seed", [45, 46, 47, 48, 49, 50, 51, 52])
+@pytest.mark.parametrize("seed", [53, 54, 55, 56, 57, 58, 59, 60])
+def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(seed):
+    diaobject_name = "333" + str(seed)
+    diaobject_name_index = base_cmd.index("--diaobject-name") + 1
+    base_cmd[diaobject_name_index] = diaobject_name
+
+    cmd = base_cmd + [
+        "--img_list",
+        pathlib.Path(__file__).parent
+        / f"testdata/test_gaussims_bothnoise_unaligned_realistichost_faintsource_ou2024_photshootseed{seed}.txt",
+    ]
+    cmd += [
+        "--prebuilt_static_model",
+        f"/{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
+    ]
+    cmd += ["--nprocs", "100"]
+
+    result = subprocess.run(cmd, capture_output=False, text=True)
+
+    if result.returncode != 0:
+        raise RuntimeError(
+            f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+        )
+
+    # Check accuracy
+    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
+    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
+
+    flux = create_true_flux(lc["mjd"], peakmag=24)
+    plotname = f"bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops_diagnostic_{diaobject_name}"
+
+    try:
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        perform_gaussianity_checks(residuals_sigma)
+    except AssertionError as e:
+        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
         SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
