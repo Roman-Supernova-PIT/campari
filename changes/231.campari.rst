@@ -1,1 +1,1 @@
-Caught campari up with snappl updates
+Catch campari up with snappl updates, main change is updating snappl pointing to observation_id.

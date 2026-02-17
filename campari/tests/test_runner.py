@@ -170,8 +170,10 @@ def test_get_exposures(cfg):
     mjd_list = np.array(mjd_list)[order]
 
     np.testing.assert_array_equal(mjd_list, compare_table["date"])
-    np.testing.assert_array_equal(np.array([a.sca for a in image_list])[order], compare_table["sca"])
-    np.testing.assert_array_equal(np.array([int(a.observation_id) for a in image_list])[order], compare_table["pointing"])
+    regression_sca = np.array([a.sca for a in image_list])[order]
+    regression_observation_id = np.array([int(a.observation_id) for a in image_list])[order]
+    np.testing.assert_array_equal(regression_sca, compare_table["sca"])
+    np.testing.assert_array_equal(regression_observation_id, compare_table["pointing"])
 
     # ### Now try with an image list
 

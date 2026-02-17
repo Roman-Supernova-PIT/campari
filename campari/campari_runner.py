@@ -286,10 +286,9 @@ class campari_runner:
                 and self.object_type != "star"
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"
-                                    " detected in all images, or because the transient is outside the date range of"
-                                    " available images. If you are running on stars, this is expected behavior."
-                                    " If you are running on supernovae, consider increasing the date range.")
-
+                                 " detected in all images, or because the transient is outside the date range of"
+                                 " available images. If you are running on stars, this is expected behavior."
+                                 " If you are running on supernovae, consider increasing the date range.")
 
         mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
         mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
