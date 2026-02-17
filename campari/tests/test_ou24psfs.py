@@ -62,7 +62,7 @@ out_dir = cfg.value("system.paths.output_dir")
 # For some reason, just 45, 48 and 49 fail. 45 and 49 are skewed and 48 has a very high bias (~0.37)
 # Obviously we expect some to fail a 0.05 p value cut on skew but the bias is concerning.
 # I am skipping these for now because I want to go and check if the reason they are failing is due to the fact
-# that the galaxies are point like and hard to model. All of the nohost tests seem to pass.
+# that the galaxies are point like and hard to model.
 @pytest.mark.slow()
 @pytest.mark.parametrize("seed", [46, 47, 50, 51, 52])
 def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(seed):
