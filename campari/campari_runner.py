@@ -159,6 +159,9 @@ class campari_runner:
             self.max_no_transient_images = 0
             SNLogger.debug("Running on stars, so setting max_no_transient_images to 0.")
 
+        if self.fetch_SED and self.SED_file is not None:
+            raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
+
     def __call__(self):
         """Run the Campari pipeline."""
 
@@ -321,19 +324,25 @@ class campari_runner:
 
     def get_sedlist(self, name, image_list):
         """Create a list of SEDs for the given SNID and images."""
-        if self.fetch_SED and self.SED_file is not None:
-            raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
+
+
+
+# if self.SED_file is not None:
+# ...
+# elif self.fetch_SED:
+# ...
+# else:
+#     sed_obj = Flat_SED()
 
         if self.SED_file is not None:
             SNLogger.debug(f"Using custom SED file: {self.SED_file}")
-            sed_obj = Single_CSV_SED(self.SED_file, sed_wave_type='Angstrom', sed_flux_type='flambda')
-
+            sed_obj = Single_CSV_SED(self.SED_file, sed_wave_type="Angstrom", sed_flux_type="flambda")
+        # Removed an exception here that used a Flat SED if this failed. I decided that really I'd
+        # want this to halt if something went wrong here.
+        elif self.fetch_SED:
+            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star"))
         else:
-            try:
-                sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
-            except Exception as e:
-                SNLogger.error(f"Error creating SED object: {e}. Using flat SED instead.")
-                sed_obj = Flat_SED()
+            sed_obj = Flat_SED()
 
         sedlist = []
         for img in image_list:

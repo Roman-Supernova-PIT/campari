@@ -196,7 +196,8 @@ def main():
     parser.add_argument(
         "--SED_file",
         default=None,
-        help="A 2 column csv file giving wavelength (Angstrom) and flux (flambda) to use as the SED. ",
+        help="A 2 column csv file giving wavelength (Angstrom) and flux density (flambda) to use as the SED. "
+        "More details at https://galsim-developers.github.io/GalSim/_build/html/sed.html",
     )
 
     ####################
