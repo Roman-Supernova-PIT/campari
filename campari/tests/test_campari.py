@@ -203,9 +203,10 @@ def test_find_all_exposures():
                                        maxdet=24,
                                        truth="simple_model", image_collection="ou2024")
 
-    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
-    argsort = np.argsort(compare_table["date"])
-    compare_table = compare_table[argsort]
+    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy", allow_pickle=True)
+    compare_table = pd.DataFrame(compare_table, columns=["pointing", "sca", "date", "band", "detected", "observation_id"])
+
+    compare_table = compare_table.sort_values("date")
 
     image_date_list = np.array([img.mjd for img in image_list])
     order = np.argsort(image_date_list)
@@ -221,8 +222,8 @@ def test_find_all_exposures():
     )
 
     np.testing.assert_array_equal(
-        np.array([int(img.observation_id) for img in image_list])[order],
-        compare_table["pointing"]
+        np.array([img.observation_id for img in image_list])[order],
+        compare_table["observation_id"]
     )
 
 
@@ -523,7 +524,7 @@ def test_calc_mag_and_err():
 
 def test_construct_static_scene(cfg):
 
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     size = 9
     band = "Y106"
@@ -549,7 +550,7 @@ def test_get_weights():
     size = 7
     test_snra = np.array([7.471881246770769])
     test_sndec = np.array([-44.82824910386988])
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()
@@ -581,7 +582,7 @@ def test_construct_transient_scene():
         cfg.set_value("photometry.campari.fetch_SED", False)
         cfg._static = True
 
-        psf_image = construct_transient_scene(x0=2044, y0=2044, observation_id=43623, sca=7,
+        psf_image = construct_transient_scene(x0=2044, y0=2044, observation_id="43623", sca=7,
                                               stampsize=25, x=2044,
                                               y=2044, sed=sed,
                                               flux=1)
@@ -633,7 +634,7 @@ def test_construct_transient_scene():
 def test_build_lc(cfg, overwrite_meta):
     exposures = pd.DataFrame(
         {
-            "observation_id": [5934, 35198],
+            "observation_id": ["5934", "35198"],
             "sca": [3, 2],
             "date": [62000.40235, 62495.605],
             "detected": [False, True],
@@ -649,7 +650,7 @@ def test_build_lc(cfg, overwrite_meta):
     explist.sort(["detected", "sca"])
 
     # Getting a WCS to use
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()
@@ -716,7 +717,7 @@ def test_build_lc(cfg, overwrite_meta):
 
 
 def test_wcs_regression():
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
 
@@ -806,9 +807,9 @@ def test_calculate_surface_brightness():
     SNLogger.debug(f"Getting image with observation_id={observation_id}, sca={sca}, band={band}")
     snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
 
-    observation_id = 13205
+    observation_id = "13205"
     sca = 1
-    snappl_image_2 = img_collection.get_image(observation_id=35198, sca=2, band=band)
+    snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
 
     SNLogger.debug("Made it here")
 
@@ -835,7 +836,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
 
-    observation_ids = [5934, 35198]
+    observation_ids = ["5934", "35198"]
     scas = [3, 2]
     band = "Y106"
 
@@ -901,7 +902,7 @@ def test_build_model_one_image():
     with open(pathlib.Path(__file__).parent / "testdata/reg_grid_and_arrays.pkl", "rb") as f:
         ra_grid, dec_grid, reg_bg_array, reg_sn_array = pickle.load(f)
 
-    observation_ids = [5934, 35198]
+    observation_ids = ["5934", "35198"]
     scas = [3, 2]
     band = "Y106"
     img_collection = ImageCollection()

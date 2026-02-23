@@ -161,9 +161,13 @@ def test_get_exposures(cfg):
     diaobj.mjd_end = 62958.0
     image_list = runner.get_exposures(diaobj)
 
-    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
+    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy", allow_pickle=True)
+
+    compare_table = pd.DataFrame(compare_table, columns=["pointing", "sca", "date", "filter",
+                                                         "detected", "observation_id"])
+
     argsort = np.argsort(compare_table["date"])
-    compare_table = compare_table[argsort]
+    compare_table = compare_table.iloc[argsort]
 
     mjd_list = [a.mjd for a in image_list]
     order = np.argsort(mjd_list)
@@ -252,11 +256,11 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     model_images = None
     exposures = pd.DataFrame(data={"date": [1.0, 2.0, 3.0], "filter": ["Y106", "Y106", "Y106"],
                                    "detected": [True, True, True],
-                                   "observation_id": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
+                                   "observation_id": ["1", "1", "1"], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
                                    "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
 
     # Getting a WCS to use
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()

@@ -443,6 +443,7 @@ class campari_runner:
                           (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
+        SNLogger.debug(f"Using base path {self.image_collection_basepath}")
         my_image_collection = my_image_collection.get_collection(self.image_collection,
                                                                  subset=self.image_collection_subset,
                                                                  base_path=self.image_collection_basepath)
