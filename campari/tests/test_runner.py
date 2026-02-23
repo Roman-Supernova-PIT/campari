@@ -192,10 +192,18 @@ def test_get_exposures(cfg):
 
     runner.get_exposures(diaobj=diaobj)
     columns = ["observation_id", "sca"]
-    observation_id_list = [int(im.observation_id) for im in runner.image_list]
-    observation_id_list = observation_id_list.sort()
-    compare_list = pd.read_csv(test_args.img_list, names=columns)["observation_id"].tolist().sort()
-    np.testing.assert_array_equal(observation_id_list, compare_list)
+    observation_id_list = [im.observation_id for im in runner.image_list]
+    compare_list = pd.read_csv(test_args.img_list, names=columns)["observation_id"].astype(str).tolist()
+    # Note, the above type conversion is necessary because even when saving numbers as strings to
+    # the CSV, pandas will read them in as integers if they look like integers, which causes the test to fail
+    # when comparing to the observation_id_list which is a list of strings.
+    # I tried saving the observation IDs in the CSV with quotes around them to force them to be read in as strings,
+    # but that didn't work, so I am doing this type conversion instead. Since I don't treat them as integers
+    # anywhere, this should not matter.
+    recovered_set = set(observation_id_list)
+    compare_set = set(compare_list)
+    np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list does not match the set of observation IDs in the image list file.")
+
 
 
 def test_get_SED_list(cfg):
