@@ -286,10 +286,10 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = image.pointing if image is not None else None
+    observation_id = image.observation_id if image is not None else None
     sca = image.sca if image is not None else None
 
-    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
+    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize, stamp_size=stampsize,
                                     seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
@@ -305,7 +305,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
 
 def construct_transient_scene(
-    x0=None, y0=None, pointing=None, sca=None, stampsize=25, x=None,
+    x0=None, y0=None, observation_id=None, sca=None, stampsize=25, x=None,
     y=None, sed=None, flux=1, image=None
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
@@ -321,8 +321,8 @@ def construct_transient_scene(
 
     For more on the above two parameters, see snappl.psf.PSF.get_stamp documentation.
 
-    pointing, sca: ints
-        The pointing and SCA of the image
+    observation_id, sca: ints
+        The observation_id and SCA of the image
     stampsize: int
         Size of cutout image used.
     sed: galsim.sed.SED object
@@ -340,7 +340,7 @@ def construct_transient_scene(
 
     SNLogger.debug(
         f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n"
-        + f" pointing, sca: {pointing, sca} \n"
+        + f" observation_id, sca: {observation_id, sca} \n"
         + f" stamp size: {stampsize} \n"
         + f" x0, y0: {x0, y0} \n"
         + f" sed: {sed} \n"
@@ -358,7 +358,7 @@ def construct_transient_scene(
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize,
+        snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
@@ -561,8 +561,8 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
-    pointing, sca = image.pointing, image.sca
-    SNLogger.debug(f"Building model for image with pointing {pointing} and sca {sca}")
+    observation_id, sca = image.observation_id, image.sca
+    SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
 
     whole_sca_wcs = image.get_wcs()
     object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
@@ -640,7 +640,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         psf_source_array = construct_transient_scene(
             x0=x,
             y0=y,
-            pointing=pointing,
+            observation_id=observation_id,
             sca=sca,
             stampsize=size,
             x=object_x,

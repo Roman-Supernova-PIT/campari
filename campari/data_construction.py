@@ -292,7 +292,6 @@ def find_all_exposures(
                        f" and {temp_transient_start}")
         pre_transient_images = img_collection.find_images(
             mjd_min=temp_image_selection_start, mjd_max=temp_transient_start, ra=ra, dec=dec, band=band,
-
         )
         SNLogger.debug(f"Found {len(pre_transient_images)}")
     else:
@@ -324,6 +323,4 @@ def find_all_exposures(
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
 
-    argsort = np.argsort([img.pointing for img in all_images])
-    all_images = all_images[argsort]
     return all_images, img_collection_prov

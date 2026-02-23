@@ -39,14 +39,17 @@ base_cmd = [
         "--photometry-campari-subtract_background", "calculate",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
-        "--image-collection-basepath", "/photometry_test_data/simple_gaussian_test/sig1.0",
+        "--image-collection-basepath", "/scratch/", # update in
+        # SNPIT environment necessitated this change.
+        # but you may need to run this code:
+        # ln -s /scratch/photometry_test_data /photometry_test_data
         "--image-collection-subset", "threefile",
         "--no-save-to-db"
     ]
 
 cfg = Config.get()
 debug_dir = cfg.value("system.paths.debug_dir")
-
+out_dir = cfg.value("system.paths.output_dir")
 
 def create_true_flux(mjd, peakmag):
     # This creates a linear up-down lightcurve peaking at peakmag. Looks like a triangle.
@@ -65,7 +68,7 @@ def create_true_flux(mjd, peakmag):
 def perform_aperture_photometry(fileroot, imsize, aperture_radius=4):
     noise_maps = np.load(f"{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
     ims = np.load(f"{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
-    lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
+    lc = Table.read(f"{out_dir}/{fileroot}_lc.ecsv")
 
     ap_sums = []
     ap_err = []
@@ -133,7 +136,7 @@ def test_noiseless_aligned_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -168,7 +171,7 @@ def test_poisson_noise_aligned_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
@@ -213,7 +216,7 @@ def test_sky_noise_aligned_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     SNLogger.debug("Loaded this lc: " + str(lc))
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
@@ -255,7 +258,7 @@ def test_both_noise_aligned_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
@@ -296,7 +299,7 @@ def test_noiseless_shifted_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -333,7 +336,7 @@ def test_poisson_shifted_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
@@ -347,7 +350,7 @@ def test_poisson_shifted_no_host():
     except AssertionError as e:
         plotname = "poisson_shifted_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -379,7 +382,7 @@ def test_sky_shifted_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
@@ -419,7 +422,7 @@ def test_both_shifted_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry("123_R062_gaussian", imsize, aperture_radius=4)
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
@@ -501,7 +504,7 @@ def test_both_aligned_just_host():
     except AssertionError as e:
         plotname = "both_aligned_just_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=None)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -565,7 +568,7 @@ def test_noiseless_aligned_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -609,7 +612,7 @@ def test_poisson_aligned_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -648,7 +651,7 @@ def test_hostnoiseonly_aligned_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -687,7 +690,7 @@ def test_transientnoiseonly_aligned_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -726,7 +729,7 @@ def test_both_aligned_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -767,7 +770,7 @@ def test_noiseless_shifted_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -798,7 +801,7 @@ def test_skynoise_shifted_22mag_host():
     ]
 
     # Delete saved lc file if it exists from previous test runs
-    lc_path = pathlib.Path("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc_path = pathlib.Path(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     if lc_path.exists():
         lc_path.unlink()
 
@@ -820,7 +823,7 @@ def test_skynoise_shifted_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
 
@@ -831,7 +834,7 @@ def test_skynoise_shifted_22mag_host():
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -846,7 +849,7 @@ def test_poisson_shifted_22mag_host():
     ]
 
     # Delete saved lc file if it exists from previous test runs
-    lc_path = pathlib.Path("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc_path = pathlib.Path(f"{out_dir}/123_R062_gaussian_lc.ecsv")
     if lc_path.exists():
         lc_path.unlink()
 
@@ -868,7 +871,7 @@ def test_poisson_shifted_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -886,7 +889,7 @@ def test_poisson_shifted_22mag_host():
     except AssertionError as e:
         plotname = "poisson_shifted_22mag_host_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -914,7 +917,7 @@ def test_both_shifted_22mag_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -952,7 +955,7 @@ def test_both_shifted_22mag_host_varying_gaussian():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+        f"{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     ]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
@@ -968,7 +971,7 @@ def test_both_shifted_22mag_host_varying_gaussian():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -986,7 +989,7 @@ def test_both_shifted_22mag_host_varying_gaussian():
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1013,7 +1016,7 @@ def test_noiseless_aligned_no_host_varying():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1054,7 +1057,7 @@ def test_noiseless_shifted_no_host_varying():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1082,7 +1085,7 @@ def test_noiseless_shifted_22mag_host_varying():
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+        "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     ]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
@@ -1098,7 +1101,7 @@ def test_noiseless_shifted_22mag_host_varying():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1127,7 +1130,7 @@ def test_skynoise_shifted_22mag_host_varying():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+        "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     ]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
@@ -1143,7 +1146,7 @@ def test_skynoise_shifted_22mag_host_varying():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1160,7 +1163,7 @@ def test_skynoise_shifted_22mag_host_varying():
     except AssertionError as e:
         plotname = "skynoise_shifted_22mag_host_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1174,7 +1177,7 @@ def test_poisson_shifted_22mag_host_varying():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+        "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     ]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
@@ -1190,7 +1193,7 @@ def test_poisson_shifted_22mag_host_varying():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1207,7 +1210,7 @@ def test_poisson_shifted_22mag_host_varying():
     except AssertionError as e:
         plotname = "poisson_shifted_22mag_host_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1232,7 +1235,7 @@ def test_both_shifted_nohost_varying():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1248,7 +1251,7 @@ def test_both_shifted_nohost_varying():
     except AssertionError as e:
         plotname = "both_shifted_nohost_varying"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1283,7 +1286,7 @@ def test_poisson_noise_shifted_no_host_varying():
 
     fileroot = "123_R062_varying_gaussian"
 
-    lc = Table.read(f"/campari_out_dir/{fileroot}_lc.ecsv")
+    lc = Table.read(f"{out_dir}/{fileroot}_lc.ecsv")
     ap_sums, ap_err = perform_aperture_photometry(fileroot, imsize, aperture_radius=4)
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
@@ -1305,7 +1308,7 @@ def test_poisson_noise_shifted_no_host_varying():
     except AssertionError as e:
         plotname = "poisson_aligned_nohost_varying_diagnostic"
         generate_diagnostic_plots(f"{fileroot}", imsize, plotname, ap_sums=ap_sums, ap_err=ap_err, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1321,7 +1324,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     #cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
-         "/campari_debug_dir/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
+         f"{debug_dir}/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
      ]
     cmd += ["--nprocs", "15"]
 
@@ -1338,7 +1341,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1356,7 +1359,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1373,7 +1376,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
     cmd += ["--save_model"]
     # cmd += [
     #     "--prebuilt_static_model",
-    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    #     "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     # ]
     cmd += ["--nprocs", "15"]
 
@@ -1390,7 +1393,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((21 - 33) / -2.5)
@@ -1408,7 +1411,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1429,7 +1432,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     #cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
-         "/campari_debug_dir/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
+         "{debug_dir}/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
      ]
     cmd += ["--nprocs", "15"]
 
@@ -1446,7 +1449,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
@@ -1464,7 +1467,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_faint_source_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1486,7 +1489,7 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
+        "{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
     ]
     cmd += ["--nprocs", "15"]
 
@@ -1503,7 +1506,7 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
@@ -1521,7 +1524,7 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1543,7 +1546,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
+        "{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
     ]
     cmd += ["--nprocs", "15"]
 
@@ -1560,7 +1563,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
@@ -1579,7 +1582,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         plotname = "poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         SNLogger.debug("Generating diagnostic plots...")
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1603,7 +1606,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
+        "{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
     ]
     cmd += ["--nprocs", "15"]
 
@@ -1620,7 +1623,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
@@ -1639,7 +1642,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         plotname = "bothnoise_shifted_22mag_host_faint_source_regular_gaussian_diagnostic"
         SNLogger.debug("Generating diagnostic plots...")
         generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -1660,7 +1663,7 @@ def test_gaussian_bias_analysis():
     #cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_gaussbiastest.npy",
+        "{debug_dir}/psf_matrix_gaussbiastest.npy",
     ]
     cmd += ["--nprocs", "15"]
 
@@ -1680,7 +1683,7 @@ def test_gaussian_bias_analysis():
     #     )
 
     # # Check accuracy
-    # lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    # lc = Table.read("{out_dir}/123_R062_gaussian_lc.ecsv")
 
     # mjd = lc["mjd"]
     # peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
@@ -1694,7 +1697,7 @@ def test_gaussian_bias_analysis():
     # plotname = "gaussbiastest"
     # SNLogger.debug("Generating diagnostic plots...")
     # generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-    # SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+    # SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
 
     # try:
     #     residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
@@ -1713,7 +1716,7 @@ def test_same_as_above_no_host():
     cmd += ["--save_model"]
     # cmd += [
     #     "--prebuilt_static_model",
-    #     "/campari_debug_dir/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
+    #     "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
     # ]
     cmd += ["--nprocs", "15"]
 
@@ -1730,7 +1733,7 @@ def test_same_as_above_no_host():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_varying_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_varying_gaussian_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
@@ -1747,7 +1750,7 @@ def test_same_as_above_no_host():
     except AssertionError as e:
         plotname = "both_shifted_22mag_host_faint_source_varying_gaussian_diagnostic"
         generate_diagnostic_plots("123_R062_varying_gaussian", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
