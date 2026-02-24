@@ -80,7 +80,7 @@ def create_default_test_args(cfg):
     test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
-    test_args.pointing_list = None
+    test_args.observation_id_list = None
     test_args.SED_file = None
 
     test_args.find_obj_prov_tag = None
@@ -162,13 +162,24 @@ def test_get_exposures(cfg):
     diaobj.mjd_end = 62958.0
     image_list = runner.get_exposures(diaobj)
 
-    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
-    argsort = np.argsort(compare_table["date"])
-    compare_table = compare_table[argsort]
+    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy", allow_pickle=True)
 
-    np.testing.assert_array_equal([a.mjd for a in image_list], compare_table["date"])
-    np.testing.assert_array_equal([a.sca for a in image_list], compare_table["sca"])
-    np.testing.assert_array_equal([a.pointing for a in image_list], compare_table["pointing"])
+    compare_table = pd.DataFrame(compare_table, columns=["pointing", "sca", "date", "filter",
+                                                         "detected", "observation_id"])
+
+    argsort = np.argsort(compare_table["date"])
+    compare_table = compare_table.iloc[argsort]
+
+    mjd_list = [a.mjd for a in image_list]
+    order = np.argsort(mjd_list)
+    mjd_list = np.array(mjd_list)[order]
+
+    np.testing.assert_array_equal(mjd_list, compare_table["date"])
+    regression_sca = np.array([a.sca for a in image_list])[order]
+    regression_observation_id = np.array([a.observation_id for a in image_list])[order]
+
+    np.testing.assert_array_equal(regression_sca, compare_table["sca"])
+    np.testing.assert_array_equal(regression_observation_id, compare_table["observation_id"])
 
     # ### Now try with an image list
 
@@ -182,9 +193,19 @@ def test_get_exposures(cfg):
     diaobj.mjd_end = 62958.0
 
     runner.get_exposures(diaobj=diaobj)
-    columns = ["pointing", "sca"]
-    pointing_list = [int(im.pointing) for im in runner.image_list]
-    np.testing.assert_array_equal(pointing_list, pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
+    columns = ["observation_id", "sca"]
+    observation_id_list = [im.observation_id for im in runner.image_list]
+    compare_list = pd.read_csv(test_args.img_list, names=columns)["observation_id"].astype(str).tolist()
+    # Note, the above type conversion is necessary because even when saving numbers as strings to
+    # the CSV, pandas will read them in as integers if they look like integers, which causes the test to fail
+    # when comparing to the observation_id_list which is a list of strings.
+    # I tried saving the observation IDs in the CSV with quotes around them to force them to be read in as strings,
+    # but that didn't work, so I am doing this type conversion instead. Since I don't treat them as integers
+    # anywhere, this should not matter.
+    recovered_set = set(observation_id_list)
+    compare_set = set(compare_list)
+    np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list does not match the set of observation IDs in the image list file.")
+
 
 
 def test_get_SED_list(cfg):
@@ -245,16 +266,16 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     model_images = None
     exposures = pd.DataFrame(data={"date": [1.0, 2.0, 3.0], "filter": ["Y106", "Y106", "Y106"],
                                    "detected": [True, True, True],
-                                   "pointing": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
+                                   "observation_id": ["1", "1", "1"], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
                                    "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
 
     # Getting a WCS to use
-    pointing = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
-    snappl_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+    snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
 
     wcs = snappl_image.get_wcs()
 
@@ -271,7 +292,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         )
         img.mjd = exposures["date"][i]
         img.band = exposures["filter"][i]
-        img.pointing = exposures["pointing"][i]
+        img.observation_id = exposures["observation_id"][i]
         img.sca = exposures["sca"][i]
         img._wcs = wcs
         image_list.append(img)
@@ -308,7 +329,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         upstreams=upstreams,
     )
 
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.build_and_save_lightcurve(diaobj, lc_model)
 
     output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"
