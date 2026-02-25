@@ -134,7 +134,7 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
         )
 
     # Check accuracy
-    lc = Table.read("/{out_dir}/131_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read(f"/{out_dir}/131_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
@@ -167,7 +167,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
     cmd += ["--diaobject-name", "129"]
     cmd += [
         "--prebuilt_static_model",
-        "/{debug_dir}/psf_matrix_ou24PSF_slow_photonshoot_083d7700-0f25-41af-b7f2-661896b36ed8_100_images0_points.npy",
+        f"/{debug_dir}/psf_matrix_ou24PSF_slow_photonshoot_083d7700-0f25-41af-b7f2-661896b36ed8_100_images0_points.npy",
     ]
 
     # Fitting with a blackbody SED at ~14000 Kelvin
@@ -187,7 +187,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
         )
 
     # Check accuracy
-    lc = Table.read("/{out_dir}/129_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read(f"/{out_dir}/129_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
