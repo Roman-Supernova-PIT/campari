@@ -38,4 +38,4 @@ def pytest_generate_tests(metafunc):
 
 @pytest.fixture(scope="session", autouse=True)
 def init_config():
-    Config.init("/campari/examples/perlmutter/campari_config_test.yaml", setdefault=True)
+    Config.init("/scratch/campari/examples/perlmutter/campari_config_test.yaml", setdefault=True)

@@ -6,9 +6,15 @@ import pytest
 
 from astropy.table import Table
 
+from snappl.config import Config
 from snappl.logger import SNLogger
 
+
 from campari.tests.test_gausspsfs import generate_diagnostic_plots, perform_gaussianity_checks
+
+cfg = Config.get()
+debug_dir = cfg.value("system.paths.debug_dir")
+out_dir = cfg.value("system.paths.output_dir")
 
 imsize = 19
 base_cmd = [
@@ -36,6 +42,7 @@ base_cmd = [
         "--image-collection-subset", "threefile",
         "--no-save-to-db"
     ]
+
 
 @pytest.mark.skip(reason="This test simply confirms that fitting with the same SED as simulated is optimal.")
 def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
@@ -67,7 +74,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/130_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read(f"/{out_dir}/130_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
@@ -92,9 +99,10 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
     except AssertionError as e:
         plotname = "HsiaoRecoverySED_diagnostic_comparison"
         generate_diagnostic_plots("130_R062_ou24psf_slow_photonshoot", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by tests with noise.")
 def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
@@ -126,7 +134,7 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/131_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read("/{out_dir}/131_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
@@ -143,7 +151,7 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
     except AssertionError as e:
         plotname = "HsiaoRecoverySED_nonoise_diagnostic_comparison"
         generate_diagnostic_plots("131_R062_ou24psf_slow_photonshoot", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -159,7 +167,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
     cmd += ["--diaobject-name", "129"]
     cmd += [
         "--prebuilt_static_model",
-        "/campari_debug_dir/psf_matrix_ou24PSF_slow_photonshoot_083d7700-0f25-41af-b7f2-661896b36ed8_100_images0_points.npy",
+        "/{debug_dir}/psf_matrix_ou24PSF_slow_photonshoot_083d7700-0f25-41af-b7f2-661896b36ed8_100_images0_points.npy",
     ]
 
     # Fitting with a blackbody SED at ~14000 Kelvin
@@ -179,7 +187,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/129_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read("/{out_dir}/129_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
@@ -196,7 +204,6 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
     except AssertionError as e:
         plotname = "BBSED_diagnostic_comparison_improved"
         generate_diagnostic_plots("129_R062_ou24psf_slow_photonshoot", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /campari_debug_dir/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
-
