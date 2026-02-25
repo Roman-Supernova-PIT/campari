@@ -37,7 +37,6 @@ base_cmd = [
         "--photometry-campari-cutout_size", str(imsize),
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background_method", "calculate",
-        "--no-photometry-campari-source_phot_ops",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
         "--image-collection-basepath", "/photometry_test_data/simple_gaussian_test/sig1.0",
@@ -48,6 +47,7 @@ base_cmd = [
 
 cfg = Config.get()
 debug_dir = cfg.value("system.paths.debug_dir")
+out_dir = cfg.value("system.paths.output_dir")
 
 
 # Right now this is failing due to a skew. I believe this is
@@ -79,7 +79,7 @@ def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=24)
 
@@ -126,7 +126,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         )
 
     # Check accuracy
-    lc = Table.read("/campari_out_dir/123_R062_gaussian_lc.ecsv")
+    lc = Table.read(f"{out_dir}/123_R062_gaussian_lc.ecsv")
 
     flux = create_true_flux(lc["mjd"], peakmag=24)
 
