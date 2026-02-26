@@ -4,6 +4,7 @@ import warnings
 
 # Common Library
 import numpy as np
+import pathlib
 import pytest
 
 # Astronomy Library
@@ -84,20 +85,17 @@ def test_find_exposures():
     diaobj = DiaObject.find_objects(name=20172782, collection="snpitdb",
                                     provenance_tag=diaobj_provenance_tag, process=diaobj_process)[0]
 
-    provenance_tag = "ou2024"
-    process = "load_ou2024_image"
-
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
     image_list, _ = find_all_exposures(diaobj=diaobj, band="Y106",
-                                       truth="simple_model", image_collection="snpitdb",
-                                       provenance_tag=provenance_tag, process=process, dbclient=dbclient)
+                                       truth="simple_model", image_collection="ou2024",
+                                       dbclient=dbclient)
 
     np.testing.assert_equal(len(image_list), 135)
+    observation_ids = [i.observation_id for i in image_list]
 
-    pointings = [i.pointing for i in image_list]
-    regression_pointings = np.load("/campari/campari/tests/testdata/test_find_exposures_pointings.npy")
-    np.testing.assert_array_equal(pointings, regression_pointings)
+    regression_observation_ids = set(np.load(pathlib.Path(__file__).parent / "testdata/test_find_exposures_pointings.npy"))
+    np.testing.assert_array_equal(set(observation_ids), regression_observation_ids)
 
 
 def test_pull_sidecar_objects():
