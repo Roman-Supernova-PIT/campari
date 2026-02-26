@@ -9,7 +9,6 @@ from astropy.table import Table
 from snappl.config import Config
 from snappl.logger import SNLogger
 
-
 from campari.tests.test_gausspsfs import generate_diagnostic_plots, perform_gaussianity_checks
 
 cfg = Config.get()

@@ -323,15 +323,6 @@ class campari_runner:
     def get_sedlist(self, name, image_list):
         """Create a list of SEDs for the given SNID and images."""
 
-
-
-# if self.SED_file is not None:
-# ...
-# elif self.fetch_SED:
-# ...
-# else:
-#     sed_obj = Flat_SED()
-
         if self.SED_file is not None:
             SNLogger.debug(f"Using custom SED file: {self.SED_file}")
             sed_obj = Single_CSV_SED(self.SED_file, sed_wave_type="Angstrom", sed_flux_type="flambda")

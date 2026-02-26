@@ -1,1 +1,1 @@
-Adding tests for comparing the effects of the SED on photometry.
+Add tests for comparing the effects of the SED on photometry.
