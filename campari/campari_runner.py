@@ -11,7 +11,7 @@ import galsim
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.imagecollection import ImageCollection
-from snappl.sed import Flat_SED, OU2024_Truth_SED
+from snappl.sed import Flat_SED, OU2024_Truth_SED, Single_CSV_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.provenance import Provenance
@@ -76,6 +76,8 @@ class campari_runner:
         self.save_to_db = kwargs["save_to_db"]
         self.add_truth_to_lc = kwargs["add_truth_to_lc"]
         self.nprocs = kwargs["nprocs"]
+
+        self.SED_file = kwargs["SED_file"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.avoid_non_linearity = self.cfg.value("photometry.campari_simulations.avoid_non_linearity")
@@ -156,6 +158,9 @@ class campari_runner:
         if self.object_type == "star":
             self.max_no_transient_images = 0
             SNLogger.debug("Running on stars, so setting max_no_transient_images to 0.")
+
+        if self.fetch_SED and self.SED_file is not None:
+            raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
 
     def __call__(self):
         """Run the Campari pipeline."""
@@ -317,10 +322,15 @@ class campari_runner:
 
     def get_sedlist(self, name, image_list):
         """Create a list of SEDs for the given SNID and images."""
-        try:
-            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
-        except Exception as e:
-            SNLogger.error(f"Error creating SED object: {e}. Using flat SED instead.")
+
+        if self.SED_file is not None:
+            SNLogger.debug(f"Using custom SED file: {self.SED_file}")
+            sed_obj = Single_CSV_SED(self.SED_file, sed_wave_type="Angstrom", sed_flux_type="flambda")
+        # Removed an exception here that used a Flat SED if this failed. I decided that really I'd
+        # want this to halt if something went wrong here.
+        elif self.fetch_SED:
+            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star"))
+        else:
             sed_obj = Flat_SED()
 
         sedlist = []

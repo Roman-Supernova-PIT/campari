@@ -81,6 +81,7 @@ def create_default_test_args(cfg):
     test_args.param_grid = None
     test_args.config = None
     test_args.observation_id_list = None
+    test_args.SED_file = None
 
     test_args.find_obj_prov_tag = None
     test_args.find_obj_process = None
