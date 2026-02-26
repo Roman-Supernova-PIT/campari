@@ -88,15 +88,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     for i, img in enumerate(image_list):
         if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            # if img.observation_id is not None and not isinstance(img.observation_id, str):
-            #     SNLogger.warning(f"Observation ID {img.observation_id} is not a string. Converting to string.")
-            #     obs_id = str(img.observation_id)
-            #     if int(obs_id) != img.observation_id:
-            #         SNLogger.warning(f"Observation ID {img.observation_id} cannot be accurately converted to string.")
-            # else:
-            obs_id = img.observation_id
-
-            data_dict["observation_id"].append(obs_id)
+            data_dict["observation_id"].append(str(img.observation_id))
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["pix_x"].append(x)
