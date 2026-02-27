@@ -22,7 +22,7 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
+from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights, print_top_ten
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -62,18 +62,6 @@ Adapted from code by Pedro Bernardinelli
 huge_value = 1e32
 SNLogger.set_level("DEBUG")
 
-def print_top_ten(flag):
-    SNLogger.info(flag)
-    snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
-    current, peak = tracemalloc.get_traced_memory()
-    SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
-
-    SNLogger.info("[ Top 10 ]")
-    printout = ""
-    for stat in top_stats[:10]:
-        printout += str(stat) + "\n"
-    SNLogger.info(printout)
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,

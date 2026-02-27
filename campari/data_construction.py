@@ -14,6 +14,7 @@ from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
+from campari.utils import print_top_ten
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -323,5 +324,7 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
+
+    print_top_ten("Finished finding all exposures")
 
     return all_images, img_collection_prov

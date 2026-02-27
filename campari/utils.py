@@ -3,6 +3,7 @@ import warnings
 
 # Common Library
 import numpy as np
+import tracemalloc
 
 # Astronomy Library
 from astropy.stats import sigma_clipped_stats, SigmaClip
@@ -337,3 +338,18 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     SNLogger.debug(f"Local Surface Brightness: {LSB} mag/arcsec^2")
 
     return LSB
+
+
+
+def print_top_ten(flag):
+    SNLogger.info(flag)
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+    current, peak = tracemalloc.get_traced_memory()
+    SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+
+    SNLogger.info("[ Top 10 ]")
+    printout = ""
+    for stat in top_stats[:10]:
+        printout += str(stat) + "\n"
+    SNLogger.info(printout)
