@@ -97,6 +97,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
     noise_maps = [im.noise for im in cutout_image_list]
+    SNLogger.debug(f"Number of nans in each noise map: {[np.sum(np.isnan(im.noise)) for im in cutout_image_list]}")
 
     sim_galra = None
     sim_galdec = None

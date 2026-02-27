@@ -232,7 +232,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             wgt = np.ones(size**2)
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
-        inv_var = 1 / (error[i].flatten()) ** 2
+        inv_var = 1 / (error[i].flatten())**2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
         wgt_matrix.append(wgt)

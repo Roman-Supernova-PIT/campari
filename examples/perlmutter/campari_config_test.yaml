@@ -11,6 +11,7 @@ photometry:
     pixel: false
     subtract_background_method: calculate
     use_real_images: true
+    psfclass: ou24PSF
 
     psf:
       galaxy_class: ou24PSF

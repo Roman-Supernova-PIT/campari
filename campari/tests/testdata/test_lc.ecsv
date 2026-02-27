@@ -31,6 +31,7 @@
 # - {pixel: false}
 # - {subtract_background_method: SKY_MEAN}
 # - {use_real_images: true}
+# - {psfclass: ou24PSF}
 # - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4

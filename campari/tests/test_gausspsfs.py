@@ -13,6 +13,7 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from snappl.config import Config
 from snappl.logger import SNLogger
 
+SNLogger.set_level("DEBUG")
 
 from campari.plotting import generate_diagnostic_plots
 
@@ -147,7 +148,7 @@ def test_noiseless_aligned_no_host():
     # we keep it.
     np.testing.assert_allclose(lc["flux_err"], 3.691204, atol=1e-7)
 
-@pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
+#@pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_poisson_noise_aligned_no_host():
     # Now we add just poisson noise. This will introduce scatter, but campari should still agree with aperture
     # photometry.
