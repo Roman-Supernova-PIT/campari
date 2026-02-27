@@ -14,6 +14,7 @@ from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
+from campari.utils import print_top_ten
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -157,7 +158,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         SNLogger.debug(f"Background from user input: {bg}")
     elif subtract_background_method == "calculate":
         bg = calculate_background_level(imagedata)
-        SNLogger.debug(f"Background Calculated: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
     else:
@@ -166,10 +166,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
-        SNLogger.debug(f"Background from header: {bg}")
 
     image_cutout._data -= bg
-    SNLogger.debug(f"Subtracted a background level of {bg}")
     return image_cutout, bg
 
 
@@ -276,6 +274,9 @@ def find_all_exposures(
     SNLogger.debug(f"image_selection_start: {image_selection_start}")
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
+    if transient_start is None and diaobj.mjd_discovery is not None:
+        # From Sidecar, the start date is called mjd_discovery
+        transient_start = diaobj.mjd_discovery
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec
@@ -333,5 +334,7 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
+
+    print_top_ten("Finished finding all exposures")
 
     return all_images, img_collection_prov

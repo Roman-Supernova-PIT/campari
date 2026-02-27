@@ -39,7 +39,7 @@ base_cmd = [
         "--photometry-campari-subtract_background_method", "calculate",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
-        "--image-collection-basepath", "/photometry_test_data/simple_gaussian_test/sig1.0",
+        "--image-collection-basepath", "/scratch/",
         "--image-collection-subset", "threefile",
         "--no-save-to-db"
     ]
@@ -112,11 +112,11 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    # realsitic_galaxy_gridmodel
-    cmd += [
-        "--prebuilt_static_model",
-        pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
-    ]
+    # # realsitic_galaxy_gridmodel
+    # cmd += [
+    #     "--prebuilt_static_model",
+    #     pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
+    # ]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 

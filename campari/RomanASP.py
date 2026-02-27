@@ -95,7 +95,7 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("--diaobject-name", type=int, default=None,
+    parser.add_argument("--diaobject-name", default=None,
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
@@ -249,7 +249,7 @@ def main():
 
     parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=True,
                         help="If True, will create and write provenances to the database."
-                             " Default False.")
+                             " Default True.")
 
     parser.add_argument("--diaobject-position-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the program that determines the "
@@ -275,6 +275,8 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
+    import pprint
+    pprint.pprint( Config.get()._data )
     runner = campari_runner(**vars(args))
     runner()
 

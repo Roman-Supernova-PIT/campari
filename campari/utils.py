@@ -3,6 +3,7 @@ import warnings
 
 # Common Library
 import numpy as np
+import tracemalloc
 
 # Astronomy Library
 from astropy.stats import sigma_clipped_stats, SigmaClip
@@ -146,9 +147,7 @@ def calculate_background_level(im):
 
     sigma_clip = SigmaClip(sigma=3.0, maxiters=40)
     threshold = detect_threshold(im, nsigma=2.0, sigma_clip=sigma_clip)
-    SNLogger.debug(threshold)
     segment_img = detect_sources(im, threshold, npixels=10)
-    SNLogger.debug(f"segment_img: {segment_img}")
     if segment_img is not None:
         footprint = circular_footprint(radius=10)
         mask = segment_img.make_source_mask(footprint=footprint)
@@ -156,8 +155,6 @@ def calculate_background_level(im):
         mask = None
         SNLogger.warning("Photutils did not find any sources in the image. Are you sure this is the right image?")
     mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
-    SNLogger.debug(f"Background level: {mean}")
-    SNLogger.debug(f"Background std: {std}")
     return mean
 
 
@@ -341,3 +338,18 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     SNLogger.debug(f"Local Surface Brightness: {LSB} mag/arcsec^2")
 
     return LSB
+
+
+
+def print_top_ten(flag):
+    SNLogger.info(flag)
+    snapshot = tracemalloc.take_snapshot()
+    top_stats = snapshot.statistics('lineno')
+    current, peak = tracemalloc.get_traced_memory()
+    SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+
+    SNLogger.info("[ Top 10 ]")
+    printout = ""
+    for stat in top_stats[:10]:
+        printout += str(stat) + "\n"
+    SNLogger.info(printout)

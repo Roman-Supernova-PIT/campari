@@ -17,6 +17,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
+from campari.utils import print_top_ten
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -301,6 +302,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
 
+    print_top_ten("Finished making Static Scene")
+
     return psfs
 
 
@@ -357,12 +360,20 @@ def construct_transient_scene(
     #     SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
+    SNLogger.debug(f"Using SED type: {type(sed)}")
+    #  Including sed caused it to break even though we need it. This is bad. Briefly removing so that I can
+    # get sidecar runs through.
+    #  sed=sed,
+    SNLogger.debug("SED code modified")
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
+    # flux was hardcoded to 1 before.
     SNLogger.debug(f"Constructed transient scene with sum pixel value {np.sum(psf_image)}")
+
+    print_top_ten("Finished making transient scene")
 
     return psf_image.flatten()
 
@@ -438,6 +449,8 @@ def make_grid(
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
+
+    print_top_ten("Finished making grid")
 
     return ra_grid, dec_grid
 
@@ -656,4 +669,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         if sn_index >= 0 and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
+    print_top_ten("Finished building model for one image")
     return background_model_array, psf_source_array
