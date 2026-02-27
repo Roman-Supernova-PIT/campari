@@ -11,7 +11,7 @@ import galsim
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.imagecollection import ImageCollection
-from snappl.sed import Flat_SED, OU2024_Truth_SED
+from snappl.sed import Flat_SED, OU2024_Truth_SED, Single_CSV_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.provenance import Provenance
@@ -76,6 +76,8 @@ class campari_runner:
         self.save_to_db = kwargs["save_to_db"]
         self.add_truth_to_lc = kwargs["add_truth_to_lc"]
         self.nprocs = kwargs["nprocs"]
+
+        self.SED_file = kwargs["SED_file"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.avoid_non_linearity = self.cfg.value("photometry.campari_simulations.avoid_non_linearity")
@@ -156,6 +158,9 @@ class campari_runner:
         if self.object_type == "star":
             self.max_no_transient_images = 0
             SNLogger.debug("Running on stars, so setting max_no_transient_images to 0.")
+
+        if self.fetch_SED and self.SED_file is not None:
+            raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
 
     def __call__(self):
         """Run the Campari pipeline."""
@@ -286,10 +291,9 @@ class campari_runner:
                 and self.object_type != "star"
             ):
                 raise ValueError("No non-detection images were found. This may be because the transient is"
-                                    " detected in all images, or because the transient is outside the date range of"
-                                    " available images. If you are running on stars, this is expected behavior."
-                                    " If you are running on supernovae, consider increasing the date range.")
-
+                                 " detected in all images, or because the transient is outside the date range of"
+                                 " available images. If you are running on stars, this is expected behavior."
+                                 " If you are running on supernovae, consider increasing the date range.")
 
         mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
         mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
@@ -301,11 +305,11 @@ class campari_runner:
         SNLogger.debug(f"and {len(transient_images)} are detection images.")
         self.image_list = image_list
         SNLogger.debug("setting image list")
-        recovered_observation_ids = [int(a.observation_id) for a in image_list]
-        self.observation_id_list = np.array(self.observation_id_list).astype(int) if getattr(self, "observation_id_list", None) \
+        recovered_observation_ids = [a.observation_id for a in image_list]
+        self.observation_id_list = np.array(self.observation_id_list) if getattr(self, "observation_id_list", None) \
             is not None else None
         if (self.img_list is not None and self.observation_id_list is not None) \
-                and not np.array_equiv(np.sort(recovered_observation_ids), np.sort(self.observation_id_list)):
+                and len(np.setdiff1d(self.observation_id_list, recovered_observation_ids)) > 0:
             SNLogger.warning(
                 "Unable to find the object in all the observation_ids in the image list. Specifically, the"
                 " following observation_ids were not found: "
@@ -318,10 +322,15 @@ class campari_runner:
 
     def get_sedlist(self, name, image_list):
         """Create a list of SEDs for the given SNID and images."""
-        try:
-            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star")) if self.fetch_SED else Flat_SED()
-        except Exception as e:
-            SNLogger.error(f"Error creating SED object: {e}. Using flat SED instead.")
+
+        if self.SED_file is not None:
+            SNLogger.debug(f"Using custom SED file: {self.SED_file}")
+            sed_obj = Single_CSV_SED(self.SED_file, sed_wave_type="Angstrom", sed_flux_type="flambda")
+        # Removed an exception here that used a Flat SED if this failed. I decided that really I'd
+        # want this to halt if something went wrong here.
+        elif self.fetch_SED:
+            sed_obj = OU2024_Truth_SED(name, isstar=(self.object_type == "star"))
+        else:
             sed_obj = Flat_SED()
 
         sedlist = []
@@ -444,6 +453,7 @@ class campari_runner:
                           (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
+        SNLogger.debug(f"Using base path {self.image_collection_basepath}")
         my_image_collection = my_image_collection.get_collection(self.image_collection,
                                                                  subset=self.image_collection_subset,
                                                                  base_path=self.image_collection_basepath)
@@ -454,7 +464,7 @@ class campari_runner:
             for line in img_list_lines:
                 vals = line.split(",")
                 images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]), band=vals[2]))
-                self.observation_id_list.append(int(vals[0]))
+                self.observation_id_list.append(vals[0])
         elif all(len(line.split(",")) == 2 for line in img_list_lines):
             # each line of file is observation_id sca
             self.observation_id_list = []
@@ -462,7 +472,7 @@ class campari_runner:
                 vals = line.split(",")
                 images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]),
                               band=self.band))
-                self.observation_id_list.append(int(vals[0]))
+                self.observation_id_list.append(vals[0])
         elif all(len(line.split(",")) == 1 for line in img_list_lines):
             # each line of file is path to image
             self.observation_id_list = None

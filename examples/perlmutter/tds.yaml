@@ -116,7 +116,6 @@ gal:
 input:
     obseq_data:
         file_name: /ou2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits # Updated 2/7/26 for new podman image
-        # file_name: /sims_dir/RomanTDS/Roman_TDS_obseq_11_6_23.fits
         visit: 80840
         SCA: '@image.SCA'
     roman_psf:

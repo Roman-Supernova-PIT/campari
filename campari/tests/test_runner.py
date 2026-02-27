@@ -81,6 +81,7 @@ def create_default_test_args(cfg):
     test_args.param_grid = None
     test_args.config = None
     test_args.observation_id_list = None
+    test_args.SED_file = None
 
     test_args.find_obj_prov_tag = None
     test_args.find_obj_process = None
@@ -161,17 +162,24 @@ def test_get_exposures(cfg):
     diaobj.mjd_end = 62958.0
     image_list = runner.get_exposures(diaobj)
 
-    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy")
+    compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy", allow_pickle=True)
+
+    compare_table = pd.DataFrame(compare_table, columns=["pointing", "sca", "date", "filter",
+                                                         "detected", "observation_id"])
+
     argsort = np.argsort(compare_table["date"])
-    compare_table = compare_table[argsort]
+    compare_table = compare_table.iloc[argsort]
 
     mjd_list = [a.mjd for a in image_list]
     order = np.argsort(mjd_list)
     mjd_list = np.array(mjd_list)[order]
 
     np.testing.assert_array_equal(mjd_list, compare_table["date"])
-    np.testing.assert_array_equal(np.array([a.sca for a in image_list])[order], compare_table["sca"])
-    np.testing.assert_array_equal(np.array([int(a.observation_id) for a in image_list])[order], compare_table["pointing"])
+    regression_sca = np.array([a.sca for a in image_list])[order]
+    regression_observation_id = np.array([a.observation_id for a in image_list])[order]
+
+    np.testing.assert_array_equal(regression_sca, compare_table["sca"])
+    np.testing.assert_array_equal(regression_observation_id, compare_table["observation_id"])
 
     # ### Now try with an image list
 
@@ -186,10 +194,18 @@ def test_get_exposures(cfg):
 
     runner.get_exposures(diaobj=diaobj)
     columns = ["observation_id", "sca"]
-    observation_id_list = [int(im.observation_id) for im in runner.image_list]
-    observation_id_list = observation_id_list.sort()
-    compare_list = pd.read_csv(test_args.img_list, names=columns)["observation_id"].tolist().sort()
-    np.testing.assert_array_equal(observation_id_list, compare_list)
+    observation_id_list = [im.observation_id for im in runner.image_list]
+    compare_list = pd.read_csv(test_args.img_list, names=columns)["observation_id"].astype(str).tolist()
+    # Note, the above type conversion is necessary because even when saving numbers as strings to
+    # the CSV, pandas will read them in as integers if they look like integers, which causes the test to fail
+    # when comparing to the observation_id_list which is a list of strings.
+    # I tried saving the observation IDs in the CSV with quotes around them to force them to be read in as strings,
+    # but that didn't work, so I am doing this type conversion instead. Since I don't treat them as integers
+    # anywhere, this should not matter.
+    recovered_set = set(observation_id_list)
+    compare_set = set(compare_list)
+    np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list does not match the set of observation IDs in the image list file.")
+
 
 
 def test_get_SED_list(cfg):
@@ -250,11 +266,11 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     model_images = None
     exposures = pd.DataFrame(data={"date": [1.0, 2.0, 3.0], "filter": ["Y106", "Y106", "Y106"],
                                    "detected": [True, True, True],
-                                   "observation_id": [1, 1, 1], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
+                                   "observation_id": ["1", "1", "1"], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
                                    "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
 
     # Getting a WCS to use
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()

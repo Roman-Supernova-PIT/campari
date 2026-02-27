@@ -76,7 +76,7 @@ system:
     sn_truth_dir: /ou2024_snana
     sims_sed_library: /home/rubin_sim_data/sims_sed_library
     images: /ou2024/RomanTDS/images/simple_model
-    tds_base: /photometry_test_data/ou2024
+    tds_base: /scratch/photometry_test_data/ou2024
 
   db:
     url: https://c3-sn.lbl.gov/roman_snpit_ou2024

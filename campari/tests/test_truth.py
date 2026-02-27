@@ -86,7 +86,7 @@ def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
 def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     exposures = pd.DataFrame(
         {
-            "observation_id": [5934, 35198],
+            "observation_id": ["5934", "35198"],
             "sca": [3, 2],
             "date": [62000.40235, 62495.605],
             "detected": [False, True],
@@ -102,7 +102,7 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     explist.sort(["detected", "sca"])
 
     # Getting a WCS to use
-    observation_id = 5934
+    observation_id = "5934"
     sca = 3
     band = "Y106"
     img_collection = ImageCollection()

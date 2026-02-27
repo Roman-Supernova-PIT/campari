@@ -359,7 +359,7 @@ def construct_transient_scene(
     SNLogger.debug(f"Using psf class {snpsfclass}")
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
-        image=image, stamp_size=stampsize
+        image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
     SNLogger.debug(f"Constructed transient scene with sum pixel value {np.sum(psf_image)}")

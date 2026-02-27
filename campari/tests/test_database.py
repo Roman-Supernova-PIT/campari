@@ -90,12 +90,10 @@ def test_find_exposures():
                                        dbclient=dbclient)
 
     np.testing.assert_equal(len(image_list), 135)
+    observation_ids = [i.observation_id for i in image_list]
 
-    observation_ids = [int(i.observation_id) for i in image_list]
-    observation_ids = np.sort(np.array(observation_ids))
-
-    regression_observation_ids = np.load(pathlib.Path(__file__).parent / "testdata/test_find_exposures_pointings.npy")
-    np.testing.assert_array_equal(observation_ids, regression_observation_ids)
+    regression_observation_ids = set(np.load(pathlib.Path(__file__).parent / "testdata/test_find_exposures_pointings.npy"))
+    np.testing.assert_array_equal(set(observation_ids), regression_observation_ids)
 
 # This worked once but I am going to wait to re-enable until I have my own testing database set up.
 
