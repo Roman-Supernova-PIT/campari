@@ -275,8 +275,6 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
-    import pprint
-    pprint.pprint( Config.get()._data )
     runner = campari_runner(**vars(args))
     runner()
 

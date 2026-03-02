@@ -22,7 +22,7 @@
 # - {name: sim_true_mag, datatype: float64}
 # meta: !!omap
 # - {cutout_size: 11}
-# - {initial_flux_guess: 300000}
+# - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
 # - {use_roman: true}
 # - {weighting: true}
@@ -47,8 +47,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 67d28436-a291-fbbc-58a3-55c44ee10e12}
-# - {diaobject_id: b627f5aa-86e7-4dbf-bc0a-5b1c84f7ad05}
+# - {provenance_id: 82d1bf51-65ca-886d-8456-c13e6d54515d}
+# - {diaobject_id: 9513961e-8208-473a-a7a9-5b47ab16363b}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

@@ -15,6 +15,7 @@ from photutils.utils import circular_footprint
 
 # SN-PIT
 from snappl.logger import SNLogger
+from snappl.config import Config
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -340,16 +341,19 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     return LSB
 
 
-
 def print_top_ten(flag):
-    SNLogger.info(flag)
-    snapshot = tracemalloc.take_snapshot()
-    top_stats = snapshot.statistics('lineno')
-    current, peak = tracemalloc.get_traced_memory()
-    SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+    cfg = Config.get()
+    if cfg.value("photometry.campari.print_memory_usage"):
+        SNLogger.info(flag)
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics('lineno')
+        current, peak = tracemalloc.get_traced_memory()
+        SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
 
-    SNLogger.info("[ Top 10 ]")
-    printout = ""
-    for stat in top_stats[:10]:
-        printout += str(stat) + "\n"
-    SNLogger.info(printout)
+        SNLogger.info("[ Top 10 ]")
+        printout = ""
+        for stat in top_stats[:10]:
+            printout += str(stat) + "\n"
+        SNLogger.info(printout)
+    else:
+        pass

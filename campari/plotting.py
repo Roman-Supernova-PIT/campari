@@ -150,12 +150,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
     noise_maps = np.load(f"/{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
 
-    SNLogger.debug("Trueflux times central value")
-    SNLogger.debug(0.22099323570728302 * trueflux[0])
-
-    SNLogger.debug("Max pixel value in first image: %f", np.max(ims[0]))
-    SNLogger.debug("Max pixel value in first model image: %f", np.max(modelims[0]))
-
     galra, galdec = 128.00003, 42.00003
 
     hdul = fits.open(f"/{debug_dir}/" + str(fileroot) + "_wcs.fits")

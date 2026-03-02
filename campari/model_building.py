@@ -352,26 +352,17 @@ def construct_transient_scene(
 
     cfg = Config.get()
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
-    # photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
-    # if not photOps:
-    #     # While I want to do this sometimes, it is very rare that you actually
-    #     # want to do this. Thus if it was accidentally on while doing a normal
-    #     # run, I'd want to know.
-    #     SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
     SNLogger.debug(f"Using SED type: {type(sed)}")
-    #  Including sed caused it to break even though we need it. This is bad. Briefly removing so that I can
-    # get sidecar runs through.
-    #  sed=sed,
-    SNLogger.debug("SED code modified")
+
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
-    # flux was hardcoded to 1 before.
-    SNLogger.debug(f"Constructed transient scene with sum pixel value {np.sum(psf_image)}")
+    # flux was hardcoded to 1 before. This doesn't matter because we were always calling it with 1, but
+    # in the future campari might need to call non-1 values if we are trying to account for BFE, so I fix this now.
 
     print_top_ten("Finished making transient scene")
 

@@ -189,7 +189,6 @@ class campari_runner:
             "mjd_discovery_max": self.transient_end}
         filtered_args = {k: v for k, v in arguments.items() if v is not None}
         # Database can't handle nones.
-        SNLogger.debug("Filtered args for diaobject search: " + str(filtered_args))
         diaobjs = DiaObject.find_objects(**filtered_args)
 
         if len(diaobjs) == 0:
@@ -406,7 +405,6 @@ class campari_runner:
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
             testrun = getattr(self, "testrun", None)
-            SNLogger.debug("USING TESTRUN=" + str(testrun))
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
                             testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)

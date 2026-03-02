@@ -98,32 +98,6 @@ def test_find_exposures():
     np.testing.assert_array_equal(set(observation_ids), regression_observation_ids)
 
 
-def test_pull_sidecar_objects():
-    dbclient = SNPITDBClient()
-    print(dir(dbclient))
-    image_collection = "snpitdb"
-    image_provenance_tag = "ou2024"
-    image_process = "load_ou2024_image"
-    diaobject_provenance_tag = "nov2025_test4"
-    diaobject_process = "sidecar"
-
-    diaobj = DiaObject.find_objects( collection=image_collection, provenance_tag=diaobject_provenance_tag,
-                                     process=diaobject_process, dbclient=dbclient)
-
-    #diaobj = DiaObject.find_objects( collection=image_collection, provenance_tag=diaobject_provenance_tag,
-    #                                 process=diaobject_process, dbclient=dbclient, name = "d61735a7-12c5-1b39-7873-182f3601c24c_806")
-
-
-    print(f"Found {len(diaobj)} diaobjects with sidecar provenance.")
-    name_list = []
-    for d in diaobj:
-        print(f"DiaObject ID: {d.id}, Name: {d.name}")
-        print(d.mjd_discovery, d.mjd_peak, d.mjd_start, d.mjd_end)
-        name_list.append(d.name)
-
-    import pandas as pd
-    pd.DataFrame(name_list).to_csv("/campari/sidecar_diaobject_names.csv", index=False, header=False)
-
 # This worked once but I am going to wait to re-enable until I have my own testing database set up.
 
 

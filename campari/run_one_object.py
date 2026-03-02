@@ -63,7 +63,6 @@ huge_value = 1e32
 SNLogger.set_level("DEBUG")
 
 
-
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    subtract_background_method=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
@@ -102,12 +101,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
     noise_maps = [im.noise for im in cutout_image_list]
-    SNLogger.debug(f"Number of nans in each noise map: {[np.sum(np.isnan(im.noise)) for im in cutout_image_list]}")
 
     sim_galra = None
     sim_galdec = None
     galaxy_images = None
-
 
     print_top_ten("After constructing images:")
 
@@ -149,9 +146,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
-    cfg = Config.get()
-    psfclass = cfg.get().value("photometry.campari.psf.transient_class")
-
     model_results = []
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "grid_type": grid_type,
                   "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
@@ -161,7 +155,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
     if nprocs > 1:
-        #mp.set_start_method("spawn")
         SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
