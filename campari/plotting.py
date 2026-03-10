@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 from matplotlib import pyplot as plt
 
-from scipy.stats import norm, binned_statistic
+from scipy.stats import binned_statistic, norm
 
 from astropy.io import fits
 from astropy.table import Table

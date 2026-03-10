@@ -6,7 +6,6 @@ import warnings
 
 import numpy as np
 from numpy.linalg import LinAlgError
-import multiprocessing as mp
 from multiprocessing import Pool
 import scipy.sparse as sp
 import tracemalloc
@@ -22,7 +21,7 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights, print_top_ten
+from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights, print_memory_usage_summary
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -95,7 +94,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
-    tracemalloc.start()
+    if Config.get().value("photometry.campari.print_memory_usage"):
+        tracemalloc.start()
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                                      subtract_background_method=
                                                                      subtract_background_method,
@@ -106,7 +106,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     sim_galdec = None
     galaxy_images = None
 
-    print_top_ten("After constructing images:")
+    print_memory_usage_summary("After constructing images:")
 
     # Build the background grid
     if not grid_type == "none":
@@ -176,7 +176,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         if transient_model is not None:
             sn_matrix.append(transient_model)
 
-    print_top_ten("After building model:")
+    print_memory_usage_summary("After building model:")
 
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:

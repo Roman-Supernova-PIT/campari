@@ -6,14 +6,14 @@ import pytest
 
 from astropy.table import Table
 
-from snappl.logger import SNLogger
 from snappl.config import Config
+from snappl.logger import SNLogger
 
 from campari.tests.test_gausspsfs import (
-    generate_diagnostic_plots,
-    perform_gaussianity_checks,
     create_true_flux,
+    generate_diagnostic_plots,
     perform_aperture_photometry,
+    perform_gaussianity_checks
 )
 
 imsize = 19
@@ -63,17 +63,19 @@ out_dir = cfg.value("system.paths.output_dir")
 # Obviously we expect some to fail a 0.05 p value cut on skew but the bias is concerning.
 # I am skipping these for now because I want to go and check if the reason they are failing is due to the fact
 # that the galaxies are point like and hard to model.
+# Note: these simulation_numbers correspond to the seed used to generate the simulation,
+#  so I can go back and check the simulations if I want.
 @pytest.mark.slow()
-@pytest.mark.parametrize("seed", [46, 47, 50, 51, 52])
-def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(seed):
-    diaobject_name = "100" + str(seed)
+@pytest.mark.parametrize("simulation_number", [46, 47, 50, 51, 52])
+def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
+    diaobject_name = "100" + str(simulation_number)
     diaobject_name_index = base_cmd.index("--diaobject-name") + 1
     base_cmd[diaobject_name_index] = diaobject_name
 
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / f"testdata/test_gaussims_bothnoise_unaligned_withhost_faintsource_ou2024_more_seed{seed}.txt",
+        / f"testdata/test_gaussims_bothnoise_unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
     ]
     cmd += [
         "--prebuilt_static_model",
@@ -108,10 +110,9 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(seed):
 
 @pytest.mark.slow()
 # 51 is two sigma skewed, p ~ 0.04, is this admissible?
-@pytest.mark.parametrize("seed", [45, 46, 47, 48, 49, 50, 51, 52])
-def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(seed):
-
-    diaobject_name = "111" + str(seed)
+@pytest.mark.parametrize("simulation_number", [45, 46, 47, 48, 49, 50, 51, 52])
+def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
+    diaobject_name = "111" + str(simulation_number)
     diaobject_name_index = base_cmd.index("--diaobject-name") + 1
     base_cmd[diaobject_name_index] = diaobject_name
 
@@ -120,7 +121,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(seed):
         base_cmd[initial_guess_index] = "--photometry-campari-make_initial_guess"
 
     # Screwed up the naming on some of these
-    if seed > 48:
+    if simulation_number > 48:
         underscore = "_"
     else:
         underscore = ""
@@ -128,7 +129,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(seed):
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / f"testdata/test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{seed}.txt",
+        / f"testdata/test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{simulation_number}.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
     cmd += ["--nprocs", "100"]
@@ -237,8 +238,8 @@ def test_extended_nohost_poissonnoiseonly():
 @pytest.mark.skip(reason="This test will fail because there is no noise so pull has no meaning"
                          " but it's a sanity check.")
 def test_extended_nohost_nonoise():
-    seed = 53
-    diaobject_name = "222" + str(seed)
+    simulation_number = 53
+    diaobject_name = "222" + str(simulation_number)
     diaobject_name_index = base_cmd.index("--diaobject-name") + 1
     base_cmd[diaobject_name_index] = diaobject_name
 
@@ -275,8 +276,8 @@ def test_extended_nohost_nonoise():
     reason="This test will fail because there is no noise so pull has no meaning but it's a sanity check."
 )
 def test_nophot_sanitycheck():
-    seed = 54
-    diaobject_name = "222" + str(seed)
+    simulation_number = 54
+    diaobject_name = "222" + str(simulation_number)
     diaobject_name_index = base_cmd.index("--diaobject-name") + 1
     base_cmd[diaobject_name_index] = diaobject_name
 
@@ -330,7 +331,7 @@ def test_both_shifted_21mag_host_ou2024_more():
     # ]
     cmd += ["--nprocs", "15"]
 
-    psfclass_index = cmd.index("--photometry-campari-psfclass")
+    psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
     cmd[psfclass_index + 1] = "ou24PSF_slow"
 
     result = subprocess.run(cmd, capture_output=False, text=True)
@@ -353,10 +354,11 @@ def test_both_shifted_21mag_host_ou2024_more():
         SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
-
-
-
 @pytest.mark.skip(reason="This test is superseded by more difficult tests.")
+# While this test is not run typically, it is still useful. If I run the test with noise, misaligned images, and
+# a host, and it fails, I won't know if the problem is the noise, the misalignment, or the host.
+# This test isolates the effect of the host. If this also fails, the problem is likely due to the modeling
+# of the host galaxy.
 def test_noiseless_aligned_22maghost_withphotops():
     cmd = base_cmd + [
         "--img_list",
@@ -435,19 +437,22 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
         SNLogger.debug(e)
         raise e
 
+
 ################ Realistic Galaxies Below Here ################
+# Note: these simulation_numbers in num_list correspond to the seed used to generate the simulation,
+#  so I can go back and check the simulations if I want.
+num_list = list(range(45, 61))
 @pytest.mark.slow()
-#@pytest.mark.parametrize("seed", [45, 46, 47, 48, 49, 50, 51, 52])
-@pytest.mark.parametrize("seed", [53, 54, 55, 56, 57, 58, 59, 60])
-def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(seed):
-    diaobject_name = "333" + str(seed)
+@pytest.mark.parametrize("simulation_number", num_list)
+def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_number):
+    diaobject_name = "333" + str(simulation_number)
     diaobject_name_index = base_cmd.index("--diaobject-name") + 1
     base_cmd[diaobject_name_index] = diaobject_name
 
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / f"testdata/test_gaussims_bothnoise_unaligned_realistichost_faintsource_ou2024_photshootseed{seed}.txt",
+        / f"testdata/test_gaussims_bothnoise_unaligned_realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
     ]
     cmd += [
         "--prebuilt_static_model",

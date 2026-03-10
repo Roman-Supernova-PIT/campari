@@ -14,8 +14,8 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 # SN-PIT
-from snappl.logger import SNLogger
 from snappl.config import Config
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -341,7 +341,7 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     return LSB
 
 
-def print_top_ten(flag):
+def print_memory_usage_summary(flag):
     cfg = Config.get()
     if cfg.value("photometry.campari.print_memory_usage"):
         SNLogger.info(flag)

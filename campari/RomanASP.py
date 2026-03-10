@@ -209,35 +209,35 @@ def main():
                         choices=["star", "SN"],
                         help="If star, will run on stars. If SN, will run  " +
                              "on supernovae. If no argument is passed," +
-                             "assumes supernova.",
+                             "assumes supernova. (Default: %(default)s)",
                         default="SN")
 
     parser.add_argument("--fast_debug", action=argparse.BooleanOptionalAction, default=False,
                         help="If True, will run campari in fast debug mode, "
                              "which will enforce a very sparse grid. Data collected "
-                             "using this method should not be used. ")
+                             "using this method should not be used. (Default: %(default)s) ")
 
     parser.add_argument("--save_model", action=argparse.BooleanOptionalAction, default=False,
                         help="If True, will save the PSF and SN matrices used in the fit to the debug directory."
                              "This will be useful if you are running very similar configurations and want to avoid"
-                             "recomputing the matrices each time.")
+                             "recomputing the matrices each time. (Default: %(default)s)")
 
     parser.add_argument("--image-process", type=str,
                         help="A string to identify the process of getting "
-                        "the image collection. Default None.", default=None)
+                        "the image collection. (Default: %(default)s)", default=None)
 
     parser.add_argument("--image-provenance-tag", type=str,
                         help="A string tag to identify the provenance of "
-                        "the image collection step. Default None.", default=None)
+                        "the image collection step. (Default: %(default)s)", default=None)
 
     parser.add_argument("--diaobject-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the "
-                        "diaobject. Default None.", default=None)
+                        "diaobject. (Default: %(default)s)", default=None)
     parser.add_argument("--diaobject-process", type=str,
                         help="A string to identify the process of the "
-                        "diaobject. Default None.", default=None)
+                        "diaobject.(Default: %(default)s)", default=None)
     parser.add_argument("--diaobject-id", type=str, default=None,
-                        help="the diaobject id. Default None.")
+                        help="the diaobject id. (Default: %(default)s)")
 
 
     parser.add_argument("--ltcv-process", type=str,
@@ -245,11 +245,14 @@ def main():
                         "lightcurve. Default campari.", default="campari")
     parser.add_argument("--ltcv-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the "
-                        "lightcurve. Default None.", default=None)
+                        "lightcurve. (Default: %(default)s)", default=None)
 
-    parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=True,
-                        help="If True, will create and write provenances to the database."
-                             " Default True.")
+    parser.add_argument(
+        "--create-ltcv-provenance",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="If True, will create and write provenances to the database. (Default: %(default)s)",
+    )
 
     parser.add_argument("--diaobject-position-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the program that determines the "

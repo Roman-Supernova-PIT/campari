@@ -11,7 +11,6 @@ photometry:
     pixel: false
     subtract_background_method: calculate
     use_real_images: true
-    psfclass: ou24PSF
     print_memory_usage: false
 
     psf:
@@ -41,7 +40,10 @@ photometry:
   campari_io:
     save_debug: true
     test_num: 1
-
+    # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
+    # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
+    # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
+    # the provenance is new because the hash of this config file will change.
 
   campari_simulations:
     avoid_non_linearity: false

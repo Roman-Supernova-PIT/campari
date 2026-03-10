@@ -14,7 +14,7 @@ from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
-from campari.utils import print_top_ten
+from campari.utils import print_memory_usage_summary
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -275,7 +275,8 @@ def find_all_exposures(
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
     if transient_start is None and diaobj.mjd_discovery is not None:
-        # From Sidecar, the start date is called mjd_discovery
+        # From Sidecar, the start date is not known implicitly, (as in a real survey, we just know the discovery date).
+        # In this case, we will assume that the transient could have started at discovery.
         transient_start = diaobj.mjd_discovery
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
@@ -335,6 +336,6 @@ def find_all_exposures(
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
 
-    print_top_ten("Finished finding all exposures")
+    print_memory_usage_summary("Finished finding all exposures")
 
     return all_images, img_collection_prov

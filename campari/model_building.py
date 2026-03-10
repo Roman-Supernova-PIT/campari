@@ -17,7 +17,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
-from campari.utils import print_top_ten
+from campari.utils import print_memory_usage_summary
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -302,7 +302,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
 
-    print_top_ten("Finished making Static Scene")
+    print_memory_usage_summary("Finished making Static Scene")
 
     return psfs
 
@@ -361,10 +361,8 @@ def construct_transient_scene(
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
-    # flux was hardcoded to 1 before. This doesn't matter because we were always calling it with 1, but
-    # in the future campari might need to call non-1 values if we are trying to account for BFE, so I fix this now.
 
-    print_top_ten("Finished making transient scene")
+    print_memory_usage_summary("Finished making transient scene")
 
     return psf_image.flatten()
 
@@ -441,7 +439,7 @@ def make_grid(
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
 
-    print_top_ten("Finished making grid")
+    print_memory_usage_summary("Finished making grid")
 
     return ra_grid, dec_grid
 
@@ -660,5 +658,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         if sn_index >= 0 and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
-    print_top_ten("Finished building model for one image")
+    print_memory_usage_summary("Finished building model for one image")
     return background_model_array, psf_source_array
