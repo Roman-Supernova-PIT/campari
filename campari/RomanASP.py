@@ -12,6 +12,7 @@ from erfa import ErfaWarning
 from snappl.config import Config
 from campari.campari_runner import campari_runner
 
+from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -277,6 +278,10 @@ def main():
     if cfg is None:
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
+
+    # SNLogger.debug("Running campari with the following configuration:")
+    # for arg, value in vars(args).items():
+    #     SNLogger.debug("  %s: %s", arg, value)
 
     runner = campari_runner(**vars(args))
     runner()

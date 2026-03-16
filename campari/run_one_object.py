@@ -100,6 +100,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
+
     noise_maps = [im.noise for im in cutout_image_list]
 
     sim_galra = None
