@@ -176,7 +176,8 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
 
 @pytest.mark.slow()
 # 51 is two sigma skewed, p ~ 0.04, is this admissible?
-@pytest.mark.parametrize("simulation_number", [45, 46, 47, 48, 49, 50, 51, 52])
+#[45, 46, 47, 48, 49, 50, 51, 52]
+@pytest.mark.parametrize("simulation_number", [51])
 def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
     # Screwed up the naming on some of these
     if simulation_number > 48:

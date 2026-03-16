@@ -363,6 +363,7 @@ def construct_transient_scene(
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
 
     print_memory_usage_summary("Finished making transient scene")
+    SNLogger.debug(f"Num nans in PSF image: {np.isnan(psf_image).sum()}")
 
     return psf_image.flatten()
 
