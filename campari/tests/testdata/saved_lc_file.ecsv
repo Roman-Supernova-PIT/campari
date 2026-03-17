@@ -17,24 +17,24 @@
 # - {name: y_cutout, datatype: float64}
 # - {name: sky_background, datatype: float64}
 # meta: !!omap
-# - {cutout_size: 11}
+# - {cutout_size: 19}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
 # - {use_roman: true}
 # - {weighting: true}
-# - {make_initial_guess: true}
+# - {make_initial_guess: false}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background_method: calculate}
+# - {subtract_background_method: 0}
 # - {use_real_images: true}
-# - {psfclass: ou24PSF}
-# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
+# - {print_memory_usage: false}
+# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow_photonshoot, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
-#     spacing: 0.75
+#     spacing: 1.0
 #     subsize: 4
 #     turn_grid_off: false
 #     type: contour
@@ -43,8 +43,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 82d1bf51-65ca-886d-8456-c13e6d54515d}
-# - {diaobject_id: 9513961e-8208-473a-a7a9-5b47ab16363b}
+# - {provenance_id: 70df30fb-2f6c-a5c9-90fc-a05a5e27d2e1}
+# - {diaobject_id: 83425219-cec3-4b2f-bd91-f9a82f6468e3}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

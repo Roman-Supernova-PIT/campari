@@ -261,6 +261,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     A numpy array of the PSFs at each grid point, with the shape
     (stampsize*stampsize, npoints)
     """
+
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
