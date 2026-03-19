@@ -61,7 +61,6 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 SNLogger.set_level("DEBUG")
 
-
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
     return cfg.value("system.paths.campari_test_data")
