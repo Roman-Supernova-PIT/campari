@@ -1,5 +1,4 @@
 import pathlib
-import subprocess
 from types import SimpleNamespace
 
 
@@ -170,7 +169,7 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
     except AssertionError as e:
         plotname = f"bothnoise_aligned_22maghost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -216,7 +215,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
     except AssertionError as e:
         plotname = f"bothnoise_aligned_nohost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -249,7 +248,7 @@ def test_nohost_skynoiseonly():
     except AssertionError as e:
 
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, ap_sums=ap_sums, ap_err=ap_err)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -282,10 +281,15 @@ def test_extended_nohost_poissonnoiseonly():
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, ap_sums=ap_sums, ap_err=ap_err)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
+
+# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poor defined since
+# error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
+# However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
+# via visual inspection.
 @pytest.mark.skip(reason="This test will fail because there is no noise so pull has no meaning"
                          " but it's a sanity check.")
 def test_extended_nohost_nonoise():
@@ -315,13 +319,15 @@ def test_extended_nohost_nonoise():
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
-@pytest.mark.skip(
-    reason="This test will fail because there is no noise so pull has no meaning but it's a sanity check."
-)
+# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poor defined since
+# error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
+# However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
+# via visual inspection.
+@pytest.mark.skip(reason="This test will fail because there is no noise so pull has no meaning but it's a sanity check.")
 def test_nophot_sanitycheck():
     simulation_number = 54
     diaobject_name = "222" + str(simulation_number)
@@ -349,7 +355,7 @@ def test_nophot_sanitycheck():
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -381,7 +387,7 @@ def test_both_shifted_21mag_host_ou2024_more():
     except AssertionError as e:
         plotname = "both_shifted_21mag_host_ou24PSF_slow_diagnostic"
         generate_diagnostic_plots("123_R062_ou24PSF_slow", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -418,7 +424,7 @@ def test_noiseless_aligned_22maghost_withphotops():
     except AssertionError as e:
         plotname = "bothnoise_shifted_nohost_ou24PSF_slow_photops_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -446,7 +452,7 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     except AssertionError as e:
         plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
         generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
 
@@ -465,7 +471,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         " diaobject_name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent
         / f"testdata/test_gaussims_bothnoise_unaligned_realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
-        "prebuilt_static_model": f"/{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
+        "prebuilt_static_model": f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
     }
 
     args = default_parameters | args
@@ -486,6 +492,6 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
