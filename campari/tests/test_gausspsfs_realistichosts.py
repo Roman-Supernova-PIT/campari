@@ -1,4 +1,4 @@
-
+import inspect
 import pathlib
 import pytest
 import subprocess
@@ -6,12 +6,12 @@ import subprocess
 import numpy as np
 
 from astropy.table import Table
+from astropy.io import fits
 
 from snappl.logger import SNLogger
 
 from campari.plotting import generate_diagnostic_plots
 from campari.tests.test_gausspsfs import perform_gaussianity_checks, create_true_flux
-
 
 from snappl.config import Config
 
@@ -101,22 +101,76 @@ def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
         raise e
 
 
+generate_simulations = False
+regenerate_grid_models = False
+from campari.image_simulator_run import run_sim
+
+@pytest.mark.self_generating()
 def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
+    func_name = inspect.currentframe().f_code.co_name
+    test_data_path = pathlib.Path(__file__).parent / "testdata"
+    seed = 45
+    run_name = func_name + f"seed{seed}"
+    if generate_simulations:
+        SNLogger.debug(f"Generating new simulations for {func_name}. This may take a while.")
+        # The image data does not currently exist, so we will create it.
+        run_sim(
+            seed=seed, # Set seed for reproducibility, this is the seed that Cole started with.
+            images_aligned=False,
+            poisson_noise=True,
+            sky_noise=True,
+            static_source="galaxy",
+            static_source_mag=22,
+            transient_peak_mag=24,
+            mjd=np.arange(60000, 60075, 0.3),
+            psf_class="gaussian",
+            run_dir=func_name,
+            output_path=test_data_path,
+            run_name_base=func_name,
+            bulge_R=2,
+            bulge_n=3,
+            disk_R=4,
+            disk_n=1,  # Simulated Galaxy Params
+            test_data_path=test_data_path
+        )
+
+    # Perform sanity check against cached image.
+    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_sanity_image.fits")
+    new_image = fits.open(
+        f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
+    )
+
+    np.testing.assert_allclose(cached_image[0].data, new_image[0].data, rtol=1e-5, err_msg="The newly generated image"
+        " does not match the cached image. This suggests that there may be a problem with the simulation code or that the"
+        " simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the "
+        "validity of the test results.")
+
+    # Check if the image list exists at the expected location. If not, raise an error.
+    imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
+    if not pathlib.Path(imagelist_filename).exists():
+        raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Simulation may have failed to run.")
+
+    # cmd = base_cmd + [
+    #     "--img_list",
+    #     pathlib.Path(__file__).parent
+    #     / "testdata/test_gaussims_bothnoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
+    # ]
+
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent
-        / "testdata/test_gaussims_bothnoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
+        pathlib.Path(__file__).parent / imagelist_filename,
     ]
 
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    # realsitic_galaxy_gridmodel
-    cmd += [
-        "--prebuilt_static_model",
-        pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
-    ]
+    if not regenerate_grid_models:
+        # realsitic_galaxy_gridmodel
+        cmd += [
+            "--prebuilt_static_model",
+            pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
+        ]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
 

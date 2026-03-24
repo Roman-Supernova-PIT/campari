@@ -187,6 +187,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     base_output_path.mkdir(exist_ok=True, parents=True)
 
     filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
+    SNLogger.debug(f"Saving lightcurve to {base_output_path / filepath}")
 
     if save_to_database:
         ltcvprov = lc.provenance_object
@@ -198,6 +199,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         lc.save_to_db(dbclient=dbclient)
         lc.write()
     else:
+
         lc.write(
             base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
         )

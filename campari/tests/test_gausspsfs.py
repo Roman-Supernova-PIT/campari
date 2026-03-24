@@ -1432,7 +1432,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     #cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
-         "{debug_dir}/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
+         f"{debug_dir}/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
      ]
     cmd += ["--nprocs", "15"]
 
@@ -1589,7 +1589,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
 # Right now this is failing due to a bias. I believe this is
 # due to some bias resulting from the low SNR + Poisson noise when doing PSF fitting. More work is needed, come
 # back to this! XXX XXX XXX TODO XXX
-@pytest.mark.xfail
+#@pytest.mark.xfail
 def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1606,7 +1606,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
-        "{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
+        f"{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
     ]
     cmd += ["--nprocs", "15"]
 
