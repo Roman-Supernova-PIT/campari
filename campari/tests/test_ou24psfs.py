@@ -285,7 +285,7 @@ def test_extended_nohost_poissonnoiseonly():
         raise e
 
 
-# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poor defined since
+# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poorly defined since
 # error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
 # However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
 # via visual inspection.

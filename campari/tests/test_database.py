@@ -18,8 +18,6 @@ from campari.data_construction import find_all_exposures
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.imagecollection import ImageCollection
-from snappl.logger import SNLogger
-
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
