@@ -189,7 +189,6 @@ class campari_runner:
             "mjd_discovery_max": self.transient_end}
         filtered_args = {k: v for k, v in arguments.items() if v is not None}
         # Database can't handle nones.
-
         diaobjs = DiaObject.find_objects(**filtered_args)
 
         if len(diaobjs) == 0:

@@ -8,6 +8,7 @@ import numpy as np
 from numpy.linalg import LinAlgError
 from multiprocessing import Pool
 import scipy.sparse as sp
+import tracemalloc
 
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
@@ -20,7 +21,7 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights
+from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights, print_memory_usage_summary
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -58,6 +59,7 @@ Adapted from code by Pedro Bernardinelli
 """
 # Global variables
 huge_value = 1e32
+SNLogger.set_level("DEBUG")
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
@@ -92,16 +94,20 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
+    if Config.get().value("photometry.campari.print_memory_usage"):
+        tracemalloc.start()
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
+
     noise_maps = [im.noise for im in cutout_image_list]
 
     sim_galra = None
     sim_galdec = None
     galaxy_images = None
 
+    print_memory_usage_summary("After constructing images:")
 
     # Build the background grid
     if not grid_type == "none":
@@ -141,9 +147,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
-    cfg = Config.get()
-    psfclass = cfg.get().value("photometry.campari.psf.transient_class")
-
     model_results = []
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "grid_type": grid_type,
                   "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
@@ -153,6 +156,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
     if nprocs > 1:
+        SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
                 model_results.append(pool.apply_async(build_model_for_one_image,
@@ -172,6 +176,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         psf_matrix.append(bg_model)
         if transient_model is not None:
             sn_matrix.append(transient_model)
+
+    print_memory_usage_summary("After building model:")
 
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:
@@ -245,7 +251,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"image shape: {images.shape}")
 
     if method == "lsqr":
-
         wgt_matrix = np.sqrt(wgt_matrix)
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
                               images*wgt_matrix,  atol=1e-12, x0=x0test,

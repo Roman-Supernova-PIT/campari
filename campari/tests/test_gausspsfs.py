@@ -1,11 +1,10 @@
 import inspect
-from matplotlib import pyplot as plt
 import numpy as np
 import pathlib
 import pytest
 import subprocess
 
-from scipy.stats import norm, skewtest, skew
+from scipy.stats import norm, skewtest
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
@@ -13,8 +12,10 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from snappl.config import Config
 from snappl.logger import SNLogger
 
-
 from campari.plotting import generate_diagnostic_plots
+
+SNLogger.set_level("DEBUG")
+
 
 imsize = 19
 base_cmd = [
