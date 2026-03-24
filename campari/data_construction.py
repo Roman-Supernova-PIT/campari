@@ -14,6 +14,7 @@ from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
+from campari.utils import print_memory_usage_summary
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -88,6 +89,14 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     return cutout_image_list, image_list, bgflux
 
 
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
 def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None, subtract_background_method=None):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
@@ -144,22 +153,21 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # level as a free parameter in our fit, so it should not be subtracted
     # here.
     bg = 0
-    if subtract_background_method == "calculate":
+    if is_number(subtract_background_method):
+        bg = float(subtract_background_method)
+        SNLogger.debug(f"Background from user input: {bg}")
+    elif subtract_background_method == "calculate":
         bg = calculate_background_level(imagedata)
-        SNLogger.debug(f"Background Calculated: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
     else:
         SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
         bg = image_cutout.get_fits_header()[subtract_background_method] if subtract_background_method in image_cutout.get_fits_header() else None
-
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
-        SNLogger.debug(f"Background from header: {bg}")
 
     image_cutout._data -= bg
-    SNLogger.debug(f"Subtracted a background level of {bg}")
     return image_cutout, bg
 
 
@@ -266,6 +274,10 @@ def find_all_exposures(
     SNLogger.debug(f"image_selection_start: {image_selection_start}")
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
+    if transient_start is None and diaobj.mjd_discovery is not None:
+        # From Sidecar, the start date is not known implicitly, (as in a real survey, we just know the discovery date).
+        # In this case, we will assume that the transient could have started at discovery.
+        transient_start = diaobj.mjd_discovery
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec
@@ -323,5 +335,7 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
+
+    print_memory_usage_summary("Finished finding all exposures")
 
     return all_images, img_collection_prov
