@@ -1,0 +1,29 @@
+name: Ruff Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  ruff:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: [actions/checkout@v4](https://github.com)
+        with:
+          # Fetch the full history so ruff-action can check changed files
+          fetch-depth: 0 
+      - name: Install Python
+        uses: [actions/setup-python@v5](https://github.com)
+        with:
+          python-version: '3.11' # Use your desired Python version
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+      - name: Run Ruff
+        run: ruff check --output-format=github . # This command will fail the job if linting issues are found
