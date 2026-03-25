@@ -1,0 +1,25 @@
+name: Ruff Check
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: [actions/checkout@v4](https://github.com)
+      - name: Install Python
+        uses: [actions/setup-python@v5](https://github.com)
+        with:
+          python-version: '3.11'
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install ruff
+      - name: Run Ruff
+        # Runs Ruff and exits with a non-zero exit code if any errors are found
+        run: ruff check --output-format=github .
+
