@@ -2,6 +2,7 @@
 #   - /snpit_env/configs/nov2025_container_config.yaml
 preloads:
   - /snpit_env/configs/rknop_dev_container_config.yaml
+#  - /scratch/rknop_dev_container_config_temp.yaml
 
 photometry:
   campari:
@@ -43,6 +44,8 @@ photometry:
       subsize: 4
 
   campari_io:
+    output_dir: /scratch/campari_out_dir
+    debug_dir: /scratch/campari_debug_dir
     save_debug: true
     test_num: 1
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.

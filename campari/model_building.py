@@ -52,11 +52,12 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     SNLogger.debug(f"Making regular grid with spacing {spacing} and subsize {subsize}")
     wcs = image_object.get_wcs()
     size = image_object.image_shape[0]
-    if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
-        SNLogger.warning(
-            "This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
-            "cutout WCS, this is likely not a cutout WCS."
-        )
+    # Briefly disabling this check b/c it is FITS-dependent
+    # if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
+    #     SNLogger.warning(
+    #         "This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
+    #         "cutout WCS, this is likely not a cutout WCS."
+    #     )
     if subsize > size:
         SNLogger.warning(
             "subsize is larger than the image size. "
@@ -264,6 +265,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
+    SNLogger.debug("x_sca, y_sca: {}".format(list(zip(x_sca, y_sca))))
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
     x_sca = np.atleast_1d(x_sca)
     y_sca = np.atleast_1d(y_sca)

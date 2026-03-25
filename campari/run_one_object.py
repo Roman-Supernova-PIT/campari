@@ -94,6 +94,21 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
+    if band[0] == "F":
+        # We switched from using lettered bands to numbered bands in the code at some point,
+        # much to my chagrin, so this catches those cases.
+        lettered_band_dicts = {
+            "F062": "R062",
+            "F087": "Z087",
+            "F106": "Y106",
+            "F129": "J129",
+            "F158": "H158",
+            "F184": "F184",
+            "F213": "K213",
+        }
+        band = lettered_band_dicts[band]
+
+
     if Config.get().value("photometry.campari.print_memory_usage"):
         tracemalloc.start()
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,

@@ -253,6 +253,20 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     zp: float, the zeropoint of the bandpass
     """
 
+    lettered_band_dicts = {
+        "F062": "R062",
+        "F087": "Z087",
+        "F106": "Y106",
+        "F129": "J129",
+        "F158": "H158",
+        "F184": "F184",
+        "F213": "K213",
+    }
+    if band[0] == "F":
+        # We switched from using lettered bands to numbered bands in the code at some point,
+        # much to my chagrin, so this catches those cases.
+        band = lettered_band_dicts[band]
+
     exptime = {
         "F184": 901.175,
         "J129": 302.275,
@@ -306,6 +320,21 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     """
 
     band = image_object_list[0].band
+
+    if band[0] == "F":
+        # We switched from using lettered bands to numbered bands in the code at some point,
+        # much to my chagrin, so this catches those cases.
+        lettered_band_dicts = {
+            "F062": "R062",
+            "F087": "Z087",
+            "F106": "Y106",
+            "F129": "J129",
+            "F158": "H158",
+            "F184": "F184",
+            "F213": "K213",
+        }
+        band = lettered_band_dicts[band]
+
 
     cutout_pix = 2
     center_fluxes = []

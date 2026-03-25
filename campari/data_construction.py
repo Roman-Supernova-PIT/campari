@@ -166,8 +166,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
-
-    image_cutout._data -= bg
+    # Changed this from _data to data
+    image_cutout.data -= bg
     return image_cutout, bg
 
 
