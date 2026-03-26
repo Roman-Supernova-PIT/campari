@@ -1,11 +1,10 @@
 import inspect
-from matplotlib import pyplot as plt
 import numpy as np
 import pathlib
 import pytest
 import subprocess
 
-from scipy.stats import norm, skewtest, skew
+from scipy.stats import norm, skewtest
 
 from astropy.table import Table
 from photutils.aperture import CircularAperture, aperture_photometry
@@ -13,8 +12,10 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from snappl.config import Config
 from snappl.logger import SNLogger
 
-
 from campari.plotting import generate_diagnostic_plots
+
+SNLogger.set_level("DEBUG")
+
 
 imsize = 19
 base_cmd = [
@@ -50,6 +51,7 @@ base_cmd = [
 cfg = Config.get()
 debug_dir = cfg.value("system.paths.debug_dir")
 out_dir = cfg.value("system.paths.output_dir")
+
 
 def create_true_flux(mjd, peakmag):
     # This creates a linear up-down lightcurve peaking at peakmag. Looks like a triangle.
@@ -147,6 +149,7 @@ def test_noiseless_aligned_no_host():
     # we keep it.
     np.testing.assert_allclose(lc["flux_err"], 3.691204, atol=1e-7)
 
+
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_poisson_noise_aligned_no_host():
     # Now we add just poisson noise. This will introduce scatter, but campari should still agree with aperture
@@ -194,6 +197,7 @@ def test_poisson_noise_aligned_no_host():
 # --width 256 --height 256 --pixscale 0.11 -t 60000 60005 60010 60015 60020 60025 60030 60035 60040 60045 60050 60055
 # 60060 --image-centers 128 42 -θ 0 -r 30 -s 0 --transient-ra 128 --transient-dec 42
 # --no-star-noise --no-transient-noise -n 1
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_sky_noise_aligned_no_host():
@@ -317,6 +321,7 @@ def test_noiseless_shifted_no_host():
 #   128.001   41.999  128.      42.001  127.999   42.001  128.001   42.001  128.      42.0005 127.999   42.0005
 # 128.001   42.0005 128.      42.     -θ   0.  30.  60.  90. 120. 150. 180. 210. 240. 270. 300. 330. 360. -r 0 -s 0
 # --transient-ra 128 --transient-dec 42 --no-star-noise  -n 1'
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_poisson_shifted_no_host():
@@ -469,6 +474,7 @@ def test_aligned_noiseless_just_host():
     residuals = ims - modelims
     np.testing.assert_allclose(residuals, 0, atol=20)
 
+
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_both_aligned_just_host():
     cmd = base_cmd + [
@@ -507,6 +513,7 @@ def test_both_aligned_just_host():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_both_shifted_just_host():
@@ -547,6 +554,7 @@ def test_both_shifted_just_host():
         SNLogger.debug(e)
         raise e
 
+
 # 22 mag delta function galaxy tests ############################################################################
 
 # Note: These tests are maintained rather than full removal because they are useful for debugging when
@@ -585,6 +593,7 @@ def test_noiseless_aligned_22mag_host():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_poisson_aligned_22mag_host():
@@ -626,6 +635,7 @@ def test_poisson_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_hostnoiseonly_aligned_22mag_host():
     # I think is failing because there are so few no transient compared to with transient images.
@@ -664,6 +674,7 @@ def test_hostnoiseonly_aligned_22mag_host():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_transientnoiseonly_aligned_22mag_host():
@@ -704,6 +715,7 @@ def test_transientnoiseonly_aligned_22mag_host():
         SNLogger.debug(e)
         raise e
 
+
 # Note: These tests are maintained rather than full removal because they are useful for debugging when
 # the more complicated tests fail. Since they take a few minutes to run each, we skip them in normal test runs.
 @pytest.mark.skip(reason="this test is subsumed by following tests")
@@ -742,6 +754,7 @@ def test_both_aligned_22mag_host():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_noiseless_shifted_22mag_host():
@@ -837,6 +850,7 @@ def test_skynoise_shifted_22mag_host():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with more noise.")
 def test_poisson_shifted_22mag_host():
@@ -993,6 +1007,7 @@ def test_both_shifted_22mag_host_varying_gaussian():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_noiseless_aligned_no_host_varying():
     # Test 1. Noiseless, perfectly aligned images. No host galaxy, We expect campari to do extremely well here.
@@ -1033,6 +1048,7 @@ def test_noiseless_aligned_no_host_varying():
     # would be zero for the noiseless case, but this causes issues with the inverse variance in other cases so
     # we keep it.
     np.testing.assert_allclose(lc["flux_err"], 3.691204, atol=1e-7)
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_noiseless_shifted_no_host_varying():
@@ -1075,6 +1091,7 @@ def test_noiseless_shifted_no_host_varying():
     # we keep it.
     # The tolerance has to be higher here because the rotation and changing in PSF sizes.
     np.testing.assert_allclose(lc["flux_err"], 3.691204, rtol=1e-2)
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_noiseless_shifted_22mag_host_varying():
@@ -1119,6 +1136,7 @@ def test_noiseless_shifted_22mag_host_varying():
     # we keep it.
     # The tolerance has to be higher here because the rotation and changing in PSF sizes.
     np.testing.assert_allclose(lc["flux_err"], 4.14, rtol=1.1e-2)
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_skynoise_shifted_22mag_host_varying():
@@ -1167,6 +1185,7 @@ def test_skynoise_shifted_22mag_host_varying():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with noise.")
 def test_poisson_shifted_22mag_host_varying():
     cmd = base_cmd + [
@@ -1214,6 +1233,7 @@ def test_poisson_shifted_22mag_host_varying():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test fails but I believe it is due to small number statistics. Revisit this.")
 # XXX TODO
 def test_both_shifted_nohost_varying():
@@ -1254,6 +1274,7 @@ def test_both_shifted_nohost_varying():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is superseded by more difficult tests with more noise.")
 def test_poisson_noise_shifted_no_host_varying():
@@ -1312,6 +1333,7 @@ def test_poisson_noise_shifted_no_host_varying():
         SNLogger.debug(e)
         raise e
 
+
 def test_both_shifted_22mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
@@ -1321,7 +1343,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    #cmd += ["--save_model"]
+    # cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          f"{debug_dir}/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
@@ -1362,6 +1384,7 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_21mag_host_varying_gaussian_more():
@@ -1415,6 +1438,7 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     cmd = base_cmd + [
@@ -1429,7 +1453,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    #cmd += ["--save_model"]
+    # cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          f"{debug_dir}/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
@@ -1470,6 +1494,7 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
@@ -1528,6 +1553,7 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
@@ -1585,6 +1611,7 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 # Right now this is failing due to a bias. I believe this is
 # due to some bias resulting from the low SNR + Poisson noise when doing PSF fitting. More work is needed, come
@@ -1646,6 +1673,7 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_gaussian_bias_analysis():
     cmd = base_cmd + [
@@ -1660,7 +1688,7 @@ def test_gaussian_bias_analysis():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    #cmd += ["--save_model"]
+    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         "{debug_dir}/psf_matrix_gaussbiastest.npy",
@@ -1704,6 +1732,7 @@ def test_gaussian_bias_analysis():
     #     perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
     # except AssertionError as e:
     #     raise e
+
 
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_same_as_above_no_host():
@@ -1753,6 +1782,3 @@ def test_same_as_above_no_host():
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
-
-
-

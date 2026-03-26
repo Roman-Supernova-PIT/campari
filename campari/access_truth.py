@@ -12,7 +12,6 @@ import pandas as pd
 
 # Astronomy Library
 from astropy.coordinates import SkyCoord
-from astropy.table import QTable, hstack
 import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -177,16 +176,9 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
         "sim_realized_mag": sim_realized_mag,
         "sim_true_mag": sim_true_mag,
     }
-    units = {
-        "sim_realized_flux": "",
-        "sim_realized_mag": u.mag,
-        "sim_true_flux": "",
-        "sim_true_mag": u.mag,
-    }
 
     lc.data.update(data_dict)
     lc.meta.update(meta_dict)
-    #lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
 
     return lc
 

@@ -204,7 +204,8 @@ def test_find_all_exposures():
                                        truth="simple_model", image_collection="ou2024")
 
     compare_table = np.load(pathlib.Path(__file__).parent / "testdata/findallexposures.npy", allow_pickle=True)
-    compare_table = pd.DataFrame(compare_table, columns=["pointing", "sca", "date", "band", "detected", "observation_id"])
+    compare_table = pd.DataFrame(compare_table, columns=["pointing", "sca", "date", "band",
+                                 "detected", "observation_id"])
 
     compare_table = compare_table.sort_values("date")
 
