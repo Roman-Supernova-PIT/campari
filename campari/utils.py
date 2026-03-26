@@ -136,7 +136,7 @@ def gaussian(x, A, mu, sigma):
 
 def calculate_background_level(im):
     """A function for naively estimating the background level from a given
-    image. 
+    image.
 
     Inputs:
     im, numpy array of floats, the image to be used.
@@ -346,7 +346,7 @@ def print_memory_usage_summary(flag):
     if cfg.value("photometry.campari.print_memory_usage"):
         SNLogger.info(flag)
         snapshot = tracemalloc.take_snapshot()
-        top_stats = snapshot.statistics('lineno')
+        top_stats = snapshot.statistics("lineno")
         current, peak = tracemalloc.get_traced_memory()
         SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
 

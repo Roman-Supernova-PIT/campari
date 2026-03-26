@@ -204,7 +204,8 @@ def test_get_exposures(cfg):
     # anywhere, this should not matter.
     recovered_set = set(observation_id_list)
     compare_set = set(compare_list)
-    np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list does not match the set of observation IDs in the image list file.")
+    np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
+                            "does not match the set of observation IDs in the image list file.")
 
 
 
