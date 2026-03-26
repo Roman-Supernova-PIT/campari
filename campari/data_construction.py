@@ -35,11 +35,11 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     image_list: list of snappl.image.Image objects, the images to be used.
     diaobj: snappl.diaobj.DiaObj object, the Difference Imaging Object to find images for.
     size: int, the size of the cutout to be made (size x size)
-    subtract_background_method: str, the method used to calculate the background to be removed. 
+    subtract_background_method: str, the method used to calculate the background to be removed.
         - If "fit", the background level is fit as a free parameter in the forward modelling.
         - If "calc" or "calculate", the background level is calculated using photutils.
-        - If it is any other string, it is assumed that this is a column name in the fits header that the background 
-        level is stored in.
+        - If it is any other string, it is assumed that this is a column name in the
+        fits header that the background level is stored in.
     nprocs: int, the number of processors to use for parallel processing.
 
     Returns:
@@ -67,7 +67,8 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
                 results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
                                                                            "ra": ra, "dec": dec, "size": size,
                                                                            "truth": truth,
-                                                                           "subtract_background_method": subtract_background_method}))
+                                                                           "subtract_background_method":
+                                                                           subtract_background_method}))
 
             pool.close()
             pool.join()
@@ -97,7 +98,8 @@ def is_number(s):
         return False
 
 
-def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None, subtract_background_method=None):
+def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
+                        subtract_background_method=None):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -107,14 +109,13 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     indx: int, index of the image in the list.
     ra/dec: float, the RA and DEC of the SN
     size: int, the size of the cutout to be made (size x size)
-    subtract_background_method: str, the method used to calculate the background to be removed. 
+    subtract_background_method: str, the method used to calculate the background to be removed.
         - If "fit", the background level is fit as a free parameter in the forward modelling.
         - If "calculate", the background level is calculated using photutils.
-        - If it is any other string, it is assumed that this is a keyword name in the FITS header that the background 
+        - If it is any other string, it is assumed that this is a keyword name in the FITS header that the background
         level is stored in. If the keyword is not found, an error is raised.
     truth: str, either "truth" or "simple_model", whether to use truth images
         or OU2024 simple model images.
-    
 
     Returns:
     cutout_image: snappl.image.Image object, cutout on the object location.
@@ -162,7 +163,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         bg = 0
     else:
         SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
-        bg = image_cutout.get_fits_header()[subtract_background_method] if subtract_background_method in image_cutout.get_fits_header() else None
+        bg = image_cutout.get_fits_header()[subtract_background_method] if \
+            subtract_background_method in image_cutout.get_fits_header() else None
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")

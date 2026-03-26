@@ -367,7 +367,7 @@ class campari_runner:
     def build_and_save_lightcurve(self, diaobj, lc_model):
         """ Build the lightcurve object and save it locally and/or to the database. Note that if no measurements
         are made, e.g. if no exposures with the transient are found, no lightcurve is saved.
-        
+
         Inputs:
         ---------
         diaobj: DiaObject
@@ -378,7 +378,6 @@ class campari_runner:
         Returns:
         ---------
         None, but the lightcurve is saved locally and/or to the database.
-        
         """
         lc_model.image_collection_prov = self.img_coll_prov
         if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":

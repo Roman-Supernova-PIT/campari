@@ -12,7 +12,6 @@ from erfa import ErfaWarning
 from snappl.config import Config
 from campari.campari_runner import campari_runner
 
-from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.

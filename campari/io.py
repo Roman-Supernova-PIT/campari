@@ -16,7 +16,6 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snappl.provenance import Provenance
 from snappl.config import Config
 from snappl.lightcurve import Lightcurve
 from snappl.logger import SNLogger
@@ -193,7 +192,8 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         if testrun is not None and ltcv_provenance_tag is not None:
             ltcv_provenance_tag += str(testrun)
         if new_provenance:
-            SNLogger.debug(f"Creating new provenance for lightcurve{f' with tag {ltcv_provenance_tag}' if ltcv_provenance_tag is not None else ''}")
+            SNLogger.debug("Creating new provenance for "
+                           f"lightcurve{f' with tag {ltcv_provenance_tag}' if ltcv_provenance_tag is not None else ''}")
             ltcvprov.save_to_db(tag=ltcv_provenance_tag)
         lc.save_to_db(dbclient=dbclient)
         lc.write()
