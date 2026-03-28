@@ -379,6 +379,7 @@ class campari_runner:
         ---------
         None, but the lightcurve is saved locally and/or to the database.
         """
+        chi_squared = self.calculate_chi_squared(lc_model)
         lc_model.image_collection_prov = self.img_coll_prov
         if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
             psftype = "romanpsf"
@@ -442,6 +443,20 @@ class campari_runner:
 
         else:
             SNLogger.info("Not saving debug files.")
+
+    def calculate_chi_squared(self, lc_model):
+        residual = lc_model.model_images - lc_model.images
+        error = lc_model.wgt_matrix
+        chi_squared_terms = (residual / error) ** 2
+        chi_squared_terms[error == 0] = 0
+        num_images = len(lc_model.image_list)
+        image_size = int(np.sqrt(residual.size / num_images))
+        chi_squared = np.sum(chi_squared_terms.reshape(num_images, image_size**2), axis=1)
+
+        SNLogger.debug(f"Chi-squared values for each image: {chi_squared}")
+
+        return chi_squared
+
 
     def parse_img_list(self):
         """Parse the image list file if provided."""
