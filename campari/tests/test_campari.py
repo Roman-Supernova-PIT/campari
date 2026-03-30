@@ -805,6 +805,19 @@ def test_calculate_surface_brightness():
     cfg.set_value("system.db.url", "https://c3-sn.lbl.gov/roman_snpit_ou2024")
     cfg.set_value("system.db.username", "campari")
     cfg.set_value("system.db.passwordfile", "/secrets/roman_snpit_ou2024_campari")
+    #   ou24:
+    #     simdex_server: https://roman-desc-simdex.rknop.net
+    #     config_file: /scratch/campari/examples/perlmutter/tds.yaml
+    #     sn_truth_dir: /ou2024_snana
+    #     sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    #     images: /ou2024/RomanTDS/images/simple_model
+    #     tds_base: /scratch/photometry_test_data/ou2024
+    cfg.set_value("system.ou24.simdex_server", "https://roman-desc-simdex.rknop.net")
+    cfg.set_value("system.ou24.config_file", "/scratch/campari/examples/perlmutter/tds.yaml")
+    cfg.set_value("system.ou24.sn_truth_dir", "/ou2024_snana")
+    cfg.set_value("system.ou24.sims_sed_library", "/home/rubin_sim_data/sims_sed_library")
+    cfg.set_value("system.ou24.images", "/ou2024/RomanTDS/images/simple_model")
+    cfg.set_value("system.ou24.tds_base", "/scratch/photometry_test_data/ou2024")
     cfg._static = True
 
     try:
