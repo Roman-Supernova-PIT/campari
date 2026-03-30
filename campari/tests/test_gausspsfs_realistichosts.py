@@ -46,7 +46,7 @@ base_cmd = [
 
 
 cfg = Config.get()
-output_dir = cfg.value("photometry.campari_io.output_dir")
+out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
@@ -105,7 +105,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_gaussims_bothnoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
+        / "testdata/test_imagelists/test_gaussims_bothnoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
     ]
 
     cmd += ["--photometry-campari-grid_options-type", "regular"]

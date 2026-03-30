@@ -839,7 +839,7 @@ def test_calculate_surface_brightness():
         SNLogger.debug("Made it here")
 
         # Both of these test images contain this SN
-        provenance_tag = "ou2024_truth"  # This was updated, see https://roman-supernova-pit.github.io/snappl/usage.html
+        provenance_tag = "ou2024"  # This was updated, see https://roman-supernova-pit.github.io/snappl/usage.html
         process = "load_ou2024_diaobject"
         SNLogger.debug("Trying to load diaobj")
         diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,

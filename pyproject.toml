@@ -93,6 +93,12 @@ doctest_rst = "enabled"
 text_file_format = "rst"
 addopts = "--doctest-rst"
 
+[pytest]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "serial",
+]
+
 [tool.coverage.run]
 omit = [
  "campari/__init*",
