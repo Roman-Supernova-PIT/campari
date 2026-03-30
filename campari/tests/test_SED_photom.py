@@ -12,8 +12,8 @@ from snappl.logger import SNLogger
 from campari.tests.test_gausspsfs import generate_diagnostic_plots, perform_gaussianity_checks
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
-out_dir = cfg.value("system.paths.output_dir")
+output_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 imsize = 19
 base_cmd = [

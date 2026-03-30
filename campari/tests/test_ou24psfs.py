@@ -126,8 +126,8 @@ default_parameters = {
 
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
-out_dir = cfg.value("system.paths.output_dir")
+output_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
 

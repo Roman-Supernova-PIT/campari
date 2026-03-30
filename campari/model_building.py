@@ -265,7 +265,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
-    SNLogger.debug("x_sca, y_sca: {}".format(list(zip(x_sca, y_sca))))
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
     x_sca = np.atleast_1d(x_sca)
     y_sca = np.atleast_1d(y_sca)

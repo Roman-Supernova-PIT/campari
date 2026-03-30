@@ -61,10 +61,14 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 SNLogger.set_level("DEBUG")
 
+cfg = Config.get()
+output_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
+
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
-    return cfg.value("system.paths.campari_test_data")
+    return cfg.value("photometry.campari_io.test_data")
 
 
 def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
@@ -271,7 +275,7 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -299,7 +303,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
                         overwrite_meta=overwrite_meta)
 
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -331,7 +335,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -379,7 +383,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -762,9 +766,8 @@ def test_make_sim_param_grid():
 
 
 def test_handle_partial_overlap():
-    cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("system.paths.debug_dir")) / "30617531_Y106_ou24psf_slow_photonshoot_images.npy"
+    curfile = pathlib.Path(debug_dir) / "30617531_Y106_ou24psf_slow_photonshoot_images.npy"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -797,40 +800,51 @@ def test_calculate_surface_brightness():
     observation_id = str(5934)
     sca = 3
 
-    band = "Y106"
-    dbclient = SNPITDBClient()
-    image_collection = "ou2024"
-    SNLogger.debug(f"getting image collection with name {image_collection}")
-    img_collection = ImageCollection().get_collection(
-        collection=image_collection
-    )
-    SNLogger.debug(f"Got image collection: {img_collection}")
-    SNLogger.debug(f"Getting image with observation_id={observation_id}, sca={sca}, band={band}")
-    snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
+    orig_config = Config.get(clone=cfg)
+    cfg._static = False
+    cfg.set_value("system.db.url", "https://c3-sn.lbl.gov/roman_snpit_ou2024")
+    cfg.set_value("system.db.username", "campari")
+    cfg.set_value("system.db.passwordfile", "/secrets/roman_snpit_ou2024_campari")
+    cfg._static = True
 
-    observation_id = "13205"
-    sca = 1
-    snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
+    try:
+        band = "Y106"
+        dbclient = SNPITDBClient()
+        image_collection = "ou2024"
+        SNLogger.debug(f"getting image collection with name {image_collection}")
+        img_collection = ImageCollection().get_collection(
+            collection=image_collection
+        )
+        SNLogger.debug(f"Got image collection: {img_collection}")
+        SNLogger.debug(f"Getting image with observation_id={observation_id}, sca={sca}, band={band}")
+        snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
 
-    SNLogger.debug("Made it here")
+        observation_id = "13205"
+        sca = 1
+        snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
 
-    # Both of these test images contain this SN
-    provenance_tag = "ou2024"
-    process = "load_ou2024_diaobject"
-    SNLogger.debug("Trying to load diaobj")
-    diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
-                                    provenance_tag=provenance_tag, process=process, name=20172782)[0]
-    ra, dec = diaobj.ra, diaobj.dec
-    cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
-    cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+        SNLogger.debug("Made it here")
 
-    LSB = calculate_local_surface_brightness([cutout_1, cutout_2])
-    # We check against a pre-calculated value up to 32-bit ulp epsilon, rtol ~1e-7.
-    (
-        np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
-        "The local surface brightness does not match the expected value.",
-    )
+        # Both of these test images contain this SN
+        provenance_tag = "ou2024_truth"  # This was updated, see https://roman-supernova-pit.github.io/snappl/usage.html
+        process = "load_ou2024_diaobject"
+        SNLogger.debug("Trying to load diaobj")
+        diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
+                                        provenance_tag=provenance_tag, process=process, name=20172782)[0]
+        ra, dec = diaobj.ra, diaobj.dec
+        cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+        cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
 
+        LSB = calculate_local_surface_brightness([cutout_1, cutout_2])
+        # We check against a pre-calculated value up to 32-bit ulp epsilon, rtol ~1e-7.
+        (
+            np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
+            "The local surface brightness does not match the expected value.",
+        )
+    finally:
+        cfg._static = False
+        cfg._data = orig_config._data
+        cfg._static = True
 
 @pytest.mark.parametrize("nprocs", [(10), (1)])
 def test_construct_one_image(cfg, campari_test_data, nprocs):
