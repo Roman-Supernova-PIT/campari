@@ -1,7 +1,7 @@
-preloads:
-  - /snpit_env/configs/nov2025_container_config.yaml
 # preloads:
-#   - /snpit_env/configs/rknop_dev_container_config.yaml
+#   - /snpit_env/configs/nov2025_container_config.yaml
+preloads:
+  - /snpit_env/configs/rknop_dev_container_config.yaml
 
 photometry:
   campari:
