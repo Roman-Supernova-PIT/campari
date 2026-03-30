@@ -13,7 +13,7 @@ from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
 

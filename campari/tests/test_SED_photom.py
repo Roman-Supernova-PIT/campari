@@ -158,7 +158,7 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
 def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_gaussims_Hsiao_sed_redo_seed45.txt",
+        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_Hsiao_sed_redo_seed45.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
