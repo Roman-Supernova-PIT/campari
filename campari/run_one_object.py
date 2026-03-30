@@ -21,7 +21,8 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.utils import banner, calculate_local_surface_brightness, campari_lightcurve_model, get_weights, print_memory_usage_summary
+from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
+                           get_weights, print_memory_usage_summary)
 from snappl.config import Config
 from snappl.logger import SNLogger
 

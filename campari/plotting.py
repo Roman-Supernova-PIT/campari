@@ -288,7 +288,8 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
             non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
             image_sums = [np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)]
             plt.errorbar(
-                lc["mjd"], np.array(image_sums) - trueflux, yerr=0, marker="o", linestyle="None", label="Image Sum - Truth", color="purple"
+                lc["mjd"], np.array(image_sums) - trueflux, yerr=0, marker="o", linestyle="None",
+                label="Image Sum - Truth", color="purple"
             )
 
         SNLogger.debug(f"campari std: {np.std(lc['flux'] - trueflux)}")
@@ -319,7 +320,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.yscale("log")
         # plt.ylim(1e3, 1e5)
 
-        plt.subplot(2,2,4)
+        plt.subplot(2, 2, 4)
         plt.errorbar(lc["flux"], pull, yerr=None, marker="o", linestyle="None")
         bins = np.linspace(min(lc["flux"]), max(lc["flux"]), 5)
         bin_means, bin_edges, _ = binned_statistic(lc["flux"], pull, statistic="mean", bins=bins)

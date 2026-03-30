@@ -132,7 +132,7 @@ out_dir = cfg.value("system.paths.output_dir")
 
 
 
-#45, 48, 49
+# 45, 48, 49
 # For some reason, just 45, 48 and 49 fail. 45 and 49 are skewed and 48 has a very high bias (~0.37)
 # Obviously we expect some to fail a 0.05 p value cut on skew but the bias is concerning.
 # I am skipping these for now because I want to go and check if the reason they are failing is due to the fact
@@ -145,10 +145,11 @@ out_dir = cfg.value("system.paths.output_dir")
 def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
     diaobject_name = "100" + str(simulation_number)
     args = {
-        "prebuilt_static_model": "/scratch/campari_debug_dir/" \
+        "prebuilt_static_model": "/scratch/campari_debug_dir/"
         "psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
         "diaobject_name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / f"testdata/test_gaussims_bothnoise_unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_"
+        f"unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
     }
     args = default_parameters | args
     cfg.parse_args(SimpleNamespace(**args))
@@ -173,6 +174,7 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.slow()
 # 51 is two sigma skewed, p ~ 0.04, is this admissible?
 @pytest.mark.parametrize("simulation_number", [45, 46, 47, 48, 49, 50, 51, 52])
@@ -194,8 +196,6 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
     args = default_parameters | args
     SNLogger.debug(args)
     cfg.parse_args(SimpleNamespace(**args))
-    val = cfg.value("photometry.campari.grid_options.type")
-    #raise ValueError(f"grid options type is {val}")
 
     runner = campari_runner(**args)
     runner()
@@ -225,7 +225,7 @@ def test_nohost_skynoiseonly():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / f"testdata/test_gaussims_nohost_skynoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_skynoiseonlyseed51.txt",
         " photometry_campari_grid_options_type": "none",
 
     }
@@ -258,7 +258,7 @@ def test_extended_nohost_poissonnoiseonly():
 
     args = {
         "diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / f"testdata/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
         "photometry_campari_grid_options_type": "none",
     }
 
@@ -297,7 +297,7 @@ def test_extended_nohost_nonoise():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / f"testdata/test_gaussims_nohost_nonoiseseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_nonoiseseed51.txt",
         " photometry_campari_grid_options_type": "none"
 
     }
@@ -322,18 +322,20 @@ def test_extended_nohost_nonoise():
         SNLogger.debug(e)
         raise e
 
+
 # To clarify, these are noiseless images. Hence, pull (results - truth)/error is poor defined since
 # error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
 # However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
 # via visual inspection.
-@pytest.mark.skip(reason="This test will fail because there is no noise so pull has no meaning but it's a sanity check.")
+@pytest.mark.skip(reason="This test will fail because there is no noise so pull has no"
+                  " meaning but it's a sanity check.")
 def test_nophot_sanitycheck():
     simulation_number = 54
     diaobject_name = "222" + str(simulation_number)
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / f"testdata/test_gaussims_nohost_nophot_sanity_checkseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_nophot_sanity_checkseed51.txt",
         " photometry_campari_grid_options_type": "none",
         " photometry_campari_psf_transient_class": "ou24PSF_slow",
     }
@@ -363,7 +365,8 @@ def test_nophot_sanitycheck():
 def test_both_shifted_21mag_host_ou2024_more():
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_shifted_22mag_host_200_ou2024.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise"
+        "_shifted_22mag_host_200_ou2024.txt",
         " photometry_campari_grid_options_type": "regular",
         " photometry_campari_grid_options_spacing": "0.75",
         " save_model": True,
@@ -390,6 +393,7 @@ def test_both_shifted_21mag_host_ou2024_more():
         SNLogger.debug(e)
         raise e
 
+
 @pytest.mark.skip(reason="This test is superseded by more difficult tests.")
 # While this test is not run typically, it is still useful. If I run the test with noise, misaligned images, and
 # a host, and it fails, I won't know if the problem is the noise, the misalignment, or the host.
@@ -398,7 +402,8 @@ def test_both_shifted_21mag_host_ou2024_more():
 def test_noiseless_aligned_22maghost_withphotops():
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_22maghost_ou2024_withphotops.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_"
+        "noiseless_aligned_22maghost_ou2024_withphotops.txt",
         " photometry_campari_grid_options_type": "regular",
         " photometry_campari_grid_options_spacing": "0.75",
         " save_model": True,
@@ -431,7 +436,8 @@ def test_noiseless_aligned_22maghost_withphotops():
 @pytest.mark.skip(reason="This test is superseded by more difficult tests.")
 def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
+        "img_list": pathlib.Path(__file__).parent /
+         "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
         " photometry_campari_grid_options_type": "none",
         " save_model": True
     }
@@ -460,6 +466,8 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
 # Note: these simulation_numbers in num_list correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
 num_list = list(range(45, 61))
+
+
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_number):
@@ -469,8 +477,10 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
     args = {
         " diaobject_name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent
-        / f"testdata/test_gaussims_bothnoise_unaligned_realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
-        "prebuilt_static_model": f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
+        / "testdata/test_gaussims_bothnoise_unaligned_"
+          f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
+        "prebuilt_static_model":
+         f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
     }
 
     args = default_parameters | args
