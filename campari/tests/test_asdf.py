@@ -32,7 +32,8 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 in_asdf_pod = os.getenv("IN_ASDF_POD") if os.getenv("IN_ASDF_POD") is not None else False
 # ASDF tests will only run if using the rob_dev podman environment.
 
-@pytest.mark.skipif( not in_asdf_pod, reason='IN_ASDF_POD is not set' )
+
+@pytest.mark.skipif( not in_asdf_pod, reason="IN_ASDF_POD is not set" )
 def test_asdf(overwrite_meta):
 
     # dbclient = SNPITDBClient()

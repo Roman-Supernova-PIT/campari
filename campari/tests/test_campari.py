@@ -859,6 +859,7 @@ def test_calculate_surface_brightness():
         cfg._data = orig_config._data
         cfg._static = True
 
+
 @pytest.mark.parametrize("nprocs", [(10), (1)])
 def test_construct_one_image(cfg, campari_test_data, nprocs):
     img_collection = ImageCollection()

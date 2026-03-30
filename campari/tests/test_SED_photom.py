@@ -73,7 +73,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
         )
 
     # Check accuracy
-    lc = Table.read(f"/{out_dir}/130_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read(f"/{output_dir}/130_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
@@ -133,7 +133,7 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
         )
 
     # Check accuracy
-    lc = Table.read(f"/{out_dir}/131_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read(f"/{output_dir}/131_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)
@@ -186,7 +186,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
         )
 
     # Check accuracy
-    lc = Table.read(f"/{out_dir}/129_R062_ou24psf_slow_photonshoot_lc.ecsv")
+    lc = Table.read(f"/{output_dir}/129_R062_ou24psf_slow_photonshoot_lc.ecsv")
 
     mjd = lc["mjd"]
     peakflux = 10 ** ((24 - 33) / -2.5)

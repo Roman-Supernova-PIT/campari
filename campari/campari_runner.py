@@ -4,7 +4,6 @@ import numpy as np
 
 # Astronomy
 from astropy.io import fits
-import galsim
 
 
 # SN-PIT
@@ -142,9 +141,9 @@ class campari_runner:
                           " ltcv_provenance_tag and ltcv_process.")
 
         # PSF for when not using the Roman PSF:
-        #lam = 1293  # nm
-        #aberrations = galsim.roman.getPSF(1, self.band, pupil_bin=1).aberrations
-        #self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
+        # lam = 1293  # nm
+        # aberrations = galsim.roman.getPSF(1, self.band, pupil_bin=1).aberrations
+        # self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
         self.airy = None
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
