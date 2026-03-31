@@ -38,6 +38,7 @@ cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
+
 @pytest.fixture(scope="module")
 def sn_path(cfg):
     return cfg.value("system.ou24.sn_truth_dir")
@@ -49,7 +50,6 @@ def test_find_parquet(sn_path):
 
 
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
-    cfg = Config.get()
     new_snid_file = (
         pathlib.Path(debug_dir) / "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv"
         )
