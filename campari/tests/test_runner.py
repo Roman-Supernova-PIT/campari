@@ -332,7 +332,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
 
     runner.build_and_save_lightcurve(diaobj, lc_model)
 
-    output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))
+    output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"
     filepath = output_dir / filename
 

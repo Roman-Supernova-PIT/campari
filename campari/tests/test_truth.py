@@ -34,6 +34,9 @@ from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.provenance import Provenance
 
+cfg = Config.get()
+output_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 @pytest.fixture(scope="module")
 def sn_path(cfg):
@@ -48,9 +51,8 @@ def test_find_parquet(sn_path):
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     cfg = Config.get()
     new_snid_file = (
-        pathlib.Path(cfg.value("system.paths.debug_dir"))
-        / "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv"
-    )
+        pathlib.Path(debug_dir) / "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv"
+        )
     new_snid_file.unlink(missing_ok=True)
     # Make sure we're really writing a new file so that this
     #   test is really meaningful
