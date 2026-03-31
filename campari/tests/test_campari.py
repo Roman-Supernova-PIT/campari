@@ -800,64 +800,39 @@ def test_calculate_surface_brightness():
     observation_id = str(5934)
     sca = 3
 
-    orig_config = Config.get(clone=cfg)
-    cfg._static = False
-    cfg.set_value("system.db.url", "https://c3-sn.lbl.gov/roman_snpit_ou2024")
-    cfg.set_value("system.db.username", "campari")
-    cfg.set_value("system.db.passwordfile", "/secrets/roman_snpit_ou2024_campari")
-    #   ou24:
-    #     simdex_server: https://roman-desc-simdex.rknop.net
-    #     config_file: /scratch/campari/examples/perlmutter/tds.yaml
-    #     sn_truth_dir: /ou2024_snana
-    #     sims_sed_library: /home/rubin_sim_data/sims_sed_library
-    #     images: /ou2024/RomanTDS/images/simple_model
-    #     tds_base: /scratch/photometry_test_data/ou2024
-    cfg.set_value("system.ou24.simdex_server", "https://roman-desc-simdex.rknop.net")
-    cfg.set_value("system.ou24.config_file", "/scratch/campari/examples/perlmutter/tds.yaml")
-    cfg.set_value("system.ou24.sn_truth_dir", "/ou2024_snana")
-    cfg.set_value("system.ou24.sims_sed_library", "/home/rubin_sim_data/sims_sed_library")
-    cfg.set_value("system.ou24.images", "/ou2024/RomanTDS/images/simple_model")
-    cfg.set_value("system.ou24.tds_base", "/scratch/photometry_test_data/ou2024")
-    cfg._static = True
+    band = "Y106"
+    dbclient = SNPITDBClient()
+    image_collection = "ou2024"
+    SNLogger.debug(f"getting image collection with name {image_collection}")
+    img_collection = ImageCollection().get_collection(
+        collection=image_collection
+    )
+    SNLogger.debug(f"Got image collection: {img_collection}")
+    SNLogger.debug(f"Getting image with observation_id={observation_id}, sca={sca}, band={band}")
+    snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
 
-    try:
-        band = "Y106"
-        dbclient = SNPITDBClient()
-        image_collection = "ou2024"
-        SNLogger.debug(f"getting image collection with name {image_collection}")
-        img_collection = ImageCollection().get_collection(
-            collection=image_collection
-        )
-        SNLogger.debug(f"Got image collection: {img_collection}")
-        SNLogger.debug(f"Getting image with observation_id={observation_id}, sca={sca}, band={band}")
-        snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
+    observation_id = "13205"
+    sca = 1
+    snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
 
-        observation_id = "13205"
-        sca = 1
-        snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
+    SNLogger.debug("Made it here")
 
-        SNLogger.debug("Made it here")
+    # Both of these test images contain this SN
+    provenance_tag = "ou2024"
+    process = "load_ou2024_diaobject"
+    SNLogger.debug("Trying to load diaobj")
+    diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
+                                    provenance_tag=provenance_tag, process=process, name=20172782)[0]
+    ra, dec = diaobj.ra, diaobj.dec
+    cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
+    cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
 
-        # Both of these test images contain this SN
-        provenance_tag = "ou2024"  # This was updated, see https://roman-supernova-pit.github.io/snappl/usage.html
-        process = "load_ou2024_diaobject"
-        SNLogger.debug("Trying to load diaobj")
-        diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
-                                        provenance_tag=provenance_tag, process=process, name=20172782)[0]
-        ra, dec = diaobj.ra, diaobj.dec
-        cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
-        cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
-
-        LSB = calculate_local_surface_brightness([cutout_1, cutout_2])
-        # We check against a pre-calculated value up to 32-bit ulp epsilon, rtol ~1e-7.
-        (
-            np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
-            "The local surface brightness does not match the expected value.",
-        )
-    finally:
-        cfg._static = False
-        cfg._data = orig_config._data
-        cfg._static = True
+    LSB = calculate_local_surface_brightness([cutout_1, cutout_2])
+    # We check against a pre-calculated value up to 32-bit ulp epsilon, rtol ~1e-7.
+    (
+        np.testing.assert_allclose(LSB, 26.068841696087837, rtol=1e-7),
+        "The local surface brightness does not match the expected value.",
+    )
 
 
 @pytest.mark.parametrize("nprocs", [(10), (1)])
