@@ -1,7 +1,7 @@
 import pathlib
 from types import SimpleNamespace
 
-
+import inspect
 import numpy as np
 import pytest
 
@@ -465,12 +465,50 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
 ################ Realistic Galaxies Below Here ################
 # Note: these simulation_numbers in num_list correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
+
+
+generate_simulations = True
+regenerate_grid_models = False
+from campari.image_simulator_run import run_sim
+
+
+
 num_list = list(range(45, 61))
+
+num_list = [45]
 
 
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
+@pytest.mark.self_generating()
 def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_number):
+    func_name = inspect.currentframe().f_code.co_name
+    test_data_path = pathlib.Path(__file__).parent / "testdata"
+    run_name = func_name + f"seed{simulation_number}"
+    if generate_simulations:
+        SNLogger.debug(f"Generating new simulations for {func_name}. This may take a while.")
+        # The image data does not currently exist, so we will create it.
+        run_sim(
+            seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
+            images_aligned=False,
+            poisson_noise=True,
+            sky_noise=True,
+            static_source="galaxy",
+            static_source_mag=22,
+            transient_peak_mag=24,
+            mjd=np.arange(60000, 60075, 0.5),
+            psf_class="ou24PSF_slow_photonshoot",
+            run_dir=func_name,
+            output_path=test_data_path,
+            run_name_base=func_name,
+            bulge_R=2,
+            bulge_n=3,
+            disk_R=4,
+            disk_n=1,  # Simulated Galaxy Params
+            test_data_path=test_data_path,
+        )
+
+    raise ValueError("Successfully simulated")
 
     diaobject_name = "333" + str(simulation_number)
 
