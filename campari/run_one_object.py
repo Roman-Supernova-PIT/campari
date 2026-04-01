@@ -6,7 +6,7 @@ import warnings
 
 import numpy as np
 from numpy.linalg import LinAlgError
-from multiprocessing import Pool
+import multiprocessing
 import scipy.sparse as sp
 import tracemalloc
 
@@ -58,6 +58,11 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+
+def _build_model_for_one_image_worker(index, kwarg_dict):
+    image = _shared_image_list[index]
+    return build_model_for_one_image(image=image, image_index=index, **kwarg_dict)
+
 # Global variables
 huge_value = 1e32
 SNLogger.set_level("DEBUG")
@@ -78,11 +83,18 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     percentiles = []
 
+    SNLogger.debug("########## IMAGE SORTING SECTION ############")
+    SNLogger.debug(f"diaobj.mjd_start: {diaobj.mjd_start}, diaobj.mjd_end: {diaobj.mjd_end}")
+
     num_total_images = len(image_list)
     transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
+    SNLogger.debug(f"Found {len(transient_image_list)} transient images out of {num_total_images} total images.")
+    SNLogger.debug(f"Transient image MJDs: {[a.mjd for a in transient_image_list]}")
     num_detect_images = len(transient_image_list)
 
     no_transient_images = [a for a in image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
+    SNLogger.debug(f"Found {len(no_transient_images)} non-transient images out of {num_total_images} total images.")
+    SNLogger.debug(f"Non-transient image MJDs: {[a.mjd for a in no_transient_images]}")
 
     transient_mjds = [a.mjd for a in transient_image_list]
     no_transient_mjds = [a.mjd for a in no_transient_images]
@@ -92,9 +104,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     transient_image_list = [transient_image_list[i] for i in transient_argsort]
     no_transient_images = [no_transient_images[i] for i in no_transient_argsort]
 
+    SNLogger.debug(f"Sorted transient image MJDs: {[a.mjd for a in transient_image_list]}")
+    SNLogger.debug(f"Sorted non-transient image MJDs: {[a.mjd for a in no_transient_images]}")
+
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
+    SNLogger.debug(f"Final MJD order {[a.mjd for a in image_list]}")
     if band[0] == "F":
         # We switched from using lettered bands to numbered bands in the code at some point,
         # much to my chagrin, so this catches those cases.
@@ -171,12 +187,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
+
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
-        with Pool(nprocs) as pool:
+        global _shared_image_list
+        _shared_image_list = image_list
+        ctx = multiprocessing.get_context("fork")
+        with ctx.Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
-                model_results.append(pool.apply_async(build_model_for_one_image,
-                                                      kwds={"image": image, "image_index": i, **kwarg_dict}))
+                model_results.append(pool.apply_async(_build_model_for_one_image_worker,
+                                                      args=(i, kwarg_dict)))
             pool.close()
             pool.join()
 

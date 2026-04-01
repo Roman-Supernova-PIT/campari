@@ -263,6 +263,8 @@ class campari_runner:
             image_list = self.parse_img_list()
             mjd_list = [im.mjd for im in image_list]
             image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
+            SNLogger.debug(f"Updated MJD list is: {[im.mjd for im in image_list]}")
+
         else:
             # Otherwise, go find images that match the criteria.
             SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
@@ -479,10 +481,16 @@ class campari_runner:
                 self.observation_id_list.append(vals[0])
         elif all(len(line.split(",")) == 1 for line in img_list_lines):
             # each line of file is path to image
+            rejected_images = 0
             self.observation_id_list = None
             for line in img_list_lines:
-                SNLogger.debug(f"Looking for path {line}.")
-                images.append(my_image_collection.get_image(path=line))
+                potential_image = my_image_collection.get_image(path=line)
+                if potential_image.band == self.band:
+                    images.append(potential_image)
+                else:
+                    rejected_images += 1
+            SNLogger.debug(f"Rejected {rejected_images} images from the provided image list because they were not in"
+                            f" the correct band {self.band}.")
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of observation_id sca band, or lines of"
                              " observation_id and sca.")
