@@ -141,46 +141,84 @@ def test_roman_imsim_images(overwrite_meta):
     truth_file = "/romanimsim_sims/2026-03-24_Nexus/TRUTH_HLTDS_CORE_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep="\s+")
 
-    bands = ["F087", "F106", "F129"] # Z Y J
+    bands = ["F087"]  # Z Y J  #, "F106", "F129"
 
-    CIDs = [20005, 20193, 20206, 20226, 20252] # Only these CIDs have truth information.
+    stars = "/romanimsim_sims/2026-03-24_Nexus/GAIA.csv"
+    stars_df = pd.read_csv(stars, comment ="#", sep=",")
 
-    CIDs = [20252]
-    bands = ["F087"]
 
-    CIDs = [20226]
-    bands = ["F106"]
+    import astropy.units as u
+    from astropy.coordinates import SkyCoord
+    from matplotlib import pyplot as plt
+    rick_image_approx_center = SkyCoord(ra=9.42*u.degree, dec=-44*u.degree)
+    star_skycoords = SkyCoord(ra=stars_df.ra.values*u.degree, dec=stars_df.dec.values*u.degree)
+    separations = rick_image_approx_center.separation(star_skycoords)
+    closest_stars = stars_df[separations < 0.075*u.degree]
+    plt.scatter(closest_stars.ra, closest_stars.dec, s=1, color="blue", label="Simulated Stars")
+    plt.xlabel("RA")
+    plt.ylabel("DEC")
+    plt.scatter(truth_df.RA, truth_df.DEC, s=1, color="red", label="Simulated Transients")
+    plt.legend()
+    plt.savefig("stars.png")
 
-    CIDs = [20252]
-    bands = ["F129"]
-
-    for i, cid in enumerate(CIDs):
+    successful = 0
+    for i in range(len(closest_stars)):
         for band in bands:
-            ra = truth_df[truth_df.CID == cid].RA.values[0]
-            dec = truth_df[truth_df.CID == cid].DEC.values[0]
-            pkmjd = truth_df[truth_df.CID == cid].SIM_PEAKMJD.values[0]
-            approx_start_date = pkmjd - 20
-            approx_start_date = 0 # 60190.01
+            cid = "teststar" + str(i)
+            ra = closest_stars.ra.values[i]
+            dec = closest_stars.dec.values[i]
             cmd.extend(["--ra", str(ra)])
             cmd.extend(["--dec", str(dec)])
-            cmd.extend(["--transient_start", str(approx_start_date)])
+            cmd.extend(["--transient_start", f"{0}"])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
-            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
-
-    # SNLogger.debug(truth_df.RA[:5].values)
-    # SNLogger.debug(truth_df.DEC[:5].values)
-
-    # pkmjd = truth_df.SIM_PEAKMJD[0]
-    # approx_start_date = pkmjd - 20
-
-    # cmd.extend(["--ra", str(truth_df.RA[0])])
-    # cmd.extend(["--dec", str(truth_df.DEC[0])])
-    # cmd.extend(["--transient_start", str(approx_start_date)])
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
 
-            if result.returncode != 0:
-                raise RuntimeError(
-                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-                )
+            try:
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    )
+                successful += 1
+            except RuntimeError as e:
+                SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
+                continue
+
+            if successful >= 5:
+                SNLogger.debug("Successfully processed 5 CIDs, stopping test.")
+                break
+
+    #CIDs = [20005, 20193, 20206, 20226, 20252] # Only these CIDs have truth information.
+
+    # CIDs = [20252]
+    # bands = ["F087"]
+
+    # CIDs = [20226]
+    # bands = ["F106"]
+
+    # CIDs = [20252]
+    # bands = ["F129"]
+
+    # for i, cid in enumerate(CIDs):
+    #     for band in bands:
+    #         ra = truth_df[truth_df.CID == cid].RA.values[0]
+    #         dec = truth_df[truth_df.CID == cid].DEC.values[0]
+    #         pkmjd = truth_df[truth_df.CID == cid].SIM_PEAKMJD.values[0]
+    #         approx_start_date = pkmjd - 20
+    #         approx_start_date = 0 # 60190.01
+    #         cmd.extend(["--ra", str(ra)])
+    #         cmd.extend(["--dec", str(dec)])
+    #         cmd.extend(["--transient_start", str(approx_start_date)])
+    #         cmd.extend(["-f", band])
+    #         cmd.extend(["--diaobject-name", f"{cid}"])
+    #         SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
+
+
+    #         result = subprocess.run(cmd, capture_output=False, text=True)
+
+    #         if result.returncode != 0:
+    #             raise RuntimeError(
+    #                 f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+    #             )
