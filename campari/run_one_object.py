@@ -267,8 +267,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     w2 = wgt_matrix ** 2
     inv_cov = (psf_matrix * w2[:, np.newaxis]).T @ psf_matrix
 
-    SNLogger.debug("Fraction of inv_cov that is nonzero: {0}".format(np.count_nonzero(inv_cov) / inv_cov.size))
-
     try:
         cov = np.linalg.inv(inv_cov)
     except LinAlgError:

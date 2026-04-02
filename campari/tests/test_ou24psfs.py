@@ -5,19 +5,20 @@ import inspect
 import numpy as np
 import pytest
 
+from astropy.io import fits
 from astropy.table import Table
 
 from snappl.config import Config
 from snappl.logger import SNLogger
 
+from campari.campari_runner import campari_runner
+from campari.image_simulator_run import run_sim
 from campari.tests.test_gausspsfs import (
     create_true_flux,
     generate_diagnostic_plots,
     perform_aperture_photometry,
-    perform_gaussianity_checks
+    perform_gaussianity_checks,
 )
-
-from campari.campari_runner import campari_runner
 
 imsize = 19
 
@@ -467,16 +468,12 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
 #  so I can go back and check the simulations if I want.
 
 
-generate_simulations = True
+generate_simulations = False
 regenerate_grid_models = False
-from campari.image_simulator_run import run_sim
-
-
 
 num_list = list(range(45, 61))
 
-num_list = [45]
-
+num_list = [46]
 
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
@@ -508,24 +505,67 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
             test_data_path=test_data_path,
         )
 
-    raise ValueError("Successfully simulated")
+    cached_image = fits.open(
+        f"{test_data_path}/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/test_bothnoise_shifted"
+        "_22magrealisticgalaxy_ou24PSF_slow_photopsseed45/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow"
+        "_photopsseed45_sanity_image.fits"
+    )[0].data
+    new_image = fits.open(
+        f"{test_data_path}/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/test_bothnoise_shifted"
+        "_22magrealisticgalaxy_ou24PSF_slow_photopsseed45/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow"
+        "_photopsseed45_60000.0_image.fits"
+    )[0].data
 
+    # The photon shooting is stochastic, so the images will not be identical. However, they should be statistically
+    # consistent with each other. We can check this by computing the chi-squared statistic between the two images.
+
+    mask = np.where((new_image > 0) & (cached_image > 0))
+    chi2 = np.sum(((new_image[mask] - cached_image[mask]) ** 2) / (cached_image[mask] + new_image[mask]))
+    print("Chi-squared:", chi2)
+    print("Degrees of freedom:", len(new_image[mask]))
+    reduced_chi2 = chi2 / len(new_image[mask])
+    print("Reduced chi-squared:", reduced_chi2)
+
+    reduced_chi2_threshold = 1.2  # This threshold is a bit arbitrary. Ostensibly, it should be 1, but I am
+    # allowing a little bit of wiggle room. When I tested, the reduced chi squareds I was getting were
+    # around 0.5 - 0.6, so I imagine this should be fine.
+    np.testing.assert_array_less(reduced_chi2, reduced_chi2_threshold)
+
+    # Check if the image list exists at the expected location. If not, raise an error.
+    imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
+    if not pathlib.Path(imagelist_filename).exists():
+        # This catch is so that Cole does not need to resimulate 15 runs, which takes hours.
+        SNLogger.warning(f"Could not find expected image list at {imagelist_filename}. If you are not Cole "
+        "This means you need to simulate the data. If you are Cole, I will now check for your older (but identical) "
+        "simulations. If I can't find those either, I will raise an error.")
+
+        old_image_list_filename = pathlib.Path(__file__).parent / "testdata/test_imagelists/" \
+        "test_gaussims_bothnoise_unaligned_" \
+        f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt"
+
+        if not pathlib.Path(old_image_list_filename).exists():
+            raise FileNotFoundError(
+                f"Expected image list at {imagelist_filename} not found. Simulation may have failed to run. I also"
+                f"could not find older image list at {old_image_list_filename}."
+            )
+        else:
+            SNLogger.debug(f"Successfully found Cole's personal files.")
+            imagelist_filename = old_image_list_filename
+    else:
+        SNLogger.debug(f"Successfully found image list at {imagelist_filename}.")
     diaobject_name = "333" + str(simulation_number)
 
     args = {
         " diaobject_name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent
-        / "testdata/test_gaussims_bothnoise_unaligned_"
-          f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
+        "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "prebuilt_static_model":
-         f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
+        f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
     }
 
     args = default_parameters | args
     cfg.parse_args(SimpleNamespace(**args))
     runner = campari_runner(**args)
     runner()
-
 
     # Check accuracy
     filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
