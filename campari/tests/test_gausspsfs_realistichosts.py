@@ -105,6 +105,7 @@ generate_simulations = False
 regenerate_grid_models = False
 from campari.image_simulator_run import run_sim
 
+
 @pytest.mark.self_generating()
 def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     func_name = inspect.currentframe().f_code.co_name
@@ -135,20 +136,25 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         )
 
     # Perform sanity check against cached image.
-    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_sanity_image.fits")
+    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/"
+        "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise"
+        "_unlaligned_realisticgalaxyseed45_sanity_image.fits")
     new_image = fits.open(
-        f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
+        f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/"
+        "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/"
+        "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
     )
 
     np.testing.assert_allclose(cached_image[0].data, new_image[0].data, rtol=1e-5, err_msg="The newly generated image"
-        " does not match the cached image. This suggests that there may be a problem with the simulation code or that the"
-        " simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the "
-        "validity of the test results.")
+        " does not match the cached image. This suggests that there may be a problem with the simulation code or that"
+        " the simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the"
+        " validity of the test results.")
 
     # Check if the image list exists at the expected location. If not, raise an error.
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
     if not pathlib.Path(imagelist_filename).exists():
-        raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Simulation may have failed to run.")
+        raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Sim may have"
+        " failed to run.")
 
     # cmd = base_cmd + [
     #     "--img_list",

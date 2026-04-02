@@ -475,6 +475,7 @@ num_list = list(range(45, 61))
 
 num_list = [46]
 
+
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()
@@ -549,7 +550,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
                 f"could not find older image list at {old_image_list_filename}."
             )
         else:
-            SNLogger.debug(f"Successfully found Cole's personal files.")
+            SNLogger.debug("Successfully found Cole's personal files.")
             imagelist_filename = old_image_list_filename
     else:
         SNLogger.debug(f"Successfully found image list at {imagelist_filename}.")

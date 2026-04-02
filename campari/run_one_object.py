@@ -261,7 +261,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
-    #inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
+    # inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
 
     # This multiplication is less memory intensive than the old way
     w2 = wgt_matrix ** 2
