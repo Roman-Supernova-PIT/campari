@@ -21,6 +21,7 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
+from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
                            get_weights, print_memory_usage_summary)
 from snappl.config import Config
@@ -134,6 +135,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      nprocs=nprocs)
 
     noise_maps = [im.noise for im in cutout_image_list]
+
+    make_plot_cutouts = True  # This is just for debugging, to make sure the cutouts look correct. It can be turned off if needed.
+    if make_plot_cutouts:
+        plot_cutouts(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
+                     output_path=pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) /
+                     f"cutouts_{diaobj.name}.png")
 
     sim_galra = None
     sim_galdec = None

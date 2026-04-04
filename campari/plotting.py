@@ -336,3 +336,94 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
 
     SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
+
+
+def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
+    """Plot all cutout images labeled with their MJD and the location of the supernova.
+
+    Parameters
+    ----------
+    cutout_image_list : list of snappl.image.Image objects
+        The cutout images to plot, as returned by construct_images().
+    ra : float
+        RA of the supernova in degrees.
+    dec : float
+        Dec of the supernova in degrees.
+    diaobj : snappl.diaobject.DiaObject, optional
+        If provided, images are outlined to indicate whether they fall
+        within the transient window (mjd_start to mjd_end).
+    ncols : int
+        Number of columns in the grid of subplots.
+    output_path : str or pathlib.Path, optional
+        If provided, save the figure to this path. Otherwise, call plt.show().
+    """
+    num_images = len(cutout_image_list)
+    nrows = int(np.ceil(num_images / ncols))
+
+    fig, axes = plt.subplots(nrows, ncols, figsize=(ncols * 3, nrows * 3))
+    # Flatten so we can iterate even if nrows==1
+    axes = np.atleast_1d(axes).flatten()
+
+    for i, image in enumerate(cutout_image_list):
+        ax = axes[i]
+        data = image.data
+        imsize = data.shape[0]
+
+        # Robust color scale: use 10/99th percentile to avoid hot pixels
+        # dominating the colormap
+        vmin = np.nanpercentile(data, 10)
+        vmax = np.nanpercentile(data, 99)
+
+        ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap = "viridis")
+
+        # Mark the SN location in cutout pixel coordinates
+        try:
+            wcs = image.get_wcs()
+            sn_x, sn_y = wcs.world_to_pixel(ra, dec)
+            ax.scatter(sn_x, sn_y, marker="+", color="red", s=100, linewidths=1.5,
+                       label="SN" if i == 0 else None)
+        except Exception:
+            SNLogger.warning(f"Could not project SN position onto cutout {i} (mjd={image.mjd:.7f})")
+
+        # Label with MJD; color the title to distinguish detection vs. non-detection
+        title_color = "black"
+        if diaobj is not None:
+            mjd_start = getattr(diaobj, "mjd_start", None) or -np.inf
+            mjd_end   = getattr(diaobj, "mjd_end",   None) or  np.inf
+            if mjd_start <= image.mjd <= mjd_end:
+                title_color = "red"
+
+        ax.set_title(f"MJD {image.mjd:.7f}", fontsize=8, color=title_color)
+        ax.set_xticks([])
+        ax.set_yticks([])
+
+        # Light border to visually separate panels
+        for spine in ax.spines.values():
+            spine.set_edgecolor(title_color)
+            spine.set_linewidth(1.5 if title_color == "red" else 0.5)
+
+    # Hide any unused axes
+    for j in range(num_images, len(axes)):
+        axes[j].set_visible(False)
+
+    # Add a shared legend for the SN marker and detection colouring
+    legend_elements = [
+        plt.Line2D([0], [0], marker="+", color="red", linestyle="None",
+                   markersize=10, label="SN position"),
+    ]
+    if diaobj is not None:
+        from matplotlib.patches import Patch
+        legend_elements.append(Patch(edgecolor="red",  facecolor="none", label="Detection image"))
+        legend_elements.append(Patch(edgecolor="black", facecolor="none", label="Non-detection image"))
+    fig.legend(handles=legend_elements, loc="lower center", ncol=len(legend_elements),
+               bbox_to_anchor=(0.5, 0.0), fontsize=9, frameon=True)
+
+    plt.suptitle(f"Cutouts  (RA={ra:.5f}, Dec={dec:.5f})", fontsize=11, y=1.01)
+    plt.tight_layout()
+
+    if output_path is not None:
+        plt.savefig(output_path, bbox_inches="tight")
+        SNLogger.info(f"Saved cutout grid to {output_path}")
+        plt.close()
+    else:
+        plt.show()
