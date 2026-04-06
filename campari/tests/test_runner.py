@@ -323,7 +323,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     diaobj.mjd_end = np.inf
 
     upstreams = []
-    runner.cam_prov = Provenance(
+    cam_prov = Provenance(
         process="campari",
         major=0,
         minor=42,
@@ -333,6 +333,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         upstreams=upstreams,
     )
 
+    runner.cam_prov = cam_prov
     runner.build_and_save_lightcurve(diaobj, lc_model)
 
     output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))
@@ -348,7 +349,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     test_args.write_ecsv = False
     test_args.write_parquet = True
     runner = campari_runner(**vars(test_args))
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.cam_prov = cam_prov
+    runner.build_and_save_lightcurve(diaobj, lc_model)
     filename = "20172782_Y106_romanpsf_lc.parquet"
     filepath = output_dir / filename
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
@@ -358,7 +360,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     test_args.write_ecsv = True
     test_args.write_parquet = True
     runner = campari_runner(**vars(test_args))
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.cam_prov = cam_prov
+    runner.build_and_save_lightcurve(diaobj, lc_model)
     filename = "20172782_Y106_romanpsf_lc.ecsv"
     filepath = output_dir / filename
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
@@ -376,7 +379,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     test_args.write_ecsv = True
     test_args.write_parquet = True
     runner = campari_runner(**vars(test_args))
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.cam_prov = cam_prov
+    runner.build_and_save_lightcurve(diaobj, lc_model)
     filename = "testfilename.ecsv"
     filepath = output_dir / filename
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
@@ -393,7 +397,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     test_args.write_ecsv = True
     test_args.write_parquet = True
     runner = campari_runner(**vars(test_args))
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.cam_prov = cam_prov
+    runner.build_and_save_lightcurve(diaobj, lc_model)
     filename = "test_save_lc.ecsv"
     filepath = pathlib.Path(__file__).parent / "testdata" / filename
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
@@ -417,7 +422,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     test_args.write_ecsv = True
     test_args.write_parquet = True
     runner = campari_runner(**vars(test_args))
-    runner.build_and_save_lightcurve(diaobj, lc_model, None)
+    runner.cam_prov = cam_prov
+    runner.build_and_save_lightcurve(diaobj, lc_model)
     filename = "test_save_lc.ecsv"
     filepath = pathlib.Path(__file__).parent / "testdata" / filename
     assert filepath.exists(), f"Lightcurve file {filename} was not created."

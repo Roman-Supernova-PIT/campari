@@ -41,14 +41,14 @@
 #     spacing: 1.0
 #     subsize: 4
 #     turn_grid_off: false
-#     type: contour
+#     type: none
 # - {ID: '20172782'}
 # - {ra: 7.0}
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 70df30fb-2f6c-a5c9-90fc-a05a5e27d2e1}
-# - {diaobject_id: 83425219-cec3-4b2f-bd91-f9a82f6468e3}
+# - {provenance_id: 0646f3f5-92f4-2cee-8c6b-eca7860fb4bf}
+# - {diaobject_id: 5a6de93b-843c-414f-963f-5299f3fbbd25}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
