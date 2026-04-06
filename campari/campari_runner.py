@@ -259,54 +259,11 @@ class campari_runner:
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
-<<<<<<< HEAD
-        if self.use_real_images:
-            if self.img_list is not None:
-                # If the user provided an image list, use that.
-                image_list = self.parse_img_list()
-                mjd_list = [im.mjd for im in image_list]
-                image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
-            else:
-                # Otherwise, go find images that match the criteria.
-                SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
-                SNLogger.debug("max transient images: " + str(self.max_transient_images))
-                image_list, \
-                    self.img_coll_prov = find_all_exposures(diaobj=diaobj,
-                                                            maxbg=self.max_no_transient_images,
-                                                            maxdet=self.max_transient_images,
-                                                            band=self.band,
-                                                            image_selection_start=self.image_selection_start,
-                                                            image_selection_end=self.image_selection_end,
-                                                            image_collection=self.image_collection,
-                                                            image_collection_subset=self.image_collection_subset,
-                                                            image_collection_basepath=self.image_collection_basepath,
-                                                            dbclient=self.dbclient,
-                                                            provenance_tag=self.image_provenance_tag,
-                                                            process=self.image_process)
-                mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
-                mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
-
-                no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
-                SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
-                no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
-
-
-                if (
-                    self.max_no_transient_images != 0
-                    and len(no_transient_images) == 0
-                    and self.object_type != "star"
-                ):
-                    raise ValueError("No non-detection images were found. This may be because the transient is"
-                                     " detected in all images, or because the transient is outside the date range of"
-                                     " available images. If you are running on stars, this is expected behavior."
-                                     " If you are running on supernovae, consider increasing the date range.")
-=======
         if self.img_list is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
             mjd_list = [im.mjd for im in image_list]
             image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
->>>>>>> main
         else:
             # Otherwise, go find images that match the criteria.
             SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
