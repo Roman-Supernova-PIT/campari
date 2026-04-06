@@ -228,7 +228,8 @@ def test_nohost_skynoiseonly():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_skynoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_skynoiseonlyseed51.txt",
         " photometry_campari_grid_options_type": "none",
 
     }
@@ -261,7 +262,8 @@ def test_extended_nohost_poissonnoiseonly():
 
     args = {
         "diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists"
+        "/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
         "photometry_campari_grid_options_type": "none",
     }
 

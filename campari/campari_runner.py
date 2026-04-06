@@ -417,7 +417,8 @@ class campari_runner:
             for filetype in filetypes:
                 save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                                 save_to_database=False, new_provenance=self.create_ltcv_provenance,
-                                testrun=testrun, dbclient=self.dbclient, filetype=filetype, filename=self.output_filename)
+                                testrun=testrun, dbclient=self.dbclient, filetype=filetype,
+                                filename=self.output_filename)
             # Then save to DB if desired
             if self.save_to_db:
                 save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,

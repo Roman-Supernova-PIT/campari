@@ -342,7 +342,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
-    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv", overwrite_meta=overwrite_meta)
+    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
 
     old_ecsv_filepath = filepath
     filepath.unlink()

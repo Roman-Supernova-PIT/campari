@@ -14,7 +14,6 @@ import numpy as np
 import pandas as pd
 import pickle
 import pytest
-import yaml
 
 # Astronomy Library
 from astropy.io import fits
