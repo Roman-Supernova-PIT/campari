@@ -149,7 +149,7 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         "prebuilt_static_model": "/scratch/campari_debug_dir/"
         "psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
         "diaobject_name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_"
         f"unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
     }
     args = default_parameters | args
@@ -190,7 +190,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
     args = {
         "diaobject_name": diaobject_name,
         "photometry_campari_grid_options_type": "none",
-        "img_list": pathlib.Path(__file__).parent / "testdata/"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
         f"test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{simulation_number}.txt",
         "photometry_campari_make_initial_guess": True
     }
@@ -226,7 +226,7 @@ def test_nohost_skynoiseonly():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_skynoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_skynoiseonlyseed51.txt",
         " photometry_campari_grid_options_type": "none",
 
     }
@@ -259,7 +259,7 @@ def test_extended_nohost_poissonnoiseonly():
 
     args = {
         "diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
         "photometry_campari_grid_options_type": "none",
     }
 
@@ -298,7 +298,7 @@ def test_extended_nohost_nonoise():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_nonoiseseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_nonoiseseed51.txt",
         " photometry_campari_grid_options_type": "none"
 
     }
@@ -336,7 +336,7 @@ def test_nophot_sanitycheck():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_nophot_sanity_checkseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_nophot_sanity_checkseed51.txt",
         " photometry_campari_grid_options_type": "none",
         " photometry_campari_psf_transient_class": "ou24PSF_slow",
     }
@@ -366,7 +366,7 @@ def test_nophot_sanitycheck():
 def test_both_shifted_21mag_host_ou2024_more():
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise"
         "_shifted_22mag_host_200_ou2024.txt",
         " photometry_campari_grid_options_type": "regular",
         " photometry_campari_grid_options_spacing": "0.75",
@@ -403,7 +403,7 @@ def test_both_shifted_21mag_host_ou2024_more():
 def test_noiseless_aligned_22maghost_withphotops():
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
         "noiseless_aligned_22maghost_ou2024_withphotops.txt",
         " photometry_campari_grid_options_type": "regular",
         " photometry_campari_grid_options_spacing": "0.75",
@@ -438,7 +438,7 @@ def test_noiseless_aligned_22maghost_withphotops():
 def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     args = {
         "img_list": pathlib.Path(__file__).parent /
-         "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
+         "testdata/test_imagelists/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
         " photometry_campari_grid_options_type": "none",
         " save_model": True
     }
