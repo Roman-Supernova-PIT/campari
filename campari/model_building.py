@@ -17,6 +17,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
+from campari.utils import print_memory_usage_summary
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -260,6 +261,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     A numpy array of the PSFs at each grid point, with the shape
     (stampsize*stampsize, npoints)
     """
+
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
@@ -269,7 +271,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     cfg = Config.get()
     psfclass = cfg.value("photometry.campari.psf.galaxy_class")
-    include_photonOps = cfg.value("photometry.campari.psf.galaxy_photon_ops")
 
     num_grid_points = np.size(x_sca)
 
@@ -287,11 +288,11 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = image.pointing if image is not None else None
+    observation_id = image.observation_id if image is not None else None
     sca = image.sca if image is not None else None
 
-    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
-                                    include_photonOps=include_photonOps, seed=None, image=image)
+    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
+                                    stamp_size=stampsize, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
@@ -302,11 +303,13 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
 
+    print_memory_usage_summary("Finished making Static Scene")
+
     return psfs
 
 
 def construct_transient_scene(
-    x0=None, y0=None, pointing=None, sca=None, stampsize=25, x=None,
+    x0=None, y0=None, observation_id=None, sca=None, stampsize=25, x=None,
     y=None, sed=None, flux=1, image=None
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
@@ -322,8 +325,8 @@ def construct_transient_scene(
 
     For more on the above two parameters, see snappl.psf.PSF.get_stamp documentation.
 
-    pointing, sca: ints
-        The pointing and SCA of the image
+    observation_id, sca: ints
+        The observation_id and SCA of the image
     stampsize: int
         Size of cutout image used.
     sed: galsim.sed.SED object
@@ -341,7 +344,7 @@ def construct_transient_scene(
 
     SNLogger.debug(
         f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n"
-        + f" pointing, sca: {pointing, sca} \n"
+        + f" observation_id, sca: {observation_id, sca} \n"
         + f" stamp size: {stampsize} \n"
         + f" x0, y0: {x0, y0} \n"
         + f" sed: {sed} \n"
@@ -350,19 +353,18 @@ def construct_transient_scene(
 
     cfg = Config.get()
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
-    photOps = cfg.value("photometry.campari.psf.transient_photon_ops")
-    if not photOps:
-        # While I want to do this sometimes, it is very rare that you actually
-        # want to do this. Thus if it was accidentally on while doing a normal
-        # run, I'd want to know.
-        SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
+    SNLogger.debug(f"Using SED type: {type(sed)}")
+
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps,
-        image=image, stamp_size=stampsize
+        snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
+        image=image, stamp_size=stampsize, sed=sed
     )
-    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
+
+    print_memory_usage_summary("Finished making transient scene")
+    SNLogger.debug(f"Num nans in PSF image: {np.isnan(psf_image).sum()}")
 
     return psf_image.flatten()
 
@@ -438,6 +440,8 @@ def make_grid(
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
+
+    print_memory_usage_summary("Finished making grid")
 
     return ra_grid, dec_grid
 
@@ -558,13 +562,12 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
-                              source_phot_ops=None, image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
-                              base_pointing=None, base_sca=None):
+                              image_index=None, num_total_images=None, num_detect_images=None,
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
-    pointing, sca = image.pointing, image.sca
-    SNLogger.debug(f"Building model for image with pointing {pointing} and sca {sca}")
+    observation_id, sca = image.observation_id, image.sca
+    SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
 
     whole_sca_wcs = image.get_wcs()
     object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
@@ -619,12 +622,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
-        if use_real_images:
-            pointing = pointing
-            sca = sca
-        else:
-            pointing = base_pointing
-            sca = base_sca
         # sedlist is the length of the number of supernova
         # detection images. Therefore, when we iterate onto the
         # first supernova image, we want to be on the first element
@@ -648,13 +645,14 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         psf_source_array = construct_transient_scene(
             x0=x,
             y0=y,
-            pointing=pointing,
+            observation_id=observation_id,
             sca=sca,
             stampsize=size,
             x=object_x,
             y=object_y,
             sed=sed,
             image=image,
+            flux=1.0
         )
 
     else:
@@ -662,4 +660,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         if sn_index >= 0 and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
+    print_memory_usage_summary("Finished building model for one image")
     return background_model_array, psf_source_array

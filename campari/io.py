@@ -16,7 +16,6 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SN-PIT
-from snappl.provenance import Provenance
 from snappl.config import Config
 from snappl.lightcurve import Lightcurve
 from snappl.logger import SNLogger
@@ -74,7 +73,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
         "mag_fit": mag,
         "mag_fit_err": magerr,
         "zpt": np.full(np.size(mag), zp),
-        "pointing": [],
+        "observation_id": [],
         "sca": [],
         "pix_x": [],
         "pix_y": [],
@@ -88,7 +87,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     for i, img in enumerate(image_list):
         if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
-            data_dict["pointing"].append(int(img.pointing))
+            data_dict["observation_id"].append(str(img.observation_id))
             data_dict["sca"].append(img.sca)
             x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["pix_x"].append(x)
@@ -193,7 +192,8 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         if testrun is not None and ltcv_provenance_tag is not None:
             ltcv_provenance_tag += str(testrun)
         if new_provenance:
-            SNLogger.debug(f"Creating new provenance for lightcurve{f' with tag {ltcv_provenance_tag}' if ltcv_provenance_tag is not None else ''}")
+            SNLogger.debug("Creating new provenance for "
+                           f"lightcurve{f' with tag {ltcv_provenance_tag}' if ltcv_provenance_tag is not None else ''}")
             ltcvprov.save_to_db(tag=ltcv_provenance_tag)
         lc.save_to_db(dbclient=dbclient)
         lc.write()
