@@ -22,8 +22,7 @@ from campari.data_construction import find_all_exposures
 from campari.io import (
     build_lightcurve,
     build_lightcurve_sim,
-    save_lightcurve,
-    update_debug_file
+    save_lightcurve
 )
 from campari.run_one_object import run_one_object
 from campari.utils import banner
@@ -262,7 +261,6 @@ class campari_runner:
 
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist, param_grid_row)
         self.build_and_save_lightcurve(diaobj, lightcurve_model, param_grid_row)
-        update_debug_file({"ABORT_IF_ZERO": 100}, run_name=str(diaobj.name)+"_campari")
 
     def create_sim_param_grid(self):
         raise NotImplementedError("Simulation parameter grid creation is broken. Will be made external later.")
@@ -305,11 +303,7 @@ class campari_runner:
                 no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
                 SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
                 no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
-                update_debug_file({"NUM_TOTAL_IMAGES": len(image_list),
-                               "NUM_TRANSIENT_IMAGES": len(image_list) - len(no_transient_images),
-                               "BAND": self.band,
-                               "GRID_TYPE": self.grid_type},
-                              run_name=str(diaobj.name)+"_campari")
+
 
                 if (
                     self.max_no_transient_images != 0
