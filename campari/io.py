@@ -7,6 +7,7 @@ import warnings
 # Common Library
 import numpy as np
 import pandas as pd
+from pathlib import Path
 import yaml
 
 # Astronomy Library
@@ -150,7 +151,7 @@ def build_lightcurve_sim(supernova, flux, sigma_flux):
 def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
                     overwrite=True, save_to_database=False, dbclient=None,
                     new_provenance=False, diaobj_pos=None, ltcv_provenance_tag=None,
-                    ltcvprocess=None, testrun=None):
+                    ltcvprocess=None, testrun=None, filetype="ecsv", filename=None):
     """This function parses settings in the SMP algorithm and saves the
     lightcurve to an ecsv file with an appropriate name.
     Input:
@@ -185,7 +186,18 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     base_output_path = pathlib.Path(base_output_path)
     base_output_path.mkdir(exist_ok=True, parents=True)
 
-    filepath = f"{identifier}_{band}_{psftype}_lc.ecsv" if not save_to_database else None
+    filepath = f"{identifier}_{band}_{psftype}_lc" if not save_to_database else None
+    filepath = f"{filename}" if filename is not None else filepath
+
+    if filename is not None and Path(filename).is_absolute():
+        SNLogger.warning("Absolute filepath provided; ignoring output_path.")
+        filepath = f"{filename}"
+
+    filepath = Path(filepath)
+    # Add the filetype suffix if not present, and save to the correct extension
+    if not filepath.suffix == f".{filetype}":
+        SNLogger.debug(f"Adding suffix .{filetype} to filepath {filepath}")
+        filepath = filepath.with_suffix(f".{filetype}")
 
     if save_to_database:
         ltcvprov = lc.provenance_object
@@ -199,7 +211,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         lc.write()
     else:
         lc.write(
-            base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
+            base_dir=output_path, filepath=filepath, filetype=filetype, overwrite=overwrite
         )
     # Return the lc so we can have the snappl generated filepath
     return lc

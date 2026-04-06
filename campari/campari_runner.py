@@ -75,6 +75,9 @@ class campari_runner:
 
         self.save_to_db = kwargs["save_to_db"]
         self.add_truth_to_lc = kwargs["add_truth_to_lc"]
+        self.write_ecsv = kwargs["write_ecsv"]
+        self.write_parquet = kwargs["write_parquet"]
+        self.output_filename = kwargs["output_filename"]
         self.nprocs = kwargs["nprocs"]
 
         self.SED_file = kwargs["SED_file"]
@@ -404,9 +407,23 @@ class campari_runner:
             else:
                 output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
             testrun = getattr(self, "testrun", None)
-            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
-                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
+
+            filetypes = []
+            filetypes.append("ecsv") if self.write_ecsv else None
+            filetypes.append("parquet") if self.write_parquet else None
+            if filetypes == []:
+                filetypes = ["ecsv"]
+            # Presave locally before database upload
+            for filetype in filetypes:
+                save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                                save_to_database=False, new_provenance=self.create_ltcv_provenance,
+                                testrun=testrun, dbclient=self.dbclient, filetype=filetype,
+                                filename=self.output_filename)
+            # Then save to DB if desired
+            if self.save_to_db:
+                save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                                save_to_database=True, new_provenance=self.create_ltcv_provenance,
+                                testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
 
         # Now, save the images
 
