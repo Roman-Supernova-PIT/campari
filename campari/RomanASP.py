@@ -95,7 +95,7 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("--diaobject-name", type=int, default=None,
+    parser.add_argument("--diaobject-name", default=None,
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
@@ -193,6 +193,13 @@ def main():
         "If only one entry per line, it will be interpreted as a file path to an image relative to the base path.",
     )
 
+    parser.add_argument(
+        "--SED_file",
+        default=None,
+        help="A 2 column csv file giving wavelength (Angstrom) and flux density (flambda) to use as the SED. "
+        "More details at https://galsim-developers.github.io/GalSim/_build/html/sed.html",
+    )
+
     ####################
     # What does it mean to run on stars??????  Assume constant flux? No
     # host galaxy?  Ideally, the code to run on stars should be exactly
@@ -202,50 +209,50 @@ def main():
                         choices=["star", "SN"],
                         help="If star, will run on stars. If SN, will run  " +
                              "on supernovae. If no argument is passed," +
-                             "assumes supernova.",
+                             "assumes supernova. (Default: %(default)s)",
                         default="SN")
 
     parser.add_argument("--fast_debug", action=argparse.BooleanOptionalAction, default=False,
                         help="If True, will run campari in fast debug mode, "
                              "which will enforce a very sparse grid. Data collected "
-                             "using this method should not be used. ")
+                             "using this method should not be used. (Default: %(default)s) ")
 
     parser.add_argument("--save_model", action=argparse.BooleanOptionalAction, default=False,
                         help="If True, will save the PSF and SN matrices used in the fit to the debug directory."
                              "This will be useful if you are running very similar configurations and want to avoid"
-                             "recomputing the matrices each time.")
+                             "recomputing the matrices each time. (Default: %(default)s)")
 
     parser.add_argument("--image-process", type=str,
                         help="A string to identify the process of getting "
-                        "the image collection. Default None.", default=None)
+                        "the image collection. (Default: %(default)s)", default=None)
 
     parser.add_argument("--image-provenance-tag", type=str,
                         help="A string tag to identify the provenance of "
-                        "the image collection step. Default None.", default=None)
+                        "the image collection step. (Default: %(default)s)", default=None)
 
     parser.add_argument("--diaobject-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the "
-                        "diaobject. Default None.", default=None)
+                        "diaobject. (Default: %(default)s)", default=None)
     parser.add_argument("--diaobject-process", type=str,
                         help="A string to identify the process of the "
-                        "diaobject. Default None.", default=None)
+                        "diaobject.(Default: %(default)s)", default=None)
     parser.add_argument("--diaobject-id", type=str, default=None,
-                        help="the diaobject id. Default None.")
+                        help="the diaobject id. (Default: %(default)s)")
 
-    parser.add_argument("--ltcv-provenance-id", type=str,
-                        help="the provenance id for lightcurve. Default None.", default=None)
-    # Campari currently does not use this?
 
     parser.add_argument("--ltcv-process", type=str,
                         help="A string to identify the process of the "
-                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+                        "lightcurve. Default campari.", default="campari")
     parser.add_argument("--ltcv-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the "
-                        "lightcurve. Default None.", default=None)  # Campari currently does not use this?
+                        "lightcurve. (Default: %(default)s)", default=None)
 
-    parser.add_argument("--create-ltcv-provenance", action=argparse.BooleanOptionalAction, default=False,
-                        help="If True, will create and write provenances to the database."
-                             " Default False.")  # Campari currently does not use this?
+    parser.add_argument(
+        "--create-ltcv-provenance",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+        help="If True, will create and write provenances to the database. (Default: %(default)s)",
+    )
 
     parser.add_argument("--diaobject-position-provenance-tag", type=str,
                         help="A string tag to identify the provenance of the program that determines the "
@@ -290,6 +297,10 @@ def main():
     if cfg is None:
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
+
+    # SNLogger.debug("Running campari with the following configuration:")
+    # for arg, value in vars(args).items():
+    #     SNLogger.debug("  %s: %s", arg, value)
 
     runner = campari_runner(**vars(args))
     runner()

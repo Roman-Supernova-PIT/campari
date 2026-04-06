@@ -14,6 +14,7 @@ from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
+from campari.utils import print_memory_usage_summary
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -26,15 +27,20 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 huge_value = 1e32
 
 
-def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=1):
+def construct_images(image_list, diaobj, size, subtract_background_method=True, nprocs=1):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
     Inputs:
     image_list: list of snappl.image.Image objects, the images to be used.
-    ra,dec: the RA and DEC of the SN
-    subtract_background: If False, the background level is fit as a free
-        parameter in the forward modelling. Otherwise, we subtract it here.
+    diaobj: snappl.diaobj.DiaObj object, the Difference Imaging Object to find images for.
+    size: int, the size of the cutout to be made (size x size)
+    subtract_background_method: str, the method used to calculate the background to be removed.
+        - If "fit", the background level is fit as a free parameter in the forward modelling.
+        - If "calc" or "calculate", the background level is calculated using photutils.
+        - If it is any other string, it is assumed that this is a column name in the
+        fits header that the background level is stored in.
+    nprocs: int, the number of processors to use for parallel processing.
 
     Returns:
     cutout_image_list: list of snappl.image.Image objects, cutouts on the
@@ -51,19 +57,18 @@ def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=
 
     results = []
 
-    SNLogger.debug(f"ra: {ra}")
-    SNLogger.debug(f"dec: {dec}")
-    SNLogger.debug(f"size: {size}")
-    SNLogger.debug(f"subtract_background: {subtract_background}")
+    SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
     if nprocs > 1:
+        SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
                 SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
                 results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
                                                                            "ra": ra, "dec": dec, "size": size,
                                                                            "truth": truth,
-                                                                           "subtract_background": subtract_background}))
+                                                                           "subtract_background_method":
+                                                                           subtract_background_method}))
 
             pool.close()
             pool.join()
@@ -72,7 +77,7 @@ def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=
             SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
             results.append(construct_one_image(indx=indx, image=image,
                                                ra=ra, dec=dec, size=size, truth=truth,
-                                               subtract_background=subtract_background))
+                                               subtract_background_method=subtract_background_method))
 
     for r in results:
         if nprocs > 1:
@@ -85,7 +90,16 @@ def construct_images(image_list, diaobj, size, subtract_background=True, nprocs=
     return cutout_image_list, image_list, bgflux
 
 
-def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None, subtract_background=None):
+def is_number(s):
+    try:
+        float(s)
+        return True
+    except ValueError:
+        return False
+
+
+def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
+                        subtract_background_method=None):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -95,11 +109,13 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     indx: int, index of the image in the list.
     ra/dec: float, the RA and DEC of the SN
     size: int, the size of the cutout to be made (size x size)
-    subtract_background: If False, the background level is fit as a free
-        parameter in the forward modelling. Otherwise, we subtract it here.
+    subtract_background_method: str, the method used to calculate the background to be removed.
+        - If "fit", the background level is fit as a free parameter in the forward modelling.
+        - If "calculate", the background level is calculated using photutils.
+        - If it is any other string, it is assumed that this is a keyword name in the FITS header that the background
+        level is stored in. If the keyword is not found, an error is raised.
     truth: str, either "truth" or "simple_model", whether to use truth images
         or OU2024 simple model images.
-    
 
     Returns:
     cutout_image: snappl.image.Image object, cutout on the object location.
@@ -138,16 +154,22 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # level as a free parameter in our fit, so it should not be subtracted
     # here.
     bg = 0
-    if subtract_background:
-        if truth == "truth":
-            # We can manually calculate the background level from the truth, as these have no "SKY_MEAN" header.
-            bg = calculate_background_level(imagedata)
-        else:
-            # or we can read it from the image header if it's available.
-            bg = image_cutout.get_fits_header()["SKY_MEAN"]
+    if is_number(subtract_background_method):
+        bg = float(subtract_background_method)
+        SNLogger.debug(f"Background from user input: {bg}")
+    elif subtract_background_method == "calculate":
+        bg = calculate_background_level(imagedata)
+    elif subtract_background_method == "fit":
+        bg = 0
+    else:
+        SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
+        bg = image_cutout.get_fits_header()[subtract_background_method] if \
+            subtract_background_method in image_cutout.get_fits_header() else None
+        if bg is None:
+            raise ValueError(f"Could not find background level in header with keyword "
+                             f"'{subtract_background_method}' for image {indx}.")
 
     image_cutout._data -= bg
-    SNLogger.debug(f"Subtracted a background level of {bg}")
     return image_cutout, bg
 
 
@@ -254,6 +276,10 @@ def find_all_exposures(
     SNLogger.debug(f"image_selection_start: {image_selection_start}")
     SNLogger.debug(f"image_selection_end: {image_selection_end}")
     transient_start = diaobj.mjd_start
+    if transient_start is None and diaobj.mjd_discovery is not None:
+        # From Sidecar, the start date is not known implicitly, (as in a real survey, we just know the discovery date).
+        # In this case, we will assume that the transient could have started at discovery.
+        transient_start = diaobj.mjd_discovery
     transient_end = diaobj.mjd_end
     ra = diaobj.ra
     dec = diaobj.dec
@@ -281,7 +307,6 @@ def find_all_exposures(
                        f" and {temp_transient_start}")
         pre_transient_images = img_collection.find_images(
             mjd_min=temp_image_selection_start, mjd_max=temp_transient_start, ra=ra, dec=dec, band=band,
-
         )
         SNLogger.debug(f"Found {len(pre_transient_images)}")
     else:
@@ -313,6 +338,6 @@ def find_all_exposures(
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
 
-    argsort = np.argsort([img.pointing for img in all_images])
-    all_images = all_images[argsort]
+    print_memory_usage_summary("Finished finding all exposures")
+
     return all_images, img_collection_prov

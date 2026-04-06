@@ -1,0 +1,1 @@
+Moved provenance creation earlier in the code.

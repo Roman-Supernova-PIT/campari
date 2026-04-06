@@ -12,7 +12,6 @@ import pandas as pd
 
 # Astronomy Library
 from astropy.coordinates import SkyCoord
-from astropy.table import QTable, hstack
 import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -113,8 +112,8 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
 
     sim_true_flux = []
     sim_realized_flux = []
-    for pointing, sca in zip(lc.data["pointing"], lc.data["sca"]):
-        # Load the truthpath for a OU24 Image with that pointing and SCA
+    for observation_id, sca in zip(lc.data["observation_id"], lc.data["sca"]):
+        # Load the truthpath for a OU24 Image with that observation_id and SCA
         img_collection = ImageCollection()
         img_collection = img_collection.get_collection("ou2024")
 
@@ -132,7 +131,7 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
         if band not in list(band_map.values()):
             band = band_map[band.lower()]
 
-        dummy_image = img_collection.get_image(pointing=pointing, sca=sca, band=band)
+        dummy_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
         catalogue_path = dummy_image.truthpath
 
         cat = pd.read_csv(
@@ -177,16 +176,9 @@ def add_truth_to_lc(lc, sn_path, object_type="SN"):
         "sim_realized_mag": sim_realized_mag,
         "sim_true_mag": sim_true_mag,
     }
-    units = {
-        "sim_realized_flux": "",
-        "sim_realized_mag": u.mag,
-        "sim_true_flux": "",
-        "sim_true_mag": u.mag,
-    }
 
     lc.data.update(data_dict)
     lc.meta.update(meta_dict)
-    #lc = hstack([lc, QTable(data=data_dict, meta=meta_dict, units=units)])
 
     return lc
 

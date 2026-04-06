@@ -16,6 +16,8 @@ from galsim import roman
 # SN-PIT
 from snappl.psf import PSF
 from snappl.logger import SNLogger
+from snappl.config import Config
+from campari.utils import print_memory_usage_summary
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -47,6 +49,7 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     ra_grid, dec_grid: 1D numpy arrays of floats
         The RA and DEC of the grid points.
     """
+    SNLogger.debug(f"Making regular grid with spacing {spacing} and subsize {subsize}")
     wcs = image_object.get_wcs()
     size = image_object.image_shape[0]
     if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
@@ -68,12 +71,10 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
 
     x = difference + np.arange(0, subsize, spacing)
     y = difference + np.arange(0, subsize, spacing)
-    SNLogger.debug(f"Grid spacing: {spacing}")
 
     xx, yy = np.meshgrid(x, y)
     xx = xx.flatten()
     yy = yy.flatten()
-    SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
     # Astropy takes (y, x) order:
     ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
@@ -239,7 +240,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
 
 
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, band=None, image=None, psfclass="ou24PSF"):
+                           pixel=False, band=None, image=None):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -260,12 +261,16 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     A numpy array of the PSFs at each grid point, with the shape
     (stampsize*stampsize, npoints)
     """
+
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
     x_sca = np.atleast_1d(x_sca)
     y_sca = np.atleast_1d(y_sca)
     bpass = roman.getBandpasses()[band]
+
+    cfg = Config.get()
+    psfclass = cfg.value("photometry.campari.psf.galaxy_class")
 
     num_grid_points = np.size(x_sca)
 
@@ -283,30 +288,29 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     point = point.withFlux(1, bpass)
 
-    pointing = image.pointing if image is not None else None
+    observation_id = image.observation_id if image is not None else None
     sca = image.sca if image is not None else None
 
-    print("PSFCLASS IN CONSTRUCT STATIC SCENE:", psfclass)
-    psf_object = PSF.get_psf_object(psfclass, pointing=pointing, sca=sca, size=stampsize, stamp_size=stampsize,
-                                    include_photonOps=False, seed=None, image=image)
+    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
+                                    stamp_size=stampsize, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
-        if a % 50 == 0:
-            SNLogger.debug(f"Drawing PSF {a} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
+
+    print_memory_usage_summary("Finished making Static Scene")
 
     return psfs
 
 
 def construct_transient_scene(
-    x0=None, y0=None, pointing=None, sca=None, stampsize=25, x=None,
-    y=None, sed=None, flux=1, photOps=True, image=None, psfclass="ou24PSF_slow"
+    x0=None, y0=None, observation_id=None, sca=None, stampsize=25, x=None,
+    y=None, sed=None, flux=1, image=None
 ):
     """Constructs the PSF around the point source (x,y) location, allowing for
         some offset from the center.
@@ -321,8 +325,8 @@ def construct_transient_scene(
 
     For more on the above two parameters, see snappl.psf.PSF.get_stamp documentation.
 
-    pointing, sca: ints
-        The pointing and SCA of the image
+    observation_id, sca: ints
+        The observation_id and SCA of the image
     stampsize: int
         Size of cutout image used.
     sed: galsim.sed.SED object
@@ -340,28 +344,27 @@ def construct_transient_scene(
 
     SNLogger.debug(
         f"ARGS IN PSF SOURCE: \n x, y: {x, y} \n"
-        + f" pointing, sca: {pointing, sca} \n"
+        + f" observation_id, sca: {observation_id, sca} \n"
         + f" stamp size: {stampsize} \n"
         + f" x0, y0: {x0, y0} \n"
         + f" sed: {sed} \n"
         + f" flux: {flux}"
     )
 
-    if not photOps:
-        # While I want to do this sometimes, it is very rare that you actually
-        # want to do this. Thus if it was accidentally on while doing a normal
-        # run, I'd want to know.
-        SNLogger.warning("NOT USING PHOTON OPS IN PSF SOURCE")
-
-    # We want to use the slower PSF class for supernovae
-    snpsfclass = "ou24PSF_slow" if psfclass == "ou24PSF" else psfclass
+    cfg = Config.get()
+    snpsfclass = cfg.value("photometry.campari.psf.transient_class")
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
+    SNLogger.debug(f"Using SED type: {type(sed)}")
+
     psf_object = PSF.get_psf_object(
-        snpsfclass, pointing=pointing, sca=sca, size=stampsize, include_photonOps=photOps,
-        image=image, stamp_size=stampsize
+        snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
+        image=image, stamp_size=stampsize, sed=sed
     )
-    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=1.0)
+    psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
+
+    print_memory_usage_summary("Finished making transient scene")
+    SNLogger.debug(f"Num nans in PSF image: {np.isnan(psf_image).sum()}")
 
     return psf_image.flatten()
 
@@ -437,6 +440,8 @@ def make_grid(
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
+
+    print_memory_usage_summary("Finished making grid")
 
     return ra_grid, dec_grid
 
@@ -556,14 +561,13 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 
 
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
-                              dec_grid=None, size=None, pixel=False, psfclass=None, band=None, sedlist=None,
-                              source_phot_ops=None, image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background=None,
-                              base_pointing=None, base_sca=None):
+                              dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
+                              image_index=None, num_total_images=None, num_detect_images=None,
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
-    pointing, sca = image.pointing, image.sca
-    SNLogger.debug(f"Building model for image with pointing {pointing} and sca {sca}")
+    observation_id, sca = image.observation_id, image.sca
+    SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
 
     whole_sca_wcs = image.get_wcs()
     object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
@@ -584,14 +588,13 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             size,
             pixel=pixel,
             image=image,
-            psfclass=psfclass,
             band=band,
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:
         SNLogger.debug("Using prebuilt PSF matrix for background model")
         background_model_array = None
 
-    if not subtract_background and prebuilt_psf_matrix is None:
+    if subtract_background_method == "fit" and prebuilt_psf_matrix is None:
         # If we did not manually subtract the background, we need to fit in the forward model. Since the
         # background is a constant, we add a term to the model that is all ones. But we only want the background
         # to be present in the model for the image it is associated with. Therefore, we only add the background
@@ -619,12 +622,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
-        if use_real_images:
-            pointing = pointing
-            sca = sca
-        else:
-            pointing = base_pointing
-            sca = base_sca
         # sedlist is the length of the number of supernova
         # detection images. Therefore, when we iterate onto the
         # first supernova image, we want to be on the first element
@@ -648,15 +645,14 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         psf_source_array = construct_transient_scene(
             x0=x,
             y0=y,
-            pointing=pointing,
+            observation_id=observation_id,
             sca=sca,
             stampsize=size,
             x=object_x,
             y=object_y,
             sed=sed,
-            psfclass=psfclass,
-            photOps=source_phot_ops,
             image=image,
+            flux=1.0
         )
 
     else:
@@ -664,4 +660,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         if sn_index >= 0 and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
+    print_memory_usage_summary("Finished building model for one image")
     return background_model_array, psf_source_array

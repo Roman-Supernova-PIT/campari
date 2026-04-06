@@ -3,13 +3,18 @@ import warnings
 
 # Common Library
 import numpy as np
+import tracemalloc
 
 # Astronomy Library
+from astropy.stats import sigma_clipped_stats, SigmaClip
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from galsim import roman
+from photutils.segmentation import detect_threshold, detect_sources
+from photutils.utils import circular_footprint
 
 # SN-PIT
+from snappl.config import Config
 from snappl.logger import SNLogger
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -131,9 +136,7 @@ def gaussian(x, A, mu, sigma):
 
 def calculate_background_level(im):
     """A function for naively estimating the background level from a given
-    image. This may be replaced by a more sophisticated function later.
-    For now, we take the corners of the image, sigma clip, and then return
-    the median as the background level.
+    image.
 
     Inputs:
     im, numpy array of floats, the image to be used.
@@ -142,23 +145,19 @@ def calculate_background_level(im):
     bg, float, the estimated background level.
 
     """
-    size = im.shape[0]
-    bgarr = np.concatenate(
-        (
-            im[0 : size // 4, 0 : size // 4].flatten(),
-            im[0:size, 3 * (size // 4) : size].flatten(),
-            im[3 * (size // 4) : size, 0 : size // 4].flatten(),
-            im[3 * (size // 4) : size, 3 * (size // 4) : size].flatten(),
-        )
-    )
-    if len(bgarr) == 0:
-        bg = 0
-    else:
-        pc = np.percentile(bgarr, 84)
-        bgarr = bgarr[bgarr < pc]
-        bg = np.median(bgarr)
 
-    return bg
+    sigma_clip = SigmaClip(sigma=3.0, maxiters=40)
+    threshold = detect_threshold(im, nsigma=2.0, sigma_clip=sigma_clip)
+    segment_img = detect_sources(im, threshold, npixels=10)
+    if segment_img is not None:
+        footprint = circular_footprint(radius=10)
+        mask = segment_img.make_source_mask(footprint=footprint)
+    else:
+        mask = None
+        SNLogger.warning("Photutils did not find any sources in the image. Are you sure this is the right image?")
+    mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
+    return mean
+
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
@@ -227,17 +226,13 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
                 error[i] = np.ones_like(wgt)
                 SNLogger.debug(f"wgt before: {np.mean(wgt)}")
         else:
-            SNLogger.debug("No Gaussian weighting applied in get_weights")
+
             wgt = np.ones(size**2)
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
-        SNLogger.debug(f"error max min {np.nanmax(error[i]), np.nanmin(error[i])}")
-        inv_var = 1 / (error[i].flatten()) ** 2
+        inv_var = 1 / (error[i].flatten())**2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
-        SNLogger.debug(f"wgt max min {np.nanmax(wgt), np.nanmin(wgt)}")
-        SNLogger.debug(f"wgt after: {np.nanmean(wgt)}")
-        SNLogger.debug("------------")
         wgt_matrix.append(wgt)
     return wgt_matrix
 
@@ -344,3 +339,21 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     SNLogger.debug(f"Local Surface Brightness: {LSB} mag/arcsec^2")
 
     return LSB
+
+
+def print_memory_usage_summary(flag):
+    cfg = Config.get()
+    if cfg.value("photometry.campari.print_memory_usage"):
+        SNLogger.info(flag)
+        snapshot = tracemalloc.take_snapshot()
+        top_stats = snapshot.statistics("lineno")
+        current, peak = tracemalloc.get_traced_memory()
+        SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+
+        SNLogger.info("[ Top 10 ]")
+        printout = ""
+        for stat in top_stats[:10]:
+            printout += str(stat) + "\n"
+        SNLogger.info(printout)
+    else:
+        pass
