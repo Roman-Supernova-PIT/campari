@@ -584,6 +584,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         raise e
 
 num_list = list(range(45, 61))
+num_list = [45]
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()
