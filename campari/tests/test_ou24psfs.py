@@ -140,6 +140,7 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 # Note: these simulation_numbers correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
 
+
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", [46, 47, 50, 51, 52])
 def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
