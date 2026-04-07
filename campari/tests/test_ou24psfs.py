@@ -12,7 +12,7 @@ from snappl.config import Config
 from snappl.logger import SNLogger
 
 from campari.campari_runner import campari_runner
-from campari.image_simulator_run import run_sim
+from campari.image_simulator_run import run_sim, run_sims_in_parallel, write_image_list
 from campari.tests.test_gausspsfs import (
     create_true_flux,
     generate_diagnostic_plots,
@@ -174,7 +174,6 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
-
 
 @pytest.mark.slow()
 # 51 is two sigma skewed, p ~ 0.04, is this admissible?
@@ -583,3 +582,98 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
+num_list = list(range(45, 61))
+@pytest.mark.slow()
+@pytest.mark.parametrize("simulation_number", num_list)
+@pytest.mark.self_generating()
+
+def test_run_other_bands(simulation_number):
+    func_name = "image_simulations_Y106"
+    run_name = func_name + f"seed{simulation_number}"
+    # num_list = list(range(45, 61))
+    test_data_path = pathlib.Path(__file__).parent / "testdata"
+
+    # write_image_list(
+    #     output_path=test_data_path, run_name=run_name, run_dir=func_name,
+    #     test_data_path=test_data_path)
+    run_sims_in_parallel(
+        seed_list=num_list,  # Set seed for reproducibility, this is the seed that Cole started with.
+        images_aligned=False,
+        poisson_noise=True,
+        sky_noise=True,
+        static_source="galaxy",
+        static_source_mag=22,
+        transient_peak_mag=24,
+        mjd=np.arange(60000, 60075, 0.5),
+        psf_class="ou24PSF_slow_photonshoot",
+        run_dir=func_name,
+        output_path=test_data_path,
+        run_name_base=func_name,
+        bulge_R=2,
+        bulge_n=3,
+        disk_R=4,
+        disk_n=1,  # Simulated Galaxy Params
+        test_data_path=test_data_path,
+        band="Y106",
+        observation_id = 1300
+    )
+
+    # # Check if the image list exists at the expected location. If not, raise an error.
+    # imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
+    # SNLogger.debug(f"Using the following image list filename: {imagelist_filename}")
+    # if not pathlib.Path(imagelist_filename).exists():
+    #     # This catch is so that Cole does not need to resimulate 15 runs, which takes hours.
+    #     SNLogger.warning(
+    #         f"Could not find expected image list at {imagelist_filename}. If you are not Cole "
+    #         "This means you need to simulate the data. If you are Cole, I will now check for your older (but identical) "
+    #         "simulations. If I can't find those either, I will raise an error."
+    #     )
+
+    #     old_image_list_filename = (
+    #         pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+    #         "test_gaussims_bothnoise_unaligned_"
+    #         f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt"
+    #     )
+
+    #     if not pathlib.Path(old_image_list_filename).exists():
+    #         raise FileNotFoundError(
+    #             f"Expected image list at {imagelist_filename} not found. Simulation may have failed to run. I also"
+    #             f"could not find older image list at {old_image_list_filename}."
+    #         )
+    #     else:
+    #         SNLogger.debug("Successfully found Cole's personal files.")
+    #         imagelist_filename = old_image_list_filename
+    # else:
+    #     SNLogger.debug(f"Successfully found image list at {imagelist_filename}.")
+    # diaobject_name = "343" + str(simulation_number)
+
+    # args = {
+    #     "diaobject_name": diaobject_name,
+    #     "img_list": pathlib.Path(__file__).parent / imagelist_filename,
+    #     "filter": "Y106",
+    #     #"prebuilt_static_model": f"{debug_dir}/psf_matrix_ou24PSF_b4be4bd1-73fd-42bd-8197-ff3aaf0e74dd_150_images201_points.npy",
+    # }
+
+    # args = default_parameters | args
+    # cfg.parse_args(SimpleNamespace(**args))
+    # runner = campari_runner(**args)
+    # runner()
+
+    # SNLogger.debug("Checking accuracy.....")
+
+    # # Check accuracy
+    # filename = f"{diaobject_name}_Y106_ou24psf_slow_photonshoot"
+    # lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
+
+    # flux = create_true_flux(lc["mjd"], peakmag=24)
+    # plotname = f"bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops_diagnostic_{diaobject_name}"
+
+    # try:
+    #     residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+    #     perform_gaussianity_checks(residuals_sigma)
+    # except AssertionError as e:
+    #     generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
+    #     SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
+    #     SNLogger.debug(e)
+    #     raise e

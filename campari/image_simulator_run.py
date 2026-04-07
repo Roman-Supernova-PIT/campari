@@ -51,6 +51,22 @@ from snappl.logger import SNLogger
 # disk_R = 4
 # disk_n = 1
 
+def write_image_list(output_path, run_dir, run_name, test_data_path):
+    base_path = f"{output_path}/{run_dir}/{run_name}"
+    all_images = os.listdir(base_path)
+
+    filename = test_data_path / f"image_list_{run_name}.txt"
+    print(f"Writing image list to {filename}")
+    with open(filename, "w") as f:
+        for item in all_images:
+            SNLogger.debug(item)
+            # There is an image, noise, and flags, and we don"t want to read the image thrice.
+            if "image.fits" not in item and "flags.fits" not in item and "READ" not in item:
+                whole_path = os.path.join(base_path, item)
+                newpath = whole_path.split("_noise.fits")[0]
+                SNLogger.debug(f"Writing {newpath} to image list")
+                f.write(f"{newpath.split('cmeldorf')[-1]}\n")
+
 def run_sim(
     seed=None,
     images_aligned=None,
@@ -74,8 +90,11 @@ def run_sim(
     just_rotate=False,
     just_shift=False,
     im_sim_path=None,
-    test_data_path=None
+    test_data_path=None,
+    band=None,
+    observation_id = 1000,
 ):
+    SNLogger.debug(f"USING OBS ID {observation_id}")
 
     if run_dir is None:
         run_dir = "OU24_psf_tests"
@@ -156,6 +175,11 @@ def run_sim(
     if sed_spec is not None:
         cmd_str += f"--sed-spec {sed_spec} --sed-wave_type {sed_wave_type} --sed-flux_type {sed_flux_type} "
 
+    if band is not None:
+        cmd_str += f"--band {band} "
+
+    cmd_str += f"--observation-id {observation_id} "
+
     SNLogger.debug(cmd_str)
     os.system(cmd_str)
     SNLogger.debug("Finished image simulation.")
@@ -169,19 +193,6 @@ def run_sim(
     for item in file_list:
         print(f"Moving {item} to {output_path}/{run_dir}/{run_name}")
         os.system(f"mv {item} {output_path}/{run_dir}/{run_name}")
-
-    base_path = f"{output_path}/{run_dir}/{run_name}"
-    all_images = os.listdir(base_path)
-
-    filename = test_data_path / f"image_list_{run_name}.txt"
-    print(f"Writing image list to {filename}")
-    with open(filename, "w") as f:
-        for item in all_images:
-            # There is an image, noise, and flags, and we don"t want to read the image thrice.
-            if "image" not in item and "flags" not in item and "READ" not in item:
-                whole_path = os.path.join(base_path, item)
-                newpath = whole_path.split("_noise.fits")[0]
-                f.write(f"{newpath.split('cmeldorf')[-1]}\n")
 
 
 # ###############################################
@@ -236,17 +247,51 @@ def run_sims_in_parallel(
     just_shift=False,
     im_sim_path=None,
     test_data_path=None,
+    band=None,
+    observation_id=1000,
 ):
+    SNLogger.debug(f"USING OBS ID {observation_id}")
     nprocs = len(seed_list)
-    with Pool(nprocs) as pool:
-        all_args = locals()
-        all_args.pop("seed_list")
-        for seed in seed_list:
-            print("Running seed =", seed, "------------------------------------#######################################")
-            pool.apply_async(run_sim, kwds={**all_args, "seed": seed})
-        pool.close()
-        pool.join()
 
+    # Capture only the kwargs relevant to run_sim, before creating pool/nprocs
+    sim_kwargs = dict(
+        images_aligned=images_aligned,
+        poisson_noise=poisson_noise,
+        sky_noise=sky_noise,
+        static_source=static_source,
+        static_source_mag=static_source_mag,
+        transient_peak_mag=transient_peak_mag,
+        mjd=mjd,
+        psf_class=psf_class,
+        run_dir=run_dir,
+        output_path=output_path,
+        run_name_base=run_name_base,
+        sed_spec=sed_spec,
+        sed_wave_type=sed_wave_type,
+        sed_flux_type=sed_flux_type,
+        bulge_R=bulge_R,
+        bulge_n=bulge_n,
+        disk_R=disk_R,
+        disk_n=disk_n,
+        just_rotate=just_rotate,
+        just_shift=just_shift,
+        im_sim_path=im_sim_path,
+        test_data_path=test_data_path,
+        band=band,
+        observation_id=observation_id,
+    )
+
+    with Pool(nprocs) as pool:
+        results = []
+        for seed in seed_list:
+            print(f"Running seed = {seed} ----")
+            r = pool.apply_async(run_sim, kwds={**sim_kwargs, "seed": seed})
+            results.append(r)
+        pool.close()
+        # Call .get() on each result so exceptions are re-raised here
+        for r in results:
+            r.get()
+        pool.join()
 
 # kwds = {
 #     "seed": seed,

@@ -286,6 +286,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         point = galsim.DeltaFunction()
         point *= sed
 
+    SNLogger.debug(f"Construting static scene with band {band} and psf class {psfclass}")
     point = point.withFlux(1, bpass)
 
     observation_id = image.observation_id if image is not None else None
@@ -293,6 +294,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
                                     stamp_size=stampsize, seed=None, image=image)
+    SNLogger.debug("the PSF band is " + str(psf_object._band))
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
