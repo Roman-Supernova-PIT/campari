@@ -68,14 +68,14 @@ default_parameters = {
     "photometry_campari_method": None,
     "photometry_campari_pixel": None,
     "photometry_campari_subtract_background_method": 0,
-    "photometry_campari_io_output_dir": "/scratch/campari_out_dir",
-    "photometry_campari_io_debug_dir": "/scratch/campari_debug_dir",
-    "photometry_campari_io_test_data": "/scratch/campari_test_data",
     # NOTE: THIS IS CURRENTLY CHEATING. I need to find a way to do better sky subtraction. I found that if you
     # are looking at a small image clips, as campari does, the background subtraction is very poor because the PSF
     # is so wide that it looks like flat background near the edge of the clip. I could write a routine that goes
     #  and gets the background from a larger area or I could wait and see if campari will always be handed one,
     # e.g. from phrosty?
+    "photometry_campari_io_output_dir": "/scratch/campari_out_dir",
+    "photometry_campari_io_debug_dir": "/scratch/campari_debug_dir",
+    "photometry_campari_io_test_data": "/scratch/campari_test_data",
     "photometry_campari_use_real_images": True,
     "photometry_campari_print_memory_usage": None,
     "photometry_campari_psf_galaxy_photon_ops": None,

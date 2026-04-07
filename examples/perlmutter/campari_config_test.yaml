@@ -1,3 +1,4 @@
+# # This is used for the Nov 2025 podman container:
 # preloads:
 #   - /snpit_env/configs/nov2025_container_config.yaml
 

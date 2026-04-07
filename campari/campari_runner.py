@@ -140,11 +140,6 @@ class campari_runner:
                     raise ValueError("Must provide both"
                           " ltcv_provenance_tag and ltcv_process.")
 
-        # PSF for when not using the Roman PSF:
-        # lam = 1293  # nm
-        # aberrations = galsim.roman.getPSF(1, self.band, pupil_bin=1).aberrations
-        # self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
-        self.airy = None
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
         er += "regular, adaptive, contour, single, or none. Details in documentation."
@@ -355,7 +350,7 @@ class campari_runner:
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, do_xshift=self.do_xshift,
-                           do_rotation=self.do_rotation, airy=self.airy,
+                           do_rotation=self.do_rotation,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
                            avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
