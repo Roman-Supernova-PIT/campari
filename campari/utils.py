@@ -159,7 +159,6 @@ def calculate_background_level(im):
     return mean
 
 
-
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
@@ -248,11 +247,15 @@ def convert_band_name(old_band):
         "F158": "H158",
         "F184": "F184",
         "F213": "K213",
+        "R062": "F062",
+        "Z087": "F087",
+        "Y106": "F106",
+        "J129": "F129",
+        "H158": "F158",
+        "K213": "F213",
     }
-    if old_band[0] == "F":
-        # We switched from using lettered bands to numbered bands in the code at some point,
-        # much to my chagrin, so this catches those cases.
-        band = lettered_band_dicts[old_band]
+
+    band = lettered_band_dicts[old_band]
 
     return band
 

@@ -16,7 +16,6 @@ cfg = Config.get()
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
-
 def plot_images(fileroot, size=11):
     imgdata = np.load("./results/images/" + str(fileroot) + "_images.npy")
     num_total_images = imgdata.shape[1] // size**2

@@ -140,7 +140,6 @@ class campari_runner:
                     raise ValueError("Must provide both"
                           " ltcv_provenance_tag and ltcv_process.")
 
-
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
         er += "regular, adaptive, contour, single, or none. Details in documentation."
         if self.grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
@@ -438,7 +437,7 @@ class campari_runner:
                     filepath = debug_dir / f"{fileroot}_wcs.fits"
                     hdul.writeto(filepath, overwrite=True)
                 else:
-                    SNLogger.warning("WCS is a snappl GWCS, which cannot be saved to a fits header."
+                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
                     " Skipping saving WCS headers.")
 
         else:

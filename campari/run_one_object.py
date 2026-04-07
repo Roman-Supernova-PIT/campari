@@ -95,8 +95,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
-    # We switched from using lettered bands to numbered bands in the code at some point,
-    # much to my chagrin, so this catches those cases.
+    # We switched from using lettered bands to numbered bands in the code at some point, so this catches those cases.
     band = convert_band_name(band)
 
     if Config.get().value("photometry.campari.print_memory_usage"):

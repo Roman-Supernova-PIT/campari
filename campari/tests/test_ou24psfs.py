@@ -132,9 +132,6 @@ cfg = Config.get()
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
-
-
-
 # 45, 48, 49
 # For some reason, just 45, 48 and 49 fail. 45 and 49 are skewed and 48 has a very high bias (~0.37)
 # Obviously we expect some to fail a 0.05 p value cut on skew but the bias is concerning.
@@ -271,7 +268,6 @@ def test_extended_nohost_poissonnoiseonly():
     cfg.parse_args(SimpleNamespace(**args))
     runner = campari_runner(**args)
     runner()
-
 
     # Check accuracy
     filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
@@ -493,7 +489,6 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
     cfg.parse_args(SimpleNamespace(**args))
     runner = campari_runner(**args)
     runner()
-
 
     # Check accuracy
     filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"

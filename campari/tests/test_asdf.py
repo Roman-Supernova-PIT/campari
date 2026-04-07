@@ -35,7 +35,6 @@ in_asdf_pod = os.getenv("IN_ASDF_POD") if os.getenv("IN_ASDF_POD") is not None e
 @pytest.mark.skipif( not in_asdf_pod, reason="IN_ASDF_POD is not set" )
 def test_asdf(overwrite_meta):
 
-
     provenance_tag = "asdf_functional_test"
     diaobj_process = "load_objects_for_49"
     image_process = "load_rdm_image"

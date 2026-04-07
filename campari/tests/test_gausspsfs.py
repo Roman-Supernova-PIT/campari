@@ -16,7 +16,6 @@ from campari.plotting import generate_diagnostic_plots
 
 SNLogger.set_level("DEBUG")
 
-# ln -s /scratch/photometry_test_data /photometry_test_data
 
 imsize = 19
 base_cmd = [

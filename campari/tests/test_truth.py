@@ -154,7 +154,6 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
         upstreams=upstreams,
     )
 
-
     # The data values are arbitary, just to check that the lc is constructed properly.
     lc = build_lightcurve(diaobj, lc_model, cam_prov=cam_prov)
     lc_table = Table(data=lc.data, meta=lc.meta)
