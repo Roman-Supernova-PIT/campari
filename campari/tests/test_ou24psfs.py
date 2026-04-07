@@ -12,13 +12,30 @@ from snappl.config import Config
 from snappl.logger import SNLogger
 
 from campari.campari_runner import campari_runner
-from campari.image_simulator_run import run_sim, run_sims_in_parallel, write_image_list
+from campari.image_simulator_run import run_sim, run_sims_in_parallel
 from campari.tests.test_gausspsfs import (
     create_true_flux,
     generate_diagnostic_plots,
     perform_aperture_photometry,
     perform_gaussianity_checks,
 )
+
+##### CAMPARI TESTING DOCUMENTATION #################
+# These tests serve to test campari at varying levels of complexity. When campari does not work,
+# we want to be able to trace the error to the simplest case where it occurs, as this would hint at
+# the issue (e.g. if it fails on noiseless images, it's likely a problem with the PSF or the fitting routine,
+# if it only fails when the host is present, it's likely a problem with the host modeling, etc.).
+# Here are some of the things we toggle on versus off in these tests:
+# - Noise: Noiseless vs. Sky noise only vs. object noise only vs. Both sky and object noise
+# - Host: Is a host galaxy present to contaminate the image?
+# - Alignnment: Are the images the same WCS or are they shifted and rotated wrt each other?
+# - Transient brightness: Is the transient bright (~pkmag 21) or faint (~pkmag 24)?
+# - Photon shooting: Are including the photon shooting in the PSF model?
+# I've done my best to be clear in the names of each test which of these things are toggled on
+# versus off. It should be noted that these differing levels of complexity are present solely in
+# the data, not in algorithmic changes to campari. Campari treats all of these images as though
+# they were real data.
+
 
 imsize = 19
 
@@ -130,7 +147,23 @@ cfg = Config.get()
 debug_dir = cfg.value("system.paths.debug_dir")
 out_dir = cfg.value("system.paths.output_dir")
 
+image_lists_in_order ={
+    # These have blah noise and blah host
+    ...
+    # these have no noise and no host
+    ...
+}
 
+prebuilt_models_in_order = {
+    # This one has a prebuilt model to run faster
+    ...
+    # this one doesnt
+    ...
+}
+
+labels_in_order = {
+    # These are human readable labels to indicate what is being tested
+}
 
 
 # 45, 48, 49
@@ -174,6 +207,7 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.slow()
 # 51 is two sigma skewed, p ~ 0.04, is this admissible?
@@ -583,8 +617,11 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         SNLogger.debug(e)
         raise e
 
+
 num_list = list(range(45, 61))
 num_list = [45]
+
+
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()

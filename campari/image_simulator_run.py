@@ -67,6 +67,7 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
                 SNLogger.debug(f"Writing {newpath} to image list")
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
 
+
 def run_sim(
     seed=None,
     images_aligned=None,
