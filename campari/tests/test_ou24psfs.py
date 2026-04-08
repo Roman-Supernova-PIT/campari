@@ -147,8 +147,18 @@ debug_dir = cfg.value("system.paths.debug_dir")
 out_dir = cfg.value("system.paths.output_dir")
 
 
-def run_test_and_check_against_truth_flux_using_pull_distribution(args):
-    label = inspect.currentframe().f_code.co_name
+def run_test_and_check_against_truth_flux_using_pull_distribution(args, err_fudge = None):
+    """ Run a test and check the results against the truth flux using the pull distribution. This 
+    checks that the pull distribution is gaussian, centered on zero, and not skewed.
+    Inputs:
+        args: dict
+            The arguments that differ from the default args
+        err_fudge: float, optional
+            A fudge factor to apply to the error estimates. This is due to the fact that for
+            some noiseless tests, there is still an error contribution due to the fact that the
+            algorithm can't perfectly model the galaxy.
+    """
+    label = inspect.stack()[1][3]
     args = default_parameters | args
     diaobject_name = args["diaobject_name"]
     roman_filter = args["filter"]
@@ -170,13 +180,15 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args):
     flux = create_true_flux(lc["mjd"], peakmag=24)
 
     try:
+        if err_fudge is not None:
+            lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + 75**2)
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         plotname = f"{label}_{diaobject_name}"
 
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = f"{label}_{diaobject_name}"
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
+        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, err_fudge = err_fudge)
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
@@ -193,8 +205,8 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     args = {
         "img_list": pathlib.Path(__file__).parent
         / "testdata/test_imagelists/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
-        " photometry_campari_grid_options_type": "none",
-        " save_model": True,
+        "photometry_campari_grid_options_type": "none",
+        "save_model": True,
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args)
 
@@ -211,9 +223,9 @@ def test_extended_nohost_nonoise():
     diaobject_name = "222" + str(simulation_number)
 
     args = {
-        " diaobject-name": diaobject_name,
+        "diaobject-name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_nonoiseseed51.txt",
-        " photometry_campari_grid_options_type": "none",
+        "photometry_campari_grid_options_type": "none",
     }
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args)
@@ -233,11 +245,11 @@ def test_nophot_sanitycheck():
     diaobject_name = "222" + str(simulation_number)
 
     args = {
-        " diaobject-name": diaobject_name,
+        "diaobject-name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
         "test_gaussims_nohost_nophot_sanity_checkseed51.txt",
-        " photometry_campari_grid_options_type": "none",
-        " photometry_campari_psf_transient_class": "ou24PSF_slow",
+        "photometry_campari_grid_options_type": "none",
+        "photometry_campari_psf_transient_class": "ou24PSF_slow",
     }
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args)
@@ -253,11 +265,11 @@ def test_noiseless_aligned_22maghost_withphotops():
     args = {
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
         "noiseless_aligned_22maghost_ou2024_withphotops.txt",
-        " photometry_campari_grid_options_type": "regular",
-        " photometry_campari_grid_options_spacing": "0.75",
-        " save_model": True,
-        " photmetry_campari_source_phot_ops": True,
-        " photometry_campari_transient_psfclass": "ou24PSF_slow",
+        "photometry_campari_grid_options_type": "regular",
+        "photometry_campari_grid_options_spacing": "0.75",
+        "save_model": True,
+        "photometry_campari_source_phot_ops": True,
+        "photometry_campari_transient_psfclass": "ou24PSF_slow",
     }
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args)
@@ -271,10 +283,10 @@ def test_nohost_skynoiseonly():
     diaobject_name = "222" + str(diaobjnum)
 
     args = {
-        " diaobject-name": diaobject_name,
+        "diaobject-name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
         "test_gaussims_nohost_skynoiseonlyseed51.txt",
-        " photometry_campari_grid_options_type": "none",
+        "photometry_campari_grid_options_type": "none",
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args)
 
@@ -351,11 +363,11 @@ def test_both_shifted_21mag_host_ou2024_more():
     args = {
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise"
         "_shifted_22mag_host_200_ou2024.txt",
-        " photometry_campari_grid_options_type": "regular",
-        " photometry_campari_grid_options_spacing": "0.75",
-        " save_model": True,
-        " photometry_campari_psf_transient_class": "ou24PSF_slow",
-        " diaobject-name": "123",
+        "photometry_campari_grid_options_type": "regular",
+        "photometry_campari_grid_options_spacing": "0.75",
+        "save_model": True,
+        "photometry_campari_psf_transient_class": "ou24PSF_slow",
+        "diaobject-name": "123",
 
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args)
@@ -461,7 +473,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
     diaobject_name = "333" + str(simulation_number)
 
     args = {
-        " diaobject_name": diaobject_name,
+        "diaobject_name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "prebuilt_static_model":
         f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
