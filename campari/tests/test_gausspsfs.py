@@ -156,7 +156,8 @@ def test_poisson_noise_aligned_no_host():
     # photometry.
 
     cmd = base_cmd + [
-        "--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_poisson_aligned_nohost_200.txt"
+        "--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_poisson_aligned_nohost_200.txt"
         ]
 
     # For this test I bumped it up to 60 images because the small number statistics caused it to not pass gaussianity
@@ -207,7 +208,8 @@ def test_sky_noise_aligned_no_host():
     # cmd = base_cmd + [
     #     "--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_sky.txt",
     # ]
-    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_sky_no_host_more.txt"]
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+    "test_gaussims_sky_no_host_more.txt"]
     cmd += ["--photometry-campari-grid_options-type", "none"]
 
     result = subprocess.run(cmd, capture_output=False, text=True)
@@ -562,7 +564,8 @@ def test_both_shifted_just_host():
 @pytest.mark.skip(reason="this test is subsumed by following tests")
 def test_noiseless_aligned_22mag_host():
 
-    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_noiseless_host_mag22.txt"]
+    cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+    "test_gaussims_noiseless_host_mag22.txt"]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     # cmd += ["--save_model"]
     cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
@@ -960,7 +963,8 @@ def test_both_shifted_22mag_host_varying_gaussian():
 
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_allnoise_varyingPSF_22mag_host_evenmore.txt",
+        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_allnoise_"
+        "varyingPSF_22mag_host_evenmore.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
@@ -1058,7 +1062,8 @@ def test_noiseless_shifted_no_host_varying():
 
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_noiseless_shifted_varyingPSF_nohost.txt",
+        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
+        "noiseless_shifted_varyingPSF_nohost.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
@@ -1337,7 +1342,8 @@ def test_poisson_noise_shifted_no_host_varying():
 def test_both_shifted_22mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_22mag_host_200_varying.txt",
+        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims"
+        "_bothnoise_shifted_22mag_host_200_varying.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
@@ -1390,7 +1396,8 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
 def test_both_shifted_21mag_host_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
-        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_21mag_host_200_varying.txt",
+        pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
+        "bothnoise_shifted_21mag_host_200_varying.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
@@ -1444,7 +1451,8 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_22maghost_faintsource_varyinggaussian_evenfainter.txt",
+        / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_22maghost_"
+        "faintsource_varyinggaussian_evenfainter.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
@@ -1501,7 +1509,8 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_skynoise_shifted_22maghost_faintsource_regulargaussian_evenfainter.txt",
+        / "testdata/test_imagelists/test_gaussims_skynoise_shifted_22maghost_faintsource"
+        "_regulargaussian_evenfainter.txt",
     ]
     # File is mislabeled, there is a host present
     cmd += ["--photometry-campari-grid_options-type", "regular"]
@@ -1559,7 +1568,8 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_poisson_shifted_22maghost_faintsource_regulargaussian_evenfainter.txt",
+        / "testdata/test_imagelists/test_gaussims_poisson_shifted_22maghost_"
+        "faintsource_regulargaussian_evenfainter.txt",
     ]
     # File is mislabeled, there is a host present
     cmd += ["--photometry-campari-grid_options-type", "regular"]
@@ -1621,7 +1631,8 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_22maghost_faintsource_regulargaussian_evenfainter.txt",
+        / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_22maghost_"
+        "faintsource_regulargaussian_evenfainter.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
@@ -1739,7 +1750,8 @@ def test_same_as_above_no_host():
     cmd = base_cmd + [
         "--img_list",
         pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_samewithnohost_faintsource_varyinggaussian_evenfainter.txt",
+        / "testdata/test_imagelists/test_gaussims_bothnoise_shifted_samewithnohost"
+        "_faintsource_varyinggaussian_evenfainter.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
     cmd += ["--save_model"]
