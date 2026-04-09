@@ -218,4 +218,3 @@ def run_sims_in_parallel(
         for r in results:
             r.get()
         pool.join()
-
