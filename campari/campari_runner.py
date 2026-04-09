@@ -4,7 +4,6 @@ import numpy as np
 
 # Astronomy
 from astropy.io import fits
-import galsim
 
 
 # SN-PIT
@@ -15,6 +14,7 @@ from snappl.sed import Flat_SED, OU2024_Truth_SED, Single_CSV_SED
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.provenance import Provenance
+import snappl.wcs
 
 # Campari
 import campari
@@ -140,11 +140,6 @@ class campari_runner:
                     raise ValueError("Must provide both"
                           " ltcv_provenance_tag and ltcv_process.")
 
-        # PSF for when not using the Roman PSF:
-        lam = 1293  # nm
-        aberrations = galsim.roman.getPSF(1, self.band, pupil_bin=1).aberrations
-        self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
-
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
         er += "regular, adaptive, contour, single, or none. Details in documentation."
         if self.grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
@@ -189,6 +184,7 @@ class campari_runner:
             "mjd_discovery_max": self.transient_end}
         filtered_args = {k: v for k, v in arguments.items() if v is not None}
         # Database can't handle nones.
+        SNLogger.debug(f"Filtered arguments for finding DiaObject: {filtered_args}")
         diaobjs = DiaObject.find_objects(**filtered_args)
 
         if len(diaobjs) == 0:
@@ -353,7 +349,7 @@ class campari_runner:
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, do_xshift=self.do_xshift,
-                           do_rotation=self.do_rotation, airy=self.airy,
+                           do_rotation=self.do_rotation,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
                            avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
@@ -404,7 +400,7 @@ class campari_runner:
             if self.save_to_db:
                 output_dir = None
             else:
-                output_dir = pathlib.Path(self.cfg.value("system.paths.output_dir"))
+                output_dir = pathlib.Path(self.cfg.value("photometry.campari_io.output_dir"))
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
@@ -421,7 +417,7 @@ class campari_runner:
                 [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
             )
 
-            debug_dir = pathlib.Path(self.cfg.value("system.paths.debug_dir"))
+            debug_dir = pathlib.Path(self.cfg.value("photometry.campari_io.debug_dir"))
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
             np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
@@ -438,11 +434,15 @@ class campari_runner:
             hdul = [primary_hdu]
             SNLogger.info(f"Saving Image WCS headers to {debug_dir}")
             if lc_model.cutout_image_list is not None:
-                for i, img in enumerate(lc_model.cutout_image_list):
-                    hdul.append(fits.ImageHDU(header=img.get_wcs().to_fits_header(), name="WCS" + str(i)))
-                hdul = fits.HDUList(hdul)
-                filepath = debug_dir / f"{fileroot}_wcs.fits"
-                hdul.writeto(filepath, overwrite=True)
+                if not isinstance(lc_model.cutout_image_list[0].get_wcs(), snappl.wcs.GWCS):
+                    for i, img in enumerate(lc_model.cutout_image_list):
+                        hdul.append(fits.ImageHDU(header=img.get_wcs().to_fits_header(), name="WCS" + str(i)))
+                    hdul = fits.HDUList(hdul)
+                    filepath = debug_dir / f"{fileroot}_wcs.fits"
+                    hdul.writeto(filepath, overwrite=True)
+                else:
+                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
+                    " Skipping saving WCS headers.")
 
         else:
             SNLogger.info("Not saving debug files.")

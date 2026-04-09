@@ -90,6 +90,9 @@ default_parameters = {
     # is so wide that it looks like flat background near the edge of the clip. I could write a routine that goes
     #  and gets the background from a larger area or I could wait and see if campari will always be handed one,
     # e.g. from phrosty?
+    "photometry_campari_io_output_dir": "/scratch/campari_out_dir",
+    "photometry_campari_io_debug_dir": "/scratch/campari_debug_dir",
+    "photometry_campari_io_test_data": "/scratch/campari_test_data",
     "photometry_campari_use_real_images": True,
     "photometry_campari_print_memory_usage": None,
     "photometry_campari_psf_galaxy_photon_ops": None,
@@ -143,8 +146,8 @@ default_parameters = {
 
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
-out_dir = cfg.value("system.paths.output_dir")
+out_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
 def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=0):
@@ -389,8 +392,6 @@ def test_both_shifted_21mag_host_ou2024_more():
 generate_simulations = False
 
 num_list = list(range(45, 61))
-
-num_list = [46]
 
 
 @pytest.mark.slow()

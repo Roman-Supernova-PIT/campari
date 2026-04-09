@@ -13,9 +13,7 @@ from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
-out_dir = cfg.value("system.paths.output_dir")
-
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
 def plot_images(fileroot, size=11):
@@ -144,8 +142,8 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
 def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
     SNLogger.debug("Generating diagnostic plots....")
     cfg = Config.get()
-    debug_dir = cfg.value("system.paths.debug_dir")
-    out_dir = cfg.value("system.paths.output_dir")
+    debug_dir = cfg.value("photometry.campari_io.debug_dir")
+    out_dir = cfg.value("photometry.campari_io.output_dir")
     lc = Table.read(f"/{out_dir}/{fileroot}_lc.ecsv")
     ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
     modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)

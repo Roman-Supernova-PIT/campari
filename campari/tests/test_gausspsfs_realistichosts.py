@@ -14,8 +14,8 @@ from snappl.config import Config
 from campari.image_simulator_run import run_sim
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
-out_dir = cfg.value("system.paths.output_dir")
+out_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
 imsize = 19

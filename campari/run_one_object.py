@@ -22,7 +22,7 @@ from campari.model_building import (
     build_model_for_one_image,
 )
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
-                           get_weights, print_memory_usage_summary)
+                           convert_band_name, get_weights, print_memory_usage_summary)
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -67,7 +67,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    subtract_background_method=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
                    grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
-                   airy=None, mismatch_seds=None, deltafcn_profile=None, noise=None,
+                   mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None,
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
@@ -94,6 +94,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
+
+    # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
+    # some point, so this catches those cases.
+    band = convert_band_name(band)
 
     if Config.get().value("photometry.campari.print_memory_usage"):
         tracemalloc.start()
@@ -208,11 +212,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
 
     if save_model:
-        psf_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
+        psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
             / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
         np.save(psf_matrix_path, psf_matrix)
 
-        sn_matrix_path = pathlib.Path(Config.get().value("system.paths.debug_dir")) \
+        sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
             / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
         np.save(sn_matrix_path, sn_matrix)
 

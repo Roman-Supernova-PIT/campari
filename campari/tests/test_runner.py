@@ -208,7 +208,6 @@ def test_get_exposures(cfg):
                             "does not match the set of observation IDs in the image list file.")
 
 
-
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
@@ -332,7 +331,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
 
     runner.build_and_save_lightcurve(diaobj, lc_model)
 
-    output_dir = pathlib.Path(cfg.value("system.paths.output_dir"))
+    output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"
     filepath = output_dir / filename
 

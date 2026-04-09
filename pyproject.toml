@@ -93,6 +93,12 @@ doctest_rst = "enabled"
 text_file_format = "rst"
 addopts = "--doctest-rst"
 
+[pytest]
+markers = [
+    "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "serial",
+]
+
 [tool.coverage.run]
 omit = [
  "campari/__init*",
@@ -150,7 +156,7 @@ preview = true
 select = [ 'F', 'E101', 'E111', 'E112', 'E113', 'E115', 'E117',
            'E204', 'E223', 'E224', 'E231', 'E242', 'E265', 'E273', 'E274', 'E275',
            'E301', 'E302', 'E305', 'E306', 'E401', 'E501', 'E502', 'E703',
-           'E711', 'E713', 'E714', 'E72', 'E74',
+           'E711', 'E713', 'E714', 'E72', 'E74', 'E303',
            'W19', 'W29', 'W39', 'W605',
            'N804', 'N805', 'N807',
            'D206', 'D300', 'D301',
