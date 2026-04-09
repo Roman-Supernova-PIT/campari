@@ -1,23 +1,40 @@
 import pathlib
 from types import SimpleNamespace
 
-
+import inspect
 import numpy as np
 import pytest
 
+from astropy.io import fits
 from astropy.table import Table
 
 from snappl.config import Config
 from snappl.logger import SNLogger
 
+from campari.campari_runner import campari_runner
+from campari.image_simulator_run import run_sim
 from campari.tests.test_gausspsfs import (
     create_true_flux,
     generate_diagnostic_plots,
-    perform_aperture_photometry,
-    perform_gaussianity_checks
+    perform_gaussianity_checks,
 )
 
-from campari.campari_runner import campari_runner
+##### CAMPARI TESTING DOCUMENTATION #################
+# These tests serve to test campari at varying levels of complexity. When campari does not work,
+# we want to be able to trace the error to the simplest case where it occurs, as this would hint at
+# the issue (e.g. if it fails on noiseless images, it's likely a problem with the PSF or the fitting routine,
+# if it only fails when the host is present, it's likely a problem with the host modeling, etc.).
+# Here are some of the things we toggle on versus off in these tests:
+# - Noise: Noiseless vs. Sky noise only vs. object noise only vs. Both sky and object noise
+# - Host: Is a host galaxy present to contaminate the image?
+# - Alignnment: Are the images the same WCS or are they shifted and rotated wrt each other?
+# - Transient brightness: Is the transient bright (~pkmag 21) or faint (~pkmag 24)?
+# - Photon shooting: Are including the photon shooting in the PSF model?
+# I've done my best to be clear in the names of each test which of these things are toggled on
+# versus off. It should be noted that these differing levels of complexity are present solely in
+# the data, not in algorithmic changes to campari. Campari treats all of these images as though
+# they were real data.
+
 
 imsize = 19
 
@@ -124,13 +141,203 @@ default_parameters = {
     "system_db_url": None,
     "system_db_username": None,
     "system_db_passwordfile": None,
-    "prebuilt_static_model": None # Will this get overwritten by merge with args?
+    "prebuilt_static_model": None
 }
 
 
 cfg = Config.get()
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
+
+
+def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=0):
+    """ Run a test and check the results against the truth flux using the pull distribution. This
+    checks that the pull distribution is gaussian, centered on zero, and not skewed.
+    Inputs:
+        args: dict
+            The arguments that differ from the default args
+        err_fudge: float, optional
+            A fudge factor to apply to the error estimates. This is due to the fact that for
+            some noiseless tests, there is still an error contribution due to the fact that the
+            algorithm can't perfectly model the galaxy.
+    """
+    label = inspect.stack()[1][3]
+    args = default_parameters | args
+    diaobject_name = args["diaobject_name"]
+    roman_filter = args["filter"]
+    psf = args["photometry_campari_psf_transient_class"]
+    filename = f"{diaobject_name}_{roman_filter}_{psf.lower()}"
+    filepath = f"/{out_dir}/{filename}_lc.ecsv"
+
+    cfg.parse_args(SimpleNamespace(**args))
+    runner = campari_runner(**args)
+    if pathlib.Path(filepath).exists():
+        pathlib.Path(filepath).unlink()
+
+    runner()
+
+    # Check accuracy
+    SNLogger.debug(f"Opening file at {filepath} to check accuracy.")
+    lc = Table.read(filepath)
+
+    flux = create_true_flux(lc["mjd"], peakmag=24)
+
+    try:
+        if lc["flux_err"] is not None:
+            lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
+        plotname = f"{label}_{diaobject_name}"
+
+        perform_gaussianity_checks(residuals_sigma)
+    except AssertionError as e:
+        plotname = f"{label}_{diaobject_name}"
+        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, err_fudge=err_fudge)
+        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
+        SNLogger.debug(e)
+        raise e
+
+
+########### TESTS BEGIN BELOW HERE ####################
+
+########## NO NOISE TESTS #############################
+# This first test has no host and no noise. This is a sanity check to make sure the PSF is being placed
+# in the correct location and that we can recover the flux in the simplest case.
+
+# This test has no noise, no host, and the images are aligned.
+@pytest.mark.skip(reason="This test is superseded by more difficult tests.")
+def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
+    args = {
+        "img_list": pathlib.Path(__file__).parent
+        / "testdata/test_imagelists/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
+        "photometry_campari_grid_options_type": "none",
+        "save_model": True,
+    }
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+
+
+# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poorly defined since
+# error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
+# However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
+# via visual inspection.
+@pytest.mark.skip(
+    reason="This test will fail because there is no noise so pull has no meaning but it's a sanity check."
+)
+def test_extended_nohost_nonoise():
+    simulation_number = 53
+    diaobject_name = "222" + str(simulation_number)
+
+    args = {
+        "diaobject-name": diaobject_name,
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_nonoiseseed51.txt",
+        "photometry_campari_grid_options_type": "none",
+    }
+
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+
+
+# Same as above, but with no photon shooting.
+
+# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poor defined since
+# error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
+# However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
+# via visual inspection.
+@pytest.mark.skip(
+    reason="This test will fail because there is no noise so pull has no meaning but it's a sanity check."
+)
+def test_nophot_sanitycheck():
+    simulation_number = 54
+    diaobject_name = "222" + str(simulation_number)
+
+    args = {
+        "diaobject-name": diaobject_name,
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_nophot_sanity_checkseed51.txt",
+        "photometry_campari_grid_options_type": "none",
+        "photometry_campari_psf_transient_class": "ou24PSF_slow",
+    }
+
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+
+
+# This test has a host.
+@pytest.mark.skip(reason="This test is superseded by more difficult tests.")
+# While this test is not run typically, it is still useful. If I run the test with noise, misaligned images, and
+# a host, and it fails, I won't know if the problem is the noise, the misalignment, or the host.
+# This test isolates the effect of the host. If this also fails, the problem is likely due to the modeling
+# of the host galaxy.
+def test_noiseless_aligned_22maghost_withphotops():
+    args = {
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
+        "noiseless_aligned_22maghost_ou2024_withphotops.txt",
+        "photometry_campari_grid_options_type": "regular",
+        "photometry_campari_grid_options_spacing": "0.75",
+        "save_model": True,
+        "photometry_campari_source_phot_ops": True,
+        "photometry_campari_transient_psfclass": "ou24PSF_slow",
+    }
+
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+############## PARTIAL NOISE TESTS #############################
+
+# This test has no host and only sky noise.
+
+
+def test_nohost_skynoiseonly():
+    diaobjnum = 51
+    diaobject_name = "222" + str(diaobjnum)
+
+    args = {
+        "diaobject-name": diaobject_name,
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_skynoiseonlyseed51.txt",
+        "photometry_campari_grid_options_type": "none",
+    }
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+
+# Same as above, but only object noise, and no sky noise. To clarify, I say "Poisson" noise,
+# but what I really mean is the noise on the transient. The sky background is also Poisson of course.
+
+
+def test_extended_nohost_poissonnoiseonly():
+    diaobjnum = 52
+    diaobject_name = "222" + str(diaobjnum)
+
+    args = {
+        "diaobject-name": diaobject_name,
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_poissonnoiseonlyseed51.txt",
+        "photometry_campari_grid_options_type": "none",
+    }
+
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+
+
+############ ALL NOISE NO HOST TESTS ###############################
+
+# This test has all sources of noise but no contaminating host galaxy. Again,
+# we are essentially just checking campari's ability to do PSF photometry.
+
+@pytest.mark.slow()
+# 45 and 51 are two sigma skewed, p ~ 0.04, is this admissible?
+@pytest.mark.parametrize("simulation_number", [45, 46, 47, 48, 49, 50, 51, 52])
+def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
+    # Screwed up the naming on some of these
+    if simulation_number > 48:
+        underscore = "_"
+    else:
+        underscore = ""
+
+    diaobject_name = "111" + str(simulation_number)
+    args = {
+        "diaobject_name": diaobject_name,
+        "photometry_campari_grid_options_type": "none",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        f"test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{simulation_number}.txt",
+        "photometry_campari_make_initial_guess": True,
+    }
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
+
+######## ALL NOISE + HOST TESTS #################
 
 # 45, 48, 49
 # For some reason, just 45, 48 and 49 fail. 45 and 49 are skewed and 48 has a very high bias (~0.37)
@@ -152,357 +359,126 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_"
         f"unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
     }
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        plotname = f"bothnoise_shifte_22maghost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
-
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-        plotname = f"bothnoise_aligned_22maghost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-@pytest.mark.slow()
-# 51 is two sigma skewed, p ~ 0.04, is this admissible?
-@pytest.mark.parametrize("simulation_number", [45, 46, 47, 48, 49, 50, 51, 52])
-def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
-    # Screwed up the naming on some of these
-    if simulation_number > 48:
-        underscore = "_"
-    else:
-        underscore = ""
-
-    diaobject_name = "111" + str(simulation_number)
-    args = {
-        "diaobject_name": diaobject_name,
-        "photometry_campari_grid_options_type": "none",
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
-        f"test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{simulation_number}.txt",
-        "photometry_campari_make_initial_guess": True
-    }
-    args = default_parameters | args
-    SNLogger.debug(args)
-    cfg.parse_args(SimpleNamespace(**args))
-
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        plotname = f"bothnoise_shifted_nohost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
-
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-        plotname = f"bothnoise_aligned_nohost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-def test_nohost_skynoiseonly():
-    diaobjnum = 51
-    diaobject_name = "222" + str(diaobjnum)
-
-    args = {
-        " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
-        "test_gaussims_nohost_skynoiseonlyseed51.txt",
-        " photometry_campari_grid_options_type": "none",
-
-    }
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    plotname = f"skynoise_aligned_nohost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        ap_sums, ap_err = perform_aperture_photometry(filename, imsize, aperture_radius=4)
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, ap_sums=ap_sums, ap_err=ap_err)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-def test_extended_nohost_poissonnoiseonly():
-    diaobjnum = 52
-    diaobject_name = "222" + str(diaobjnum)
-
-    args = {
-        "diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
-        "test_gaussims_nohost_poissonnoiseonlyseed51.txt",
-        "photometry_campari_grid_options_type": "none",
-    }
-
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    plotname = f"poissonnoise_aligned_nohost_ou24PSF_slow_photops_diagnostic_{diaobject_name}"
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        ap_sums, ap_err = perform_aperture_photometry(filename, imsize, aperture_radius=4)
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, ap_sums=ap_sums, ap_err=ap_err)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poorly defined since
-# error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
-# However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
-# via visual inspection.
-@pytest.mark.skip(reason="This test will fail because there is no noise so pull has no meaning"
-                         " but it's a sanity check.")
-def test_extended_nohost_nonoise():
-    simulation_number = 53
-    diaobject_name = "222" + str(simulation_number)
-
-    args = {
-        " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_nonoiseseed51.txt",
-        " photometry_campari_grid_options_type": "none"
-
-    }
-
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    plotname = f"nonoise_aligned_nohost_ou24PSF_slow_photops_diagnostic_{diaobject_name}"
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-# To clarify, these are noiseless images. Hence, pull (results - truth)/error is poor defined since
-# error is approximately zero. Hence, checking the gaussianity of the pull distribution is not meaningful.
-# However, this test is still useful to run on occasion to make sure the PSF is not being misplaced,
-# via visual inspection.
-@pytest.mark.skip(reason="This test will fail because there is no noise so pull has no"
-                  " meaning but it's a sanity check.")
-def test_nophot_sanitycheck():
-    simulation_number = 54
-    diaobject_name = "222" + str(simulation_number)
-
-    args = {
-        " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
-        "test_gaussims_nohost_nophot_sanity_checkseed51.txt",
-        " photometry_campari_grid_options_type": "none",
-        " photometry_campari_psf_transient_class": "ou24PSF_slow",
-    }
-
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_romanpsf"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    plotname = f"nonoise_aligned_nohost_ou24PSF_slow_nophotops_diagnostic_{diaobject_name}"
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_both_shifted_21mag_host_ou2024_more():
-
     args = {
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise"
         "_shifted_22mag_host_200_ou2024.txt",
-        " photometry_campari_grid_options_type": "regular",
-        " photometry_campari_grid_options_spacing": "0.75",
-        " save_model": True,
-        " photometry_campari_psf_transient_class": "ou24PSF_slow",
-        " diaobject-name": "123",
+        "photometry_campari_grid_options_type": "regular",
+        "photometry_campari_grid_options_spacing": "0.75",
+        "save_model": True,
+        "photometry_campari_psf_transient_class": "ou24PSF_slow",
+        "diaobject-name": "123",
 
     }
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    lc = Table.read(f"/{out_dir}/123_R062_ou24PSF_slow_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-    except AssertionError as e:
-        plotname = "both_shifted_21mag_host_ou24PSF_slow_diagnostic"
-        generate_diagnostic_plots("123_R062_ou24PSF_slow", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
-@pytest.mark.skip(reason="This test is superseded by more difficult tests.")
-# While this test is not run typically, it is still useful. If I run the test with noise, misaligned images, and
-# a host, and it fails, I won't know if the problem is the noise, the misalignment, or the host.
-# This test isolates the effect of the host. If this also fails, the problem is likely due to the modeling
-# of the host galaxy.
-def test_noiseless_aligned_22maghost_withphotops():
+# ############### REALISTIC GALAXY TESTS #############################
 
-    args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
-        "noiseless_aligned_22maghost_ou2024_withphotops.txt",
-        " photometry_campari_grid_options_type": "regular",
-        " photometry_campari_grid_options_spacing": "0.75",
-        " save_model": True,
-        " photmetry_campari_source_phot_ops": True,
-        " photometry_campari_transient_psfclass": "ou24PSF_slow"
-    }
+# Below here, I finally managed to implement a more realistic galaxy model for the tests. I.e.,
+# the galaxies are double sersic profiles rather than point sources. Granted, in either case,
+# the galaxy is only a few pixels across either anyway, and so the difference is not as huge as you might think.
 
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
+# Because this is the test I expect many people will want to run, since it contains all the bells and
+# whistles, I am making it so that the test will automatically generate the data if it doesn't already exist.
 
-    # Check accuracy
-    lc = Table.read(f"/{out_dir}/123_R062_romanpsf_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-
-    except AssertionError as e:
-        plotname = "bothnoise_shifted_nohost_ou24PSF_slow_photops_diagnostic"
-        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-@pytest.mark.skip(reason="This test is superseded by more difficult tests.")
-def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
-    args = {
-        "img_list": pathlib.Path(__file__).parent /
-         "testdata/test_imagelists/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
-        " photometry_campari_grid_options_type": "none",
-        " save_model": True
-    }
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    lc = Table.read(f"/{out_dir}/123_R062_romanpsf_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    try:
-        np.testing.assert_allclose(
-            lc["flux"], flux, rtol=9e-3
-        )  # With photon ops, accuracy is to about 0.6 % only, is this to be expected?
-    except AssertionError as e:
-        plotname = "noiseless_aligned_nohost_ou24PSF_slow_diagnostic"
-        generate_diagnostic_plots("123_R062_romanpsf", imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
-
-
-################ Realistic Galaxies Below Here ################
 # Note: these simulation_numbers in num_list correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
+
+generate_simulations = False
+
 num_list = list(range(45, 61))
 
 
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
+@pytest.mark.self_generating()
 def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_number):
+    func_name = inspect.currentframe().f_code.co_name
+    test_data_path = pathlib.Path(__file__).parent / "testdata"
+    run_name = func_name + f"seed{simulation_number}"
+    if generate_simulations:
+        SNLogger.debug(f"Generating new simulations for {func_name}. This may take a while.")
+        # The image data does not currently exist, so we will create it.
+        run_sim(
+            seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
+            images_aligned=False,
+            poisson_noise=True,
+            sky_noise=True,
+            static_source="galaxy",
+            static_source_mag=22,
+            transient_peak_mag=24,
+            mjd=np.arange(60000, 60075, 0.5),
+            psf_class="ou24PSF_slow_photonshoot",
+            run_dir=func_name,
+            output_path=test_data_path,
+            run_name_base=func_name,
+            bulge_R=2,
+            bulge_n=3,
+            disk_R=4,
+            disk_n=1,  # Simulated Galaxy Params
+            test_data_path=test_data_path,
+        )
 
+    cached_image = fits.open(
+        f"{test_data_path}/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/test_bothnoise_shifted"
+        "_22magrealisticgalaxy_ou24PSF_slow_photopsseed45/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow"
+        "_photopsseed45_sanity_image.fits"
+    )[0].data
+    new_image = fits.open(
+        f"{test_data_path}/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/test_bothnoise_shifted"
+        "_22magrealisticgalaxy_ou24PSF_slow_photopsseed45/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow"
+        "_photopsseed45_60000.0_image.fits"
+    )[0].data
+
+    # The photon shooting is stochastic, so the images will not be identical. However, they should be statistically
+    # consistent with each other. We can check this by computing the chi-squared statistic between the two images.
+
+    mask = np.where((new_image > 0) & (cached_image > 0))
+    chi2 = np.sum(((new_image[mask] - cached_image[mask]) ** 2) / (cached_image[mask] + new_image[mask]))
+    print("Chi-squared:", chi2)
+    print("Degrees of freedom:", len(new_image[mask]))
+    reduced_chi2 = chi2 / len(new_image[mask])
+    print("Reduced chi-squared:", reduced_chi2)
+
+    reduced_chi2_threshold = 1.2  # This threshold is a bit arbitrary. Ostensibly, it should be 1, but I am
+    # allowing a little bit of wiggle room. When I tested, the reduced chi squareds I was getting were
+    # around 0.5 - 0.6, so I imagine this should be fine.
+    np.testing.assert_array_less(reduced_chi2, reduced_chi2_threshold)
+
+    # Check if the image list exists at the expected location. If not, raise an error.
+    imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
+    if not pathlib.Path(imagelist_filename).exists():
+        # This catch is so that Cole does not need to resimulate 15 runs, which takes hours.
+        SNLogger.warning(f"Could not find expected image list at {imagelist_filename}. If you are not Cole "
+        "This means you need to simulate the data. If you are Cole, I will now check for your older (but identical) "
+        "simulations. If I can't find those either, I will raise an error.")
+
+        old_image_list_filename = pathlib.Path(__file__).parent / "testdata/test_imagelists/" \
+        "test_gaussims_bothnoise_unaligned_" \
+        f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt"
+
+        if not pathlib.Path(old_image_list_filename).exists():
+            raise FileNotFoundError(
+                f"Expected image list at {imagelist_filename} not found. Simulation may have failed to run. I also"
+                f"could not find older image list at {old_image_list_filename}."
+            )
+        else:
+            SNLogger.debug("Successfully found Cole's personal files.")
+            imagelist_filename = old_image_list_filename
+    else:
+        SNLogger.debug(f"Successfully found image list at {imagelist_filename}.")
     diaobject_name = "333" + str(simulation_number)
 
     args = {
-        " diaobject_name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_bothnoise_unaligned_"
-          f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
+        "diaobject_name": diaobject_name,
+        "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "prebuilt_static_model":
-         f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
+        f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
     }
 
-    args = default_parameters | args
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    runner()
-
-    # Check accuracy
-    filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
-    lc = Table.read(f"/{out_dir}/{filename}_lc.ecsv")
-
-    flux = create_true_flux(lc["mjd"], peakmag=24)
-    plotname = f"bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops_diagnostic_{diaobject_name}"
-
-    try:
-        residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-        perform_gaussianity_checks(residuals_sigma)
-    except AssertionError as e:
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux)
-        SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-        SNLogger.debug(e)
-        raise e
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)

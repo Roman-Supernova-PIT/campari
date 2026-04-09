@@ -394,6 +394,8 @@ class campari_runner:
             if self.add_truth_to_lc:
                 lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
+        SNLogger.debug("Save to db is set to " + str(self.save_to_db))
+
         if lc_model.flux is not None:
             if self.save_to_db:
                 output_dir = None
@@ -403,6 +405,8 @@ class campari_runner:
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
                             testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
+        else:
+            SNLogger.warning("No flux measurements were made for this object, so no lightcurve will be saved.")
 
         # Now, save the images
 

@@ -265,7 +265,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                        f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
-    inv_cov = psf_matrix.T @ np.diag(wgt_matrix**2) @ psf_matrix
+
+    w2 = wgt_matrix ** 2
+    inv_cov = (psf_matrix * w2[:, np.newaxis]).T @ psf_matrix
 
     try:
         cov = np.linalg.inv(inv_cov)
