@@ -244,7 +244,12 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     plt.close()
 
     plt.clf()
-    lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+    if lc["flux_err"] is not None and err_fudge is not None:
+        lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+    elif lc["flux_err"] is None:
+        # Noiseless tests will have no error.
+        err_fudge = err_fudge if err_fudge is not None else 0
+        lc["flux_err"] = np.full_like(lc["flux"], err_fudge)
     SNLogger.debug(f"Generated image diagnostics and saved to {debug_dir}/" + plotname + ".png")
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve

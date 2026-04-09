@@ -138,7 +138,7 @@ default_parameters = {
     "system_db_url": None,
     "system_db_username": None,
     "system_db_passwordfile": None,
-    "prebuilt_static_model": None # Will this get overwritten by merge with args?
+    "prebuilt_static_model": None
 }
 
 
@@ -147,8 +147,8 @@ debug_dir = cfg.value("system.paths.debug_dir")
 out_dir = cfg.value("system.paths.output_dir")
 
 
-def run_test_and_check_against_truth_flux_using_pull_distribution(args, err_fudge = None):
-    """ Run a test and check the results against the truth flux using the pull distribution. This 
+def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=None):
+    """ Run a test and check the results against the truth flux using the pull distribution. This
     checks that the pull distribution is gaussian, centered on zero, and not skewed.
     Inputs:
         args: dict
@@ -180,7 +180,7 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, err_fudg
     flux = create_true_flux(lc["mjd"], peakmag=24)
 
     try:
-        if err_fudge is not None:
+        if err_fudge is not None and lc["flux_err"] is not None:
             lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + 75**2)
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         plotname = f"{label}_{diaobject_name}"
@@ -188,10 +188,11 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, err_fudg
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
         plotname = f"{label}_{diaobject_name}"
-        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, err_fudge = err_fudge)
+        generate_diagnostic_plots(filename, imsize, plotname, trueflux=flux, err_fudge=err_fudge)
         SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 ########### TESTS BEGIN BELOW HERE ####################
 
@@ -208,7 +209,7 @@ def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
         "photometry_campari_grid_options_type": "none",
         "save_model": True,
     }
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 # To clarify, these are noiseless images. Hence, pull (results - truth)/error is poorly defined since
@@ -228,7 +229,7 @@ def test_extended_nohost_nonoise():
         "photometry_campari_grid_options_type": "none",
     }
 
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 # Same as above, but with no photon shooting.
@@ -252,7 +253,7 @@ def test_nophot_sanitycheck():
         "photometry_campari_psf_transient_class": "ou24PSF_slow",
     }
 
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 # This test has a host.
@@ -272,7 +273,7 @@ def test_noiseless_aligned_22maghost_withphotops():
         "photometry_campari_transient_psfclass": "ou24PSF_slow",
     }
 
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 ############## PARTIAL NOISE TESTS #############################
 
 # This test has no host and only sky noise.
@@ -288,7 +289,7 @@ def test_nohost_skynoiseonly():
         "test_gaussims_nohost_skynoiseonlyseed51.txt",
         "photometry_campari_grid_options_type": "none",
     }
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 # Same as above, but only object noise, and no sky noise. To clarify, I say "Poisson" noise,
 # but what I really mean is the noise on the transient. The sky background is also Poisson of course.
@@ -305,7 +306,7 @@ def test_extended_nohost_poissonnoiseonly():
         "photometry_campari_grid_options_type": "none",
     }
 
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 ############ ALL NOISE NO HOST TESTS ###############################
@@ -331,7 +332,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
         f"test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{simulation_number}.txt",
         "photometry_campari_make_initial_guess": True,
     }
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 ######## ALL NOISE + HOST TESTS #################
 
@@ -355,7 +356,7 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_"
         f"unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
     }
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
@@ -370,7 +371,7 @@ def test_both_shifted_21mag_host_ou2024_more():
         "diaobject-name": "123",
 
     }
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
 # ############### REALISTIC GALAXY TESTS #############################
@@ -479,4 +480,4 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
     }
 
-    run_test_and_check_against_truth_flux_using_pull_distribution(args)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
