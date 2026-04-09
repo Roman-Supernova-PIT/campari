@@ -113,7 +113,7 @@ default_parameters = {
     "photometry_campari_psf_galaxy_class": "ou24PSF",
     "photometry_campari_grid_options_type": None,
     "photometry_campari_grid_options_percentiles": None,
-    "photometry_campari_grid_options_spacing": 1.0,
+    "photometry_campari_grid_options_spacing": 0.75,
     "photometry_campari_grid_options_turn_grid_off": None,
     "photometry_campari_grid_options_gaussian_var": None,
     "photometry_campari_grid_options_cutoff": None,
@@ -253,16 +253,17 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
 
     # Check if the image list exists at the expected location. If not, raise an error.
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
-    raise ValueError(f"looking in {imagelist_filename} for image list")
+
+    imagelist_filename = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt"
     if not pathlib.Path(imagelist_filename).exists():
         raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Sim may have"
         " failed to run.")
-
     args = {
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
         "prebuilt_static_model": pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
+        #"save_model": True,
     }
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args)

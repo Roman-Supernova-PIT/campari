@@ -290,6 +290,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     point = point.withFlux(1, bpass)
 
     observation_id = image.observation_id if image is not None else None
+    SNLogger.debug("I found the following observation id in construct_static_scene: " + str(observation_id))
     sca = image.sca if image is not None else None
 
     psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
