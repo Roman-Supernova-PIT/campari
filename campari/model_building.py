@@ -52,11 +52,7 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     SNLogger.debug(f"Making regular grid with spacing {spacing} and subsize {subsize}")
     wcs = image_object.get_wcs()
     size = image_object.image_shape[0]
-    if wcs.to_fits_header()["CRPIX1"] == 2044 and wcs.to_fits_header()["CRPIX2"] == 2044:
-        SNLogger.warning(
-            "This WCS is centered exactly on the center of the image, make_regular_grid is expecting a"
-            "cutout WCS, this is likely not a cutout WCS."
-        )
+    # Sanity check removed because it was FITS-dependent.
     if subsize > size:
         SNLogger.warning(
             "subsize is larger than the image size. "

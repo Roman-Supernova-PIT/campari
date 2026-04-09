@@ -1,6 +1,13 @@
+# # This is used for the Nov 2025 podman container:
+# preloads:
+#   - /snpit_env/configs/nov2025_container_config.yaml
+
+# # This is used for the ASDF podman container:
+# preloads:
+#   - /snpit_env/configs/rknop_dev_container_config.yaml
+
 photometry:
   campari:
-
     cutout_size: 11
     initial_flux_guess: 3000
     fetch_SED: false
@@ -38,8 +45,11 @@ photometry:
       subsize: 4
 
   campari_io:
+    output_dir: /scratch/campari_out_dir
+    debug_dir: /scratch/campari_debug_dir
     save_debug: true
     test_num: 1
+    test_data: /scratch/campari_test_data
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
@@ -68,12 +78,6 @@ photometry:
 system:
   paths:
     lightcurves: /campari_out_dir # So Cole can run tests.
-    sims_sed_library: /home/rubin_sim_data/sims_sed_library
-    campari_test_data: /scratch/campari_test_data
-    output_dir: /scratch/campari_out_dir
-    sed_path: /scratch/campari_sed_dir
-    debug_dir: /scratch/campari_debug_dir
-
   ou24:
     simdex_server: https://roman-desc-simdex.rknop.net
     config_file: /scratch/campari/examples/perlmutter/tds.yaml

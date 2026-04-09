@@ -61,10 +61,14 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 SNLogger.set_level("DEBUG")
 
+cfg = Config.get()
+output_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
+
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
-    return cfg.value("system.paths.campari_test_data")
+    return cfg.value("photometry.campari_io.test_data")
 
 
 def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
@@ -271,7 +275,7 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -299,7 +303,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
                         overwrite_meta=overwrite_meta)
 
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -331,7 +335,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -379,7 +383,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
-    curfile = pathlib.Path(cfg.value("system.paths.output_dir")) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -762,9 +766,8 @@ def test_make_sim_param_grid():
 
 
 def test_handle_partial_overlap():
-    cfg = Config.get()
 
-    curfile = pathlib.Path(cfg.value("system.paths.debug_dir")) / "30617531_Y106_ou24psf_slow_photonshoot_images.npy"
+    curfile = pathlib.Path(debug_dir) / "30617531_Y106_ou24psf_slow_photonshoot_images.npy"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!

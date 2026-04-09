@@ -73,6 +73,9 @@ default_parameters = {
     # is so wide that it looks like flat background near the edge of the clip. I could write a routine that goes
     #  and gets the background from a larger area or I could wait and see if campari will always be handed one,
     # e.g. from phrosty?
+    "photometry_campari_io_output_dir": "/scratch/campari_out_dir",
+    "photometry_campari_io_debug_dir": "/scratch/campari_debug_dir",
+    "photometry_campari_io_test_data": "/scratch/campari_test_data",
     "photometry_campari_use_real_images": True,
     "photometry_campari_print_memory_usage": None,
     "photometry_campari_psf_galaxy_photon_ops": None,
@@ -126,11 +129,8 @@ default_parameters = {
 
 
 cfg = Config.get()
-debug_dir = cfg.value("system.paths.debug_dir")
-out_dir = cfg.value("system.paths.output_dir")
-
-
-
+out_dir = cfg.value("photometry.campari_io.output_dir")
+debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 # 45, 48, 49
 # For some reason, just 45, 48 and 49 fail. 45 and 49 are skewed and 48 has a very high bias (~0.37)
@@ -140,6 +140,7 @@ out_dir = cfg.value("system.paths.output_dir")
 # Note: these simulation_numbers correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
 
+
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", [46, 47, 50, 51, 52])
 def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
@@ -148,7 +149,7 @@ def test_bothnoise_shifted_22maghost_ou24PSF_slow_photops(simulation_number):
         "prebuilt_static_model": "/scratch/campari_debug_dir/"
         "psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
         "diaobject_name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise_"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise_"
         f"unaligned_withhost_faintsource_ou2024_more_seed{simulation_number}.txt",
     }
     args = default_parameters | args
@@ -189,7 +190,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
     args = {
         "diaobject_name": diaobject_name,
         "photometry_campari_grid_options_type": "none",
-        "img_list": pathlib.Path(__file__).parent / "testdata/"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
         f"test_gaussims_bothnoise_unaligned_nohost_faintsource_ou2024_more{underscore}seed{simulation_number}.txt",
         "photometry_campari_make_initial_guess": True
     }
@@ -225,7 +226,8 @@ def test_nohost_skynoiseonly():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_skynoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_skynoiseonlyseed51.txt",
         " photometry_campari_grid_options_type": "none",
 
     }
@@ -258,7 +260,8 @@ def test_extended_nohost_poissonnoiseonly():
 
     args = {
         "diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_poissonnoiseonlyseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_poissonnoiseonlyseed51.txt",
         "photometry_campari_grid_options_type": "none",
     }
 
@@ -266,7 +269,6 @@ def test_extended_nohost_poissonnoiseonly():
     cfg.parse_args(SimpleNamespace(**args))
     runner = campari_runner(**args)
     runner()
-
 
     # Check accuracy
     filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
@@ -297,7 +299,7 @@ def test_extended_nohost_nonoise():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_nonoiseseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_nohost_nonoiseseed51.txt",
         " photometry_campari_grid_options_type": "none"
 
     }
@@ -335,7 +337,8 @@ def test_nophot_sanitycheck():
 
     args = {
         " diaobject-name": diaobject_name,
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_nohost_nophot_sanity_checkseed51.txt",
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/"
+        "test_gaussims_nohost_nophot_sanity_checkseed51.txt",
         " photometry_campari_grid_options_type": "none",
         " photometry_campari_psf_transient_class": "ou24PSF_slow",
     }
@@ -365,7 +368,7 @@ def test_nophot_sanitycheck():
 def test_both_shifted_21mag_host_ou2024_more():
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_bothnoise"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_bothnoise"
         "_shifted_22mag_host_200_ou2024.txt",
         " photometry_campari_grid_options_type": "regular",
         " photometry_campari_grid_options_spacing": "0.75",
@@ -402,7 +405,7 @@ def test_both_shifted_21mag_host_ou2024_more():
 def test_noiseless_aligned_22maghost_withphotops():
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / "testdata/test_gaussims_"
+        "img_list": pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_"
         "noiseless_aligned_22maghost_ou2024_withphotops.txt",
         " photometry_campari_grid_options_type": "regular",
         " photometry_campari_grid_options_spacing": "0.75",
@@ -437,7 +440,7 @@ def test_noiseless_aligned_22maghost_withphotops():
 def test_noiseless_aligned_nohost_ou2024fast_withphotops_more():
     args = {
         "img_list": pathlib.Path(__file__).parent /
-         "testdata/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
+         "testdata/test_imagelists/test_gaussims_noiseless_aligned_nohost_ou2024_withphotops.txt",
         " photometry_campari_grid_options_type": "none",
         " save_model": True
     }
@@ -477,7 +480,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
     args = {
         " diaobject_name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent
-        / "testdata/test_gaussims_bothnoise_unaligned_"
+        / "testdata/test_imagelists/test_gaussims_bothnoise_unaligned_"
           f"realistichost_faintsource_ou2024_photshootseed{simulation_number}.txt",
         "prebuilt_static_model":
          f"{debug_dir}/psf_matrix_ou24PSF_d2605d96-d155-4aa0-9d65-445d1b869dfb_150_images204_points.npy",
@@ -487,7 +490,6 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
     cfg.parse_args(SimpleNamespace(**args))
     runner = campari_runner(**args)
     runner()
-
 
     # Check accuracy
     filename = f"{diaobject_name}_R062_ou24psf_slow_photonshoot"
