@@ -147,7 +147,7 @@ debug_dir = cfg.value("system.paths.debug_dir")
 out_dir = cfg.value("system.paths.output_dir")
 
 
-def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=None):
+def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=0):
     """ Run a test and check the results against the truth flux using the pull distribution. This
     checks that the pull distribution is gaussian, centered on zero, and not skewed.
     Inputs:
@@ -180,8 +180,8 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_
     flux = create_true_flux(lc["mjd"], peakmag=24)
 
     try:
-        if err_fudge is not None and lc["flux_err"] is not None:
-            lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + 75**2)
+        if lc["flux_err"] is not None:
+            lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
         residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
         plotname = f"{label}_{diaobject_name}"
 
