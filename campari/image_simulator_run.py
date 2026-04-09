@@ -6,50 +6,6 @@ from multiprocessing import Pool
 
 from snappl.logger import SNLogger
 
-# images_aligned = False
-# poisson_noise = True
-# sky_noise = True
-# static_source = "galaxy"  # "galaxy"  #"point"  # False  #
-# static_source_mag = 22
-
-# just_shift = False
-# just_rotate = False
-
-# transient_peak_mag = 24
-
-# sed_spec = "/campari/campari/tests/snflux_1a_peakmjd.csv"
-# sed_spec = None
-# sed_spec = "'2.718 ** ( -0.5 * ( (wave - 5100) / 4 )**2 )'" # Delta function-like Gaussian
-# sed_spec = None
-# sed_spec = "/campari/campari/tests/test_economical_sed.csv" # Delta function-like Gaussian
-# sed_wave_type = "Angstrom"
-# sed_flux_type = "flambda" # I am not sure if this is true, I can't find the units for the Hsiao template.
-
-# /pscratch/sd/c/cmeldorf/
-
-
-# run_dir = "OU24_psf_tests"
-# run_name_base = "nohost_nonoise"
-# run_name_base = "nophot_sanity_check"
-# run_name_base = "testingpsf"
-# run_name_base = "bothnoise_unaligned_realistichost_faintsource_ou2024_photshoot"
-
-# psf_class = "ou24PSF_slow_photonshoot"  # "gaussian"  #"ou24PSF"
-# mjd = np.arange(60010, 60060, 0.25)
-# mjd = np.array([60030])
-# mjd = np.arange(60000, 60075, 0.5)
-
-# mjd = np.arange(60010, 60060, 0.5)
-
-
-# mjd = np.arange(60010, 60030, 10.0)
-# mjd = np.array([60000, 60030])
-# mjd = np.arange(60000, 60075, 10.0)
-
-# bulge_R = 2
-# bulge_n = 3
-# disk_R = 4
-# disk_n = 1
 
 def write_image_list(output_path, run_dir, run_name, test_data_path):
     base_path = f"{output_path}/{run_dir}/{run_name}"
@@ -93,7 +49,7 @@ def run_sim(
     im_sim_path=None,
     test_data_path=None,
     band=None,
-    observation_id = 1000,
+    observation_id=1000,
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
@@ -185,43 +141,12 @@ def run_sim(
     os.system(cmd_str)
     SNLogger.debug("Finished image simulation.")
     file_list = glob.glob(f"*{run_name}*")
-    # SNLogger.debug(f"Expected {np.size(mjd) * 3} files, found {len(file_list)}")
-    # assert len(file_list) == np.size(mjd) * 3, f"Expected {np.size(mjd) * 3} files, found {len(file_list)}"
-    # SNLogger.debug("Size Check Passed.")
     if not os.path.exists(f"{output_path}/{run_dir}/{run_name}"):
         os.makedirs(f"{output_path}/{run_dir}/{run_name}")
         print(f"Created directory {output_path}/{run_dir}/{run_name}")
     for item in file_list:
         print(f"Moving {item} to {output_path}/{run_dir}/{run_name}")
         os.system(f"mv {item} {output_path}/{run_dir}/{run_name}")
-
-
-# ###############################################
-
-
-# seed_list = [45, 46, 47, 48, 49, 50, 51, 52, 53, 54, 55]
-
-
-# seed_list = [45, 46, 47, 48]
-# seed_list = [49, 50, 51, 52]
-
-# seed_list = [53, 54, 55, 56, 57, 58, 59, 60]
-
-# #seed_list = [51]
-
-# nprocs = len(seed_list)
-# with Pool(nprocs) as pool:
-#     for seed in seed_list:
-#         print("Running seed =", seed, "------------------------------------#######################################")
-#         pool.apply_async(run_sim, kwds={"seed": seed, "images_aligned": images_aligned,
-#                                         "poisson_noise": poisson_noise, "sky_noise": sky_noise,
-#                                         "static_source": static_source,
-#                                         "static_source_mag": static_source_mag, "transient_peak_mag":
-#                                          transient_peak_mag, "mjd": mjd,
-#                                         "psf_class": psf_class, "run_dir": run_dir, "output_path": output_path,
-#                                         "run_name_base": run_name_base})
-#     pool.close()
-#     pool.join()
 
 
 def run_sims_in_parallel(
@@ -294,17 +219,3 @@ def run_sims_in_parallel(
             r.get()
         pool.join()
 
-# kwds = {
-#     "seed": seed,
-#     "images_aligned": images_aligned,
-#     "poisson_noise": poisson_noise,
-#     "sky_noise": sky_noise,
-#     "static_source": static_source,
-#     "static_source_mag": static_source_mag,
-#     "transient_peak_mag": transient_peak_mag,
-#     "mjd": mjd,
-#     "psf_class": psf_class,
-#     "run_dir": run_dir,
-#     "output_path": output_path,
-#     "run_name_base": run_name_base,
-# }
