@@ -189,6 +189,9 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
 
     wgt_matrix = []
 
+    SNLogger.debug(f"Using an error floor of {error_floor} in get_weights to avoid excessively high weights from "
+    "very low error pixels.")
+
     for i, wcs in enumerate(wcs_list):
         if gaussian_var is not None:
             SNLogger.debug(f"Gaussian Variance in get_weights {gaussian_var} with cutoff {cutoff}")

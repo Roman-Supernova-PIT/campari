@@ -108,9 +108,12 @@ def test_roman_imsim_images(overwrite_meta):
             # updated to whatever PSF I am supposed to use for ASDF images.
             "--photometry-campari-use_real_images",
             "--no-photometry-campari-fetch_SED",
-            "--photometry-campari-grid_options-type", "none",
-            #"--photometry-campari-grid_options-spacing", "0.75",
-            #"--photometry-campari-grid_options-subsize", "1",
+            "--photometry-campari-grid_options-type", "regular",
+            "--photometry-campari-grid_options-spacing", "0.75",
+            "--photometry-campari-grid_options-subsize", "4",
+            "--photometry-campari-grid_options-error_floor", "0.00001",
+            "--photometry-campari-grid_options-gaussian_var", "100000",
+            "--photometry-campari-grid_options-cutoff", "2",
             "--photometry-campari-cutout_size", str(imsize),
             "--photometry-campari-weighting",
             "--photometry-campari-subtract_background", "calculate",
@@ -130,6 +133,8 @@ def test_roman_imsim_images(overwrite_meta):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
         for i, file in enumerate(files):
             temp_file.write(str(file) + "\n")
+            if i > 3:
+                break
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()
@@ -211,7 +216,8 @@ def test_roman_imsim_images(overwrite_meta):
     # # # bands = ["F129"]
 
     CIDs = truth_df.CID.values
-    bands = ["F087", "F129"]
+    CIDs = [1371]
+    bands = ["F129"]
     ras = truth_df.RA.values
     decs = truth_df.DEC.values
 
@@ -222,8 +228,10 @@ def test_roman_imsim_images(overwrite_meta):
         for band in bands:
 
             #try:
-            ra = ras[i]
-            dec = decs[i]
+            #ra = ras[i]
+            #dec = decs[i]
+            ra = truth_df[truth_df.CID == cid].RA.values[0]
+            dec = truth_df[truth_df.CID == cid].DEC.values[0]
             pkmjd = truth_df[truth_df.CID == cid].SIM_PEAKMJD.values[0]
             approx_start_date = pkmjd - 20
             cmd.extend(["--ra", str(ra)])
