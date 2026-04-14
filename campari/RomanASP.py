@@ -277,10 +277,6 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
-    # SNLogger.debug("Running campari with the following configuration:")
-    # for arg, value in vars(args).items():
-    #     SNLogger.debug("  %s: %s", arg, value)
-
     runner = campari_runner(**vars(args))
     runner()
 
