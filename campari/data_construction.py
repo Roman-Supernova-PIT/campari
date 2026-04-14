@@ -14,8 +14,8 @@ from snappl.imagecollection import ImageCollection
 from snappl.logger import SNLogger
 
 # Campari
-from campari.utils import calculate_background_level
-from campari.utils import print_memory_usage_summary
+from campari.utils import (calculate_background_level, print_memory_usage_summary,
+                           rescale_images_to_common_exposure_time)
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -116,6 +116,18 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             res = r
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
+
+    # mean_pixel_values = [np.nanmax(im.data) for im in cutout_image_list]
+    # SNLogger.debug(f"max pixel values of cutouts: {mean_pixel_values}")
+
+    # cutout_image_list, scale_factors = rescale_images_to_common_exposure_time(cutout_image_list)
+    # image_list, _ = rescale_images_to_common_exposure_time(image_list)
+    # bgflux = np.array(bgflux) * scale_factors
+
+    # mean_pixel_values = [np.nanmax(im.data) for im in cutout_image_list]
+    # SNLogger.debug(f"Updated max pixel values of cutouts: {mean_pixel_values}")
+
+    # import pdb; pdb.set_trace()
 
     return cutout_image_list, image_list, bgflux
 

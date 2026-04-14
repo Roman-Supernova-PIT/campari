@@ -375,6 +375,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         vmax = np.nanpercentile(data, 99)
 
         ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap = "viridis")
+        plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
 
         # Mark the SN location in cutout pixel coordinates
         try:
@@ -393,7 +394,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
             if mjd_start <= image.mjd <= mjd_end:
                 title_color = "red"
 
-        ax.set_title(f"MJD {image.mjd:.7f}", fontsize=8, color=title_color)
+        ax.set_title(f"MJD {image.mjd:.7f} Texp: {image.exptime:.1f}s", fontsize=8, color=title_color)
         ax.set_xticks([])
         ax.set_yticks([])
 

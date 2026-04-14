@@ -104,11 +104,10 @@ def test_roman_imsim_images(overwrite_meta):
     base_cmd = [
             "python", "../RomanASP.py",
             "--photometry-campari-psf-transient_class", "STPSF",
-            "--photometry-campari-psf-galaxy_class", "STPSF", # this can't stay, this needs to be
-            # updated to whatever PSF I am supposed to use for ASDF images.
+            "--photometry-campari-psf-galaxy_class", "STPSF",
             "--photometry-campari-use_real_images",
             "--no-photometry-campari-fetch_SED",
-            "--photometry-campari-grid_options-type", "regular",
+            "--photometry-campari-grid_options-type", "none",
             "--photometry-campari-grid_options-spacing", "0.75",
             "--photometry-campari-grid_options-subsize", "4",
             "--photometry-campari-grid_options-error_floor", "0.00001",
@@ -133,8 +132,6 @@ def test_roman_imsim_images(overwrite_meta):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
         for i, file in enumerate(files):
             temp_file.write(str(file) + "\n")
-            if i > 3:
-                break
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()
@@ -150,57 +147,57 @@ def test_roman_imsim_images(overwrite_meta):
 
     SNLogger.debug(f"Truth df {truth_df.head()}")
 
-    # bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
 
-    # stars = "/romanimsim_sims/2026-03-24_Nexus/GAIA.csv"
-    # #stars = f"{isim_path}/GAIA.csv"
-    # stars_df = pd.read_csv(stars, comment ="#", sep=",")
+    stars = "/romanimsim_sims/Nexus/GAIA.csv"
+    #stars = f"{isim_path}/GAIA.csv"
+    stars_df = pd.read_csv(stars, comment ="#", sep=",")
 
 
-    # import astropy.units as u
-    # from astropy.coordinates import SkyCoord
-    # from matplotlib import pyplot as plt
-    # rick_image_approx_center = SkyCoord(ra=9.42*u.degree, dec=-44*u.degree)
-    # star_skycoords = SkyCoord(ra=stars_df.ra.values*u.degree, dec=stars_df.dec.values*u.degree)
-    # separations = rick_image_approx_center.separation(star_skycoords)
-    # closest_stars = stars_df[separations < 0.075*u.degree]
-    # plt.scatter(closest_stars.ra, closest_stars.dec, s=1, color="blue", label="Simulated Stars")
-    # plt.xlabel("RA")
-    # plt.ylabel("DEC")
-    # plt.scatter(truth_df.RA, truth_df.DEC, s=1, color="red", label="Simulated Transients")
-    # plt.legend()
-    # plt.savefig("stars.png")
+    import astropy.units as u
+    from astropy.coordinates import SkyCoord
+    from matplotlib import pyplot as plt
+    rick_image_approx_center = SkyCoord(ra=9.42*u.degree, dec=-44*u.degree)
+    star_skycoords = SkyCoord(ra=stars_df.ra.values*u.degree, dec=stars_df.dec.values*u.degree)
+    separations = rick_image_approx_center.separation(star_skycoords)
+    closest_stars = stars_df[separations < 0.075*u.degree]
+    plt.scatter(closest_stars.ra, closest_stars.dec, s=1, color="blue", label="Simulated Stars")
+    plt.xlabel("RA")
+    plt.ylabel("DEC")
+    plt.scatter(truth_df.RA, truth_df.DEC, s=1, color="red", label="Simulated Transients")
+    plt.legend()
+    plt.savefig("stars.png")
 
-    # SNLogger.debug(f"closest stars {closest_stars.head()}")
+    SNLogger.debug(f"closest stars {closest_stars.head()}")
 
-    # successful = 0
-    # for i in range(len(closest_stars)):
-    #     for band in bands:
-    #         cid = "teststar" + str(i)
-    #         ra = closest_stars.ra.values[i]
-    #         dec = closest_stars.dec.values[i]
-    #         cmd.extend(["--ra", str(ra)])
-    #         cmd.extend(["--dec", str(dec)])
-    #         cmd.extend(["--transient_start", f"{0}"])
-    #         cmd.extend(["-f", band])
-    #         cmd.extend(["--diaobject-name", f"{cid}"])
-    #         SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}.")
+    successful = 0
+    for i in range(len(closest_stars)):
+        for band in bands:
+            cid = "teststar" + str(i)
+            ra = closest_stars.ra.values[i]
+            dec = closest_stars.dec.values[i]
+            cmd.extend(["--ra", str(ra)])
+            cmd.extend(["--dec", str(dec)])
+            cmd.extend(["--transient_start", f"{0}"])
+            cmd.extend(["-f", band])
+            cmd.extend(["--diaobject-name", f"{cid}"])
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}.")
 
-    #         result = subprocess.run(cmd, capture_output=False, text=True)
+            result = subprocess.run(cmd, capture_output=False, text=True)
 
-    #         try:
-    #             if result.returncode != 0:
-    #                 raise RuntimeError(
-    #                     f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    #                 )
-    #         except RuntimeError as e:
-    #             SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
-    #             continue
+            try:
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    )
+            except RuntimeError as e:
+                SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
+                continue
 
-    #         # successful += 1
-    #         # if successful >= 3:
-    #         #     SNLogger.debug("Successfully processed 3 CIDs, stopping test.")
-    #         #     raise ValueError("Successfully processed 3 CIDs, stopping test.")
+            # successful += 1
+            # if successful >= 3:
+            #     SNLogger.debug("Successfully processed 3 CIDs, stopping test.")
+            #     raise ValueError("Successfully processed 3 CIDs, stopping test.")
 
     # # #CIDs = [20005, 20193, 20206, 20226, 20252] # Only these CIDs have truth information.
 
@@ -216,11 +213,10 @@ def test_roman_imsim_images(overwrite_meta):
     # # # bands = ["F129"]
 
     CIDs = truth_df.CID.values
-    CIDs = [1371]
+    CIDs = [1018]
     bands = ["F129"]
     ras = truth_df.RA.values
     decs = truth_df.DEC.values
-
 
     failed_cids = []
 
@@ -240,7 +236,6 @@ def test_roman_imsim_images(overwrite_meta):
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
             SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
-
 
             result = subprocess.run(cmd, capture_output=False, text=True)
 
