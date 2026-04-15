@@ -388,25 +388,21 @@ class campari_runner:
         else:
             identifier = str(diaobj.name)
 
-        # Only save a lightcurve if there were detection images with measured fluxes:
-        if lc_model.flux is not None:
-            lc = build_lightcurve(diaobj, lc_model, cam_prov=self.cam_prov)
-            if self.add_truth_to_lc:
-                lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
+
+        lc = build_lightcurve(diaobj, lc_model, cam_prov=self.cam_prov)
+        if self.add_truth_to_lc:
+            lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
         SNLogger.debug("Save to db is set to " + str(self.save_to_db))
 
-        if lc_model.flux is not None:
-            if self.save_to_db:
-                output_dir = None
-            else:
-                output_dir = pathlib.Path(self.cfg.value("photometry.campari_io.output_dir"))
-            testrun = getattr(self, "testrun", None)
-            save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
-                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
-                            testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
+        if self.save_to_db:
+            output_dir = None
         else:
-            SNLogger.warning("No flux measurements were made for this object, so no lightcurve will be saved.")
+            output_dir = pathlib.Path(self.cfg.value("photometry.campari_io.output_dir"))
+        testrun = getattr(self, "testrun", None)
+        save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
+                        save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
+                        testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
 
         # Now, save the images
 

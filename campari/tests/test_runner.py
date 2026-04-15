@@ -344,6 +344,104 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         test_build_and_save_lc(cfg, overwrite_meta=False)
 
 
+def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
+    """ We also want to save a blank lightcurve file (i.e., has metadata, but no flux entries)
+    if there is no flux to save.
+    """
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "manual"
+    test_args.diaobject_name = 20172782
+
+    runner = campari_runner(**vars(test_args))
+    runner.save_debug = False
+
+    flux = None
+    sigma_flux = None
+    images = None
+    model_images = None
+    exposures = pd.DataFrame(data={"date": None, "filter": None,
+                                   "detected": None,
+                                   "observation_id": None, "sca": None, "x": None, "y": None,
+                                   "x_cutout": None, "y_cutout": None}, index=[0])
+
+    # Getting a WCS to use
+    observation_id = "5934"
+    sca = 3
+    band = "Y106"
+    img_collection = ImageCollection()
+    img_collection = img_collection.get_collection("ou2024")
+    snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
+
+    wcs = snappl_image.get_wcs()
+
+    image_list = []
+    cutout_image_list = []
+
+    # for i in range(len(exposures["date"])):
+    #     img = FITSImageStdHeaders(
+    #         header=None,
+    #         path="/dev/null",
+    #         data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+    #         noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+    #         flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+    #     )
+    #     img.mjd = exposures["date"][i]
+    #     img.band = exposures["filter"][i]
+    #     img.observation_id = exposures["observation_id"][i]
+    #     img.sca = exposures["sca"][i]
+    #     img._wcs = wcs
+    #     image_list.append(img)
+    #     cutout_image_list.append(img)
+
+    image_list = []
+    cutout_image_list = []
+
+    ra_grid = np.array([1, 2, 3])
+    dec_grid = np.array([1, 2, 3])
+    wgt_matrix = None
+    LSB = 19.0
+    best_fit_model_values = np.array([0] * 16, dtype=float)
+    sim_lc = None
+    ra = 7.731890048839705
+    dec = -44.4589649005717
+
+    lc_model = campari_lightcurve_model(flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
+                                        image_list=image_list, cutout_image_list=cutout_image_list, ra_grid=ra_grid,
+                                        dec_grid=dec_grid,
+                                        wgt_matrix=wgt_matrix, LSB=LSB, sky_background=None,
+                                        best_fit_model_values=best_fit_model_values,
+                                        sim_lc=sim_lc)
+
+    diaobj = DiaObject.find_objects(name=test_args.diaobject_name, ra=ra, dec=dec, collection="manual")[0]
+    diaobj.mjd_start = -np.inf
+    diaobj.mjd_end = np.inf
+
+    upstreams = []
+    runner.cam_prov = Provenance(
+        process="campari",
+        major=0,
+        minor=42,
+        params=cfg,
+        keepkeys=["photometry.campari"],
+        omitkeys=None,
+        upstreams=upstreams,
+    )
+
+    runner.build_and_save_lightcurve(diaobj, lc_model)
+
+    output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
+    filename = "20172782_Y106_romanpsf_lc_noflux.ecsv"
+    filepath = output_dir / filename
+
+    assert filepath.exists(), f"Lightcurve file {filename} was not created."
+
+    compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
+                        overwrite_meta=overwrite_meta)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
+        test_build_and_save_lc(cfg, overwrite_meta=False)
+
+
 # sim param grid broken for now
 # def test_sim_param_grid(cfg):
 #     test_args = create_default_test_args(cfg)
