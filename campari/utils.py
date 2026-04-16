@@ -390,9 +390,9 @@ def print_memory_usage_summary(flag):
     else:
         pass
 
+
 def rescale_images_to_common_exposure_time(cutout_image_list):
-    """
-    Rescale the images as though they all had the same exposure time. 
+    """Rescale the images as though they all had the same exposure time. 
     Eventually, this could be expanded to handle all differences in zeropoint, if there are any others.
     Parameters
     ----------

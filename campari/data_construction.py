@@ -5,7 +5,7 @@ import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import multiprocessing
-#from multiprocessing import Pool
+# from multiprocessing import Pool
 import numpy as np
 
 
@@ -14,8 +14,7 @@ from snappl.imagecollection import ImageCollection
 from snappl.logger import SNLogger
 
 # Campari
-from campari.utils import (calculate_background_level, print_memory_usage_summary,
-                           rescale_images_to_common_exposure_time)
+from campari.utils import (calculate_background_level, print_memory_usage_summary)
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -29,6 +28,7 @@ huge_value = 1e32
 
 _construct_images_shared_list = None
 
+
 #### Temporary AI code #####
 def _construct_one_image_worker(indx, ra, dec, size, truth, subtract_background_method):
     """Wrapper that pulls the image from a module-level global to avoid pickling it."""
@@ -38,6 +38,7 @@ def _construct_one_image_worker(indx, ra, dec, size, truth, subtract_background_
         truth=truth, subtract_background_method=subtract_background_method,
     )
 #############################
+
 
 def construct_images(image_list, diaobj, size, subtract_background_method=True, nprocs=1):
     """Constructs the array of Roman images in the format required for the
@@ -108,7 +109,7 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             results.append(construct_one_image(indx=indx, image=image,
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background_method=subtract_background_method))
-    SNLogger.debug(f"Here somehow.")
+    SNLogger.debug("Here somehow.")
     for r in results:
         if nprocs > 1:
             res = r.get()

@@ -365,8 +365,13 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
     axes = np.atleast_1d(axes).flatten()
 
     for i, image in enumerate(cutout_image_list):
+
+        plot_noise = False
         ax = axes[i]
-        data = image.data
+        if plot_noise:
+            data = image.noise
+        else:
+            data = image.data
         imsize = data.shape[0]
 
         # Robust color scale: use 10/99th percentile to avoid hot pixels
@@ -376,6 +381,14 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
 
         ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap = "viridis")
         plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
+
+        error = image.noise
+        snr = np.abs(data / error)
+        peak_snr = np.nanmax(snr)
+        # Mark the location of the peak SNR pixel with a blue circle
+        peak_y, peak_x = np.unravel_index(np.nanargmax(snr), data.shape)
+        if not plot_noise:
+            ax.scatter(peak_x, peak_y, marker="o", color="blue", s=100, linewidths=.5, label="Peak SNR" if i == 0 else None)
 
         # Mark the SN location in cutout pixel coordinates
         try:
@@ -394,7 +407,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
             if mjd_start <= image.mjd <= mjd_end:
                 title_color = "red"
 
-        ax.set_title(f"MJD {image.mjd:.7f} Texp: {image.exptime:.1f}s", fontsize=8, color=title_color)
+        ax.set_title(f"MJD {image.mjd:.7f} Texp: {image.exptime:.1f}s PkSNR: {peak_snr:.1f}", fontsize=8, color=title_color)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -416,6 +429,9 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         from matplotlib.patches import Patch
         legend_elements.append(Patch(edgecolor="red",  facecolor="none", label="Detection image"))
         legend_elements.append(Patch(edgecolor="black", facecolor="none", label="Non-detection image"))
+    if not plot_noise:
+        legend_elements.append(plt.Line2D([0], [0], marker="o", color="blue", linestyle="None",
+                   markersize=10, label="Peak SNR pixel"))
     fig.legend(handles=legend_elements, loc="lower center", ncol=len(legend_elements),
                bbox_to_anchor=(0.5, 0.0), fontsize=9, frameon=True)
 

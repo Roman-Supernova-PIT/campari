@@ -60,9 +60,11 @@ Adapted from code by Pedro Bernardinelli
 
 """
 
+
 def _build_model_for_one_image_worker(index, kwarg_dict):
     image = _shared_image_list[index]
     return build_model_for_one_image(image=image, image_index=index, **kwarg_dict)
+
 
 # Global variables
 huge_value = 1e32
@@ -141,7 +143,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         plot_cutouts(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
                      output_path=pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) /
                      f"cutouts_{diaobj.name}.png")
-    import pdb; pdb.set_trace()
 
     sim_galra = None
     sim_galdec = None

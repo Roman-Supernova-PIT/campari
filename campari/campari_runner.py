@@ -486,15 +486,16 @@ class campari_runner:
             for line in img_list_lines:
                 potential_image = my_image_collection.get_image(path=line)
                 if potential_image.band == self.band:
+
                     images.append(potential_image)
                 else:
+                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd}")
                     rejected_images += 1
             SNLogger.debug(f"Rejected {rejected_images} images from the provided image list because they were not in"
                             f" the correct band {self.band}.")
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of observation_id sca band, or lines of"
                              " observation_id and sca.")
-
         return images
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
