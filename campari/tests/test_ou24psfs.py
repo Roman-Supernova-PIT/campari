@@ -35,6 +35,9 @@ from campari.tests.test_gausspsfs import (
 # the data, not in algorithmic changes to campari. Campari treats all of these images as though
 # they were real data.
 
+num_list = [56]
+overwrite_sims = False
+generate_simulations = True
 
 imsize = 19
 
@@ -399,9 +402,8 @@ def test_both_shifted_21mag_host_ou2024_more():
 # Note: these simulation_numbers in num_list correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
 
-generate_simulations = False
 
-num_list = list(range(45, 61))
+#num_list = list(range(45, 61))
 
 
 @pytest.mark.slow()
@@ -494,8 +496,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
-num_list = [45]
-generate_simulations = False
+#num_list = [45]
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()
@@ -570,9 +571,7 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops_Y106(simula
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
-num_list = [52]
-overwrite_sims = True
-generate_simulations = True
+
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()
@@ -590,13 +589,14 @@ def test_allnoise_shifted_22maghost_ou24PSF_slow_photops_Y106(simulation_number)
 
             SNLogger.debug(f"Generating new simulations for {func_name}. This may take a while.")
             # The image data does not currently exist, so we will create it.
+            import pdb; pdb.set_trace()
             run_sim(
                 seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
                 images_aligned=False,
                 poisson_noise=True,
                 sky_noise=True,
                 static_source="galaxy",
-                static_source_mag=22,
+                static_source_mag=40,
                 transient_peak_mag=24,
                 mjd=np.arange(60000, 60075, 0.5),
                 psf_class="ou24PSF_slow_photonshoot",
@@ -624,20 +624,17 @@ def test_allnoise_shifted_22maghost_ou24PSF_slow_photops_Y106(simulation_number)
         # "save_model": True,
         "photometry_campari_psf_transient_class": "ou24PSF_slow_photonshoot",
         "photometry_campari_psf_galaxy_class": "ou24PSF",
-        "photometry_campari_grid_options_spacing": 0.5, # temp
+        "photometry_campari_grid_options_spacing": 0.75, # temp
         #### temp! ######
-        "photometry_campari_cutout_size": 9,
+        "photometry_campari_cutout_size": 19,
         "photometry_campari_grid_options_subsize": 10,
         #### temp ! ####
         # "prebuilt_static_model": f"{debug_dir}/psf_matrix_ou24PSF_158efb98-e05e-4114-bb08-8aa4c581c96c_150_images204_points.npy",
     }
 
-    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, imsize=9)
+    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, imsize=19)
 
 
-num_list = [53]
-overwrite_sims = True
-generate_simulations = True
 
 
 @pytest.mark.slow()
@@ -691,10 +688,6 @@ def test_allnoise_shifted_nohost_ou24PSF_slow_photops_Y106(simulation_number):
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
-
-num_list = [54]
-overwrite_sims = False
-generate_simulations = True
 
 
 @pytest.mark.slow()
