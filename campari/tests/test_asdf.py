@@ -125,18 +125,20 @@ def test_roman_imsim_images(overwrite_meta):
 
         ]
     # Get all of the roman imsim images and put them in a list file
-    isim_path = "/romanimsim_sims/Nexus"
-    truth_file = f"{isim_path}/TRUTH_HLTDS_CORE_SCA1.SNANA.TEXT"
+    #isim_path = "/romanimsim_sims/2026-04-17_Nexus"
+    isim_path = "/romanimsim_sims/2026-04-17_Nexus"
+    truth_file = f"{isim_path}/TRUTH_HLTDS_CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
 
     bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
 
     CIDs = truth_df.CID.values
+    CIDs = CIDs[3:]
 
     #CIDs = [1018]
     #CIDs = [710]
     #CIDs = [1551]
-    CIDs = [4047]
+    #CIDs = [4047]
     bands = ["F129"]
 
     truth_df = truth_df[truth_df.CID.isin(CIDs)]
@@ -144,6 +146,12 @@ def test_roman_imsim_images(overwrite_meta):
     SNLogger.debug(f"truth field {truth_df.FIELD}")
 
     import asdf
+
+    import datetime
+    def get_file_time_and_print(file):
+        created_timestamp = os.path.getctime(file)
+        created_date = datetime.datetime.fromtimestamp(created_timestamp)
+        SNLogger.debug(f"File {file} was created on: {created_date}")
 
 
     files = sorted(pathlib.Path(isim_path).glob("*.asdf"))
@@ -155,13 +163,15 @@ def test_roman_imsim_images(overwrite_meta):
                 exposure_time = af["roman"]["meta"]["exposure"]["exposure_time"]
                 if truth_df.FIELD.values[0] == "WIDE" and exposure_time < 200:
                     SNLogger.debug(f"Field is WIDE and exposure time {exposure_time} is less than 200, adding {file}.")
+                    get_file_time_and_print(file)
                     temp_file.write(str(file) + "\n")
+
                 elif truth_df.FIELD.values[0] == "DEEP" and exposure_time >= 200:
                     SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200, adding {file}.")
+                    get_file_time_and_print(file)
                     temp_file.write(str(file) + "\n")
                 else:
                     SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} for field {truth_df.FIELD.values[0]}.")
-
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()

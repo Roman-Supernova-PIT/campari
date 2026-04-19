@@ -364,6 +364,13 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
     # Flatten so we can iterate even if nrows==1
     axes = np.atleast_1d(axes).flatten()
 
+    # Robust color scale: use 10/99th percentile to avoid hot pixels
+    # dominating the colormap
+    concat_data = [im.data.flatten() for im in cutout_image_list]
+    concat_data = np.concatenate(concat_data)
+    vmin = np.nanpercentile(concat_data, 10)
+    vmax = np.nanpercentile(concat_data, 99)
+
     for i, image in enumerate(cutout_image_list):
 
         plot_noise = False
@@ -374,10 +381,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
             data = image.data
         imsize = data.shape[0]
 
-        # Robust color scale: use 10/99th percentile to avoid hot pixels
-        # dominating the colormap
-        vmin = np.nanpercentile(data, 10)
-        vmax = np.nanpercentile(data, 99)
+
 
         ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap = "viridis")
         plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
@@ -435,7 +439,8 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
     fig.legend(handles=legend_elements, loc="lower center", ncol=len(legend_elements),
                bbox_to_anchor=(0.5, 0.0), fontsize=9, frameon=True)
 
-    plt.suptitle(f"Cutouts  (RA={ra:.5f}, Dec={dec:.5f})", fontsize=11, y=1.01)
+    name = diaobj.name if diaobj is not None else "(no name)"
+    plt.suptitle(f"Cutouts  for {diaobj.name} (RA={ra:.5f}, Dec={dec:.5f})", fontsize=11, y=1.01)
     plt.tight_layout()
 
     if output_path is not None:
@@ -444,3 +449,5 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         plt.close()
     else:
         plt.show()
+
+    import pdb; pdb.set_trace()
