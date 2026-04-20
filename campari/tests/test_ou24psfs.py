@@ -389,10 +389,10 @@ def test_both_shifted_21mag_host_ou2024_more():
 # Note: these simulation_numbers in num_list correspond to the seed used to generate the simulation,
 #  so I can go back and check the simulations if I want.
 
-generate_simulations = True
+generate_simulations = False
 
-#num_list = list(range(45, 61))
-num_list = [45]
+num_list = list(range(45, 61))
+
 
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
@@ -434,18 +434,6 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
         "_22magrealisticgalaxy_ou24PSF_slow_photopsseed45/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow"
         "_photopsseed45_60000.0_image.fits"
     )[0].data
-
-    # Print when the new_image was created
-    import os
-    from datetime import datetime
-    new_image_path = f"{test_data_path}/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/test_bothnoise_shifted" \
-        "_22magrealisticgalaxy_ou24PSF_slow_photopsseed45/test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photopsseed45_60000.0_image.fits"
-    if os.path.exists(new_image_path):
-        creation_time = os.path.getctime(new_image_path)
-        creation_time = datetime.fromtimestamp(creation_time)
-        SNLogger.debug(f"New image was created on {creation_time}.")
-    else:
-        SNLogger.warning(f"New image at {new_image_path} does not exist.")
 
     # The photon shooting is stochastic, so the images will not be identical. However, they should be statistically
     # consistent with each other. We can check this by computing the chi-squared statistic between the two images.

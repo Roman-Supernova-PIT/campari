@@ -60,7 +60,7 @@ from snappl.provenance import Provenance
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-#SNLogger.set_level("DEBUG")
+# SNLogger.set_level("DEBUG")
 
 cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
@@ -964,7 +964,7 @@ def test_image_simulator_script():
     regression_path = test_data_path / "image_simulator_script_regression/image_simulator_script_testseed0/"
     regression_images = sorted(regression_path.glob("*image.fits"))
 
-    #Open the imagelist file and get the list of generated images
+    # Open the imagelist file and get the list of generated images
     with open(imagelist_filename, "r") as f:
         generated_image_paths = [line.strip() for line in f.readlines()]
     generated_images = sorted([p for p in generated_image_paths if p.endswith("image.fits")])
@@ -973,6 +973,8 @@ def test_image_simulator_script():
         with fits.open(reg_img) as reg_hdul, fits.open(gen_img) as gen_hdul:
             reg_data = reg_hdul[0].data
             gen_data = gen_hdul[0].data
-            assert gen_img != reg_img, "Regression image and generated image paths should not be the same, check the test setup."
-            np.testing.assert_allclose(reg_data, gen_data, atol=1e-7), f"Image at {gen_img} does not match regression data at {reg_img}"
+            assert gen_img != reg_img, "Regression image and generated image paths should not be "
+            "the same, check the test setup."
+            np.testing.assert_allclose(reg_data, gen_data, atol=1e-7), f"Image at {gen_img} does "
+            "not match regression data at {reg_img}"
             SNLogger.debug(f"Image {gen_img} matches regression data.")

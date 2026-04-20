@@ -150,6 +150,7 @@ def run_sim(
 
     write_image_list(output_path, run_dir, run_name, test_data_path)
 
+
 def run_sims_in_parallel(
     seed_list=None,
     images_aligned=None,
