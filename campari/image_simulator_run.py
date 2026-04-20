@@ -402,7 +402,6 @@ def run_sim(
 
     write_image_list(output_path, run_dir, run_name, test_data_path)
 
-<<<<<<< HEAD
 #################################################################
 
 # def run_sim(
@@ -530,8 +529,6 @@ def run_sim(
 #     SNLogger.debug(kwargs)
 #     sim = ImageSimulator(**kwargs)
 #     sim()
-=======
->>>>>>> imsim_test
 
 def run_sims_in_parallel(
     seed_list=None,
