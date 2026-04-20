@@ -985,10 +985,35 @@ def test_image_simulator_script():
 
     for reg_img, gen_img in zip(regression_images, generated_images):
         with fits.open(reg_img) as reg_hdul, fits.open(gen_img) as gen_hdul:
-            reg_data = reg_hdul[0].data
-            gen_data = gen_hdul[0].data
-            assert gen_img != reg_img, ("Regression image and generated image paths should not be "
-                                        "the same, check the test setup.")
-            np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does "
-                                                                              f"not match regression data at {reg_img}")
-            SNLogger.debug(f"Image {gen_img} matches regression data.")
+            try:
+                reg_data = reg_hdul[0].data
+                gen_data = gen_hdul[0].data
+                assert gen_img != reg_img, ("Regression image and generated image paths should not be "
+                                            "the same, check the test setup.")
+                np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does "
+                                                                                f"not match regression data at {reg_img}")
+                SNLogger.debug(f"Image {gen_img} matches regression data.")
+            except AssertionError as e:
+                # Plot the images for debugging
+                matplotlib.use("pdf")
+                plt.figure(figsize=(10, 5))
+                plt.subplot(1, 3, 1)
+                plt.title("Generated Image")
+                plt.imshow(gen_data, origin="lower")
+                plt.colorbar()
+                plt.subplot(1, 3, 2)
+                plt.title("Regression Image")
+                plt.imshow(reg_data, origin="lower")
+                plt.colorbar()
+                plt.subplot(1, 3, 3)
+                plt.title("Difference (log scale)")
+                plt.imshow(np.log10(np.abs(gen_data - reg_data)), origin="lower")
+                plt.colorbar(label="log10( |generated - regression| )")
+                debug_image_path = test_data_path / f"debug_{gen_img.stem}.pdf"
+                SNLogger.debug(f"Saving debug image to {debug_image_path}")
+                plt.savefig(debug_image_path)
+                raise AssertionError(e)
+
+    # To update regression, do:
+    # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test
+    #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
