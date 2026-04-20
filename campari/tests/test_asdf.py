@@ -126,8 +126,8 @@ def test_roman_imsim_images(overwrite_meta):
         ]
     # Get all of the roman imsim images and put them in a list file
     #isim_path = "/romanimsim_sims/2026-04-17_Nexus"
-    isim_path = "/romanimsim_sims/2026-04-17_Nexus"
-    truth_file = f"{isim_path}/TRUTH_HLTDS_CORE_DEEP_SCA1.SNANA.TEXT"
+    isim_path = "/romanimsim_sims/Nexus"
+    truth_file = f"{isim_path}/TRUTH_HLTDS_PILOT+CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
 
     bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
