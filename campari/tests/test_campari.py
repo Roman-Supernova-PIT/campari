@@ -990,8 +990,8 @@ def test_image_simulator_script():
                 gen_data = gen_hdul[0].data
                 assert gen_img != reg_img, ("Regression image and generated image paths should not be "
                                             "the same, check the test setup.")
-                np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does "
-                                                                                f"not match regression data at {reg_img}")
+                np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does not match "
+                                                                                  f" regression data at {reg_img}")
                 SNLogger.debug(f"Image {gen_img} matches regression data.")
             except AssertionError as e:
                 # Plot the images for debugging
