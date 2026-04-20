@@ -22,6 +22,7 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
                 newpath = whole_path.split("_noise.fits")[0]
                 SNLogger.debug(f"Writing {newpath} to image list")
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
+    SNLogger.debug(f"Finished writing image list to {filename}")
 
 # # ############ Old way ###################
 # def run_sim_old(
@@ -401,6 +402,7 @@ def run_sim(
 
     write_image_list(output_path, run_dir, run_name, test_data_path)
 
+<<<<<<< HEAD
 #################################################################
 
 # def run_sim(
@@ -528,6 +530,8 @@ def run_sim(
 #     SNLogger.debug(kwargs)
 #     sim = ImageSimulator(**kwargs)
 #     sim()
+=======
+>>>>>>> imsim_test
 
 def run_sims_in_parallel(
     seed_list=None,

@@ -153,6 +153,7 @@ generate_simulations = False
 
 
 @pytest.mark.self_generating()
+@pytest.mark.slow()
 def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     func_name = inspect.currentframe().f_code.co_name
     test_data_path = pathlib.Path(__file__).parent / "testdata"
