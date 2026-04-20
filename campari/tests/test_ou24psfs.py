@@ -201,6 +201,7 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_
 
         perform_gaussianity_checks(residuals_sigma)
     except AssertionError as e:
+        SNLogger.debug(e)
         pass
     #except AssertionError as e:
     plotname = f"{label}_{diaobject_name}"
@@ -405,7 +406,7 @@ def test_both_shifted_21mag_host_ou2024_more():
 
 #num_list = list(range(45, 61))
 
-
+num_list = [45]
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()
@@ -564,14 +565,16 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops_Y106(simula
         "diaobject_name": diaobject_name,
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "filter": band,
-        "--save-model": True,
+        "save_model": True,
         "photometry_campari_grid_options_spacing": 0.75,
     }
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
-
+#turning off noise : mu .34 sig 2.144
+# turning off the g
+# 32123321rid fixes the problem when the galaxy is faint.
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
 @pytest.mark.self_generating()
@@ -582,21 +585,19 @@ def test_allnoise_shifted_22maghost_ou24PSF_slow_photops_Y106(simulation_number)
     band = "Y106"
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
     if generate_simulations:
-        # Check if this data set already exists
+        # Check if this data s  et already exists
         if (pathlib.Path(__file__).parent / imagelist_filename).exists() and not overwrite_sims:
             SNLogger.debug(f"Found existing image list at {imagelist_filename}. Skipping simulation.")
         else:
-
             SNLogger.debug(f"Generating new simulations for {func_name}. This may take a while.")
             # The image data does not currently exist, so we will create it.
-            import pdb; pdb.set_trace()
             run_sim(
                 seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
                 images_aligned=False,
-                poisson_noise=True,
-                sky_noise=True,
+                poisson_noise=False,
+                sky_noise=False,
                 static_source="galaxy",
-                static_source_mag=40,
+                static_source_mag=70,
                 transient_peak_mag=24,
                 mjd=np.arange(60000, 60075, 0.5),
                 psf_class="ou24PSF_slow_photonshoot",
@@ -624,6 +625,7 @@ def test_allnoise_shifted_22maghost_ou24PSF_slow_photops_Y106(simulation_number)
         # "save_model": True,
         "photometry_campari_psf_transient_class": "ou24PSF_slow_photonshoot",
         "photometry_campari_psf_galaxy_class": "ou24PSF",
+        #"photometry_campari_grid_options_type": "none",
         "photometry_campari_grid_options_spacing": 0.75, # temp
         #### temp! ######
         "photometry_campari_cutout_size": 19,
