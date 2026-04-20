@@ -22,6 +22,7 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
                 newpath = whole_path.split("_noise.fits")[0]
                 SNLogger.debug(f"Writing {newpath} to image list")
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
+    SNLogger.debug(f"Finished writing image list to {filename}")
 
 
 def run_sim(

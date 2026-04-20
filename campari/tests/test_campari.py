@@ -971,14 +971,24 @@ def test_image_simulator_script():
     # Open the imagelist file and get the list of generated images
     with open(imagelist_filename, "r") as f:
         generated_image_paths = [line.strip() for line in f.readlines()]
-    generated_images = sorted([p for p in generated_image_paths if p.endswith("image.fits")])
+    generated_images = sorted([pathlib.Path(p + "_image.fits") for p in generated_image_paths])
+
+    # Zip will stop as soon as the shorter of the two lists runs out,
+    # so we check that they are the same length first to avoid missing any mismatches.
+    assert len(regression_images) == len(generated_images), (
+        f"Expected {len(regression_images)} generated images to match regression data, "
+        f"but found {len(generated_images)}."
+    )
+    assert [p.name for p in regression_images] == [p.name for p in generated_images], (
+        "Generated image filenames do not match regression image filenames."
+    )
 
     for reg_img, gen_img in zip(regression_images, generated_images):
         with fits.open(reg_img) as reg_hdul, fits.open(gen_img) as gen_hdul:
             reg_data = reg_hdul[0].data
             gen_data = gen_hdul[0].data
-            assert gen_img != reg_img, "Regression image and generated image paths should not be "
-            "the same, check the test setup."
-            np.testing.assert_allclose(reg_data, gen_data, atol=1e-7), f"Image at {gen_img} does "
-            f"not match regression data at {reg_img}"
+            assert gen_img != reg_img, ("Regression image and generated image paths should not be "
+                                        "the same, check the test setup.")
+            np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does "
+                                                                              f"not match regression data at {reg_img}")
             SNLogger.debug(f"Image {gen_img} matches regression data.")
