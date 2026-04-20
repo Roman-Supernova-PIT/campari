@@ -774,6 +774,10 @@ def test_handle_partial_overlap():
     #  we know we're really running this test!
     assert not curfile.exists()
 
+    # make a textfile
+    with open(pathlib.Path(__file__).parent / "testdata/partial_overlap.txt", "w") as f:
+        f.write("5934, 3")
+
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
@@ -976,5 +980,5 @@ def test_image_simulator_script():
             assert gen_img != reg_img, "Regression image and generated image paths should not be "
             "the same, check the test setup."
             np.testing.assert_allclose(reg_data, gen_data, atol=1e-7), f"Image at {gen_img} does "
-            "not match regression data at {reg_img}"
+            f"not match regression data at {reg_img}"
             SNLogger.debug(f"Image {gen_img} matches regression data.")

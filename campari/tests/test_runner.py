@@ -185,7 +185,7 @@ def test_get_exposures(cfg):
 
     test_args.object_collection = "ou24"
     test_args.SNID = 20172782
-    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
+    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
 
     diaobj = DiaObject.find_objects(name=20172782, ra=1, dec=2, collection="manual")[0]
