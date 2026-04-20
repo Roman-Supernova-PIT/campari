@@ -148,6 +148,7 @@ def run_sim(
         print(f"Moving {item} to {output_path}/{run_dir}/{run_name}")
         os.system(f"mv {item} {output_path}/{run_dir}/{run_name}")
 
+    write_image_list(output_path, run_dir, run_name, test_data_path)
 
 def run_sims_in_parallel(
     seed_list=None,
