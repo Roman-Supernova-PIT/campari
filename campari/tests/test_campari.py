@@ -963,6 +963,8 @@ def test_image_simulator_script():
         disk_R=4,
         disk_n=1,  # Simulated Galaxy Params
         test_data_path=test_data_path,
+        observation_id="1000",
+        band = "H158",
     )
 
     regression_path = test_data_path / "image_simulator_script_regression/image_simulator_script_testseed0/"
