@@ -1,0 +1,41 @@
+name: Run Campari Tests
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+jobs:
+  tests:
+    name: run campari tests in docker container
+    runs-on: ubuntu-latest
+    steps:
+      - name: Dump docker logs on failure
+        if: failure()
+        uses: jwalton/gh-docker-logs@v2
+      - name: checkout code
+        uses: actions/checkout@v4
+      - name: run ruff
+        uses: astral-sh/ruff-action@v3
+      - name: log into github container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: pull environment archive
+        run: |
+          cd ..
+          git clone https://github.com/Roman-Supernova-PIT/environment.git
+      - name: pull docker images
+        run: |
+          cd ../environment/test-docker-environment
+          docker compose pull shell
+      - name: run test
+        run: |
+          cd ../environment/test-docker-environment
+          docker compose up -d shell
+          docker compose cp ../../campari shell:/home/campari
+          docker compose exec shell bash -c 'cd /home/campari && pip install -e .'
+          docker compose exec shell bash -c 'cd /home/campari && pytest -v'
+          docker compose down -v
