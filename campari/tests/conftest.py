@@ -11,6 +11,11 @@ from snappl.config import Config
 def cfg():
     return Config.get()
 
+
+@pytest.fixture(scope="session", autouse=True)
+def init_config():
+    Config.init("/home/campari/examples/perlmutter/campari_test_config.yaml", setdefault=True)
+
 # Source - https://stackoverflow.com/a
 # Posted by clay, modified by community. See post 'Timeline' for change history
 # Retrieved 2025-11-06, License - CC BY-SA 4.0
