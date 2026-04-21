@@ -37,5 +37,6 @@ jobs:
           docker compose up -d shell
           docker compose cp ../../campari shell:/home/campari
           docker compose exec shell bash -c 'cd /home/campari && pip install -e .'
+          docker compose exec shell bash -c 'cd /home/campari && SNPIT_CONFIG=examples/perlmutter/campari_config_test.yaml'
           docker compose exec shell bash -c 'cd /home/campari && pytest -v'
           docker compose down -v
