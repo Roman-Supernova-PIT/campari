@@ -403,7 +403,8 @@ def test_both_shifted_21mag_host_ou2024_more():
 
 #num_list = list(range(45, 61))
 
-num_list = [45, 46]
+#num_list = [45, 46]
+num_list = [45, 46, 47, 48, 49]
 generate_simulations = True
 @pytest.mark.slow()
 @pytest.mark.parametrize("simulation_number", num_list)
@@ -490,6 +491,13 @@ def test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops(simulation_
             imagelist_filename = old_image_list_filename
     else:
         SNLogger.debug(f"Successfully found image list at {imagelist_filename}.")
+
+    # Print when the filelist was made
+    filelist_mtime = pathlib.Path(imagelist_filename).stat().st_mtime
+    import datetime
+    filelist_mtime = datetime.datetime.fromtimestamp(filelist_mtime)
+    SNLogger.debug(f"Image list at {imagelist_filename} was made at {filelist_mtime}.")
+
     diaobject_name = "333" + str(simulation_number)
 
     args = {
