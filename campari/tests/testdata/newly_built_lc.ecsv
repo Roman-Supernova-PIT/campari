@@ -1,0 +1,57 @@
+# %ECSV 1.0
+# ---
+# datatype:
+# - {name: mjd, unit: d, datatype: float64}
+# - {name: flux, unit: ct / s, datatype: float64}
+# - {name: flux_err, unit: ct / s, datatype: float64}
+# - {name: zpt, unit: mag, datatype: float64}
+# - {name: NEA, unit: pix2, datatype: float64}
+# - {name: sky_rms, unit: ct / s, datatype: float64}
+# - {name: observation_id, datatype: string}
+# - {name: sca, datatype: int64}
+# - {name: pix_x, unit: pix, datatype: float64}
+# - {name: pix_y, unit: pix, datatype: float64}
+# - {name: mag_fit, datatype: float64}
+# - {name: mag_fit_err, datatype: float64}
+# - {name: x_cutout, datatype: float64}
+# - {name: y_cutout, datatype: float64}
+# - {name: sky_background, datatype: float64}
+# meta: !!omap
+# - {cutout_size: 11}
+# - {initial_flux_guess: 3000}
+# - {fetch_SED: false}
+# - {use_roman: true}
+# - {weighting: true}
+# - {make_initial_guess: true}
+# - {method: lsqr}
+# - {pixel: false}
+# - {subtract_background_method: calculate}
+# - {use_real_images: true}
+# - {print_memory_usage: false}
+# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
+# - grid_options:
+#     cutoff: 4
+#     error_floor: 1
+#     gaussian_var: -1
+#     percentiles: [0, 90, 98, 100]
+#     spacing: 0.75
+#     subsize: 4
+#     turn_grid_off: false
+#     type: contour
+# - {ID: '20172782'}
+# - {ra: 7.0}
+# - {dec: -41.0}
+# - {band: Y106}
+# - {diaobject_position_id: null}
+# - {provenance_id: 7af295ad-3517-9484-a402-4dbe2ed1ceb6}
+# - {diaobject_id: fc587b0e-ca4c-4067-8188-804758e57156}
+# - {iau_name: null}
+# - {ra_err: 0.0}
+# - {dec_err: 0.0}
+# - {ra_dec_covar: 0.0}
+# - {local_surface_brightness_Y106: 25.0}
+# - {pre_transient_images: 1}
+# - {post_transient_images: 0}
+# schema: astropy-2.0
+mjd flux flux_err zpt NEA sky_rms observation_id sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
+62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.85410580816 127021.05784706218 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0
