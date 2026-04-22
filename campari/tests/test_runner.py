@@ -1,5 +1,6 @@
 # Standard Library
 import pathlib
+import pytest
 from types import SimpleNamespace
 
 # Common Library
@@ -17,6 +18,11 @@ from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.provenance import Provenance
 ROMAN_IMAGE_SIZE = 4088  # Roman images are 4088x4088 pixels (4096 minus 4 on each edge)
+
+
+@pytest.fixture(scope="module")
+def campari_test_data(cfg):
+    return cfg.value("photometry.campari_io.test_data")
 
 
 def create_default_test_args(cfg):
@@ -150,7 +156,7 @@ def test_runner_init(cfg):
 #                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
 
 
-def test_get_exposures(cfg):
+def test_get_exposures(cfg, campari_test_data):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
     test_args.diaobject_name = 20172782
@@ -185,7 +191,7 @@ def test_get_exposures(cfg):
 
     test_args.object_collection = "ou24"
     test_args.SNID = 20172782
-    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
+    test_args.img_list = f"{campari_test_data}/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
 
     diaobj = DiaObject.find_objects(name=20172782, ra=1, dec=2, collection="manual")[0]
