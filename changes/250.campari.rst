@@ -1,0 +1,1 @@
+Updating LC saving so now objects with no detections save a blank file rather than nothing.
