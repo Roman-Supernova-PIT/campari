@@ -388,7 +388,6 @@ class campari_runner:
         else:
             identifier = str(diaobj.name)
 
-
         lc = build_lightcurve(diaobj, lc_model, cam_prov=self.cam_prov)
         if self.add_truth_to_lc:
             lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)

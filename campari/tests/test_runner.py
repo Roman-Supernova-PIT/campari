@@ -437,7 +437,7 @@ def test_build_and_save_lc_no_flux(cfg):
 
     # Check that the meta matches
     compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
-                        overwrite_meta=overwrite_meta, meta_only=True)
+                        meta_only=True)
 
 
 # sim param grid broken for now

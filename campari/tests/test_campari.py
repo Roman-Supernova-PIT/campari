@@ -111,7 +111,6 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, meta_only=Fals
             SNLogger.debug("Metadata matches!")
             return None
 
-
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")
         # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
