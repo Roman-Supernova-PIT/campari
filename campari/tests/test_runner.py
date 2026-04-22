@@ -344,7 +344,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         test_build_and_save_lc(cfg, overwrite_meta=False)
 
 
-def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
+def test_build_and_save_lc_no_flux(cfg):
     """ We also want to save a blank lightcurve file (i.e., has metadata, but no flux entries)
     if there is no flux to save.
     """
@@ -359,10 +359,10 @@ def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
     sigma_flux = None
     images = None
     model_images = None
-    exposures = pd.DataFrame(data={"date": None, "filter": None,
-                                   "detected": None,
-                                   "observation_id": None, "sca": None, "x": None, "y": None,
-                                   "x_cutout": None, "y_cutout": None}, index=[0])
+    exposures = pd.DataFrame(data={"date": [1.0, 2.0, 3.0], "filter": ["Y106", "Y106", "Y106"],
+                                   "detected": [True, True, True],
+                                   "observation_id": ["1", "1", "1"], "sca": [1, 1, 1], "x": [0, 0, 0], "y": [0, 0, 0],
+                                   "x_cutout": [0, 0, 0], "y_cutout": [0, 0, 0]})
 
     # Getting a WCS to use
     observation_id = "5934"
@@ -377,24 +377,21 @@ def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
     image_list = []
     cutout_image_list = []
 
-    # for i in range(len(exposures["date"])):
-    #     img = FITSImageStdHeaders(
-    #         header=None,
-    #         path="/dev/null",
-    #         data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-    #         noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-    #         flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
-    #     )
-    #     img.mjd = exposures["date"][i]
-    #     img.band = exposures["filter"][i]
-    #     img.observation_id = exposures["observation_id"][i]
-    #     img.sca = exposures["sca"][i]
-    #     img._wcs = wcs
-    #     image_list.append(img)
-    #     cutout_image_list.append(img)
-
-    image_list = []
-    cutout_image_list = []
+    for i in range(len(exposures["date"])):
+        img = FITSImageStdHeaders(
+            header=None,
+            path="/dev/null",
+            data=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            noise=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+            flags=np.zeros((ROMAN_IMAGE_SIZE, ROMAN_IMAGE_SIZE)),
+        )
+        img.mjd = exposures["date"][i]
+        img.band = exposures["filter"][i]
+        img.observation_id = exposures["observation_id"][i]
+        img.sca = exposures["sca"][i]
+        img._wcs = wcs
+        image_list.append(img)
+        cutout_image_list.append(img)
 
     ra_grid = np.array([1, 2, 3])
     dec_grid = np.array([1, 2, 3])
@@ -404,6 +401,8 @@ def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
     sim_lc = None
     ra = 7.731890048839705
     dec = -44.4589649005717
+
+    SNLogger.debug(f"band {image_list[0].band}")
 
     lc_model = campari_lightcurve_model(flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
                                         image_list=image_list, cutout_image_list=cutout_image_list, ra_grid=ra_grid,
@@ -415,6 +414,7 @@ def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
     diaobj = DiaObject.find_objects(name=test_args.diaobject_name, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = -np.inf
     diaobj.mjd_end = np.inf
+    diaobj.id = "130c033d-9a6c-4edb-b637-1b6b3d184024" # Force to match diaobj id in test w/ flux
 
     upstreams = []
     runner.cam_prov = Provenance(
@@ -430,16 +430,14 @@ def test_build_and_save_lc_no_flux(cfg, overwrite_meta):
     runner.build_and_save_lightcurve(diaobj, lc_model)
 
     output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
-    filename = "20172782_Y106_romanpsf_lc_noflux.ecsv"
+    filename = "20172782_Y106_romanpsf_lc.ecsv"
     filepath = output_dir / filename
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
+    # Check that the meta matches
     compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
-                        overwrite_meta=overwrite_meta)
-    if overwrite_meta:
-        SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
-        test_build_and_save_lc(cfg, overwrite_meta=False)
+                        overwrite_meta=overwrite_meta, meta_only=True)
 
 
 # sim param grid broken for now

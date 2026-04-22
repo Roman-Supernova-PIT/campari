@@ -71,7 +71,7 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
-def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
+def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, meta_only=False):
     # lc1 is new, lc2 is old
 
     lc1 = QTable.read(lc1_path, format="ascii.ecsv")
@@ -98,6 +98,19 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     SNLogger.debug(lc2)
     SNLogger.debug("NEW LIGHTCURVE DATA:")
     SNLogger.debug(lc1)
+
+    if meta_only:
+        SNLogger.debug("Only comparing metadata columns. Data columns will be ignored.")
+        assert lc1.meta.keys() == lc2.meta.keys(), "The metadata keys do not match. "
+        if not lc1.meta == lc2.meta:
+            mismatched = {k for k in lc1.meta.keys() & lc2.meta.keys() if lc1.meta[k] != lc2.meta[k]}
+            raise ValueError(f"The metadata values do not match for keys: {mismatched}. "
+                                f"lc1 meta has { {k: lc1.meta[k] for k in mismatched} },"
+                                f" while lc2 meta has { {k: lc2.meta[k] for k in mismatched} }")
+        else:
+            SNLogger.debug("Metadata matches!")
+            return None
+
 
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")

@@ -61,43 +61,60 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     cutout_image_list = lc_model.cutout_image_list
     band = image_list[0].band
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
-    mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
-
     meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
+    if not all([f is None for f in flux]):
+        mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
+        data_dict = {
+            "mjd": [],
+            "flux": flux,
+            "flux_err": sigma_flux,
+            "mag_fit": mag,
+            "mag_fit_err": magerr,
+            "zpt": np.full(np.size(mag), zp),
+            "observation_id": [],
+            "sca": [],
+            "pix_x": [],
+            "pix_y": [],
+            "x_cutout": [],
+            "y_cutout": [],
+            "sky_background": [],
+            "sky_rms": [],
+            "NEA": [],
+        }
 
-    data_dict = {
-        "mjd": [],
-        "flux": flux,
-        "flux_err": sigma_flux,
-        "mag_fit": mag,
-        "mag_fit_err": magerr,
-        "zpt": np.full(np.size(mag), zp),
-        "observation_id": [],
-        "sca": [],
-        "pix_x": [],
-        "pix_y": [],
-        "x_cutout": [],
-        "y_cutout": [],
-        "sky_background": [],
-        "sky_rms": [],
-        "NEA": [],
-    }
-
-    for i, img in enumerate(image_list):
-        if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
-            data_dict["mjd"].append(img.mjd)
-            data_dict["observation_id"].append(str(img.observation_id))
-            data_dict["sca"].append(img.sca)
-            x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-            data_dict["pix_x"].append(x)
-            data_dict["pix_y"].append(y)
-            x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-            data_dict["x_cutout"].append(x_cutout)
-            data_dict["y_cutout"].append(y_cutout)
-            data_dict["sky_background"].append(lc_model.sky_background[i])
-            data_dict["sky_rms"].append(0.0)  # placeholder for now XXX TODO
-            data_dict["NEA"].append(0.0)  # placeholder for now XXX TODO
+        for i, img in enumerate(image_list):
+            if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
+                data_dict["mjd"].append(img.mjd)
+                data_dict["observation_id"].append(str(img.observation_id))
+                data_dict["sca"].append(img.sca)
+                x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+                data_dict["pix_x"].append(x)
+                data_dict["pix_y"].append(y)
+                x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
+                data_dict["x_cutout"].append(x_cutout)
+                data_dict["y_cutout"].append(y_cutout)
+                data_dict["sky_background"].append(lc_model.sky_background[i])
+                data_dict["sky_rms"].append(0.0)  # placeholder for now XXX TODO
+                data_dict["NEA"].append(0.0)  # placeholder for now XXX TODO
+    else:
+        data_dict = data_dict = {
+            "mjd": [np.nan],
+            "flux": [np.nan],
+            "flux_err": [np.nan],
+            "mag_fit": [np.nan],
+            "mag_fit_err": [np.nan],
+            "zpt": [np.nan],
+            "observation_id": ["N/A"], # Snapppl requires str for obs_id.
+            "sca": [-1], # Snappl requires an int for sca, so we use -1 to indicate that it's not available.
+            "pix_x": [np.nan],
+            "pix_y": [np.nan],
+            "x_cutout": [np.nan],
+            "y_cutout": [np.nan],
+            "sky_background": [np.nan],
+            "sky_rms": [np.nan],
+            "NEA": [np.nan],
+        }
 
     meta_dict["band"] = band  # I don't ever expect campari to do multi-band fitting so just store the one band.
     meta_dict["diaobject_position_id"] = None  # placeholder for now XXX TODO
