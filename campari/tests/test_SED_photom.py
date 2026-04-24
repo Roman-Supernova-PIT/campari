@@ -171,7 +171,8 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
 
     # Fitting with a blackbody SED at ~14000 Kelvin
     cmd += ["--SED_file"]
-    cmd += [pathlib.Path(__file__).parent / "test_bb_sed_improved.csv"]
+    #cmd += [pathlib.Path(__file__).parent / "test_bb_sed_improved.csv"]
+    cmd += ["/scratch/campari/misc_sed_files/test_bb_sed_improved.csv"]
 
     cmd.append("--photometry-campari-psf-transient_class")
     cmd.append("ou24PSF_slow_photonshoot")

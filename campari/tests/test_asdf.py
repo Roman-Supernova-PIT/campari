@@ -134,6 +134,7 @@ def test_roman_imsim_images(overwrite_meta):
 
     CIDs = truth_df.CID.values
     CIDs = CIDs[3:]
+    CIDs = [1721]
 
     #CIDs = [1018]
     #CIDs = [710]
@@ -190,7 +191,7 @@ def test_roman_imsim_images(overwrite_meta):
             ra = truth_df[truth_df.CID == cid].RA.values[0]
             dec = truth_df[truth_df.CID == cid].DEC.values[0]
             pkmjd = truth_df[truth_df.CID == cid].SIM_PEAKMJD.values[0]
-            approx_start_date = pkmjd - 20
+            approx_start_date = 60400 # between pilot and core
             cmd.extend(["--ra", str(ra)])
             cmd.extend(["--dec", str(dec)])
             cmd.extend(["--transient_start", str(approx_start_date)])
