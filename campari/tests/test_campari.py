@@ -26,6 +26,7 @@ import galsim
 # SNPIT
 from campari import RomanASP
 from campari.data_construction import find_all_exposures, construct_one_image
+from campari.image_simulator_run import run_sim
 from campari.io import (
     build_lightcurve,
     read_healpix_file,
@@ -59,7 +60,7 @@ from snappl.provenance import Provenance
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-SNLogger.set_level("DEBUG")
+# SNLogger.set_level("DEBUG")
 
 cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
@@ -773,6 +774,10 @@ def test_handle_partial_overlap():
     #  we know we're really running this test!
     assert not curfile.exists()
 
+    # make a textfile
+    with open(pathlib.Path(__file__).parent / "testdata/partial_overlap.txt", "w") as f:
+        f.write("5934, 3")
+
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
@@ -927,3 +932,90 @@ def test_build_model_one_image():
 
     np.testing.assert_allclose(bg_array, reg_bg_array, atol=1e-7)
     np.testing.assert_equal(sn_array, reg_sn_array)  # We expect Nones here
+
+
+def test_image_simulator_script():
+    test_data_path = pathlib.Path(__file__).parent / "testdata"
+    simulation_number = 0
+    func_name = "image_simulator_script_test"
+    run_name = func_name + f"seed{simulation_number}"
+
+    # This is the file spat out by the image simulator sayingthe locations of all the files.
+    imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
+    # Make sure we delete it beforehand
+    imagelist_filename.unlink(missing_ok=True)
+
+    run_sim(
+        seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
+        images_aligned=False,
+        poisson_noise=True,
+        sky_noise=True,
+        static_source="galaxy",
+        static_source_mag=22,
+        transient_peak_mag=24,
+        mjd=np.arange(60000, 60075, 10),
+        psf_class="ou24PSF_slow",
+        run_dir=func_name,
+        output_path=test_data_path,
+        run_name_base=func_name,
+        bulge_R=2,
+        bulge_n=3,
+        disk_R=4,
+        disk_n=1,  # Simulated Galaxy Params
+        test_data_path=test_data_path,
+        observation_id="1000",
+        band = "H158",
+    )
+
+    regression_path = test_data_path / "image_simulator_script_regression/image_simulator_script_testseed0/"
+    regression_images = sorted(regression_path.glob("*image.fits"))
+
+    # Open the imagelist file and get the list of generated images
+    with open(imagelist_filename, "r") as f:
+        generated_image_paths = [line.strip() for line in f.readlines()]
+    generated_images = sorted([pathlib.Path(p + "_image.fits") for p in generated_image_paths])
+
+    # Zip will stop as soon as the shorter of the two lists runs out,
+    # so we check that they are the same length first to avoid missing any mismatches.
+    assert len(regression_images) == len(generated_images), (
+        f"Expected {len(regression_images)} generated images to match regression data, "
+        f"but found {len(generated_images)}."
+    )
+    assert [p.name for p in regression_images] == [p.name for p in generated_images], (
+        "Generated image filenames do not match regression image filenames."
+    )
+
+    for reg_img, gen_img in zip(regression_images, generated_images):
+        with fits.open(reg_img) as reg_hdul, fits.open(gen_img) as gen_hdul:
+            try:
+                reg_data = reg_hdul[0].data
+                gen_data = gen_hdul[0].data
+                assert gen_img != reg_img, ("Regression image and generated image paths should not be "
+                                            "the same, check the test setup.")
+                np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does not match "
+                                                                                  f" regression data at {reg_img}")
+                SNLogger.debug(f"Image {gen_img} matches regression data.")
+            except AssertionError as e:
+                # Plot the images for debugging
+                matplotlib.use("pdf")
+                plt.figure(figsize=(10, 5))
+                plt.subplot(1, 3, 1)
+                plt.title("Generated Image")
+                plt.imshow(gen_data, origin="lower")
+                plt.colorbar()
+                plt.subplot(1, 3, 2)
+                plt.title("Regression Image")
+                plt.imshow(reg_data, origin="lower")
+                plt.colorbar()
+                plt.subplot(1, 3, 3)
+                plt.title("Difference (log scale)")
+                plt.imshow(np.log10(np.abs(gen_data - reg_data)), origin="lower")
+                plt.colorbar(label="log10( |generated - regression| )")
+                debug_image_path = test_data_path / f"debug_{gen_img.stem}.pdf"
+                SNLogger.debug(f"Saving debug image to {debug_image_path}")
+                plt.savefig(debug_image_path)
+                raise AssertionError(e)
+
+    # To update regression, do:
+    # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test
+    #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression

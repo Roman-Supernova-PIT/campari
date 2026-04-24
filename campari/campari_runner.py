@@ -157,6 +157,11 @@ class campari_runner:
         if self.fetch_SED and self.SED_file is not None:
             raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
 
+        # Print all the parameters at the end of init for easy debugging.
+        SNLogger.debug("Finished initializing campari_runner with the following parameters:")
+        for arg, value in vars(self).items():
+            SNLogger.debug("  %s: %s", arg, value)
+
     def __call__(self):
         """Run the Campari pipeline."""
 
@@ -340,7 +345,6 @@ class campari_runner:
         prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
             else None
 
-        SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,
                            size=self.size, band=self.band,
@@ -376,10 +380,9 @@ class campari_runner:
         None, but the lightcurve is saved locally and/or to the database.
         """
         lc_model.image_collection_prov = self.img_coll_prov
-        if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
-            psftype = "romanpsf"
-        else:
-            psftype = self.transient_psfclass.lower()
+        # Here Cole removed a line that set the name to "romanpsf" for ou24 psfs. Some old tests will need to be
+        # updated.
+        psftype = self.transient_psfclass.lower()
 
         # identifier is a string that will be used to name the lightcurve file when saving debug files.
         # TODO: Come up with a better name for this.

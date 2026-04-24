@@ -73,6 +73,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None,
                    nprocs=None):
+
     psf_matrix = []
     sn_matrix = []
 
@@ -115,7 +116,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     print_memory_usage_summary("After constructing images:")
 
     # Build the background grid
-    if not grid_type == "none":
+    if not grid_type == "none" and prebuilt_psf_matrix is None:
         if object_type == "star":
             SNLogger.warning("For fitting stars, you probably dont want a grid.")
         ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
@@ -210,6 +211,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
     sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
+
+    SNLogger.debug("Save model is set to " + str(save_model))
 
     if save_model:
         psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
