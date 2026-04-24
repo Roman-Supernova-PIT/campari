@@ -944,7 +944,6 @@ def test_image_simulator_script():
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
     # Make sure we delete it beforehand
     imagelist_filename.unlink(missing_ok=True)
-
     run_sim(
         seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
         images_aligned=False,
@@ -953,6 +952,7 @@ def test_image_simulator_script():
         static_source="galaxy",
         static_source_mag=22,
         transient_peak_mag=24,
+        band="H158",
         mjd=np.arange(60000, 60075, 10),
         psf_class="ou24PSF_slow",
         run_dir=func_name,
@@ -964,6 +964,7 @@ def test_image_simulator_script():
         disk_n=1,  # Simulated Galaxy Params
         test_data_path=test_data_path,
     )
+
 
     regression_path = test_data_path / "image_simulator_script_regression/image_simulator_script_testseed0/"
     regression_images = sorted(regression_path.glob("*image.fits"))

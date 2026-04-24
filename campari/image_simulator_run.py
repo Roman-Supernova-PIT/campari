@@ -50,7 +50,7 @@ def run_sim(
     im_sim_path=None,
     test_data_path=None,
     band=None,
-    observation_id=1000,
+    observation_id=None,
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
@@ -136,10 +136,14 @@ def run_sim(
     if band is not None:
         cmd_str += f"--band {band} "
 
-    cmd_str += f"--observation-id {observation_id} "
+    if observation_id is not None:
+        cmd_str += f"--observation-id {observation_id} "
 
     SNLogger.debug(cmd_str)
-    os.system(cmd_str)
+
+    result = os.system(cmd_str)
+    if result != 0:
+        raise RuntimeError(f"Command failed with exit code {result}")
     SNLogger.debug("Finished image simulation.")
     file_list = glob.glob(f"*{run_name}*")
     if not os.path.exists(f"{output_path}/{run_dir}/{run_name}"):
