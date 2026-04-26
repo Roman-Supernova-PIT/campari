@@ -945,7 +945,7 @@ def test_image_simulator_script():
     # Make sure we delete it beforehand
     imagelist_filename.unlink(missing_ok=True)
     run_sim(
-        seed=simulation_number,  # Set seed for reproducibility, this is the seed that Cole started with.
+        seed=simulation_number,  # Set seed for reproducibility, this must be the seed that the data was simulated with.
         images_aligned=False,
         poisson_noise=True,
         sky_noise=True,
@@ -965,35 +965,29 @@ def test_image_simulator_script():
         test_data_path=test_data_path,
     )
 
-
     regression_path = test_data_path / "image_simulator_script_regression/image_simulator_script_testseed0/"
-    regression_images = sorted(regression_path.glob("*image.fits"))
+    regression_images_to_check = list(regression_path.glob("*image.fits"))
 
     # Open the imagelist file and get the list of generated images
     with open(imagelist_filename, "r") as f:
         generated_image_paths = [line.strip() for line in f.readlines()]
-    generated_images = sorted([pathlib.Path(p + "_image.fits") for p in generated_image_paths])
+    generated_images = [pathlib.Path(p + "_image.fits") for p in generated_image_paths]
 
-    # Zip will stop as soon as the shorter of the two lists runs out,
-    # so we check that they are the same length first to avoid missing any mismatches.
-    assert len(regression_images) == len(generated_images), (
-        f"Expected {len(regression_images)} generated images to match regression data, "
-        f"but found {len(generated_images)}."
-    )
-    assert [p.name for p in regression_images] == [p.name for p in generated_images], (
-        "Generated image filenames do not match regression image filenames."
-    )
-
-    for reg_img, gen_img in zip(regression_images, generated_images):
-        with fits.open(reg_img) as reg_hdul, fits.open(gen_img) as gen_hdul:
+    for gen_img_path in generated_images:
+        # Get corresponding regression image path
+        reg_img_path = regression_path / gen_img_path.name
+        assert reg_img_path.exists(), f"Regression image {reg_img_path} does not exist, but it was simulated just now!"
+        # remove this path from the images to check
+        regression_images_to_check.remove(reg_img_path)
+        assert not os.path.samefile(reg_img_path, gen_img_path), "Regression image and generated image paths should " \
+                                                          " not be the same, check the test setup."
+        with fits.open(reg_img_path) as reg_hdul, fits.open(gen_img_path) as gen_hdul:
             try:
                 reg_data = reg_hdul[0].data
                 gen_data = gen_hdul[0].data
-                assert gen_img != reg_img, ("Regression image and generated image paths should not be "
-                                            "the same, check the test setup.")
-                np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img} does not match "
-                                                                                  f" regression data at {reg_img}")
-                SNLogger.debug(f"Image {gen_img} matches regression data.")
+                np.testing.assert_allclose(reg_data, gen_data, atol=1e-7, err_msg=f"Image at {gen_img_path} does not"
+                                           f" match regression data at {reg_img_path}")
+                SNLogger.debug(f"Image {gen_img_path} matches regression data.")
             except AssertionError as e:
                 # Plot the images for debugging
                 matplotlib.use("pdf")
@@ -1010,11 +1004,13 @@ def test_image_simulator_script():
                 plt.title("Difference (log scale)")
                 plt.imshow(np.log10(np.abs(gen_data - reg_data)), origin="lower")
                 plt.colorbar(label="log10( |generated - regression| )")
-                debug_image_path = test_data_path / f"debug_{gen_img.stem}.pdf"
+                debug_image_path = test_data_path / f"debug_{gen_img_path.stem}.pdf"
                 SNLogger.debug(f"Saving debug image to {debug_image_path}")
                 plt.savefig(debug_image_path)
                 raise AssertionError(e)
+    assert len(regression_images_to_check) == 0, "Some regression images were not checked against generated images"\
+                                                 f" meaning they were not simulated: {regression_images_to_check}"
 
     # To update regression, do:
-    # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test
+    # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test/*
     #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
