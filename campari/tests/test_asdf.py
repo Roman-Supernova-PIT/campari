@@ -125,22 +125,15 @@ def test_roman_imsim_images(overwrite_meta):
 
         ]
     # Get all of the roman imsim images and put them in a list file
-    #isim_path = "/romanimsim_sims/2026-04-17_Nexus"
-    isim_path = "/romanimsim_sims/Nexus"
+    isim_path = "/romanimsim_sims/2026-04-27_Nexus"
     truth_file = f"{isim_path}/TRUTH_HLTDS_PILOT+CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
 
     bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
 
     CIDs = truth_df.CID.values
-    CIDs = CIDs[3:]
-    CIDs = [1721]
 
-    #CIDs = [1018]
-    #CIDs = [710]
-    #CIDs = [1551]
-    #CIDs = [4047]
-    bands = ["F129"]
+    #CIDs = [1721]
 
     truth_df = truth_df[truth_df.CID.isin(CIDs)]
     SNLogger.debug(f"Truth df {truth_df.head()}")
@@ -182,19 +175,26 @@ def test_roman_imsim_images(overwrite_meta):
 
     # Now we'll get the RA/DECs
 
-
     failed_cids = []
 
     for i, cid in enumerate(CIDs):
         for band in bands:
-
             ra = truth_df[truth_df.CID == cid].RA.values[0]
             dec = truth_df[truth_df.CID == cid].DEC.values[0]
             pkmjd = truth_df[truth_df.CID == cid].SIM_PEAKMJD.values[0]
-            approx_start_date = 60400 # between pilot and core
+
+            if pkmjd < 60400:
+                SNLogger.debug("PILOT SN")
+                approx_start_date = 60000
+                approx_end_date = 60400
+            if pkmjd >= 60400:
+                SNLogger.debug("CORE SN")
+                approx_start_date = 60400 # between pilot and core
+                approx_end_date = None
             cmd.extend(["--ra", str(ra)])
             cmd.extend(["--dec", str(dec)])
             cmd.extend(["--transient_start", str(approx_start_date)])
+            cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
             SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
@@ -269,6 +269,7 @@ def test_run_on_gaia_stars():
     star_skycoords = SkyCoord(ra=stars_df.ra.values*u.degree, dec=stars_df.dec.values*u.degree)
     separations = rick_image_approx_center.separation(star_skycoords)
     closest_stars = stars_df[separations < 0.075*u.degree]
+    SNLogger.debug(f"Found {len(closest_stars)} stars within 0.075 degrees of the image center for calibration.")
 
     successful = 0
     for i in range(len(closest_stars)):
