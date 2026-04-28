@@ -22,6 +22,7 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
                 newpath = whole_path.split("_noise.fits")[0]
                 SNLogger.debug(f"Writing {newpath} to image list")
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
+    SNLogger.debug(f"Finished writing image list to {filename}")
 
 
 def run_sim(
@@ -49,7 +50,7 @@ def run_sim(
     im_sim_path=None,
     test_data_path=None,
     band=None,
-    observation_id=1000,
+    observation_id=None,
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
@@ -135,10 +136,14 @@ def run_sim(
     if band is not None:
         cmd_str += f"--band {band} "
 
-    cmd_str += f"--observation-id {observation_id} "
+    if observation_id is not None:
+        cmd_str += f"--observation-id {observation_id} "
 
     SNLogger.debug(cmd_str)
-    os.system(cmd_str)
+
+    result = os.system(cmd_str)
+    if result != 0:
+        raise RuntimeError(f"Command failed with exit code {result}")
     SNLogger.debug("Finished image simulation.")
     file_list = glob.glob(f"*{run_name}*")
     if not os.path.exists(f"{output_path}/{run_dir}/{run_name}"):
@@ -147,6 +152,8 @@ def run_sim(
     for item in file_list:
         print(f"Moving {item} to {output_path}/{run_dir}/{run_name}")
         os.system(f"mv {item} {output_path}/{run_dir}/{run_name}")
+
+    write_image_list(output_path, run_dir, run_name, test_data_path)
 
 
 def run_sims_in_parallel(
