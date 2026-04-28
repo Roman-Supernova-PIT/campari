@@ -774,7 +774,6 @@ def test_handle_partial_overlap():
     #  we know we're really running this test!
     assert not curfile.exists()
 
-
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
