@@ -208,7 +208,6 @@ def test_get_exposures(cfg):
                             "does not match the set of observation IDs in the image list file.")
 
 
-
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"

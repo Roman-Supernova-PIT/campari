@@ -239,7 +239,6 @@ def main():
     parser.add_argument("--diaobject-id", type=str, default=None,
                         help="the diaobject id. (Default: %(default)s)")
 
-
     parser.add_argument("--ltcv-process", type=str,
                         help="A string to identify the process of the "
                         "lightcurve. Default campari.", default="campari")

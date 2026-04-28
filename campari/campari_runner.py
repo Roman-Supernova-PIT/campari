@@ -140,12 +140,6 @@ class campari_runner:
                     raise ValueError("Must provide both"
                           " ltcv_provenance_tag and ltcv_process.")
 
-        # PSF for when not using the Roman PSF:
-        # lam = 1293  # nm
-        # aberrations = galsim.roman.getPSF(1, self.band, pupil_bin=1).aberrations
-        # self.airy = galsim.ChromaticOpticalPSF(lam, diam=2.36, aberrations=aberrations)
-        self.airy = None
-
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
         er += "regular, adaptive, contour, single, or none. Details in documentation."
         if self.grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
@@ -357,7 +351,7 @@ class campari_runner:
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, do_xshift=self.do_xshift,
-                           do_rotation=self.do_rotation, airy=self.airy,
+                           do_rotation=self.do_rotation,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
                            noise=self.noise,
                            avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
@@ -402,6 +396,8 @@ class campari_runner:
             if self.add_truth_to_lc:
                 lc = add_truth_to_lc(lc, self.sn_truth_dir, self.object_type)
 
+        SNLogger.debug("Save to db is set to " + str(self.save_to_db))
+
         if lc_model.flux is not None:
             if self.save_to_db:
                 output_dir = None
@@ -411,6 +407,8 @@ class campari_runner:
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
                             testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
+        else:
+            SNLogger.warning("No flux measurements were made for this object, so no lightcurve will be saved.")
 
         # Now, save the images
 
@@ -445,7 +443,7 @@ class campari_runner:
                     filepath = debug_dir / f"{fileroot}_wcs.fits"
                     hdul.writeto(filepath, overwrite=True)
                 else:
-                    SNLogger.warning("WCS is a snappl GWCS, which cannot be saved to a fits header."
+                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
                     " Skipping saving WCS headers.")
 
         else:

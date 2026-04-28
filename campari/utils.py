@@ -159,7 +159,6 @@ def calculate_background_level(im):
     return mean
 
 
-
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
@@ -240,6 +239,30 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     return wgt_matrix
 
 
+def convert_band_name(old_band):
+    """This function takes in band names that begin with F and returns their corresponding lettered version."""
+
+    lettered_band_dicts = {
+        "F062": "R062",
+        "F087": "Z087",
+        "F106": "Y106",
+        "F129": "J129",
+        "F158": "H158",
+        "F184": "F184",
+        "F213": "K213",
+        "R062": "R062",
+        "Z087": "Z087",
+        "Y106": "Y106",
+        "J129": "J129",
+        "H158": "H158",
+        "K213": "K213",
+    }
+
+    band = lettered_band_dicts[old_band]
+
+    return band
+
+
 def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     """This function calculates the magnitude and magnitude error from the
        flux.
@@ -256,19 +279,7 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
     zp: float, the zeropoint of the bandpass
     """
 
-    lettered_band_dicts = {
-        "F062": "R062",
-        "F087": "Z087",
-        "F106": "Y106",
-        "F129": "J129",
-        "F158": "H158",
-        "F184": "F184",
-        "F213": "K213",
-    }
-    if band[0] == "F":
-        # We switched from using lettered bands to numbered bands in the code at some point,
-        # much to my chagrin, so this catches those cases.
-        band = lettered_band_dicts[band]
+    band = convert_band_name(band)
 
     exptime = {
         "F184": 901.175,
@@ -322,23 +333,7 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
         The mean local surface brightness in mag/arcsec^2.
     """
 
-    band = image_object_list[0].band
-
-    if band[0] == "F":
-        # We switched from using lettered bands to numbered bands in the code at some point,
-        # much to my chagrin, so this catches those cases.
-        lettered_band_dicts = {
-            "F062": "R062",
-            "F087": "Z087",
-            "F106": "Y106",
-            "F129": "J129",
-            "F158": "H158",
-            "F184": "F184",
-            "F213": "K213",
-        }
-        band = lettered_band_dicts[band]
-
-
+    band = convert_band_name(image_object_list[0].band)
     cutout_pix = 2
     center_fluxes = []
     for i in image_object_list:
