@@ -774,9 +774,6 @@ def test_handle_partial_overlap():
     #  we know we're really running this test!
     assert not curfile.exists()
 
-    # make a textfile
-    with open(pathlib.Path(__file__).parent / "testdata/partial_overlap.txt", "w") as f:
-        f.write("5934, 3")
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
