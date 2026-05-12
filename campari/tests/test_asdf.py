@@ -473,7 +473,6 @@ def test_roman_imsim_images_my_images(overwrite_meta):
     ra = 270.36
     dec = 65.52
 
-    import pathlib
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
         # get current path
         temp_file.write("/scratch/out_bright.asdf")
@@ -485,8 +484,6 @@ def test_roman_imsim_images_my_images(overwrite_meta):
     cmd.extend(["--image-collection-basepath", isim_path])
 
     # Now we'll get the RA/DECs
-
-    failed_cids = []
 
     for i, cid in enumerate(CIDs):
         for band in bands:
@@ -501,7 +498,6 @@ def test_roman_imsim_images_my_images(overwrite_meta):
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
             print(cmd)
-            import pdb; pdb.set_trace()
             SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
