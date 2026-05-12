@@ -16,7 +16,6 @@ cfg = Config.get()
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
-
 def plot_images(fileroot, size=11):
     imgdata = np.load("./results/images/" + str(fileroot) + "_images.npy")
     num_total_images = imgdata.shape[1] // size**2
@@ -243,7 +242,11 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     plt.close()
 
     plt.clf()
-    lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+    if lc["flux_err"] is not None:
+        lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+    else:
+        # Noiseless tests will have no error.
+        lc["flux_err"] = np.full_like(lc["flux"], err_fudge)
     SNLogger.debug(f"Generated image diagnostics and saved to {debug_dir}/" + plotname + ".png")
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
