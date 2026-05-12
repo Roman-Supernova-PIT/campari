@@ -129,9 +129,11 @@ def test_roman_imsim_images(overwrite_meta):
     truth_file = f"{isim_path}/TRUTH_HLTDS_PILOT+CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
 
-    bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    #bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    # CIDs = truth_df.CID.values
 
-    CIDs = truth_df.CID.values
+    bands = ["F087"]
+    CIDs = [2598, 9263]
 
     #CIDs = [1721]
 
@@ -194,7 +196,8 @@ def test_roman_imsim_images(overwrite_meta):
             cmd.extend(["--ra", str(ra)])
             cmd.extend(["--dec", str(dec)])
             cmd.extend(["--transient_start", str(approx_start_date)])
-            cmd.extend(["--transient_end", str(approx_end_date)])
+            if approx_end_date is not None:
+                cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
             SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
@@ -238,7 +241,7 @@ def test_run_on_gaia_stars():
 
     # Get all of the roman imsim images and put them in a list file
     # isim_path = "/romanimsim_sims/2026-03-24_Nexus"  # Note this needs to be in the rob_dev podman environment
-    isim_path = "/romanimsim_sims/Nexus"
+    isim_path = "/romanimsim_sims/2026-04-27_Nexus"
     files = sorted(pathlib.Path(isim_path).glob("*.asdf"))
     SNLogger.debug(f"Found {len(files)} ASDF files in {isim_path} for ASDF test.")
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
@@ -253,13 +256,15 @@ def test_run_on_gaia_stars():
 
     # Now we'll get the RA/DECs
 
-    truth_file = f"{isim_path}/TRUTH_HLTDS_CORE_SCA1.SNANA.TEXT"
-    # truth_file = f"{isim_path}/TRUTH_HLTDS_CORE_SCA1.LCPLOT.TEXT"
+    # Get all of the roman imsim images and put them in a list file
+    truth_file = f"{isim_path}/TRUTH_HLTDS_PILOT+CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
+
 
     SNLogger.debug(f"Truth df {truth_df.head()}")
 
-    bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    #bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    bands = ["F087"]
 
     stars = "/romanimsim_sims/Nexus/GAIA.csv"
     # stars = f"{isim_path}/GAIA.csv"
@@ -296,6 +301,212 @@ def test_run_on_gaia_stars():
                 continue
 
             successful += 1
-            if successful >= 3:
-                SNLogger.debug("Successfully processed 3 CIDs, stopping test.")
-                raise ValueError("Successfully processed 3 CIDs, stopping test.")
+
+    SNLogger.info(f"Successfully ran Campari on {successful} stars in the ASDF images.")
+
+
+def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
+    imsize = 31
+    base_cmd = [
+            "python", "../RomanASP.py",
+            "--photometry-campari-psf-transient_class", "STPSF",
+            "--photometry-campari-psf-galaxy_class", "STPSF",
+            "--photometry-campari-use_real_images",
+            "--no-photometry-campari-fetch_SED",
+            "--photometry-campari-grid_options-type", "none",
+            "--photometry-campari-grid_options-spacing", "0.75",
+            "--photometry-campari-grid_options-subsize", "4",
+            "--photometry-campari-grid_options-error_floor", "0.00001",
+            "--photometry-campari-grid_options-gaussian_var", "100000",
+            "--photometry-campari-grid_options-cutoff", "10",
+            "--photometry-campari-cutout_size", str(imsize),
+            "--photometry-campari-weighting",
+            "--photometry-campari-subtract_background", "calculate",
+            "--image-collection", "manual_rdm",
+            "--no-save-to-db",
+            "--diaobject-collection", "manual",
+            "--nprocs", "25",
+
+        ]
+    # Get all of the roman imsim images and put them in a list file
+    isim_path = "/romanimsim_sims/2026-05-04_Nexus"
+    truth_file = f"{isim_path}/TRUTH_GALID_FORCE.SNANA.TEXT"
+    truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
+
+    bands = ["F129"]
+    CIDs = truth_df.CID.values
+
+    #CIDs = [1721]
+
+    truth_df = truth_df[truth_df.CID.isin(CIDs)]
+    SNLogger.debug(f"Truth df {truth_df.head()}")
+    SNLogger.debug(f"truth field {truth_df.FIELD}")
+
+    import asdf
+
+    import datetime
+    def get_file_time_and_print(file):
+        created_timestamp = os.path.getctime(file)
+        created_date = datetime.datetime.fromtimestamp(created_timestamp)
+        SNLogger.debug(f"File {file} was created on: {created_date}")
+
+    isim_path_old = "/romanimsim_sims/2026-04-27_Nexus"
+
+    files = sorted(pathlib.Path(isim_path_old).glob("*.asdf"))
+    SNLogger.debug(f"Found {len(files)} old ASDF files in {isim_path_old} for ASDF test.")
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
+        for i, file in enumerate(files):
+
+            with asdf.open(file) as af:
+                exposure_time = af["roman"]["meta"]["exposure"]["exposure_time"]
+                end_time = af["roman"]["meta"]["exposure"]["end_time"].mjd
+                if end_time > 60400:
+                    # we only want pilot images
+                    SNLogger.debug("Skipping core image")
+                    continue
+                if truth_df.FIELD.values[0] == "WIDE" and exposure_time < 200:
+                    SNLogger.debug(f"Field is WIDE and exposure time {exposure_time} is less than 200, adding {file}.")
+                    get_file_time_and_print(file)
+                    temp_file.write(str(file) + "\n")
+
+                elif truth_df.FIELD.values[0] == "DEEP" and exposure_time >= 200:
+                    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200, adding {file}.")
+                    get_file_time_and_print(file)
+                    temp_file.write(str(file) + "\n")
+                else:
+                    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} for field {truth_df.FIELD.values[0]}.")
+
+        files = sorted(pathlib.Path(isim_path).glob("*.asdf"))
+        SNLogger.debug(f"Found {len(files)} new ASDF files in {isim_path} for ASDF test.")
+        for i, file in enumerate(files):
+            with asdf.open(file) as af:
+                exposure_time = af["roman"]["meta"]["exposure"]["exposure_time"]
+                end_time = af["roman"]["meta"]["exposure"]["end_time"].mjd
+
+                # if truth_df.FIELD.values[0] == "WIDE" and exposure_time < 200:
+                #     SNLogger.debug(f"Field is WIDE and exposure time {exposure_time} is less than 200, adding {file}.")
+                #     get_file_time_and_print(file)
+                #     temp_file.write(str(file) + "\n")
+
+                #elif truth_df.FIELD.values[0] == "DEEP" and exposure_time >= 200:
+                #    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200, adding {file}.")
+                #    get_file_time_and_print(file)
+                temp_file.write(str(file) + "\n")
+                #else:
+                #    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} for field {truth_df.FIELD.values[0]}.")
+        temp_file_path = temp_file.name
+
+    cmd = base_cmd.copy()
+    cmd.extend(["--img_list", temp_file_path])
+
+    cmd.extend(["--image-collection-basepath", isim_path])
+
+    # Now we'll get the RA/DECs
+
+    failed_cids = []
+
+    for i, cid in enumerate(CIDs):
+        for band in bands:
+            ra = truth_df[truth_df.CID == cid].RA.values[0]
+            dec = truth_df[truth_df.CID == cid].DEC.values[0]
+            pkmjd = truth_df[truth_df.CID == cid].SIM_PEAKMJD.values[0]
+
+            if pkmjd < 60400:
+                SNLogger.debug("PILOT SN")
+                approx_start_date = 60000
+                approx_end_date = 60400
+            if pkmjd >= 60400:
+                SNLogger.debug("CORE SN")
+                approx_start_date = 60400 # between pilot and core
+                approx_end_date = None
+            cmd.extend(["--ra", str(ra)])
+            cmd.extend(["--dec", str(dec)])
+            cmd.extend(["--transient_start", str(approx_start_date)])
+            if approx_end_date is not None:
+                cmd.extend(["--transient_end", str(approx_end_date)])
+            cmd.extend(["-f", band])
+            cmd.extend(["--diaobject-name", f"{cid}"])
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
+
+            result = subprocess.run(cmd, capture_output=False, text=True)
+
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                )
+            # except RuntimeError as e:
+            #     SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
+            #     failed_cids.append((cid, band))
+            #     continue
+
+
+
+def test_roman_imsim_images_my_images(overwrite_meta):
+    imsize = 19
+    base_cmd = [
+            "python", "../RomanASP.py",
+            "--photometry-campari-psf-transient_class", "STPSF",
+            "--photometry-campari-psf-galaxy_class", "STPSF",
+            "--photometry-campari-use_real_images",
+            "--no-photometry-campari-fetch_SED",
+            "--photometry-campari-grid_options-type", "none",
+            "--photometry-campari-grid_options-spacing", "0.75",
+            "--photometry-campari-grid_options-subsize", "4",
+            "--photometry-campari-grid_options-error_floor", "0.00001",
+            "--photometry-campari-grid_options-gaussian_var", "100000",
+            "--photometry-campari-grid_options-cutoff", "10",
+            "--photometry-campari-cutout_size", str(imsize),
+            "--photometry-campari-weighting",
+            "--photometry-campari-subtract_background", "calculate",
+            "--image-collection", "manual_rdm",
+            "--no-save-to-db",
+            "--diaobject-collection", "manual",
+            "--nprocs", "1",
+
+        ]
+    # Get all of the roman imsim images and put them in a list file
+    isim_path = "/scratch"
+
+    bands = ["F087"]
+    CIDs = [123456789]
+
+    ra = 270.36
+    dec = 65.52
+
+    import pathlib
+    with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
+        # get current path
+        temp_file.write("/scratch/out_bright.asdf")
+        temp_file_path = temp_file.name
+
+    cmd = base_cmd.copy()
+    cmd.extend(["--img_list", temp_file_path])
+
+    cmd.extend(["--image-collection-basepath", isim_path])
+
+    # Now we'll get the RA/DECs
+
+    failed_cids = []
+
+    for i, cid in enumerate(CIDs):
+        for band in bands:
+            approx_start_date = 0
+            approx_end_date = None
+
+            cmd.extend(["--ra", str(ra)])
+            cmd.extend(["--dec", str(dec)])
+            cmd.extend(["--transient_start", str(approx_start_date)])
+            if approx_end_date is not None:
+                cmd.extend(["--transient_end", str(approx_end_date)])
+            cmd.extend(["-f", band])
+            cmd.extend(["--diaobject-name", f"{cid}"])
+            print(cmd)
+            import pdb; pdb.set_trace()
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
+
+            result = subprocess.run(cmd, capture_output=False, text=True)
+
+            if result.returncode != 0:
+                raise RuntimeError(
+                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                )

@@ -489,7 +489,7 @@ class campari_runner:
 
                     images.append(potential_image)
                 else:
-                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd}")
+                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd} and band {potential_image.band} because it was not in the correct band {self.band}.")
                     rejected_images += 1
             SNLogger.debug(f"Rejected {rejected_images} images from the provided image list because they were not in"
                             f" the correct band {self.band}.")
