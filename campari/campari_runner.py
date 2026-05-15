@@ -25,7 +25,7 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner
+from campari.utils import banner, redirect_photometry_test_data
 
 
 class campari_runner:
@@ -479,8 +479,10 @@ class campari_runner:
             # each line of file is path to image
             self.observation_id_list = None
             for line in img_list_lines:
-                SNLogger.debug(f"Looking for path {line}.")
-                images.append(my_image_collection.get_image(path=line))
+                redirected_line = redirect_photometry_test_data(line) # accounts for photometry_test_data
+                # being in different locations on different machines.
+                SNLogger.debug(f"Looking for path {redirected_line}.")
+                images.append(my_image_collection.get_image(path=redirected_line))
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of observation_id sca band, or lines of"
                              " observation_id and sca.")

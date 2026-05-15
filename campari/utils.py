@@ -381,3 +381,26 @@ def print_memory_usage_summary(flag):
         SNLogger.info(printout)
     else:
         pass
+
+
+def redirect_photometry_test_data(path):
+    """ In tests, the test files may point to photometry_test_data, but this folder is in 
+    different places on different machines (NERSC vs SMDC, e.g.) Rather than having 
+    different versions of the test files, we can just redirect the path to photometry_test_data
+    appropriate to that machine here.
+
+    Inputs:
+    path: str, the path as given in the test files, which will be something like "photometry_test_data/some_file.fits"
+
+    Outputs:
+    redirected_path: str, the path to the photometry_test_data folder on the current machine, plus the filename from the input path
+    """
+    if "photometry_test_data/" not in path:
+        return path
+    path_below_photometry_test_data = path.split("photometry_test_data/")[1]
+    cfg = Config.get()
+    photometry_test_data_dir = cfg.value("photometry.test_data")
+    new_path = photometry_test_data_dir + "/" + path_below_photometry_test_data
+    if path != new_path:
+        SNLogger.debug(f"Redirecting path {path} to {new_path} for photometry test data.")
+    return new_path

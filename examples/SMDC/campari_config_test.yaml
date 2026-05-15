@@ -55,25 +55,10 @@ photometry:
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
     # the provenance is new because the hash of this config file will change.
 
-  campari_simulations:
-    avoid_non_linearity: false
-    background_level: 0
-    bg_gal_flux: 100000.0
-    deltafcn_profile: false
-    do_rotation: true
-    do_xshift: true
-    mismatch_seds: false
-    noise: 0
-    sim_gal_dec_offset: 0.00001
-    sim_gal_ra_offset: 0.00001
-    single_grid_point: false
-    sim_galaxy_scale: 1.0
-    sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
-    base_pointing: 276
-    base_sca: 10
-    run_name: whatever
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
+
+  test_data: "/home/cfmeldorf/photometry_test_data"
 
 system:
   paths:
