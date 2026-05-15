@@ -207,7 +207,7 @@ def test_get_exposures(cfg):
     np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
                             "does not match the set of observation IDs in the image list file.")
 
-
+@pytest.mark.requires_truth
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
