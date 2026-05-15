@@ -72,7 +72,7 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
-def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
+def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth = False):
     # lc1 is new, lc2 is old
 
     lc1 = QTable.read(lc1_path, format="ascii.ecsv")
@@ -102,6 +102,11 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
 
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")
+
+        if "tru" in col and not check_truth:
+            SNLogger.debug(f"Skipping truth column {col} because check_truth is False.")
+            continue
+
         # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
         # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
         # roughly log10(2^24)=7 significant figures.  As such,
