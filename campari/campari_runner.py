@@ -255,7 +255,21 @@ class campari_runner:
         if self.img_list is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
+            SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
+            SNLogger.debug(f"Images: {image_list}")
             mjd_list = [im.mjd for im in image_list]
+
+            if all(mjd == mjd_list[0] for mjd in mjd_list):
+                SNLogger.warning("All images in provided image list have the same MJD. This may cause issues with"
+                                 " the pipeline, which relies on differences in MJD to distinguish between"
+                                 " transient and non-transient images if transient_start and transient_end are not"
+                                 " provided. Assuming this is a simulation where order does not matter, we'll set mjds"
+                                 " to be increasing order.")
+                for i in range(len(mjd_list)):
+                    mjd_list[i] = i
+                    image_list[i].mjd = i
+
+            SNLogger.debug("dates: " + str(mjd_list))
             image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
             SNLogger.debug(f"Updated MJD list is: {[im.mjd for im in image_list]}")
 
@@ -287,10 +301,13 @@ class campari_runner:
                 and len(no_transient_images) == 0
                 and self.object_type != "star"
             ):
-                raise ValueError("No non-detection images were found. This may be because the transient is"
-                                 " detected in all images, or because the transient is outside the date range of"
-                                 " available images. If you are running on stars, this is expected behavior."
-                                 " If you are running on supernovae, consider increasing the date range.")
+                raise ValueError(
+                    "No non-detection images were found. This may be because the transient is"
+                    " detected in all images, or because the transient is outside the date range of"
+                    " available images. If you are running on stars, this is expected behavior."
+                    " If you are running on supernovae, consider increasing the date range."
+                    " If you are running on stars, rerun with '--object_type star' passed in."
+                )
 
         mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
         mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf

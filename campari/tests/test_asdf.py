@@ -468,14 +468,23 @@ def test_roman_imsim_images_my_images(overwrite_meta):
     isim_path = "/scratch"
 
     bands = ["F087"]
-    CIDs = [123456789]
+    #CIDs = [123456789]
 
-    ra = 270.36
-    dec = 65.52
+    CIDS = [7777]
+
+    #ra = 270.36
+    #dec = 65.52
+
+
+    ra = 268.962494
+    dec = 66.126176
+
 
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
-        # get current path
-        temp_file.write("/scratch/out_bright.asdf")
+        #get current path
+        for i in range(5):
+            temp_file.write(f"/scratch/out_bright_{i}.asdf\n")
+        #temp_file.write("/scratch/out_bright.asdf")
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()
@@ -497,8 +506,6 @@ def test_roman_imsim_images_my_images(overwrite_meta):
                 cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
-            print(cmd)
-            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
 
@@ -506,3 +513,76 @@ def test_roman_imsim_images_my_images(overwrite_meta):
                 raise RuntimeError(
                     f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
                 )
+
+
+def test_roman_imsim_images_shifted_images(overwrite_meta):
+    imsize = 19
+    base_cmd = [
+            "python", "../RomanASP.py",
+            "--photometry-campari-psf-transient_class", "STPSF",
+            "--photometry-campari-psf-galaxy_class", "STPSF",
+            "--photometry-campari-use_real_images",
+            "--no-photometry-campari-fetch_SED",
+            "--photometry-campari-grid_options-type", "none",
+            "--photometry-campari-grid_options-spacing", "0.75",
+            "--photometry-campari-grid_options-subsize", "4",
+            "--photometry-campari-grid_options-error_floor", "0.00001",
+            "--photometry-campari-grid_options-gaussian_var", "100000",
+            "--photometry-campari-grid_options-cutoff", "10",
+            "--photometry-campari-cutout_size", str(imsize),
+            "--photometry-campari-weighting",
+            "--photometry-campari-subtract_background", "calculate",
+            "--image-collection", "manual_rdm",
+            "--no-save-to-db",
+            "--diaobject-collection", "manual",
+            "--nprocs", "1",
+
+        ]
+    # Get all of the roman imsim images and put them in a list file
+    isim_path = "/scratch"
+
+
+
+    band = "F087"
+
+
+
+
+    default_ra = 268.962494
+    dec = 66.126176
+
+    for i in range(5):
+
+        sub_pixel_shift = 0.1 * i * 0.11 / 3600 # shift by 0.1, 0.2, 0.3, 0.4, 0.5 pixels in RA direction (assuming 0.11 arcsec/pixel)
+        ra = default_ra + sub_pixel_shift
+        with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
+            #get current path
+            temp_file.write(f"/scratch/out_shifted_{i}.asdf\n")
+        temp_file_path = temp_file.name
+
+        cmd = base_cmd.copy()
+        cmd.extend(["--img_list", temp_file_path])
+
+        cmd.extend(["--image-collection-basepath", isim_path])
+
+        cid = 7777 + i  # make sure each run has a unique CID
+
+        # Now we'll get the RA/DECs
+
+        approx_start_date = 0
+        approx_end_date = None
+
+        cmd.extend(["--ra", str(ra)])
+        cmd.extend(["--dec", str(dec)])
+        cmd.extend(["--transient_start", str(approx_start_date)])
+        if approx_end_date is not None:
+            cmd.extend(["--transient_end", str(approx_end_date)])
+        cmd.extend(["-f", band])
+        cmd.extend(["--diaobject-name", f"{cid}"])
+
+        result = subprocess.run(cmd, capture_output=False, text=True)
+
+        if result.returncode != 0:
+            raise RuntimeError(
+                f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+            )

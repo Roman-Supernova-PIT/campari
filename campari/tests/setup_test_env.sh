@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-set -euo pipefail
 
 pip install -e /scratch/campari -e /scratch/snappl
 cd /scratch/campari/campari/tests
