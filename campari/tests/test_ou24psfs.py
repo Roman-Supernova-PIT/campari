@@ -142,11 +142,11 @@ default_parameters = {
     "system_db_username": None,
     "system_db_passwordfile": None,
     "prebuilt_static_model": None,
-    "photometry_test_data": cfg.value("photometry.test_data")
 }
 
 
 cfg = Config.get()
+default_parameters["photometry_test_data"] = cfg.value("photometry.test_data")
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
