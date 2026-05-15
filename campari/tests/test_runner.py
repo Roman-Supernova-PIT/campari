@@ -5,6 +5,7 @@ from types import SimpleNamespace
 # Common Library
 import numpy as np
 import pandas as pd
+import pytest
 
 # SNPIT
 from campari.campari_runner import campari_runner

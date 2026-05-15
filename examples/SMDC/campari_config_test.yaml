@@ -1,0 +1,92 @@
+# # This is used for the Nov 2025 podman container:
+# preloads:
+#   - /snpit_env/configs/nov2025_container_config.yaml
+
+# # This is used for the ASDF podman container:
+# preloads:
+#   - /snpit_env/configs/rknop_dev_container_config.yaml
+
+photometry:
+  campari:
+    cutout_size: 11
+    initial_flux_guess: 3000
+    fetch_SED: false
+    use_roman: true
+    weighting: true
+    make_initial_guess: true
+    method: lsqr
+    pixel: false
+    subtract_background_method: calculate
+    use_real_images: true
+    print_memory_usage: false
+
+    psf:
+      galaxy_class: ou24PSF
+      transient_class: ou24PSF_slow
+
+    psf:
+      galaxy_photon_ops: false
+      transient_photon_ops: false
+      transient_class: ou24PSF
+      galaxy_class: ou24PSF
+
+    grid_options:
+      type: contour
+      percentiles:
+      - 0
+      - 90
+      - 98
+      - 100
+      spacing: 0.75
+      turn_grid_off: false
+      gaussian_var: -1 # Gaussian weighting off by default
+      cutoff: 4
+      error_floor: 1
+      subsize: 4
+
+  campari_io:
+    output_dir: /home/cfmeldorf/campari_out_dir
+    debug_dir: /home/cfmeldorf/campari_debug_dir
+    save_debug: true
+    test_num: 1
+    test_data: /home/cfmeldorf/campari_test_data
+    # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
+    # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
+    # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
+    # the provenance is new because the hash of this config file will change.
+
+  campari_simulations:
+    avoid_non_linearity: false
+    background_level: 0
+    bg_gal_flux: 100000.0
+    deltafcn_profile: false
+    do_rotation: true
+    do_xshift: true
+    mismatch_seds: false
+    noise: 0
+    sim_gal_dec_offset: 0.00001
+    sim_gal_ra_offset: 0.00001
+    single_grid_point: false
+    sim_galaxy_scale: 1.0
+    sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
+    base_pointing: 276
+    base_sca: 10
+    run_name: whatever
+  snappl:
+    simdex_server: https://roman-desc-simdex.rknop.net
+
+system:
+  paths:
+    lightcurves: /campari_out_dir # So Cole can run tests.
+  ou24:
+    simdex_server: https://roman-desc-simdex.rknop.net
+    config_file: /home/cfmeldorf/campari/examples/SMDC/tds.yaml
+    sn_truth_dir: /ou2024_snana
+    sims_sed_library: /home/rubin_sim_data/sims_sed_library
+    images: /home/cfmeldorf/photometry_test_data/ou2024/RomanTDS/images/simple_model
+    tds_base: /scratch/photometry_test_data/ou2024
+
+  db:
+    url: https://c3-sn.lbl.gov/roman_snpit_ou2024
+    username: campari
+    passwordfile: /home/cfmeldorf/secrets/roman_snpit_ou2024_campari

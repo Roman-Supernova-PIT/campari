@@ -356,7 +356,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
-         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc",
+         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", 
+         #"--add-truth-to-lc", # uncomment this to test getting truth data. Not available on all machines! 
          ]
 
     SNLogger.debug(f"Args for test: {' '.join(a)}")
@@ -405,7 +406,8 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
-        " --no-save-to-db --add-truth-to-lc"
+        " --no-save-to-db" 
+        # "--add-truth-to-lc" Uncomment this to test getting truth information. Not available on all machines!
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"
