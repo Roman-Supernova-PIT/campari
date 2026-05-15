@@ -151,7 +151,7 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 default_parameters["photometry_campari_io_debug_dir"] = debug_dir
 default_parameters["photometry_campari_io_output_dir"] = out_dir
 default_parameters["photometry_test_data"] = cfg.value("photometry.test_data")
-default_parameters["photometry_campari_io_test_data"] = cfg.value("photometry.campari_io_test_data")
+default_parameters["photometry_campari_io_test_data"] = cfg.value("photometry.campari_io.test_data")
 
 
 def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=0):

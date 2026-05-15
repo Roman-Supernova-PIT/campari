@@ -43,7 +43,7 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 def sn_path(cfg):
     return cfg.value("system.ou24.sn_truth_dir")
 
-
+@pytest.mark.requires_truth
 def test_find_parquet(sn_path):
     parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
