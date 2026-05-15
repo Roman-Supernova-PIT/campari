@@ -48,7 +48,7 @@ def test_find_parquet(sn_path):
     parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
 
-
+@pytest.mark.requires_truth
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     new_snid_file = (
         pathlib.Path(debug_dir) / "test_extract_sn_from_parquet_file_and_write_to_csv_snids.csv"
@@ -64,7 +64,7 @@ def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_snids.csv", header=None).values.flatten()
     np.testing.assert_array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"
 
-
+@pytest.mark.requires_truth
 def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
     with tempfile.NamedTemporaryFile(mode="w", suffix=".csv", delete=False) as temp_file:
         output_path = temp_file.name
@@ -84,7 +84,7 @@ def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
             "extract_star_from_parquet_file_and_write_to_csv did not return" + "all stars when no radius was passed"
         )
 
-
+@pytest.mark.requires_truth
 def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     exposures = pd.DataFrame(
         {
@@ -176,7 +176,7 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
         SNLogger.debug("Overwrote metadata in test_build_lc_and_add_truth so I am rerunning this test.")
         test_build_lc_and_add_truth(sn_path, overwrite_meta=False)
 
-
+@pytest.mark.requires_truth
 def test_extract_id_using_ra_dec(sn_path):
     ra = 7.3447740
     dec = -44.919229
@@ -187,7 +187,7 @@ def test_extract_id_using_ra_dec(sn_path):
         "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec.",
     )
 
-
+@pytest.mark.requires_truth
 def test_extract_object_from_healpix():
     healpix = 42924408
     nside = 2**11
