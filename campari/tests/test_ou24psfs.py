@@ -73,7 +73,7 @@ default_parameters = {
     "diaobject_position_process": None,
     "save_to_db": False,
     "add_truth_to_lc": False,
-    "nprocs": 100,
+    "nprocs": 20,
     "photometry_campari_cutout_size": 19,
     "photometry_campari_initial_flux_guess": None,
     "photometry_campari_fetch_SED": False,
