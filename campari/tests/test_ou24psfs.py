@@ -141,7 +141,7 @@ default_parameters = {
     "system_db_url": None,
     "system_db_username": None,
     "system_db_passwordfile": None,
-    "prebuilt_static_model": None
+    "prebuilt_static_model": None,
     "photometry_test_data": cfg.value("photometry.test_data")
 }
 
