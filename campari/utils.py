@@ -14,6 +14,7 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 # SN-PIT
+import photometry_test_data
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -387,13 +388,13 @@ def print_memory_usage_summary(flag):
 
 
 def rescale_images_to_common_exposure_time(cutout_image_list):
-    """Rescale the images as though they all had the same exposure time. 
+    """Rescale the images as though they all had the same exposure time.
     Eventually, this could be expanded to handle all differences in zeropoint, if there are any others.
     Parameters
     ----------
     cutout_image_list : list of snappl.image.Image objects
         The list of cutout images to be rescaled.
-    
+
     Returns
     -------
     rescaled_cutouts : list of snappl.image.Image objects

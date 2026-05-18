@@ -259,21 +259,21 @@ class campari_runner:
                              " of images to run on, and if both are provided, it is ambiguous which the user intends to"
                              " use. Please choose one or the other.")
 
-        if self.img_path is not None:
-            # If the user provided an image path, glob for images that match that path.
-            SNLogger.debug(f"Globbing for images with path {self.img_path}")
-            my_image_collection = ImageCollection()
-            my_image_collection = my_image_collection.get_collection(self.image_collection,
-                                                                     subset=self.image_collection_subset,
-                                                                     base_path=self.image_collection_basepath)
-            all_images_found = glob.glob(self.img_path)
-            for im_path in all_images_found:
-                SNLogger.debug(f"Found image at path {im_path}")
-            image_list = my_image_collection.glob_images(self.img_path)
-            if len(image_list) == 0:
-                raise ValueError(f"No images found that match the provided img_path {self.img_path}.")
+        # if self.img_path is not None:
+        #     # If the user provided an image path, glob for images that match that path.
+        #     SNLogger.debug(f"Globbing for images with path {self.img_path}")
+        #     my_image_collection = ImageCollection()
+        #     my_image_collection = my_image_collection.get_collection(self.image_collection,
+        #                                                              subset=self.image_collection_subset,
+        #                                                              base_path=self.image_collection_basepath)
+        #     image_list = glob.glob(self.img_path)
+        #     for im_path in image_list:
+        #         SNLogger.debug(f"Found image at path {im_path}")
 
-        if self.img_list is not None:
+        #     if len(image_list) == 0:
+        #         raise ValueError(f"No images found that match the provided img_path {self.img_path}.")
+
+        if self.img_list is not None or self.img_path is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
@@ -489,10 +489,16 @@ class campari_runner:
 
     def parse_img_list(self):
         """Parse the image list file if provided."""
-        with open(self.img_list) as ifp:
-            img_list_lines = ifp.readlines()
-        img_list_lines = [line.strip() for line in img_list_lines if
-                          (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        if self.img_list is not None:
+            with open(self.img_list) as ifp:
+                img_list_lines = ifp.readlines()
+                img_list_lines = [line.strip() for line in img_list_lines if
+                            (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        else:
+            img_list_lines = glob.glob(self.img_path)
+            for im_path in img_list_lines:
+                 SNLogger.debug(f"Found image at path {im_path}")
+
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
