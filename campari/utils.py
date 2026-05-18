@@ -14,6 +14,11 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 # SN-PIT
+try:
+    import photometry_test_data
+except:
+    raise ImportError("photometry_test_data module not found. Try doing the following:"
+    "pip install git+https://github.com/Roman-Supernova-PIT/photometry_test_data.git")
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -399,9 +404,9 @@ def redirect_photometry_test_data(path):
     if "photometry_test_data/" not in path:
         return path
     path_below_photometry_test_data = path.split("photometry_test_data/")[1]
-    cfg = Config.get()
+    #cfg = Config.get()
     try:
-        photometry_test_data_dir = cfg.value("photometry.test_data")
+        photometry_test_data_dir =  photometry_test_data.__path__ #cfg.value("photometry.test_data")
     except KeyError:
         SNLogger.warning("photometry.test_data not found in config file. Please set this to the path to the"
                          " photometry_test_data folder on your machine. Returning original path.")
