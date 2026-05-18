@@ -1,5 +1,5 @@
+import glob
 import pathlib
-
 import numpy as np
 
 # Astronomy
@@ -47,6 +47,7 @@ class campari_runner:
         self.diaobject_name = kwargs["diaobject_name"]
         self.diaobject_id = kwargs["diaobject_id"]
         self.img_list = kwargs["img_list"]
+        self.img_path = kwargs["img_path"]
         self.image_collection = kwargs["image_collection"]
 
         self.diaobject_collection = kwargs["diaobject_collection"]
@@ -252,6 +253,26 @@ class campari_runner:
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
+
+        if self.img_list is not None and self.img_path is not None:
+            raise ValueError("Cannot provide both img_list and img_path. These are two different ways to provide a list"
+                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
+                             " use. Please choose one or the other.")
+
+        if self.img_path is not None:
+            # If the user provided an image path, glob for images that match that path.
+            SNLogger.debug(f"Globbing for images with path {self.img_path}")
+            my_image_collection = ImageCollection()
+            my_image_collection = my_image_collection.get_collection(self.image_collection,
+                                                                     subset=self.image_collection_subset,
+                                                                     base_path=self.image_collection_basepath)
+            all_images_found = glob.glob(self.img_path)
+            for im_path in all_images_found:
+                SNLogger.debug(f"Found image at path {im_path}")
+            image_list = my_image_collection.glob_images(self.img_path)
+            if len(image_list) == 0:
+                raise ValueError(f"No images found that match the provided img_path {self.img_path}.")
+
         if self.img_list is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
