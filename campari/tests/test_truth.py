@@ -43,10 +43,12 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 def sn_path(cfg):
     return cfg.value("system.ou24.sn_truth_dir")
 
+
 @pytest.mark.requires_truth
 def test_find_parquet(sn_path):
     parq_file_ID = find_parquet(50134575, sn_path)
     assert parq_file_ID == 10430
+
 
 @pytest.mark.requires_truth
 def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
@@ -63,6 +65,7 @@ def test_extract_sn_from_parquet_file_and_write_to_csv(sn_path):
     sn_ids = pd.read_csv(new_snid_file, header=None).values.flatten()
     test_sn_ids = pd.read_csv(pathlib.Path(__file__).parent / "testdata/test_snids.csv", header=None).values.flatten()
     np.testing.assert_array_equal(sn_ids, test_sn_ids), "The SNIDs do not match the test example"
+
 
 @pytest.mark.requires_truth
 def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
@@ -83,6 +86,7 @@ def test_extract_star_from_parquet_file_and_write_to_csv(sn_path):
         assert len(star_ids) == parq["id"].size, (
             "extract_star_from_parquet_file_and_write_to_csv did not return" + "all stars when no radius was passed"
         )
+
 
 @pytest.mark.requires_truth
 def test_build_lc_and_add_truth(sn_path, overwrite_meta):
@@ -176,6 +180,7 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
         SNLogger.debug("Overwrote metadata in test_build_lc_and_add_truth so I am rerunning this test.")
         test_build_lc_and_add_truth(sn_path, overwrite_meta=False)
 
+
 @pytest.mark.requires_truth
 def test_extract_id_using_ra_dec(sn_path):
     ra = 7.3447740
@@ -186,6 +191,7 @@ def test_extract_id_using_ra_dec(sn_path):
         np.testing.assert_allclose(dist, 0.003364, rtol=1e-3),
         "The distance from the RA/Dec to the SN does not match the expected value of 0.003364 arcsec.",
     )
+
 
 @pytest.mark.requires_truth
 def test_extract_object_from_healpix():

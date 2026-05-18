@@ -358,7 +358,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
          "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db",
-         #"--add-truth-to-lc", # uncomment this to test getting truth data. Not available on all machines!
+         # "--add-truth-to-lc", # uncomment this to test getting truth data. Not available on all machines!
          ]
 
     SNLogger.debug(f"Args for test: {' '.join(a)}")
