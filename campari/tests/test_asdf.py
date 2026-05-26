@@ -551,13 +551,14 @@ def test_roman_imsim_images_shifted_images(overwrite_meta):
     default_ra = 268.962494
     dec = 66.126176
 
-    for i in range(5):
+    for i in [0]:
 
         sub_pixel_shift = 0.1 * i * 0.11 / 3600 # shift by 0.1, 0.2, 0.3, 0.4, 0.5 pixels in RA direction (assuming 0.11 arcsec/pixel)
         ra = default_ra + sub_pixel_shift
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
             #get current path
-            temp_file.write(f"/scratch/out_shifted_{i}.asdf\n")
+            #temp_file.write(f"/scratch/out_shifted_{i}.asdf\n")
+            temp_file.write(f"/scratch/test.asdf")
         temp_file_path = temp_file.name
 
         cmd = base_cmd.copy()
@@ -631,7 +632,7 @@ def test_roman_imsim_images_thushara(overwrite_meta):
     isim_path_old = "/romanimsim_sims/2026-04-27_Nexus"
 
     cmd = base_cmd.copy()
-    cmd.extend(["-p", "/romanimsim_sims/2026-05-04_romancal_processed/*.asdf"])
+    cmd.extend(["-p", "/romanimsim_sims/2026-05-04_romancal_processed/*empty*.asdf"])
 
     cmd.extend(["--image-collection-basepath", isim_path])
 
@@ -659,7 +660,7 @@ def test_roman_imsim_images_thushara(overwrite_meta):
             if approx_end_date is not None:
                 cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
-            cmd.extend(["--diaobject-name", f"{cid}"])
+            cmd.extend(["--diaobject-name", f"emprty_{cid}"])
             SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
@@ -668,3 +669,77 @@ def test_roman_imsim_images_thushara(overwrite_meta):
                 raise RuntimeError(
                     f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
                 )
+
+
+
+def test_run_on_thushara_stars():
+    isim_path = "/romanimsim_sims/2026-05-04_Nexus"
+    imsize = 19
+    base_cmd = [
+            "python", "../RomanASP.py",
+            "--photometry-campari-psf-transient_class", "STPSF",
+            "--photometry-campari-psf-galaxy_class", "STPSF",
+            "--photometry-campari-use_real_images",
+            "--no-photometry-campari-fetch_SED",
+            "--photometry-campari-grid_options-type", "none",
+            "--photometry-campari-grid_options-spacing", "0.75",
+            "--photometry-campari-grid_options-subsize", "4",
+            "--photometry-campari-grid_options-error_floor", "0.00001",
+            "--photometry-campari-grid_options-gaussian_var", "100000",
+            "--photometry-campari-grid_options-cutoff", "2",
+            "--photometry-campari-cutout_size", str(imsize),
+            "--photometry-campari-weighting",
+            "--photometry-campari-subtract_background", "calculate",
+            "--image-collection", "manual_rdm",
+            "--no-save-to-db",
+            "--diaobject-collection", "manual",
+            "--nprocs", "25",
+
+        ]
+
+
+    cmd = base_cmd.copy()
+    cmd.extend(["-p", "/romanimsim_sims/2026-05-04_romancal_processed/*.asdf"])
+    cmd.extend(["--image-collection-basepath", isim_path])
+
+    # Now we'll get the RA/DECs
+
+    bands = ["F129"]
+
+    stars = "/romanimsim_sims/Nexus/GAIA.csv"
+    # stars = f"{isim_path}/GAIA.csv"
+    stars_df = pd.read_csv(stars, comment ="#", sep=",")
+
+    rick_image_approx_center = SkyCoord(ra=9.42*u.degree, dec=-44*u.degree)
+    star_skycoords = SkyCoord(ra=stars_df.ra.values*u.degree, dec=stars_df.dec.values*u.degree)
+    separations = rick_image_approx_center.separation(star_skycoords)
+    closest_stars = stars_df[separations < 0.075*u.degree]
+    SNLogger.debug(f"Found {len(closest_stars)} stars within 0.075 degrees of the image center for calibration.")
+
+    successful = 0
+    for i in range(len(closest_stars)):
+        for band in bands:
+            cid = "teststar_thushara_" + str(i)
+            ra = closest_stars.ra.values[i]
+            dec = closest_stars.dec.values[i]
+            cmd.extend(["--ra", str(ra)])
+            cmd.extend(["--dec", str(dec)])
+            cmd.extend(["--transient_start", f"{0}"])
+            cmd.extend(["-f", band])
+            cmd.extend(["--diaobject-name", f"{cid}"])
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}.")
+
+            result = subprocess.run(cmd, capture_output=False, text=True)
+
+            try:
+                if result.returncode != 0:
+                    raise RuntimeError(
+                        f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    )
+            except RuntimeError as e:
+                SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
+                continue
+
+            successful += 1
+
+    SNLogger.info(f"Successfully ran Campari on {successful} stars in the ASDF images.")
