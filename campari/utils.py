@@ -14,7 +14,6 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 # SN-PIT
-import photometry_test_data
 from snappl.config import Config
 from snappl.logger import SNLogger
 
