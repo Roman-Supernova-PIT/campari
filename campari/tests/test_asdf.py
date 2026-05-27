@@ -129,13 +129,13 @@ def test_roman_imsim_images(overwrite_meta):
     truth_file = f"{isim_path}/TRUTH_HLTDS_PILOT+CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
 
-    #bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    # bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
     # CIDs = truth_df.CID.values
 
     bands = ["F087"]
     CIDs = [2598, 9263]
 
-    #CIDs = [1721]
+    # CIDs = [1721]
 
     truth_df = truth_df[truth_df.CID.isin(CIDs)]
     SNLogger.debug(f"Truth df {truth_df.head()}")
@@ -144,11 +144,11 @@ def test_roman_imsim_images(overwrite_meta):
     import asdf
 
     import datetime
+
     def get_file_time_and_print(file):
         created_timestamp = os.path.getctime(file)
         created_date = datetime.datetime.fromtimestamp(created_timestamp)
         SNLogger.debug(f"File {file} was created on: {created_date}")
-
 
     files = sorted(pathlib.Path(isim_path).glob("*.asdf"))
     SNLogger.debug(f"Found {len(files)} ASDF files in {isim_path} for ASDF test.")
@@ -163,11 +163,13 @@ def test_roman_imsim_images(overwrite_meta):
                     temp_file.write(str(file) + "\n")
 
                 elif truth_df.FIELD.values[0] == "DEEP" and exposure_time >= 200:
-                    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200, adding {file}.")
+                    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200,"
+                                   f" adding {file}.")
                     get_file_time_and_print(file)
                     temp_file.write(str(file) + "\n")
                 else:
-                    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} for field {truth_df.FIELD.values[0]}.")
+                    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} "
+                                   f"for field {truth_df.FIELD.values[0]}.")
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()
@@ -176,8 +178,6 @@ def test_roman_imsim_images(overwrite_meta):
     cmd.extend(["--image-collection-basepath", isim_path])
 
     # Now we'll get the RA/DECs
-
-    failed_cids = []
 
     for i, cid in enumerate(CIDs):
         for band in bands:
@@ -200,13 +200,15 @@ def test_roman_imsim_images(overwrite_meta):
                 cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
-            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec},"
+                           f" and transient start {approx_start_date}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
 
             if result.returncode != 0:
                 raise RuntimeError(
-                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    f"Command failed with exit code {result.returncode}\nstdout"
+                    f":\n{result.stdout}\nstderr:\n{result.stderr}"
                 )
             # except RuntimeError as e:
             #     SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
@@ -238,7 +240,6 @@ def test_run_on_gaia_stars():
 
         ]
 
-
     # Get all of the roman imsim images and put them in a list file
     # isim_path = "/romanimsim_sims/2026-03-24_Nexus"  # Note this needs to be in the rob_dev podman environment
     isim_path = "/romanimsim_sims/2026-04-27_Nexus"
@@ -260,10 +261,9 @@ def test_run_on_gaia_stars():
     truth_file = f"{isim_path}/TRUTH_HLTDS_PILOT+CORE_DEEP_SCA1.SNANA.TEXT"
     truth_df = pd.read_csv(truth_file, comment="#", sep=r"\s+")
 
-
     SNLogger.debug(f"Truth df {truth_df.head()}")
 
-    #bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
+    # bands = ["F129"]  # Z Y J  #, "F087 F106", "F129"
     bands = ["F087"]
 
     stars = "/romanimsim_sims/Nexus/GAIA.csv"
@@ -294,7 +294,8 @@ def test_run_on_gaia_stars():
             try:
                 if result.returncode != 0:
                     raise RuntimeError(
-                        f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                        f"Command failed with exit code {result.returncode}\n"
+                        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
                     )
             except RuntimeError as e:
                 SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
@@ -336,7 +337,7 @@ def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
     bands = ["F129"]
     CIDs = truth_df.CID.values
 
-    #CIDs = [1721]
+    # CIDs = [1721]
 
     truth_df = truth_df[truth_df.CID.isin(CIDs)]
     SNLogger.debug(f"Truth df {truth_df.head()}")
@@ -345,6 +346,7 @@ def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
     import asdf
 
     import datetime
+
     def get_file_time_and_print(file):
         created_timestamp = os.path.getctime(file)
         created_date = datetime.datetime.fromtimestamp(created_timestamp)
@@ -370,11 +372,13 @@ def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
                     temp_file.write(str(file) + "\n")
 
                 elif truth_df.FIELD.values[0] == "DEEP" and exposure_time >= 200:
-                    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200, adding {file}.")
+                    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater"
+                                   f" than or equal to 200, adding {file}.")
                     get_file_time_and_print(file)
                     temp_file.write(str(file) + "\n")
                 else:
-                    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} for field {truth_df.FIELD.values[0]}.")
+                    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time}"
+                                   f" for field {truth_df.FIELD.values[0]}.")
 
         files = sorted(pathlib.Path(isim_path).glob("*.asdf"))
         SNLogger.debug(f"Found {len(files)} new ASDF files in {isim_path} for ASDF test.")
@@ -382,18 +386,7 @@ def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
             with asdf.open(file) as af:
                 exposure_time = af["roman"]["meta"]["exposure"]["exposure_time"]
                 end_time = af["roman"]["meta"]["exposure"]["end_time"].mjd
-
-                # if truth_df.FIELD.values[0] == "WIDE" and exposure_time < 200:
-                #     SNLogger.debug(f"Field is WIDE and exposure time {exposure_time} is less than 200, adding {file}.")
-                #     get_file_time_and_print(file)
-                #     temp_file.write(str(file) + "\n")
-
-                #elif truth_df.FIELD.values[0] == "DEEP" and exposure_time >= 200:
-                #    SNLogger.debug(f"Field is DEEP and exposure time {exposure_time} is greater than or equal to 200, adding {file}.")
-                #    get_file_time_and_print(file)
                 temp_file.write(str(file) + "\n")
-                #else:
-                #    SNLogger.debug(f"Skipping {file} with exposure time {exposure_time} for field {truth_df.FIELD.values[0]}.")
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()
@@ -402,8 +395,6 @@ def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
     cmd.extend(["--image-collection-basepath", isim_path])
 
     # Now we'll get the RA/DECs
-
-    failed_cids = []
 
     for i, cid in enumerate(CIDs):
         for band in bands:
@@ -426,19 +417,20 @@ def test_roman_imsim_images_FORCE_RANMAG(overwrite_meta):
                 cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"{cid}"])
-            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec},"
+                           f" and transient start {approx_start_date}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
 
             if result.returncode != 0:
                 raise RuntimeError(
-                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    f"Command failed with exit code {result.returncode}\nstdout:"
+                    f"\n{result.stdout}\nstderr:\n{result.stderr}"
                 )
             # except RuntimeError as e:
             #     SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")
             #     failed_cids.append((cid, band))
             #     continue
-
 
 
 def test_roman_imsim_images_my_images(overwrite_meta):
@@ -468,23 +460,21 @@ def test_roman_imsim_images_my_images(overwrite_meta):
     isim_path = "/scratch"
 
     bands = ["F087"]
-    #CIDs = [123456789]
+    # CIDs = [123456789]
 
-    CIDS = [7777]
+    CIDs = [7777]
 
-    #ra = 270.36
-    #dec = 65.52
-
+    # ra = 270.36
+    # dec = 65.52
 
     ra = 268.962494
     dec = 66.126176
 
-
     with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
-        #get current path
+        # get current path
         for i in range(5):
             temp_file.write(f"/scratch/out_bright_{i}.asdf\n")
-        #temp_file.write("/scratch/out_bright.asdf")
+        # temp_file.write("/scratch/out_bright.asdf")
         temp_file_path = temp_file.name
 
     cmd = base_cmd.copy()
@@ -511,7 +501,8 @@ def test_roman_imsim_images_my_images(overwrite_meta):
 
             if result.returncode != 0:
                 raise RuntimeError(
-                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    f"Command failed with exit code {result.returncode}\nstdout"
+                    f":\n{result.stdout}\nstderr:\n{result.stderr}"
                 )
 
 
@@ -541,24 +532,20 @@ def test_roman_imsim_images_shifted_images(overwrite_meta):
     # Get all of the roman imsim images and put them in a list file
     isim_path = "/scratch"
 
-
-
     band = "F087"
-
-
-
 
     default_ra = 268.962494
     dec = 66.126176
 
     for i in [0]:
 
-        sub_pixel_shift = 0.1 * i * 0.11 / 3600 # shift by 0.1, 0.2, 0.3, 0.4, 0.5 pixels in RA direction (assuming 0.11 arcsec/pixel)
+        sub_pixel_shift = 0.1 * i * 0.11 / 3600 # shift by 0.1, 0.2, 0.3, 0.4, 0.5 pixels in RA direction
+        # (assuming 0.11 arcsec/pixel)
         ra = default_ra + sub_pixel_shift
         with tempfile.NamedTemporaryFile(mode="w", suffix=".txt", delete=False) as temp_file:
-            #get current path
-            #temp_file.write(f"/scratch/out_shifted_{i}.asdf\n")
-            temp_file.write(f"/scratch/test.asdf")
+            # get current path
+            # temp_file.write(f"/scratch/out_shifted_{i}.asdf\n")
+            temp_file.write("/scratch/test.asdf")
         temp_file_path = temp_file.name
 
         cmd = base_cmd.copy()
@@ -587,7 +574,6 @@ def test_roman_imsim_images_shifted_images(overwrite_meta):
             raise RuntimeError(
                 f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
             )
-
 
 
 def test_roman_imsim_images_thushara(overwrite_meta):
@@ -621,15 +607,11 @@ def test_roman_imsim_images_thushara(overwrite_meta):
     bands = ["F129"]
     CIDs = truth_df.CID.values
 
-    #CIDs = [1721]
+    # CIDs = [1721]
 
     truth_df = truth_df[truth_df.CID.isin(CIDs)]
     SNLogger.debug(f"Truth df {truth_df.head()}")
     SNLogger.debug(f"truth field {truth_df.FIELD}")
-
-    import asdf
-
-    isim_path_old = "/romanimsim_sims/2026-04-27_Nexus"
 
     cmd = base_cmd.copy()
     cmd.extend(["-p", "/romanimsim_sims/2026-05-04_romancal_processed/*empty*.asdf"])
@@ -637,8 +619,6 @@ def test_roman_imsim_images_thushara(overwrite_meta):
     cmd.extend(["--image-collection-basepath", isim_path])
 
     # Now we'll get the RA/DECs
-
-    failed_cids = []
 
     for i, cid in enumerate(CIDs):
         for band in bands:
@@ -661,15 +641,16 @@ def test_roman_imsim_images_thushara(overwrite_meta):
                 cmd.extend(["--transient_end", str(approx_end_date)])
             cmd.extend(["-f", band])
             cmd.extend(["--diaobject-name", f"emprty_{cid}"])
-            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec}, and transient start {approx_start_date}.")
+            SNLogger.debug(f"Running Campari on CID {cid} and band {band} with RA {ra}, DEC {dec},"
+                           f" and transient start {approx_start_date}.")
 
             result = subprocess.run(cmd, capture_output=False, text=True)
 
             if result.returncode != 0:
                 raise RuntimeError(
-                    f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                    f"Command failed with exit code {result.returncode}\n"
+                    f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
                 )
-
 
 
 def test_run_on_thushara_stars():
@@ -696,7 +677,6 @@ def test_run_on_thushara_stars():
             "--nprocs", "25",
 
         ]
-
 
     cmd = base_cmd.copy()
     cmd.extend(["-p", "/romanimsim_sims/2026-05-04_romancal_processed/*.asdf"])
@@ -734,7 +714,8 @@ def test_run_on_thushara_stars():
             try:
                 if result.returncode != 0:
                     raise RuntimeError(
-                        f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
+                        f"Command failed with exit code {result.returncode}\n"
+                        f"stdout:\n{result.stdout}\nstderr:\n{result.stderr}"
                     )
             except RuntimeError as e:
                 SNLogger.error(f"Error processing CID {cid} and band {band}: {e}")

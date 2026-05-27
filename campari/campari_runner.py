@@ -497,7 +497,7 @@ class campari_runner:
         else:
             img_list_lines = glob.glob(self.img_path)
             for im_path in img_list_lines:
-                 SNLogger.debug(f"Found image at path {im_path}")
+                SNLogger.debug(f"Found image at path {im_path}")
 
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
@@ -531,7 +531,8 @@ class campari_runner:
 
                     images.append(potential_image)
                 else:
-                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd} and band {potential_image.band} because it was not in the correct band {self.band}.")
+                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd} and "
+                                   f"band {potential_image.band} because it was not in the correct band {self.band}.")
                     rejected_images += 1
             SNLogger.debug(f"Rejected {rejected_images} images from the provided image list because they were not in"
                             f" the correct band {self.band}.")

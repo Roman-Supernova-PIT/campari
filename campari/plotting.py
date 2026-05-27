@@ -382,9 +382,6 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
             data = image.noise
         else:
             data = image.data
-        imsize = data.shape[0]
-
-
 
         ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap = "viridis")
         plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
@@ -395,7 +392,8 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         # Mark the location of the peak SNR pixel with a blue circle
         peak_y, peak_x = np.unravel_index(np.nanargmax(snr), data.shape)
         if not plot_noise:
-            ax.scatter(peak_x, peak_y, marker="o", color="blue", s=100, linewidths=.5, label="Peak SNR" if i == 0 else None)
+            ax.scatter(peak_x, peak_y, marker="o", color="blue", s=100, linewidths=.5,
+                       label="Peak SNR" if i == 0 else None)
 
         # Mark the SN location in cutout pixel coordinates
         try:
@@ -414,7 +412,8 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
             if mjd_start <= image.mjd <= mjd_end:
                 title_color = "red"
 
-        ax.set_title(f"MJD {image.mjd:.7f} Texp: {image.exptime:.1f}s PkSNR: {peak_snr:.1f}", fontsize=8, color=title_color)
+        ax.set_title(f"MJD {image.mjd:.7f} Texp: {image.exptime:.1f}s PkSNR:"
+                     f" {peak_snr:.1f}", fontsize=8, color=title_color)
         ax.set_xticks([])
         ax.set_yticks([])
 
@@ -443,7 +442,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
                bbox_to_anchor=(0.5, 0.0), fontsize=9, frameon=True)
 
     name = diaobj.name if diaobj is not None else "(no name)"
-    plt.suptitle(f"Cutouts  for {diaobj.name} (RA={ra:.5f}, Dec={dec:.5f})", fontsize=11, y=1.01)
+    plt.suptitle(f"Cutouts  for {name} (RA={ra:.5f}, Dec={dec:.5f})", fontsize=11, y=1.01)
     plt.tight_layout()
 
     if output_path is not None:
@@ -452,4 +451,3 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         plt.close()
     else:
         plt.show()
-
