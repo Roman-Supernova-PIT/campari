@@ -266,10 +266,11 @@ class campari_runner:
             my_image_collection = my_image_collection.get_collection(self.image_collection,
                                                                      subset=self.image_collection_subset,
                                                                      base_path=self.image_collection_basepath)
+            image_list = []
             all_images_found = glob.glob(self.img_path)
             for im_path in all_images_found:
                 SNLogger.debug(f"Found image at path {im_path}")
-            image_list = my_image_collection.glob_images(self.img_path)
+                image_list.append(my_image_collection.get_image(path=im_path))
             if len(image_list) == 0:
                 raise ValueError(f"No images found that match the provided img_path {self.img_path}.")
 

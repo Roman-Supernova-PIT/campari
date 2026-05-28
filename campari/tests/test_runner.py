@@ -35,6 +35,7 @@ def create_default_test_args(cfg):
     test_args.diaobject_name = None
     test_args.diaobject_id = None
     test_args.img_list = None
+    test_args.img_path = None
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
@@ -206,6 +207,18 @@ def test_get_exposures(cfg):
     compare_set = set(compare_list)
     np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
                             "does not match the set of observation IDs in the image list file.")
+
+    # Now we test getting images from globbing paths.
+    test_args.img_list = None
+    test_args.image_collection = "manual_fits"
+    test_args.image_collection_basepath = "/photometry_test_data/ou2024/images/"
+    test_args.img_path = "/photometry_test_data/ou2024/images/simple_model/Y106/*/*.fits.gz"
+    runner = campari_runner(**vars(test_args))
+    runner.get_exposures(diaobj=diaobj)
+    observation_id_list = [im.observation_id for im in runner.image_list]
+    compare_list = ["5934"]
+    np.testing.assert_equal(set(observation_id_list), set(compare_list),
+    "The set of observation IDs recovered from globbing does not match the expected set of observation IDs.")
 
 
 def test_get_SED_list(cfg):
