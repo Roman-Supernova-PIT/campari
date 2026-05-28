@@ -274,7 +274,7 @@ class campari_runner:
             if len(image_list) == 0:
                 raise ValueError(f"No images found that match the provided img_path {self.img_path}.")
 
-        if self.img_list is not None:
+        if self.img_list is not None or self.img_path is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
             mjd_list = [im.mjd for im in image_list]
@@ -471,10 +471,34 @@ class campari_runner:
 
     def parse_img_list(self):
         """Parse the image list file if provided."""
-        with open(self.img_list) as ifp:
-            img_list_lines = ifp.readlines()
-        img_list_lines = [line.strip() for line in img_list_lines if
-                          (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        if self.img_list is not None:
+            with open(self.img_list) as ifp:
+                img_list_lines = ifp.readlines()
+                img_list_lines = [line.strip() for line in img_list_lines if
+                            (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+        else:
+            img_list_lines = glob.glob(self.img_path)
+            for im_path in img_list_lines:
+                SNLogger.debug(f"Found image at path {im_path}")
+
+        SNLogger.debug(img_list_lines)
+        if self.image_collection_subset == "threefile":
+            # In this case, snappl is expecting just the file root, not the file paths exactly.
+            extensions_to_remove = ["_data.fits", "_noise.fits", "_flags.fits"]
+
+            img_list_lines_cleaned = []
+            for l in img_list_lines:
+                if any(e in l for e in extensions_to_remove):
+                    for ext in extensions_to_remove:
+                        if ext in l:
+                            img_list_lines_cleaned.append(l.split(ext)[0])
+                else:
+                    img_list_lines_cleaned.append(l)
+
+            img_list_lines = img_list_lines_cleaned
+
+        SNLogger.debug(img_list_lines)
+
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
