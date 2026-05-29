@@ -47,7 +47,7 @@ class campari_runner:
         self.diaobject_name = kwargs["diaobject_name"]
         self.diaobject_id = kwargs["diaobject_id"]
         self.img_list = kwargs["img_list"]
-        self.img_path = kwargs["img_path"]
+        self.img_path = kwargs.get("img_path", None)
         self.image_collection = kwargs["image_collection"]
 
         self.diaobject_collection = kwargs["diaobject_collection"]
@@ -319,7 +319,6 @@ class campari_runner:
                                  " available images. If you are running on stars, this is expected behavior."
                                  " If you are running on supernovae, consider increasing the date range.")
 
-        SNLogger.debug(f"Image MJDs: {[a.mjd for a in image_list]}")
         mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
         mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
         no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
