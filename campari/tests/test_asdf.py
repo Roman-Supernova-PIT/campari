@@ -3,28 +3,21 @@
 # Standard Libary
 import numpy as np
 import os
-import pandas as pd
 import warnings
 
 # Common Library
 import pathlib
 import pytest
-import subprocess
-import tempfile
 
 # Astronomy Library
-from astropy.coordinates import SkyCoord
-import astropy.units as u
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SNPIT
 from campari.tests.test_campari import compare_lightcurves
-# from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.config import Config
 from snappl.logger import SNLogger
-# from snappl.imagecollection import ImageCollection
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
