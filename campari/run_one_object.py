@@ -86,18 +86,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     percentiles = []
 
-    SNLogger.debug("########## IMAGE SORTING SECTION ############")
-    SNLogger.debug(f"diaobj.mjd_start: {diaobj.mjd_start}, diaobj.mjd_end: {diaobj.mjd_end}")
-
     num_total_images = len(image_list)
     transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
-    SNLogger.debug(f"Found {len(transient_image_list)} transient images out of {num_total_images} total images.")
-    SNLogger.debug(f"Transient image MJDs: {[a.mjd for a in transient_image_list]}")
     num_detect_images = len(transient_image_list)
 
     no_transient_images = [a for a in image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
-    SNLogger.debug(f"Found {len(no_transient_images)} non-transient images out of {num_total_images} total images.")
-    SNLogger.debug(f"Non-transient image MJDs: {[a.mjd for a in no_transient_images]}")
 
     transient_mjds = [a.mjd for a in transient_image_list]
     no_transient_mjds = [a.mjd for a in no_transient_images]
@@ -106,9 +99,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     transient_image_list = [transient_image_list[i] for i in transient_argsort]
     no_transient_images = [no_transient_images[i] for i in no_transient_argsort]
-
-    SNLogger.debug(f"Sorted transient image MJDs: {[a.mjd for a in transient_image_list]}")
-    SNLogger.debug(f"Sorted non-transient image MJDs: {[a.mjd for a in no_transient_images]}")
 
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.

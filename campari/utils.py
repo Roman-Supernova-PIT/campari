@@ -384,35 +384,3 @@ def print_memory_usage_summary(flag):
         SNLogger.info(printout)
     else:
         pass
-
-
-def rescale_images_to_common_exposure_time(cutout_image_list):
-    """Rescale the images as though they all had the same exposure time.
-    Eventually, this could be expanded to handle all differences in zeropoint, if there are any others.
-    Parameters
-    ----------
-    cutout_image_list : list of snappl.image.Image objects
-        The list of cutout images to be rescaled.
-
-    Returns
-    -------
-    rescaled_cutouts : list of snappl.image.Image objects
-        The list of cutout images rescaled to a common exposure time.
-    """
-    exposure_times = [im.exptime for im in cutout_image_list]
-    max_exposure_time = max(exposure_times)
-    SNLogger.debug(f"Rescaling images to common exposure time. Max exposure time is {max_exposure_time} seconds.")
-    rescaled_cutouts = []
-    scale_factors = []
-    for im in cutout_image_list:
-        if im.exptime != max_exposure_time:
-            scale_factor = max_exposure_time / im.exptime
-            SNLogger.debug(f"Rescaling image with exposure time {im.exptime} by a factor of {scale_factor}.")
-            SNLogger.debug(f"Max pix before scaling: {np.max(im.data)}")
-            im.data *= scale_factor
-            im.noise *= scale_factor
-            im.exptime = max_exposure_time
-            SNLogger.debug(f"Max pix after scaling: {np.max(im.data)}")
-        rescaled_cutouts.append(im)
-        scale_factors.append(scale_factor if im.exptime != max_exposure_time else 1)
-    return rescaled_cutouts, scale_factors
