@@ -17,7 +17,6 @@ from erfa import ErfaWarning
 from campari.tests.test_campari import compare_lightcurves
 from snappl.diaobject import DiaObject
 from snappl.config import Config
-from snappl.logger import SNLogger
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
@@ -27,9 +26,6 @@ cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
-os.environ["IN_ASDF_POD"] = "true"
-
-SNLogger.debug(f"IN_ASDF_POD: {os.getenv('IN_ASDF_POD')}")
 
 in_asdf_pod = os.getenv("IN_ASDF_POD") if os.getenv("IN_ASDF_POD") is not None else False
 # ASDF tests will only run if using the rob_dev podman environment.
