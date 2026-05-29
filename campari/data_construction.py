@@ -29,15 +29,16 @@ huge_value = 1e32
 _construct_images_shared_list = None
 
 
-#### Temporary AI code #####
 def _construct_one_image_worker(indx, ra, dec, size, truth, subtract_background_method):
-    """Wrapper that pulls the image from a module-level global to avoid pickling it."""
+    """Wrapper that pulls the image from a module-level global to avoid pickling it.
+    As it turns out, something about ASDF images means their data tree can't be pickled.
+    To avoid this, this worker function pulls the image from a global variable that is
+    set before forking the processes, so that the image itself doesn't need to be pickled."""
     image = _construct_images_shared_list[indx]
     return construct_one_image(
         indx=indx, image=image, ra=ra, dec=dec, size=size,
         truth=truth, subtract_background_method=subtract_background_method,
     )
-#############################
 
 
 def construct_images(image_list, diaobj, size, subtract_background_method=True, nprocs=1):
@@ -72,25 +73,11 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
 
     SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
-    # if nprocs > 1:
-    #     SNLogger.debug(f"Using {nprocs} processes for model building")
-    #     with Pool(nprocs) as pool:
-    #         for indx, image in enumerate(image_list):
-    #             SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
-    #             SNLogger.debug(f"type image: {type(image)}")
-    #             results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
-    #                                                                        "ra": ra, "dec": dec, "size": size,
-    #                                                                        "truth": truth,
-    #                                                                        "subtract_background_method":
-    #                                                                        subtract_background_method}))
-    #             SNLogger.debug(f"last result {results[-1]}")
-
-    #         pool.close()
-    #         pool.join()
-    # Temporary AI fix
     if nprocs > 1:
+        # Create a global list of images to pull from so that they need to be pickled
+        # before they are given to the workers because ASDF images can't be pickled.
         global _construct_images_shared_list
-        _construct_images_shared_list = image_list  # set BEFORE forking
+        _construct_images_shared_list = image_list
         SNLogger.debug(f"Using {nprocs} processes for model building")
         ctx = multiprocessing.get_context("fork")
         with ctx.Pool(nprocs) as pool:
@@ -98,9 +85,7 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
                 results.append(
                     pool.apply_async(
                         _construct_one_image_worker,
-                        args=(indx, ra, dec, size, truth, subtract_background_method),
-                    )
-                )
+                        args=(indx, ra, dec, size, truth, subtract_background_method)))
             pool.close()
             pool.join()
     else:
@@ -109,7 +94,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             results.append(construct_one_image(indx=indx, image=image,
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background_method=subtract_background_method))
-    SNLogger.debug("Here somehow.")
     for r in results:
         if nprocs > 1:
             res = r.get()
@@ -117,18 +101,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             res = r
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
-
-    # mean_pixel_values = [np.nanmax(im.data) for im in cutout_image_list]
-    # SNLogger.debug(f"max pixel values of cutouts: {mean_pixel_values}")
-
-    # cutout_image_list, scale_factors = rescale_images_to_common_exposure_time(cutout_image_list)
-    # image_list, _ = rescale_images_to_common_exposure_time(image_list)
-    # bgflux = np.array(bgflux) * scale_factors
-
-    # mean_pixel_values = [np.nanmax(im.data) for im in cutout_image_list]
-    # SNLogger.debug(f"Updated max pixel values of cutouts: {mean_pixel_values}")
-
-    # import pdb; pdb.set_trace()
 
     return cutout_image_list, image_list, bgflux
 
