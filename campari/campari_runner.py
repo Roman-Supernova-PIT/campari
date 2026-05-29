@@ -260,6 +260,13 @@ class campari_runner:
                              " use. Please choose one or the other.")
 
         if self.img_path is not None:
+
+            if self.image_collection == "manual_fits":
+                raise ValueError("Cannot provide img_path when using the manual_fits image collection. The manual_fits"
+                                 " collection is designed to be used with img_list, where the user provides a list of"
+                                 " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
+                                 " adds the appropriate suffixes to find the files. Please use img_list instead.")
+
             # If the user provided an image path, glob for images that match that path.
             SNLogger.debug(f"Globbing for images with path {self.img_path}")
             my_image_collection = ImageCollection()
@@ -299,6 +306,7 @@ class campari_runner:
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
+
             no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
             SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
 
@@ -312,6 +320,7 @@ class campari_runner:
                                  " available images. If you are running on stars, this is expected behavior."
                                  " If you are running on supernovae, consider increasing the date range.")
 
+        SNLogger.debug(f"Image MJDs: {[a.mjd for a in image_list]}")
         mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
         mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
         no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
@@ -480,24 +489,6 @@ class campari_runner:
             img_list_lines = glob.glob(self.img_path)
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
-
-        SNLogger.debug(img_list_lines)
-        if self.image_collection_subset == "threefile":
-            # In this case, snappl is expecting just the file root, not the file paths exactly.
-            extensions_to_remove = ["_data.fits", "_noise.fits", "_flags.fits"]
-
-            img_list_lines_cleaned = []
-            for l in img_list_lines:
-                if any(e in l for e in extensions_to_remove):
-                    for ext in extensions_to_remove:
-                        if ext in l:
-                            img_list_lines_cleaned.append(l.split(ext)[0])
-                else:
-                    img_list_lines_cleaned.append(l)
-
-            img_list_lines = img_list_lines_cleaned
-
-        SNLogger.debug(img_list_lines)
 
         my_image_collection = ImageCollection()
         # De-harcode this threefile thing
