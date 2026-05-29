@@ -5,7 +5,6 @@ import warnings
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import multiprocessing
-# from multiprocessing import Pool
 import numpy as np
 
 
