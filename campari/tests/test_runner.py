@@ -154,11 +154,11 @@ def test_runner_init(cfg):
 
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
-    # test_args.diaobject_collection = "ou24"
-    # test_args.diaobject_name = 20172782
-    # test_args.image_collection = "ou2024"
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
+    test_args.image_collection = "ou2024"
 
-    # runner = campari_runner(**vars(test_args))
+    runner = campari_runner(**vars(test_args))
     diaobj = DiaObject.find_objects(name=1, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
