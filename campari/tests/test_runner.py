@@ -5,6 +5,7 @@ from types import SimpleNamespace
 # Common Library
 import numpy as np
 import pandas as pd
+import pytest
 
 # SNPIT
 from campari.campari_runner import campari_runner
@@ -35,6 +36,7 @@ def create_default_test_args(cfg):
     test_args.diaobject_name = None
     test_args.diaobject_id = None
     test_args.img_list = None
+    test_args.img_path = None
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
@@ -206,6 +208,35 @@ def test_get_exposures(cfg):
     compare_set = set(compare_list)
     np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
                             "does not match the set of observation IDs in the image list file.")
+
+    # Now we test getting images from globbing paths.
+    test_args.img_list = None
+    test_args.image_collection = "manual_rdm"
+    test_args.image_collection_subset = None
+    test_args.image_collection_basepath = "/photometry_test_data/ou2024/images/"
+    test_args.img_path = "/photometry_test_data/sample_asdf_data/*.asdf"
+    runner = campari_runner(**vars(test_args))
+    runner.get_exposures(diaobj=diaobj)
+    mjd_list = [im.mjd for im in runner.image_list]
+    compare_list = [60627.500299]
+    np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg=
+    "The set of MJDs recovered from globbing does not match the expected set of MJDs.")
+
+    # Unfortunately, this doesn't work with FITS. This is because FITS files in snappl are
+    # either A.) Treated as ManualFITSImages which have essentially no reliable header info, so
+    # we can't get things like MJD, so they are not very useful for campari. B.) It could be
+    # treated as FITSImageStdHeaders, but this requires the data to be following a convention
+    # where the data is stored in a _data, _noise, and _image files, and the logic for figuring
+    # out how to glob for these when the user might pass an entire path or just a root is
+    # a bit of a hassle for when I am only using this on ASDF images anyway, so I may implement it
+    # later but it's not worth it for now. Here we check that trying this with fits images raises
+    # an error.
+    test_args.img_path = "/photometry_test_data/sample_fits_data/*.fits"
+    test_args.image_collection = "manual_fits"
+    runner = campari_runner(**vars(test_args))
+
+    with pytest.raises(ValueError, match="Cannot provide img_path"):
+        runner.get_exposures(diaobj=diaobj)
 
 
 def test_get_SED_list(cfg):
