@@ -306,7 +306,6 @@ class campari_runner:
             mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
             mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
 
-
             no_transient_images = [a for a in image_list if (a.mjd < mjd_start) or (a.mjd > mjd_end)]
             SNLogger.debug(f"Found {len(no_transient_images)} non-detection images for SN {diaobj.id}.")
 

@@ -239,7 +239,6 @@ def test_get_exposures(cfg):
         runner.get_exposures(diaobj=diaobj)
 
 
-
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
