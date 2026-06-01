@@ -222,7 +222,7 @@ def test_get_exposures(cfg):
     np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg=
     "The set of MJDs recovered from globbing does not match the expected set of MJDs.")
 
-    # Unfortunately, this doesn't work with FITS. This is because FITS files in snappl are
+    # Unfortunately, directly globbing an input path doesn't work with FITS. This is because FITS files in snappl are
     # either A.) Treated as ManualFITSImages which have essentially no reliable header info, so
     # we can't get things like MJD, so they are not very useful for campari. B.) It could be
     # treated as FITSImageStdHeaders, but this requires the data to be following a convention

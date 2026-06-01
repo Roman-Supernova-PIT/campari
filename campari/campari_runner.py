@@ -119,6 +119,11 @@ class campari_runner:
         self.dbclient = SNPITDBClient()
         self.img_coll_prov = None
 
+        if self.img_list is not None and self.img_path is not None:
+            raise ValueError("Cannot provide both img_list and img_path. These are two different ways to provide a list"
+                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
+                             " use. Please choose one or the other.")
+
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
             self.grid_type = "regular"
@@ -251,28 +256,32 @@ class campari_runner:
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
 
+
     def get_exposures(self, diaobj):
-        """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
+    if self.img_list:
+         return get_exposures_from_img_list()
+    if self.img_path:
+         return get_exposures_from_img_path()
 
-        if self.img_list is not None and self.img_path is not None:
-            raise ValueError("Cannot provide both img_list and img_path. These are two different ways to provide a list"
-                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
-                             " use. Please choose one or the other.")
+    def get_exposures_from_img_list(...):
+        ...
 
-        if self.img_path is not None:
-
-            if self.image_collection == "manual_fits":
+    def get_exposures_from_img_path():
+        if self.image_collection == "manual_fits":
                 raise ValueError("Cannot provide img_path when using the manual_fits image collection. The manual_fits"
-                                 " collection is designed to be used with img_list, where the user provides a list of"
-                                 " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
-                                 " adds the appropriate suffixes to find the files. Please use img_list instead.")
+                                " collection is designed to be used with img_list, where the user provides a list of"
+                                " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
+                                " adds the appropriate suffixes to find the files. Please use img_list instead.")
+
+
+            # Why am I globbing twice? Delete this.
 
             # If the user provided an image path, glob for images that match that path.
             SNLogger.debug(f"Globbing for images with path {self.img_path}")
             my_image_collection = ImageCollection()
             my_image_collection = my_image_collection.get_collection(self.image_collection,
-                                                                     subset=self.image_collection_subset,
-                                                                     base_path=self.image_collection_basepath)
+                                                                    subset=self.image_collection_subset,
+                                                                    base_path=self.image_collection_basepath)
             image_list = []
             all_images_found = glob.glob(self.img_path)
             for im_path in all_images_found:
@@ -280,6 +289,11 @@ class campari_runner:
                 image_list.append(my_image_collection.get_image(path=im_path))
             if len(image_list) == 0:
                 raise ValueError(f"No images found that match the provided img_path {self.img_path}.")
+
+    def get_exposures(self, diaobj):
+        """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
+
+        if self.img_path is not None:
 
         if self.img_list is not None or self.img_path is not None:
             # If the user provided an image list, use that.
