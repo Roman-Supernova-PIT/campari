@@ -36,7 +36,7 @@ def create_default_test_args(cfg):
     test_args.diaobject_name = None
     test_args.diaobject_id = None
     test_args.img_list = None
-    test_args.img_path = None
+    test_args.img_glob = None
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
@@ -214,7 +214,7 @@ def test_get_exposures(cfg):
     test_args.image_collection = "manual_rdm"
     test_args.image_collection_subset = None
     test_args.image_collection_basepath = "/photometry_test_data/ou2024/images/"
-    test_args.img_path = "/photometry_test_data/sample_asdf_data/*.asdf"
+    test_args.img_glob = "/photometry_test_data/sample_asdf_data/*.asdf"
     runner = campari_runner(**vars(test_args))
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
@@ -231,11 +231,10 @@ def test_get_exposures(cfg):
     # a bit of a hassle for when I am only using this on ASDF images anyway, so I may implement it
     # later but it's not worth it for now. Here we check that trying this with fits images raises
     # an error.
-    test_args.img_path = "/photometry_test_data/sample_fits_data/*.fits"
+    test_args.img_glob = "/photometry_test_data/sample_fits_data/*.fits"
     test_args.image_collection = "manual_fits"
-    runner = campari_runner(**vars(test_args))
-
-    with pytest.raises(ValueError, match="Cannot provide img_path"):
+    with pytest.raises(ValueError, match="Cannot provide img_glob"):
+        runner = campari_runner(**vars(test_args))
         runner.get_exposures(diaobj=diaobj)
 
 
