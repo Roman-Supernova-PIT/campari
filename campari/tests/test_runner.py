@@ -1,5 +1,7 @@
 # Standard Library
+import os
 import pathlib
+import tempfile
 from types import SimpleNamespace
 
 # Common Library
@@ -236,6 +238,38 @@ def test_get_exposures(cfg):
     with pytest.raises(ValueError, match="Cannot provide img_glob"):
         runner = campari_runner(**vars(test_args))
         runner.get_exposures(diaobj=diaobj)
+
+
+def test_parse_img_list(cfg):
+    # More advanced globbing tests, as per MWV's suggestion.
+    test_args = create_default_test_args(cfg)
+    test_args.image_collection = "manual_rdm"
+    globtions = ["a/b/", "a/b/c/", "a/b/c/*.asdf", "a/b/c/*[!.txt]",  "a/b/c/*"]
+    truth = [[], [], ["B"], ["A", "B"], ["A", "B", "C"]]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        test_args.image_collection_basepath = os.path.join(tmpdirname, "a/b/c")
+        # Create a directory with files
+        os.makedirs(os.path.join(tmpdirname, "a"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdirname, "a/b"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdirname, "a/b/c"), exist_ok=True)
+        open(os.path.join(tmpdirname, "a/b/c/A.fits"), "w").close()
+        open(os.path.join(tmpdirname, "a/b/c/B.asdf"), "w").close()
+        open(os.path.join(tmpdirname, "a/b/c/C.txt"), "w").close()
+        for i, globtion in enumerate(globtions):
+            glob_path = os.path.join(tmpdirname, globtion)
+            SNLogger.debug("Using glob path: " + glob_path)
+            test_args.img_glob = glob_path
+            runner = campari_runner(**vars(test_args))
+            runner.img_list = runner.parse_img_list()
+            runner.img_list = [str(im.path) for im in runner.img_list]
+            SNLogger.debug(runner.img_list)
+            assert len(runner.img_list) == len(truth[i]), f"For glob pattern {globtion}," + \
+                f" expected {len(truth[i])} files but found {len(runner.img_list)}."
+            for letter in truth[i]:
+                assert any(letter in path for path in runner.img_list), f"For glob pattern {globtion}," + \
+                f" expected to find file with letter {letter} but did not find it."
+                f" I only found: {[im for im in runner.img_list]}."
 
 
 def test_get_SED_list(cfg):

@@ -1,5 +1,6 @@
 import glob
 import pathlib
+from pathlib import Path
 import numpy as np
 
 # Astronomy
@@ -267,7 +268,6 @@ class campari_runner:
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
 
-
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
 
@@ -474,7 +474,13 @@ class campari_runner:
                 img_list_lines = [line.strip() for line in img_list_lines if
                             (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         else:
+            import os
+            SNLogger.debug(f"Globbing for {self.img_glob}")
+            SNLogger.debug(os.listdir(os.path.dirname(self.img_glob)))
             img_list_lines = glob.glob(self.img_glob)
+            SNLogger.debug(f"Glob found: {img_list_lines}")
+            img_list_lines = [line for line in img_list_lines if Path(line).is_file()]
+            SNLogger.debug(f"After selecting files: {img_list_lines}")
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
 
