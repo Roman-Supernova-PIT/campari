@@ -258,12 +258,10 @@ def test_parse_img_list(cfg):
         open(os.path.join(tmpdirname, "a/b/c/C.txt"), "w").close()
         for i, globtion in enumerate(globtions):
             glob_path = os.path.join(tmpdirname, globtion)
-            SNLogger.debug("Using glob path: " + glob_path)
             test_args.img_glob = glob_path
             runner = campari_runner(**vars(test_args))
             runner.img_list = runner.parse_img_list()
             runner.img_list = [str(im.path) for im in runner.img_list]
-            SNLogger.debug(runner.img_list)
             assert len(runner.img_list) == len(truth[i]), f"For glob pattern {globtion}," + \
                 f" expected {len(truth[i])} files but found {len(runner.img_list)}."
             for letter in truth[i]:
