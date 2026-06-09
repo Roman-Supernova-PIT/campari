@@ -1,4 +1,5 @@
 import glob
+import pandas as pd
 import pathlib
 import numpy as np
 import tracemalloc
@@ -333,8 +334,9 @@ class campari_runner:
                 and self.object_type != "star"
             ):
                 raise ValueError(
-                    "No non-detection images were found. This may be because the transient is"
-                    " detected in all images, or because the transient is outside the date range of"
+                    "No non-detection images were found. This may be because all of the available images"
+                    " within the images selected are in between the transient_start and transient_end, and therefore "
+                    " considered detection images, or because there are simply no"
                     " available images. If you are running on stars, this is expected behavior."
                     " If you are running on supernovae, consider increasing the date range."
                     " If you are running on stars, rerun with '--object_type star' passed in."
@@ -500,10 +502,8 @@ class campari_runner:
     def parse_img_list(self):
         """Parse the image list file if provided."""
         if self.img_list is not None:
-            with open(self.img_list) as ifp:
-                img_list_lines = ifp.readlines()
-                img_list_lines = [line.strip() for line in img_list_lines if
-                            (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+            df = pd.read_csv(self.img_list, comment="#", header=None, skipinitialspace=True)
+            img_list_lines = df[0].str.strip().tolist()
         else:
             img_list_lines = glob.glob(self.img_glob)
             img_list_lines = [line for line in img_list_lines if pathlib.Path(line).is_file()]
@@ -538,7 +538,6 @@ class campari_runner:
             for line in img_list_lines:
                 potential_image = my_image_collection.get_image(path=line)
                 if potential_image.band == self.band:
-
                     images.append(potential_image)
                 else:
                     SNLogger.debug(f"Rejected image with MJD {potential_image.mjd} and "
