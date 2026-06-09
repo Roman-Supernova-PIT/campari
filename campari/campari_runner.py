@@ -1,6 +1,5 @@
 import glob
 import pathlib
-from pathlib import Path
 import numpy as np
 import tracemalloc
 
@@ -479,7 +478,7 @@ class campari_runner:
                             (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         else:
             img_list_lines = glob.glob(self.img_glob)
-            img_list_lines = [line for line in img_list_lines if Path(line).is_file()]
+            img_list_lines = [line for line in img_list_lines if pathlib.Path(line).is_file()]
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
 
