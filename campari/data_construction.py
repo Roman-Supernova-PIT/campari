@@ -1,6 +1,8 @@
 # Standard Library
 import warnings
 
+import sys
+
 # Common Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -86,6 +88,13 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             res = r
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
+
+    deep_size = sys.getsizeof(image_list) + sum(sys.getsizeof(item) for item in image_list)
+    SNLogger.debug(f"Memory usage of image_list: {deep_size / 1e6:.2f} MB")
+
+    cutout_deep_size = sys.getsizeof(cutout_image_list) + sum(sys.getsizeof(item) for item in cutout_image_list)
+
+    SNLogger.debug(f"Cutout image list memory usage: {cutout_deep_size / 1e6:.2f} MB")
 
     return cutout_image_list, image_list, bgflux
 
@@ -232,6 +241,13 @@ def prep_data_for_fit(images, sn_matrix, wgt_matrix, diaobj):
     wgt_matrix[np.isnan(image_data)] = 0
     image_data[np.isnan(image_data)] = 0
     err[np.isnan(err)] = huge_value  # Give a huge error to masked pixels.
+
+    image_data_size = sys.getsizeof(image_data)
+    SNLogger.debug(f"Memory usage of image_data: {image_data_size / 1e6:.2f} MB")
+
+    sn_matrix_size = sys.getsizeof(sn_matrix)
+    SNLogger.debug(f"Memory usage of sn_matrix: {sn_matrix_size / 1e6:.2f} MB")
+    SNLogger.debug(f"sn_matrix shape after: {sn_matrix.shape}")
 
     return image_data, err, sn_matrix, wgt_matrix
 

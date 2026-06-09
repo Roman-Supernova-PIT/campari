@@ -9,6 +9,7 @@ from numpy.linalg import LinAlgError
 from multiprocessing import Pool
 import scipy.sparse as sp
 import tracemalloc
+import sys
 
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
@@ -99,8 +100,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # some point, so this catches those cases.
     band = convert_band_name(band)
 
-    if Config.get().value("photometry.campari.print_memory_usage"):
-        tracemalloc.start()
+
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                                      subtract_background_method=
                                                                      subtract_background_method,
@@ -252,8 +252,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
+    SNLogger.debug(f"psf matrix size: {sys.getsizeof(psf_matrix) / 1e6:.4f} MB")
     SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
+    SNLogger.debug(f"wgt matrix size: {sys.getsizeof(wgt_matrix) / 1e6:.4f} MB")
     SNLogger.debug(f"image shape: {images.shape}")
+    SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
     if method == "lsqr":
         wgt_matrix = np.sqrt(wgt_matrix)

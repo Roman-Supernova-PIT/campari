@@ -2,6 +2,7 @@ import glob
 import pathlib
 from pathlib import Path
 import numpy as np
+import tracemalloc
 
 # Astronomy
 from astropy.io import fits
@@ -174,6 +175,9 @@ class campari_runner:
 
         if self.fetch_SED and self.SED_file is not None:
             raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
+
+        if Config.get().value("photometry.campari.print_memory_usage"):
+            tracemalloc.start()
 
     def __call__(self):
         """Run the Campari pipeline."""
