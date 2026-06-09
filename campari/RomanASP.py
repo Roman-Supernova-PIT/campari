@@ -193,13 +193,18 @@ def main():
         "If only one entry per line, it will be interpreted as a file path to an image relative to the base path.",
     )
 
-    parser.add_argument("-p", "--img_path", type=str, default=None, required=False,
+    parser.add_argument("-p", "--img_glob", type=str, default=None, required=False,
                         help="An alternate argument to --img_list. If you are running on a single image, or all of"
                         " your images are in the same directory, here you can just give a path. Campari will then glob"
                         " for the images following the regular expression you provide and use all of those images. For"
                         " example: /path/to/images/*.fits will run on all fits images in that directory."
-                        " /path/to/my_cool_image.fits will run on just that one image. Note that img_path and img_list "
-                        " are mutually exclusive, and if both are passed, an error will be raised. ")
+                        " /path/to/my_cool_image.fits will run on just that one image. Note that img_glob and img_list "
+                        " are mutually exclusive, and if both are passed, an error will be raised. Examples:"
+                        "Say we have directory structure /a/b/c/ and A.fits, B.asdf, and C.txt are in that directory."
+                        "a/b/ --> Is not a file. No match. a/b/c/ --> Is not a file. No match."
+                        "a/b/c/*.asdf --> matches B.asdf  a/b/c/*[!.txt] --> matches A.fits and B.asdf"
+                        "a/b/c/* --> matches A.fits, B.asdf, and C.txt"
+                        )
 
     parser.add_argument(
         "--SED_file",

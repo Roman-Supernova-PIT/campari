@@ -1,6 +1,7 @@
 import glob
 import pathlib
 import numpy as np
+import tracemalloc
 
 # Astronomy
 from astropy.io import fits
@@ -47,8 +48,19 @@ class campari_runner:
         self.diaobject_name = kwargs["diaobject_name"]
         self.diaobject_id = kwargs["diaobject_id"]
         self.img_list = kwargs["img_list"]
-        self.img_path = kwargs.get("img_path", None)
+        self.img_glob = kwargs.get("img_glob", None)
         self.image_collection = kwargs["image_collection"]
+
+        if self.img_list is not None and self.img_glob is not None:
+            raise ValueError("Cannot provide both img_list and img_glob. These are two different ways to provide a list"
+                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
+                             " use. Please choose one or the other.")
+
+        if self.img_glob is not None and self.image_collection == "manual_fits":
+            raise ValueError("Cannot provide img_glob when using the manual_fits image collection. The manual_fits"
+                             " collection is designed to be used with img_list, where the user provides a list of"
+                             " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
+                             " adds the appropriate suffixes to find the files. Please use img_list instead.")
 
         self.diaobject_collection = kwargs["diaobject_collection"]
         self.transient_start = kwargs["transient_start"]
@@ -119,6 +131,11 @@ class campari_runner:
         self.dbclient = SNPITDBClient()
         self.img_coll_prov = None
 
+        if self.img_list is not None and self.img_glob is not None:
+            raise ValueError("Cannot provide both img_list and img_glob. These are two different ways to provide a list"
+                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
+                             " use. Please choose one or the other.")
+
         if self.fast_debug:
             SNLogger.debug("Overriding config to run in fast debug mode.")
             self.grid_type = "regular"
@@ -157,6 +174,9 @@ class campari_runner:
 
         if self.fetch_SED and self.SED_file is not None:
             raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
+
+        if Config.get().value("photometry.campari.print_memory_usage"):
+            tracemalloc.start()
 
     def __call__(self):
         """Run the Campari pipeline."""
@@ -284,14 +304,10 @@ class campari_runner:
                     mjd_list[i] = i
                     image_list[i].mjd = i
 
-            SNLogger.debug("dates: " + str(mjd_list))
             image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
-            SNLogger.debug(f"Updated MJD list is: {[im.mjd for im in image_list]}")
 
         else:
             # Otherwise, go find images that match the criteria.
-            SNLogger.debug("max no transient images: " + str(self.max_no_transient_images))
-            SNLogger.debug("max transient images: " + str(self.max_transient_images))
             image_list, \
                 self.img_coll_prov = find_all_exposures(diaobj=diaobj,
                                                         maxbg=self.max_no_transient_images,
@@ -489,12 +505,12 @@ class campari_runner:
                 img_list_lines = [line.strip() for line in img_list_lines if
                             (len(line.strip()) > 0) and (line.strip()[0] != "#")]
         else:
-            img_list_lines = glob.glob(self.img_path)
+            img_list_lines = glob.glob(self.img_glob)
+            img_list_lines = [line for line in img_list_lines if pathlib.Path(line).is_file()]
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
 
         my_image_collection = ImageCollection()
-        # De-harcode this threefile thing
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
         my_image_collection = my_image_collection.get_collection(self.image_collection,
                                                                  subset=self.image_collection_subset,

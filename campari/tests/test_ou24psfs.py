@@ -142,7 +142,7 @@ default_parameters = {
     "system_db_username": None,
     "system_db_passwordfile": None,
     "prebuilt_static_model": None,
-    "img_path": None,
+    "img_glob": None,
 }
 
 

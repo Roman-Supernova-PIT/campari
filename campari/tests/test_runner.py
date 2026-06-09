@@ -1,5 +1,7 @@
 # Standard Library
+import os
 import pathlib
+import tempfile
 from types import SimpleNamespace
 
 # Common Library
@@ -36,7 +38,7 @@ def create_default_test_args(cfg):
     test_args.diaobject_name = None
     test_args.diaobject_id = None
     test_args.img_list = None
-    test_args.img_path = None
+    test_args.img_glob = None
     test_args.diaobject_collection = "ou24"
     test_args.transient_start = None
     test_args.transient_end = None
@@ -214,7 +216,7 @@ def test_get_exposures(cfg):
     test_args.image_collection = "manual_rdm"
     test_args.image_collection_subset = None
     test_args.image_collection_basepath = "/photometry_test_data/ou2024/images/"
-    test_args.img_path = "/photometry_test_data/sample_asdf_data/*.asdf"
+    test_args.img_glob = "/photometry_test_data/sample_asdf_data/*.asdf"
     runner = campari_runner(**vars(test_args))
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
@@ -222,7 +224,7 @@ def test_get_exposures(cfg):
     np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg=
     "The set of MJDs recovered from globbing does not match the expected set of MJDs.")
 
-    # Unfortunately, this doesn't work with FITS. This is because FITS files in snappl are
+    # Unfortunately, directly globbing an input path doesn't work with FITS. This is because FITS files in snappl are
     # either A.) Treated as ManualFITSImages which have essentially no reliable header info, so
     # we can't get things like MJD, so they are not very useful for campari. B.) It could be
     # treated as FITSImageStdHeaders, but this requires the data to be following a convention
@@ -231,12 +233,41 @@ def test_get_exposures(cfg):
     # a bit of a hassle for when I am only using this on ASDF images anyway, so I may implement it
     # later but it's not worth it for now. Here we check that trying this with fits images raises
     # an error.
-    test_args.img_path = "/photometry_test_data/sample_fits_data/*.fits"
+    test_args.img_glob = "/photometry_test_data/sample_fits_data/*.fits"
     test_args.image_collection = "manual_fits"
-    runner = campari_runner(**vars(test_args))
-
-    with pytest.raises(ValueError, match="Cannot provide img_path"):
+    with pytest.raises(ValueError, match="Cannot provide img_glob"):
+        runner = campari_runner(**vars(test_args))
         runner.get_exposures(diaobj=diaobj)
+
+
+def test_parse_img_list(cfg):
+    # More advanced globbing tests, as per MWV's suggestion.
+    test_args = create_default_test_args(cfg)
+    test_args.image_collection = "manual_rdm"
+    globtions = ["a/b/", "a/b/c/", "a/b/c/*.asdf", "a/b/c/*[!.txt]",  "a/b/c/*"]
+    truth = [[], [], ["B"], ["A", "B"], ["A", "B", "C"]]
+
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        test_args.image_collection_basepath = os.path.join(tmpdirname, "a/b/c")
+        # Create a directory with files
+        os.makedirs(os.path.join(tmpdirname, "a"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdirname, "a/b"), exist_ok=True)
+        os.makedirs(os.path.join(tmpdirname, "a/b/c"), exist_ok=True)
+        open(os.path.join(tmpdirname, "a/b/c/A.fits"), "w").close()
+        open(os.path.join(tmpdirname, "a/b/c/B.asdf"), "w").close()
+        open(os.path.join(tmpdirname, "a/b/c/C.txt"), "w").close()
+        for i, globtion in enumerate(globtions):
+            glob_path = os.path.join(tmpdirname, globtion)
+            test_args.img_glob = glob_path
+            runner = campari_runner(**vars(test_args))
+            runner.img_list = runner.parse_img_list()
+            runner.img_list = [str(im.path) for im in runner.img_list]
+            assert len(runner.img_list) == len(truth[i]), f"For glob pattern {globtion}," + \
+                f" expected {len(truth[i])} files but found {len(runner.img_list)}."
+            for letter in truth[i]:
+                assert any(letter in path for path in runner.img_list), f"For glob pattern {globtion}," + \
+                f" expected to find file with letter {letter} but did not find it."
+                f" I only found: {[im for im in runner.img_list]}."
 
 
 def test_get_SED_list(cfg):
