@@ -14,6 +14,7 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 
 # SNPIT
+from campari import RomanASP
 from campari.tests.test_campari import compare_lightcurves
 # from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
@@ -30,6 +31,15 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 in_asdf_pod = os.getenv("IN_ASDF_POD") if os.getenv("IN_ASDF_POD") is not None else False
 # ASDF tests will only run if using the rob_dev podman environment.
+
+# Path to the installed RomanASP.py for use in command-line tests
+try:
+    roman_asp = pathlib.Path(inspect.getfile(campari.RomanASP)).resolve().as_posix()
+except Exception:
+    # Fallback: try module attribute
+    roman_asp = getattr(RomanASP, "__file__", None)
+    if roman_asp:
+        roman_asp = pathlib.Path(roman_asp).resolve().as_posix()
 
 
 @pytest.mark.skipif( not in_asdf_pod, reason="IN_ASDF_POD is not set" )
@@ -53,7 +63,7 @@ def test_asdf(overwrite_meta):
 
     imsize = 19
     base_cmd = [
-            "python", "../RomanASP.py",
+            "python", roman_asp,
             "--diaobject-name", diaobj.name,
             "-f", "F062",
             "--photometry-campari-psf-transient_class", "gaussian",

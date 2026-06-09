@@ -9,15 +9,25 @@ from astropy.table import Table
 from snappl.config import Config
 from snappl.logger import SNLogger
 
+from campari import RomanASP
 from campari.tests.test_gausspsfs import generate_diagnostic_plots, perform_gaussianity_checks
 
 cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
+# Path to the installed RomanASP.py for use in command-line tests
+try:
+    roman_asp = pathlib.Path(inspect.getfile(campari.RomanASP)).resolve().as_posix()
+except Exception:
+    # Fallback: try module attribute
+    roman_asp = getattr(RomanASP, "__file__", None)
+    if roman_asp:
+        roman_asp = pathlib.Path(roman_asp).resolve().as_posix()
+
 imsize = 19
 base_cmd = [
-        "python", "../RomanASP.py",
+        "python", roman_asp,
         "-t", "1",
         "-n", "0",
         "-f", "R062",

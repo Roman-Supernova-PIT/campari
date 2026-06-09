@@ -12,14 +12,23 @@ from photutils.aperture import CircularAperture, aperture_photometry
 from snappl.config import Config
 from snappl.logger import SNLogger
 
+from campari import RomanASP
 from campari.plotting import generate_diagnostic_plots
 
 SNLogger.set_level("DEBUG")
 
+# Path to the installed RomanASP.py for use in command-line tests
+try:
+    roman_asp = pathlib.Path(inspect.getfile(campari.RomanASP)).resolve().as_posix()
+except Exception:
+    # Fallback: try module attribute
+    roman_asp = getattr(RomanASP, "__file__", None)
+    if roman_asp:
+        roman_asp = pathlib.Path(roman_asp).resolve().as_posix()
 
 imsize = 19
 base_cmd = [
-        "python", "../RomanASP.py",
+        "python", roman_asp,
         "--diaobject-name", "123",
         "-t", "1",
         "-n", "0",

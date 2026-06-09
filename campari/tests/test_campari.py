@@ -1,6 +1,7 @@
 # Standard Libary
 import os
 import uuid
+import inspect
 import pathlib
 import sys
 import tempfile
@@ -66,6 +67,14 @@ cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
+# Path to the installed RomanASP.py for use in command-line tests
+try:
+    roman_asp = pathlib.Path(inspect.getfile(campari.RomanASP)).resolve().as_posix()
+except Exception:
+    # Fallback: try module attribute
+    roman_asp = getattr(RomanASP, "__file__", None)
+    if roman_asp:
+        roman_asp = pathlib.Path(roman_asp).resolve().as_posix()
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
@@ -311,7 +320,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     assert not curfile.exists()
     # Make sure it runs from the command line
     err_code = os.system(
-        "python ../RomanASP.py --diaobject-name 40973166870 -f Y106 -i"
+        f"python {roman_asp} --diaobject-name 40973166870 -f Y106 -i"
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--photometry-campari-subtract_background_method SKY_MEAN "
@@ -391,7 +400,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        f"python {roman_asp} --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
@@ -776,7 +785,7 @@ def test_handle_partial_overlap():
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
+        f"python {roman_asp} --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psf-galaxy_class ou24PSF_photonshoot "
         " --photometry-campari-psf-transient_class ou24PSF_slow_photonshoot "
