@@ -15,10 +15,8 @@ from erfa import ErfaWarning
 
 # SNPIT
 from campari.tests.test_campari import compare_lightcurves
-# from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
 from snappl.config import Config
-# from snappl.imagecollection import ImageCollection
 
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)

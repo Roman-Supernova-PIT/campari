@@ -1,4 +1,5 @@
 import glob
+import pandas as pd
 import pathlib
 import numpy as np
 import tracemalloc
@@ -274,10 +275,35 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
 
-        if self.img_list is not None or self.img_glob is not None:
+        if self.img_list is not None and self.img_path is not None:
+            raise ValueError("Cannot provide both img_list and img_path. These are two different ways to provide a list"
+                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
+                             " use. Please choose one or the other.")
+
+        if self.img_path is not None:
+
+            if self.image_collection == "manual_fits":
+                raise ValueError("Cannot provide img_path when using the manual_fits image collection. The manual_fits"
+                                 " collection is designed to be used with img_list, where the user provides a list of"
+                                 " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
+                                 " adds the appropriate suffixes to find the files. Please use img_list instead.")
+
+        if self.img_list is not None or self.img_path is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
+            SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
+            SNLogger.debug(f"Images: {image_list}")
             mjd_list = [im.mjd for im in image_list]
+
+            if all(mjd == mjd_list[0] for mjd in mjd_list):
+                SNLogger.warning("All images in provided image list have the same MJD. This may cause issues with"
+                                 " the pipeline, which relies on differences in MJD to distinguish between"
+                                 " transient and non-transient images if transient_start and transient_end are not"
+                                 " provided. Assuming this is a simulation where order does not matter, we'll set mjds"
+                                 " to be increasing order.")
+                for i in range(len(mjd_list)):
+                    mjd_list[i] = i
+                    image_list[i].mjd = i
 
             image_list = [im for mjd, im in sorted(zip(mjd_list, image_list))]  # Sort the images by MJD
 
@@ -307,10 +333,14 @@ class campari_runner:
                 and len(no_transient_images) == 0
                 and self.object_type != "star"
             ):
-                raise ValueError("No non-detection images were found. This may be because the transient is"
-                                 " detected in all images, or because the transient is outside the date range of"
-                                 " available images. If you are running on stars, this is expected behavior."
-                                 " If you are running on supernovae, consider increasing the date range.")
+                raise ValueError(
+                    "No non-detection images were found. This may be because all of the available images"
+                    " within the images selected are in between the transient_start and transient_end, and therefore "
+                    " considered detection images, or because there are simply no"
+                    " available images. If you are running on stars, this is expected behavior."
+                    " If you are running on supernovae, consider increasing the date range."
+                    " If you are running on stars, rerun with '--object_type star' passed in."
+                )
 
         mjd_start = diaobj.mjd_start if diaobj.mjd_start is not None else -np.inf
         mjd_end = diaobj.mjd_end if diaobj.mjd_end is not None else np.inf
@@ -472,10 +502,8 @@ class campari_runner:
     def parse_img_list(self):
         """Parse the image list file if provided."""
         if self.img_list is not None:
-            with open(self.img_list) as ifp:
-                img_list_lines = ifp.readlines()
-                img_list_lines = [line.strip() for line in img_list_lines if
-                            (len(line.strip()) > 0) and (line.strip()[0] != "#")]
+            df = pd.read_csv(self.img_list, comment="#", header=None, skipinitialspace=True)
+            img_list_lines = df[0].str.strip().tolist()
         else:
             img_list_lines = glob.glob(self.img_glob)
             img_list_lines = [line for line in img_list_lines if pathlib.Path(line).is_file()]
@@ -505,13 +533,23 @@ class campari_runner:
                 self.observation_id_list.append(vals[0])
         elif all(len(line.split(",")) == 1 for line in img_list_lines):
             # each line of file is path to image
+            rejected_images = 0
             self.observation_id_list = None
             for line in img_list_lines:
-                SNLogger.debug(f"Looking for path {line}.")
-                images.append(my_image_collection.get_image(path=line))
+                potential_image = my_image_collection.get_image(path=line)
+                if potential_image.band == self.band:
+                    images.append(potential_image)
+                else:
+                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd} and "
+                                   f"band {potential_image.band} because it was not in the correct band {self.band}.")
+                    rejected_images += 1
+            SNLogger.debug(f"Rejected {rejected_images} images from the provided image list because they were not in"
+                            f" the correct band {self.band}.")
         else:
             raise ValueError("Invalid img_list. Should be either paths, lines of observation_id sca band, or lines of"
                              " observation_id and sca.")
+        if len(images) == 0:
+            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
 
         return images
 

@@ -6,7 +6,7 @@ import sys
 # Common Library
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
-from multiprocessing import Pool
+import multiprocessing
 import numpy as np
 
 
@@ -15,8 +15,7 @@ from snappl.imagecollection import ImageCollection
 from snappl.logger import SNLogger
 
 # Campari
-from campari.utils import calculate_background_level
-from campari.utils import print_memory_usage_summary
+from campari.utils import (calculate_background_level, print_memory_usage_summary)
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -27,6 +26,20 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 
 # Global variables
 huge_value = 1e32
+
+_construct_images_shared_list = None
+
+
+def _construct_one_image_worker(indx, ra, dec, size, truth, subtract_background_method):
+    """Wrapper that pulls the image from a module-level global to avoid pickling it.
+    As it turns out, something about ASDF images means their data tree can't be pickled.
+    To avoid this, this worker function pulls the image from a global variable that is
+    set before forking the processes, so that the image itself doesn't need to be pickled."""
+    image = _construct_images_shared_list[indx]
+    return construct_one_image(
+        indx=indx, image=image, ra=ra, dec=dec, size=size,
+        truth=truth, subtract_background_method=subtract_background_method,
+    )
 
 
 def construct_images(image_list, diaobj, size, subtract_background_method=True, nprocs=1):
@@ -62,16 +75,18 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
     if nprocs > 1:
+        # Create a global list of images to pull from so that they need to be pickled
+        # before they are given to the workers because ASDF images can't be pickled.
+        global _construct_images_shared_list
+        _construct_images_shared_list = image_list
         SNLogger.debug(f"Using {nprocs} processes for model building")
-        with Pool(nprocs) as pool:
+        ctx = multiprocessing.get_context("fork")
+        with ctx.Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
-                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
-                results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
-                                                                           "ra": ra, "dec": dec, "size": size,
-                                                                           "truth": truth,
-                                                                           "subtract_background_method":
-                                                                           subtract_background_method}))
-
+                results.append(
+                    pool.apply_async(
+                        _construct_one_image_worker,
+                        args=(indx, ra, dec, size, truth, subtract_background_method)))
             pool.close()
             pool.join()
     else:
@@ -80,7 +95,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             results.append(construct_one_image(indx=indx, image=image,
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background_method=subtract_background_method))
-
     for r in results:
         if nprocs > 1:
             res = r.get()

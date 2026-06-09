@@ -175,9 +175,15 @@ cython_debug/
 # Stuff Cole added:
 *.ipynb
 *.ipynb_checkpoints
+*.png
+*.pdf
+*.fits
 misc_sed_files/
 old_examples/
 prebuilt_models/
-gaussim_files/
 image_simulations_Y106/
+gaussim_files/
+test_imagelists/
+test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/
 test_faint_transient_bothnoise_unlaligned_realisticgalaxy/
+misc_scripts/
