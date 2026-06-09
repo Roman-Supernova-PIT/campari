@@ -4,6 +4,8 @@ import warnings
 # Common Library
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
+import psutil
+import os
 
 # Astronomy Library
 from astropy import units as u
@@ -258,6 +260,12 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     (stampsize*stampsize, npoints)
     """
 
+    def print_mem(label=""):
+        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+        print(f"[MEM] {label}: {mem_gb:.2f} GB")
+
+    print_mem("Starting to construct static scene")
+
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
@@ -289,17 +297,20 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
                                     stamp_size=stampsize, seed=None, image=image)
+    print_mem("Finished getting PSF object")
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
+        print_mem(f"Constructing PSF for grid point {a+1} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
 
     print_memory_usage_summary("Finished making Static Scene")
+    print_mem("Finished constructing static scene")
 
     return psfs
 
@@ -561,6 +572,12 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
+
+    def print_mem(label=""):
+        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+        print(f"[MEM] {label}: {mem_gb:.2f} GB")
+
+    print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
     SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
 
@@ -589,6 +606,8 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         SNLogger.debug("Using prebuilt PSF matrix for background model")
         background_model_array = None
 
+    print_mem("Finished building background model array")
+
     if subtract_background_method == "fit" and prebuilt_psf_matrix is None:
         # If we did not manually subtract the background, we need to fit in the forward model. Since the
         # background is a constant, we add a term to the model that is all ones. But we only want the background
@@ -601,6 +620,8 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             else:
                 bg = np.zeros(size**2).reshape(-1, 1)
             background_model_array = np.concatenate([background_model_array, bg], axis=1)
+
+    print_mem("Finished adding background to model array")
 
     # Add the array of the model points and the background (if using)
     # to the matrix of all components of the model.
@@ -656,4 +677,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
     print_memory_usage_summary("Finished building model for one image")
+    print_mem("Finished image model building")
     return background_model_array, psf_source_array

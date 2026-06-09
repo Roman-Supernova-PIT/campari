@@ -106,6 +106,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
 
+    del image_list
+
     noise_maps = [im.noise for im in cutout_image_list]
 
     sim_galra = None
@@ -163,14 +165,14 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
         with Pool(nprocs) as pool:
-            for i, image in enumerate(image_list):
+            for i, image in enumerate(cutout_image_list):
                 model_results.append(pool.apply_async(build_model_for_one_image,
                                                       kwds={"image": image, "image_index": i, **kwarg_dict}))
             pool.close()
             pool.join()
 
     else:
-        for i, image in enumerate(image_list):
+        for i, image in enumerate(cutout_image_list):
             model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
 
     for result in model_results:
@@ -299,3 +301,5 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         )
 
     return lightcurve_model
+
+# remove image_list if you're not using it

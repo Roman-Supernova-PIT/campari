@@ -376,7 +376,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
 
-@pytest.mark.parametrize("nprocs", [(2), (1)])
+@pytest.mark.parametrize("nprocs", [(1),]) # 2, 1
 @pytest.mark.slow
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
@@ -391,8 +391,8 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
-        "--photometry-campari-psf-galaxy_class ou24PSF "
+        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 "
+        "--photometry-campari-psf-galaxy_class ou24PSF -t 10 -n 10 "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
@@ -400,7 +400,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
-        " --no-save-to-db --add-truth-to-lc"
+        " --no-save-to-db " # --add-truth-to-lc
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"

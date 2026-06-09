@@ -6,6 +6,8 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from multiprocessing import Pool
 import numpy as np
+import os
+import psutil
 
 
 # SN-PIT
@@ -48,6 +50,13 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     image_list: list of snappl.image.Image objects of the entire SCA.
 
     """
+
+    def print_mem(label=""):
+        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+        print(f"[MEM] {label}: {mem_gb:.2f} GB")
+
+
+    print("before loading")
     ra = diaobj.ra
     dec = diaobj.dec
     truth = "simple_model"
@@ -86,6 +95,14 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             res = r
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
+
+
+
+    print_mem("after image load")
+
+    for im in image_list:
+        im.free()  # Save memory
+        print_mem("after freeing full images")
 
     return cutout_image_list, image_list, bgflux
 
@@ -170,6 +187,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
+    image.free() # Save memory
     return image_cutout, bg
 
 
