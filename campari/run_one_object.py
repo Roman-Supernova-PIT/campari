@@ -8,7 +8,6 @@ import numpy as np
 from numpy.linalg import LinAlgError
 import multiprocessing
 import scipy.sparse as sp
-import tracemalloc
 import sys
 
 # Astronomy Library
@@ -107,7 +106,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
     # some point, so this catches those cases.
     band = convert_band_name(band)
-
 
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                                      subtract_background_method=
