@@ -6,9 +6,9 @@ import warnings
 
 import numpy as np
 from numpy.linalg import LinAlgError
-from multiprocessing import Pool
+import multiprocessing
 import scipy.sparse as sp
-import tracemalloc
+import sys
 
 # Astronomy Library
 from astropy.utils.exceptions import AstropyWarning
@@ -21,6 +21,7 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
+from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
                            convert_band_name, get_weights, print_memory_usage_summary)
 from snappl.config import Config
@@ -58,6 +59,13 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
+
+
+def _build_model_for_one_image_worker(index, kwarg_dict):
+    image = _shared_image_list[index]
+    return build_model_for_one_image(image=image, image_index=index, **kwarg_dict)
+
+
 # Global variables
 huge_value = 1e32
 SNLogger.set_level("DEBUG")
@@ -99,14 +107,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # some point, so this catches those cases.
     band = convert_band_name(band)
 
-    if Config.get().value("photometry.campari.print_memory_usage"):
-        tracemalloc.start()
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
 
     noise_maps = [im.noise for im in cutout_image_list]
+
+    if Config.get().value("photometry.campari.preplot_cutouts"):
+        plot_cutouts(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
+                     output_path=pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) /
+                     f"cutouts_{diaobj.name}.png")
 
     sim_galra = None
     sim_galdec = None
@@ -160,12 +171,16 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
+
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
-        with Pool(nprocs) as pool:
+        global _shared_image_list
+        _shared_image_list = image_list
+        ctx = multiprocessing.get_context("fork")
+        with ctx.Pool(nprocs) as pool:
             for i, image in enumerate(image_list):
-                model_results.append(pool.apply_async(build_model_for_one_image,
-                                                      kwds={"image": image, "image_index": i, **kwarg_dict}))
+                model_results.append(pool.apply_async(_build_model_for_one_image_worker,
+                                                      args=(i, kwarg_dict)))
             pool.close()
             pool.join()
 
@@ -252,8 +267,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
+    SNLogger.debug(f"psf matrix size: {sys.getsizeof(psf_matrix) / 1e6:.4f} MB")
     SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
+    SNLogger.debug(f"wgt matrix size: {sys.getsizeof(wgt_matrix) / 1e6:.4f} MB")
     SNLogger.debug(f"image shape: {images.shape}")
+    SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
     if method == "lsqr":
         wgt_matrix = np.sqrt(wgt_matrix)

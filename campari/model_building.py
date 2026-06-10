@@ -353,6 +353,10 @@ def construct_transient_scene(
     SNLogger.debug(f"Using psf class {snpsfclass}")
     SNLogger.debug(f"Using SED type: {type(sed)}")
 
+    if snpsfclass == "STPSF":
+        sed = None
+        SNLogger.warning("STPSF does not currently support galsim SEDs, ignoring the SED provided and using 'None'")
+
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize, sed=sed
@@ -572,7 +576,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     # If no grid, we still need something that can be concatenated in the
     # linear algebra steps, so we initialize an empty array by default.
     background_model_array = np.empty((size**2, 0))
-    SNLogger.debug("Constructing background model array for image " + str(image_index) + " ---------------")
     if grid_type != "none" and prebuilt_psf_matrix is None:
         background_model_array = construct_static_scene(
             ra_grid,
@@ -617,6 +620,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
+        SNLogger.debug("This image has MJD " + str(image.mjd) )
         # sedlist is the length of the number of supernova
         # detection images. Therefore, when we iterate onto the
         # first supernova image, we want to be on the first element
