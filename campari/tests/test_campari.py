@@ -46,7 +46,8 @@ from campari.utils import (calc_mag_and_err,
                            calculate_local_surface_brightness,
                            get_weights,
                            make_sim_param_grid,
-                           campari_lightcurve_model)
+                           campari_lightcurve_model,
+                           redirect_photometry_test_data)
 import snappl
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
@@ -72,7 +73,7 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
-def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
+def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth = False):
     # lc1 is new, lc2 is old
 
     lc1 = QTable.read(lc1_path, format="ascii.ecsv")
@@ -102,6 +103,11 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
 
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")
+
+        if "tru" in col and not check_truth:
+            SNLogger.debug(f"Skipping truth column {col} because check_truth is False.")
+            continue
+
         # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
         # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
         # roughly log10(2^24)=7 significant figures.  As such,
@@ -351,7 +357,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
-         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc",
+         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db",
+         # "--add-truth-to-lc", # uncomment this to test getting truth data. Not available on all machines!
          ]
 
     SNLogger.debug(f"Args for test: {' '.join(a)}")
@@ -400,7 +407,8 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
-        " --no-save-to-db --add-truth-to-lc"
+        " --no-save-to-db"
+        # "--add-truth-to-lc" Uncomment this to test getting truth information. Not available on all machines!
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"
@@ -1010,3 +1018,21 @@ def test_image_simulator_script():
     # To update regression, do:
     # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test/*
     #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
+
+
+def test_redirect_photometry_test_data():
+
+    # First, a path without photometry_test_data should be unchanged
+    test_path = "/some/random/path/image.fits"
+    redirected_path = redirect_photometry_test_data(test_path)
+    assert redirected_path == test_path, "Path without photometry_test_data should be unchanged"
+
+    # Second, a path with photometry_test_data should be redirected to the testdata directory
+    test_path = "/some/random/path/photometry_test_data/image.fits"
+    cfg = Config.get()
+    ph_test_data_path = cfg.value("photometry.test_data")
+
+    redirected_path = redirect_photometry_test_data(test_path)
+    expected_path = os.path.join(ph_test_data_path, "image.fits")
+    assert redirected_path == expected_path, "Path with photometry_test_data should be redirected to the" \
+    " photometry test data directory"

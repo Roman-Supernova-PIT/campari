@@ -270,6 +270,7 @@ def test_parse_img_list(cfg):
                 f" I only found: {[im for im in runner.img_list]}."
 
 
+@pytest.mark.requires_truth
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"

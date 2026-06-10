@@ -48,7 +48,7 @@
 # - {band: Y106}
 # - {diaobject_position_id: null}
 # - {provenance_id: 614a8c19-d919-10f7-ea07-e8778b6067ec}
-# - {diaobject_id: 38dbc165-48b3-4b57-a1dd-ee876b63ce02}
+# - {diaobject_id: 21797592-d392-4c73-8b68-342f301cff53}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -56,10 +56,6 @@
 # - {local_surface_brightness_Y106: 31.508449068242154}
 # - {pre_transient_images: 1}
 # - {post_transient_images: 0}
-# - {host_sep: 1.7006677389144897}
-# - {host_mag_g: 23.76300048828125}
-# - {host_ra: 7.550449}
-# - {host_dec: -44.8073}
 # - __serialized_columns__:
 #     NEA:
 #       __class__: astropy.units.quantity.Quantity

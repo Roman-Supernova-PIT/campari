@@ -96,6 +96,7 @@ addopts = "--doctest-rst"
 [pytest]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
+    "requires_truth: marks tests that require access to the truth catalog (deselect with '-m \"not requires_truth\"')",
     "serial",
 ]
 

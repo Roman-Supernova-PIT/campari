@@ -27,7 +27,7 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner
+from campari.utils import banner, redirect_photometry_test_data
 
 
 class campari_runner:
