@@ -353,6 +353,10 @@ def construct_transient_scene(
     SNLogger.debug(f"Using psf class {snpsfclass}")
     SNLogger.debug(f"Using SED type: {type(sed)}")
 
+    if snpsfclass == "STPSF":
+        sed = None
+        SNLogger.warning("STPSF does not currently support galsim SEDs, ignoring the SED provided and using 'None'")
+
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
         image=image, stamp_size=stampsize, sed=sed
