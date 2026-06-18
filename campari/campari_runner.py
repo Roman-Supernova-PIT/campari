@@ -1,6 +1,6 @@
-import pathlib
-
 import numpy as np
+import pathlib
+import time
 
 # Astronomy
 from astropy.io import fits
@@ -27,7 +27,10 @@ from campari.io import (
 from campari.run_one_object import run_one_object
 from campari.utils import banner
 
+global _start_time
+_start_time = time.perf_counter()
 
+SNLogger.debug(f"Starting Campari run at time: {_start_time}")
 class campari_runner:
     """This class is used to run the Campari pipeline."""
 
@@ -36,6 +39,7 @@ class campari_runner:
         NOTE: Config must be set before running this function."""
 
         self.cfg = Config.get()
+
 
         self.band = kwargs["filter"]
         self.max_no_transient_images = kwargs["max_no_transient_images"]

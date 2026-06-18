@@ -56,10 +56,9 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     """
     flux = np.atleast_1d(lc_model.flux)
     sigma_flux = np.atleast_1d(lc_model.sigma_flux)
-    image_list = lc_model.image_list
 
     cutout_image_list = lc_model.cutout_image_list
-    band = image_list[0].band
+    band = cutout_image_list[0].band
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
@@ -84,7 +83,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
         "NEA": [],
     }
 
-    for i, img in enumerate(image_list):
+    for i, img in enumerate(cutout_image_list):
         if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
             data_dict["observation_id"].append(str(img.observation_id))
@@ -115,7 +114,6 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
 
     lc = Lightcurve(data=data_dict, meta=meta_dict)
     # Some extra info needed to save
-    lc.image_list = image_list
     lc.diaobj = diaobj
     lc.provenance_object = cam_prov
 

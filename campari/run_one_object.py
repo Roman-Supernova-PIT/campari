@@ -22,7 +22,7 @@ from campari.model_building import (
     build_model_for_one_image,
 )
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
-                           convert_band_name, get_weights, print_memory_usage_summary)
+                           convert_band_name, get_weights)
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -114,7 +114,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     sim_galdec = None
     galaxy_images = None
 
-    print_memory_usage_summary("After constructing images:")
 
     # Build the background grid
     if not grid_type == "none":
@@ -184,7 +183,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         if transient_model is not None:
             sn_matrix.append(transient_model)
 
-    print_memory_usage_summary("After building model:")
 
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:
@@ -293,7 +291,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            LSB=LSB, best_fit_model_values=X, image_list=image_list,
+            LSB=LSB, best_fit_model_values=X,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,

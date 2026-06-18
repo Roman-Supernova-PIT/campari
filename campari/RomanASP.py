@@ -2,7 +2,7 @@
 # Standard Library
 import argparse
 import warnings
-import sys
+
 
 # Common Library
 from astropy.utils.exceptions import AstropyWarning

@@ -2,7 +2,11 @@
 import warnings
 
 # Common Library
+import csv
 import numpy as np
+import os
+import psutil
+import time
 import tracemalloc
 
 # Astronomy Library
@@ -381,3 +385,19 @@ def print_memory_usage_summary(flag):
         SNLogger.info(printout)
     else:
         pass
+
+
+def print_mem(label="", csv_suffix="mem_log.csv"):
+
+    from campari_runner import _start_time
+
+    mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+    elapsed_s = time.perf_counter() - _start_time
+    print(f"[MEM] {label}: {mem_gb:.2f} GB")
+    csv_path = str(_start_time) + csv_suffix
+    file_exists = os.path.isfile(csv_path)
+    with open(csv_path, "a", newline="") as f:
+        writer = csv.writer(f)
+        if not file_exists:
+            writer.writerow(["elapsed_seconds", "label", "memory_gb"])
+        writer.writerow([f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}"])

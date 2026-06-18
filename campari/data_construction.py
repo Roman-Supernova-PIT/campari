@@ -16,7 +16,7 @@ from snappl.logger import SNLogger
 
 # Campari
 from campari.utils import calculate_background_level
-from campari.utils import print_memory_usage_summary
+from campari.utils import print_mem
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -50,11 +50,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
     image_list: list of snappl.image.Image objects of the entire SCA.
 
     """
-
-    def print_mem(label=""):
-        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
-        print(f"[MEM] {label}: {mem_gb:.2f} GB")
-
 
     print("before loading")
     ra = diaobj.ra
@@ -98,7 +93,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
 
 
 
-    print_mem("after image load")
 
     for im in image_list:
         im.free()  # Save memory
@@ -139,9 +133,14 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     image: snappl.image.Image object of the entire SCA.
 
     """
-    imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
+    print_mem("before image load ---------------")
+    imagedata, errordata, flags = image.get_data(which="all", cache=True)
+    print_mem("after image load------------------")
+
+    SNLogger.debug("Fetching cutout....")
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    SNLogger.debug("Finished fetching cutout.")
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(
@@ -185,9 +184,13 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
+    import sys
+
     # Changed this from _data to data
     image_cutout.data -= bg
+    SNLogger.debug("ref count outside snappl: " + str(sys.getrefcount(image._data)))
     image.free() # Save memory
+    print_mem("Freed Memory")
     return image_cutout, bg
 
 
@@ -355,7 +358,5 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
-
-    print_memory_usage_summary("Finished finding all exposures")
 
     return all_images, img_collection_prov

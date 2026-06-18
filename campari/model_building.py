@@ -19,7 +19,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
-from campari.utils import print_memory_usage_summary
+from campari.utils import print_mem
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -260,9 +260,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     (stampsize*stampsize, npoints)
     """
 
-    def print_mem(label=""):
-        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
-        print(f"[MEM] {label}: {mem_gb:.2f} GB")
 
     print_mem("Starting to construct static scene")
 
@@ -297,20 +294,26 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
                                     stamp_size=stampsize, seed=None, image=image)
-    print_mem("Finished getting PSF object")
+
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
+    galsim.ChromaticConvolution.resize_effective_prof_cache(10)
+    print_mem("About to get PSF object")
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
-        print_mem(f"Constructing PSF for grid point {a+1} of {num_grid_points}")
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
+    print_mem("Finished getting PSF object")
 
-    print_memory_usage_summary("Finished making Static Scene")
+
     print_mem("Finished constructing static scene")
+    print_mem("Deleted PSF object")
+    galsim.ChromaticConvolution.resize_effective_prof_cache(1)
+    galsim.ChromaticConvolution._effective_prof_cache.clear()
+    galsim.roman.roman_psfs._make_aperture.clear()
 
     return psfs
 
@@ -370,7 +373,6 @@ def construct_transient_scene(
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
 
-    print_memory_usage_summary("Finished making transient scene")
 
     return psf_image.flatten()
 
@@ -447,7 +449,6 @@ def make_grid(
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
 
-    print_memory_usage_summary("Finished making grid")
 
     return ra_grid, dec_grid
 
@@ -572,11 +573,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
-
-    def print_mem(label=""):
-        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
-        print(f"[MEM] {label}: {mem_gb:.2f} GB")
-
     print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
     SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
@@ -676,6 +672,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         if sn_index >= 0 and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
-    print_memory_usage_summary("Finished building model for one image")
     print_mem("Finished image model building")
     return background_model_array, psf_source_array
