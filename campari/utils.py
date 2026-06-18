@@ -13,12 +13,12 @@ from galsim import roman
 from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
-# SN-PIT
-try:
-    import photometry_test_data
-except:
-    raise ImportError("photometry_test_data module not found. Try doing the following:"
-    "pip install git+https://github.com/Roman-Supernova-PIT/photometry_test_data.git")
+# # SN-PIT
+# try:
+#     import photometry_test_data
+# except:
+#     raise ImportError("photometry_test_data module not found. Try doing the following:"
+#     "pip install git+https://github.com/Roman-Supernova-PIT/photometry_test_data.git")
 from snappl.config import Config
 from snappl.logger import SNLogger
 
