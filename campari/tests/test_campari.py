@@ -375,8 +375,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
-
-@pytest.mark.parametrize("nprocs", [(1),]) # 2, 1
+@pytest.mark.parametrize("nprocs", [(2), (1)])
 @pytest.mark.slow
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
@@ -391,10 +390,10 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 "
-        "--photometry-campari-psf-galaxy_class ou24PSF -t 6 -n 4 "
+        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
-        "--photometry-campari-grid_options-type regular "
+        "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background_method SKY_MEAN "
