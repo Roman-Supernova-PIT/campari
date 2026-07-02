@@ -108,7 +108,7 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
 
     for im in image_list:
         im.free()  # Save memory
-        print_mem("after freeing full images")
+    print_mem(f"after freeing {len(image_list)} full images")
 
     return cutout_image_list, image_list, bgflux
 
@@ -196,11 +196,9 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         if bg is None:
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
-    import sys
 
     # Changed this from _data to data
     image_cutout.data -= bg
-    SNLogger.debug("ref count outside snappl: " + str(sys.getrefcount(image._data)))
     image.free() # Save memory
     print_mem("Freed Memory")
     return image_cutout, bg

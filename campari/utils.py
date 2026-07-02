@@ -397,7 +397,7 @@ def print_mem(label="", csv_suffix="mem_log.csv"):
     mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
     elapsed_s = time.perf_counter() - _start_time
     print(f"[MEM] {label}: {mem_gb:.2f} GB")
-    csv_path = str(_start_time) + csv_suffix
+    csv_path = f"{_start_time}_{os.getpid()}_{csv_suffix}"
     file_exists = os.path.isfile(csv_path)
     with open(csv_path, "a", newline="") as f:
         writer = csv.writer(f)
