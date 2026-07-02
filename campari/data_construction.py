@@ -65,7 +65,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
 
     """
 
-    print("before loading")
     ra = diaobj.ra
     dec = diaobj.dec
     truth = "simple_model"
@@ -150,9 +149,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     imagedata, errordata, flags = image.get_data(which="all", cache=True)
     print_mem("after image load------------------")
 
-    SNLogger.debug("Fetching cutout....")
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
-    SNLogger.debug("Finished fetching cutout.")
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(

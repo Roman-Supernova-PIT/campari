@@ -297,17 +297,14 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     y_loc = int(np.floor(y_loc + 0.5))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
-    galsim.ChromaticConvolution.resize_effective_prof_cache(10)
-    print_mem("About to get PSF object")
+    #galsim.ChromaticConvolution.resize_effective_prof_cache(10)
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
-    print_mem("Finished getting PSF object")
 
     print_mem("Finished constructing static scene")
-    print_mem("Deleted PSF object")
-    galsim.ChromaticConvolution.resize_effective_prof_cache(1)
+    #galsim.ChromaticConvolution.resize_effective_prof_cache(1)
     galsim.ChromaticConvolution._effective_prof_cache.clear()
     galsim.roman.roman_psfs._make_aperture.clear()
 

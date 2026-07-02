@@ -375,6 +375,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
+
 @pytest.mark.parametrize("nprocs", [(2), (1)])
 @pytest.mark.slow
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
