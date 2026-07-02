@@ -148,6 +148,7 @@ exclude = [
     ".vscode",
     "__pypackages__",
     "docs",
+    "misc_scripts",
 ]
 
 
@@ -205,5 +206,3 @@ showcontent = true
 directory = "campari"
 name = "campari"
 showcontent = true
-
-

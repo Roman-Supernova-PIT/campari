@@ -31,6 +31,8 @@ global _start_time
 _start_time = time.perf_counter()
 
 SNLogger.debug(f"Starting Campari run at time: {_start_time}")
+
+
 class campari_runner:
     """This class is used to run the Campari pipeline."""
 
@@ -39,7 +41,6 @@ class campari_runner:
         NOTE: Config must be set before running this function."""
 
         self.cfg = Config.get()
-
 
         self.band = kwargs["filter"]
         self.max_no_transient_images = kwargs["max_no_transient_images"]

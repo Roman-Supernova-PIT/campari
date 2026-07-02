@@ -6,8 +6,6 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 from multiprocessing import Pool
 import numpy as np
-import os
-import psutil
 
 
 # SN-PIT
@@ -90,9 +88,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             res = r
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
-
-
-
 
     for im in image_list:
         im.free()  # Save memory

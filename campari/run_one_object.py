@@ -114,7 +114,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     sim_galdec = None
     galaxy_images = None
 
-
     # Build the background grid
     if not grid_type == "none":
         if object_type == "star":
@@ -182,7 +181,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         psf_matrix.append(bg_model)
         if transient_model is not None:
             sn_matrix.append(transient_model)
-
 
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:

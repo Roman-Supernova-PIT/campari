@@ -4,8 +4,6 @@ import warnings
 # Common Library
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
-import psutil
-import os
 
 # Astronomy Library
 from astropy import units as u
@@ -260,7 +258,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     (stampsize*stampsize, npoints)
     """
 
-
     print_mem("Starting to construct static scene")
 
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
@@ -307,7 +304,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
     print_mem("Finished getting PSF object")
-
 
     print_mem("Finished constructing static scene")
     print_mem("Deleted PSF object")
@@ -372,7 +368,6 @@ def construct_transient_scene(
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
-
 
     return psf_image.flatten()
 
@@ -448,7 +443,6 @@ def make_grid(
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
-
 
     return ra_grid, dec_grid
 
