@@ -51,6 +51,9 @@ photometry:
     save_debug: true
     test_num: 1
     test_data: /scratch/campari_test_data
+    # make everytrhing configurable
+
+
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure

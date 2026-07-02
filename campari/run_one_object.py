@@ -275,9 +275,18 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if method == "lsqr":
         wgt_matrix = np.sqrt(wgt_matrix)
+        # x0=x0test,
+
+        np.save("sanity_check_psf_matrix.npy", psf_matrix)
+        np.save("sanity_check_wgt_matrix.npy", wgt_matrix)
+        np.save("sanity_check_images.npy", images)
+        np.save("sanity_check_x0test.npy", x0test)
+        wgt_matrix = np.ones_like(wgt_matrix)
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix,  atol=1e-12, x0=x0test,
+                              images*wgt_matrix,  atol=1e-12,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
+
+
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                        f"r1norm: {r1norm}")
