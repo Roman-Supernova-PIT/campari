@@ -396,11 +396,12 @@ def print_mem(label="", csv_suffix="mem_log.csv"):
 
     mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
     elapsed_s = time.perf_counter() - _start_time
+    current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
     print(f"[MEM] {label}: {mem_gb:.2f} GB")
     csv_path = f"{_start_time}_{os.getpid()}_{csv_suffix}"
     file_exists = os.path.isfile(csv_path)
     with open(csv_path, "a", newline="") as f:
         writer = csv.writer(f)
         if not file_exists:
-            writer.writerow(["elapsed_seconds", "label", "memory_gb"])
-        writer.writerow([f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}"])
+            writer.writerow(["elapsed_seconds", "label", "memory_gb", "timestamp"])
+        writer.writerow([f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}", current_time])

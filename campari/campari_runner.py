@@ -1,3 +1,5 @@
+import glob
+import pandas as pd
 import numpy as np
 import pathlib
 import time
@@ -278,20 +280,7 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
 
-        if self.img_list is not None and self.img_path is not None:
-            raise ValueError("Cannot provide both img_list and img_path. These are two different ways to provide a list"
-                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
-                             " use. Please choose one or the other.")
-
-        if self.img_path is not None:
-
-            if self.image_collection == "manual_fits":
-                raise ValueError("Cannot provide img_path when using the manual_fits image collection. The manual_fits"
-                                 " collection is designed to be used with img_list, where the user provides a list of"
-                                 " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
-                                 " adds the appropriate suffixes to find the files. Please use img_list instead.")
-
-        if self.img_list is not None or self.img_path is not None:
+        if self.img_list is not None or self.img_glob is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")

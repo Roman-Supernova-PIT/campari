@@ -175,10 +175,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
         global _shared_image_list
-        _shared_image_list = image_list
+        _shared_image_list = cutout_image_list
         ctx = multiprocessing.get_context("fork")
         with ctx.Pool(nprocs) as pool:
-            for i, image in enumerate(image_list):
+            for i, image in enumerate(cutout_image_list):
                 model_results.append(pool.apply_async(_build_model_for_one_image_worker,
                                                       args=(i, kwarg_dict)))
             pool.close()
