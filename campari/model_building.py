@@ -19,6 +19,8 @@ from snappl.logger import SNLogger
 from snappl.config import Config
 from campari.utils import print_mem
 
+import objgraph
+
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
 warnings.simplefilter("ignore", category=AstropyWarning)
@@ -297,8 +299,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     y_loc = int(np.floor(y_loc + 0.5))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
-    #print_mem("About to construct static scene with cache size 1")
-    #galsim.ChromaticConvolution.resize_effective_prof_cache(1)
+    print_mem("About to construct static scene with cache size 1")
+    galsim.ChromaticConvolution.resize_effective_prof_cache(10)
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
@@ -370,6 +372,12 @@ def construct_transient_scene(
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
+
+    print_mem("Finished constructing TRANSIENT scene")
+    galsim.ChromaticConvolution.resize_effective_prof_cache(1)
+    galsim.ChromaticConvolution._effective_prof_cache.clear()
+    galsim.roman.roman_psfs._make_aperture.clear()
+    print_mem("Cleared various caches after constructing TRANSIENT scene")
 
     return psf_image.flatten()
 
@@ -569,6 +577,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
+    objgraph.show_growth(limit=10)
     print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
     SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
@@ -669,4 +678,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
     print_mem("Finished image model building")
+    objgraph.show_growth(limit=10)
     return background_model_array, psf_source_array

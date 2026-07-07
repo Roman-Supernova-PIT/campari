@@ -392,7 +392,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
 
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 "
-        "--photometry-campari-psf-galaxy_class ou24PSF -t 6 -n 4 "
+        "--photometry-campari-psf-galaxy_class ou24PSF -t 12 -n 8 "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type regular "
         "--photometry-campari-cutout_size 19 "
