@@ -7,7 +7,6 @@ import numpy as np
 import os
 import psutil
 import time
-import tracemalloc
 
 # Astronomy Library
 from astropy.stats import sigma_clipped_stats, SigmaClip
@@ -372,36 +371,23 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     return LSB
 
 
-def print_memory_usage_summary(flag):
+def print_mem(label=""):
+    # Add an option to write memory or not.
     cfg = Config.get()
     if cfg.value("photometry.campari.print_memory_usage"):
-        SNLogger.info(flag)
-        snapshot = tracemalloc.take_snapshot()
-        top_stats = snapshot.statistics("lineno")
-        current, peak = tracemalloc.get_traced_memory()
-        SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+        from campari_runner import _start_time
 
-        SNLogger.info("[ Top 10 ]")
-        printout = ""
-        for stat in top_stats[:10]:
-            printout += str(stat) + "\n"
-        SNLogger.info(printout)
-    else:
-        pass
+        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+        elapsed_s = time.perf_counter() - _start_time
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        print(f"[MEM] {label}: {mem_gb:.2f} GB")
 
-
-def print_mem(label="", csv_suffix="mem_log.csv"):
-
-    from campari_runner import _start_time
-
-    mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
-    elapsed_s = time.perf_counter() - _start_time
-    current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
-    print(f"[MEM] {label}: {mem_gb:.2f} GB")
-    csv_path = f"{_start_time}_{os.getpid()}_{csv_suffix}"
-    file_exists = os.path.isfile(csv_path)
-    with open(csv_path, "a", newline="") as f:
-        writer = csv.writer(f)
-        if not file_exists:
-            writer.writerow(["elapsed_seconds", "label", "memory_gb", "timestamp"])
-        writer.writerow([f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}", current_time])
+    if cfg.value("photometry.campari.save_memory_file_suffix"):
+        csv_suffix = cfg.value("photometry.campari.save_memory_file_suffix")
+        csv_path = f"{_start_time}_{os.getpid()}_{csv_suffix}"
+        file_exists = os.path.isfile(csv_path)
+        with open(csv_path, "a", newline="") as f:
+            writer = csv.writer(f)
+            if not file_exists:
+                writer.writerow(["elapsed_seconds", "label", "memory_gb", "timestamp"])
+            writer.writerow([f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}", current_time])

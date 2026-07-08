@@ -19,7 +19,7 @@ from snappl.logger import SNLogger
 from snappl.config import Config
 from campari.utils import print_mem
 
-import objgraph
+#import objgraph
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -577,7 +577,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     # Passing in None for the PSF means we use the Roman PSF.
-    objgraph.show_growth(limit=10)
+    #objgraph.show_growth(limit=10)
     print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
     SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
@@ -678,5 +678,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
     print_mem("Finished image model building")
-    objgraph.show_growth(limit=10)
+    #objgraph.show_growth(limit=10)
     return background_model_array, psf_source_array

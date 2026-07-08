@@ -413,7 +413,6 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         test_regression(campari_test_data, cfg=cfg, overwrite_meta=False, nprocs=nprocs)
 
 
-
 def test_plot_lc():
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",

@@ -181,9 +181,6 @@ class campari_runner:
         if self.fetch_SED and self.SED_file is not None:
             raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
 
-        if Config.get().value("photometry.campari.print_memory_usage"):
-            tracemalloc.start()
-
     def __call__(self):
         """Run the Campari pipeline."""
 
@@ -495,6 +492,7 @@ class campari_runner:
         """Parse the image list file if provided."""
         if self.img_list is not None:
             df = pd.read_csv(self.img_list, comment="#", header=None, skipinitialspace=True)
+            import pdb; pdb.set_trace()
             img_list_lines = df[0].str.strip().tolist()
         else:
             img_list_lines = glob.glob(self.img_glob)
