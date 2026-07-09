@@ -543,8 +543,10 @@ class campari_runner:
     def prune_images_to_correct_band(self, image_list):
         """Prune the given image list to only include images in the correct band."""
         pruned_image_list = []
+        requested_band = convert_band_name(self.band)
         for image in image_list:
-            if image.band == self.band or convert_band_name(image.band) == self.band:
+            image_band = convert_band_name(image.band)
+            if image_band == requested_band:
                 pruned_image_list.append(image)
             else:
                 SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
