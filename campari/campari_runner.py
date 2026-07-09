@@ -532,6 +532,12 @@ class campari_runner:
             for line in img_list_lines:
                 images.append(my_image_collection.get_image(path=line[0]))
 
+        else:
+            raise ValueError("The provided img_list file is not in a recognized format. Each line must have either"
+                             " 1, 2, or 3 columns. If there is 1 column, it should be the path to the image."
+                             " If there are 2 columns, they should be observation_id and sca. If there are 3 columns, "
+                             " they should be observation_id, sca, and band.")
+
         return images
 
     def prune_images_to_correct_band(self, image_list):
