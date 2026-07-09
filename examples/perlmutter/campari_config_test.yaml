@@ -1,6 +1,7 @@
 # This goes with the interactive-podman-ou2024-sh but this might also work with rknop dev?
 preloads:
-  - /snpit_env/configs/ou2024_container_config.yaml #Env variable borken
+  - /snpit_env/configs/ou2024_container_config.yaml  # Env variable borken. Rob says this should be
+  # ${SNPIT_DEFAULT_CONFIG} but I am waiting on him to fix that functionality.
 
 photometry:
   campari:
