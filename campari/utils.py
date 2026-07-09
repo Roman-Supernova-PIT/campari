@@ -239,10 +239,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     return wgt_matrix
 
 
-def convert_band_name(old_band):
-    """This function takes in band names that begin with F and returns their corresponding lettered version."""
-
-    lettered_band_dicts = {
+lettered_band_dicts = {
         "F062": "R062",
         "F087": "Z087",
         "F106": "Y106",
@@ -257,6 +254,10 @@ def convert_band_name(old_band):
         "H158": "H158",
         "K213": "K213",
     }
+
+
+def convert_band_name(old_band):
+    """This function takes in band names that begin with F and returns their corresponding lettered version."""
 
     band = lettered_band_dicts[old_band]
 
