@@ -493,7 +493,6 @@ class campari_runner:
             df = pd.read_csv(self.img_list, comment="#", header=None, skipinitialspace=True)
             img_list_lines = df.to_numpy().astype(str).tolist()
 
-
         else:
             img_list_lines = glob.glob(self.img_glob)
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
@@ -544,8 +543,8 @@ class campari_runner:
             else:
                 SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
                                f"band {image.band} because it was not in the correct band {self.band}.")
-        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list because they were not in"
-                        f" the correct band {self.band}.")
+        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
+                       f"because they were not in the correct band {self.band}.")
         if len(pruned_image_list) == 0:
             raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
         return pruned_image_list

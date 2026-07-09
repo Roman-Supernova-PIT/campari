@@ -43,7 +43,6 @@ def test_find_diaobject():
     }
 
     np.testing.assert_equal(diaobj.iauname, regression_data["iauname"])
-    #np.testing.assert_equal(diaobj.id, regression_data["id"])
     np.testing.assert_equal(diaobj.mjd_discovery, regression_data["mjd_discovery"])
     np.testing.assert_equal(diaobj.mjd_end, regression_data["mjd_end"])
     np.testing.assert_equal(diaobj.mjd_peak, regression_data["mjd_peak"])
