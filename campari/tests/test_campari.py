@@ -377,7 +377,6 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
 
 
 @pytest.mark.parametrize("nprocs", [(1),]) # 2, 1
-@pytest.mark.slow
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
