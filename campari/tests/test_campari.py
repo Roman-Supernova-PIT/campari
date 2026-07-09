@@ -819,8 +819,8 @@ def test_calculate_surface_brightness():
     SNLogger.debug("Made it here")
 
     # Both of these test images contain this SN
-    provenance_tag = "ou2024"
-    process = "load_ou2024_diaobject"
+    provenance_tag = "ou24"
+    process = "loadsnanatruth"
     SNLogger.debug("Trying to load diaobj")
     diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
                                     provenance_tag=provenance_tag, process=process, name=20172782)[0]
