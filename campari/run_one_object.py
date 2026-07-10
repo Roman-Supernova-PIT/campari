@@ -105,7 +105,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     all_sca_xs, all_sca_ys = \
         map(list, zip(*[img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec) for img in image_list]))
-    import pdb; pdb.set_trace()
 
     # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
     # some point, so this catches those cases.

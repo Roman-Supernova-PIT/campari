@@ -291,6 +291,8 @@ def main():
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
 
+    import pdb; pdb.set_trace()
+
     runner = campari_runner(**vars(args))
     runner()
 
