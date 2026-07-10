@@ -376,7 +376,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
 
-@pytest.mark.parametrize("nprocs", [(1),]) # 2, 1
+@pytest.mark.parametrize("nprocs", [(2), (1)])
+@pytest.mark.slow
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
@@ -390,16 +391,16 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     assert not curfile.exists()
 
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 "
-        "--photometry-campari-psf-galaxy_class ou24PSF -t 12 -n 8 "
+        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
-        "--photometry-campari-grid_options-type regular "
+        "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
-        " --no-save-to-db " # --add-truth-to-lc
+        " --no-save-to-db --add-truth-to-lc"
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"
@@ -692,7 +693,8 @@ def test_build_lc(cfg, overwrite_meta):
     lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
                                         sky_background=[0.0] * len(image_list), pre_transient_images=1,
-                                        post_transient_images=0)
+                                        post_transient_images=0, sca_x_locations=[68565.854106] * len(image_list),
+                                        sca_y_locations=[127021.057847] * len(image_list))
 
     upstreams = []
     cam_prov = Provenance(

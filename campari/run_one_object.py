@@ -103,6 +103,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
+    all_sca_xs, all_sca_ys = \
+        map(list, zip(*[img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec) for img in image_list]))
+    import pdb; pdb.set_trace()
+
     # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
     # some point, so this catches those cases.
     band = convert_band_name(band)
@@ -264,13 +268,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if subtract_background_method == "fit":
         x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
 
-    SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
-    SNLogger.debug(f"psf matrix size: {sys.getsizeof(psf_matrix) / 1e6:.4f} MB")
-    SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
-    SNLogger.debug(f"wgt matrix size: {sys.getsizeof(wgt_matrix) / 1e6:.4f} MB")
-    SNLogger.debug(f"image shape: {images.shape}")
-    SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
-
     if method == "lsqr":
         wgt_matrix = np.sqrt(wgt_matrix)
         lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
@@ -307,7 +304,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            LSB=LSB, best_fit_model_values=X,
+            LSB=LSB, best_fit_model_values=X, sca_x_locations = all_sca_xs,
+            sca_y_locations = all_sca_ys,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,

@@ -17,15 +17,15 @@
 # - {name: y_cutout, datatype: float64}
 # - {name: sky_background, datatype: float64}
 # meta: !!omap
-# - {cutout_size: 19}
+# - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
 # - {use_roman: true}
 # - {weighting: true}
-# - {make_initial_guess: false}
+# - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background_method: 0}
+# - {subtract_background_method: calculate}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
 # - {save_memory_file_suffix: false}
@@ -45,8 +45,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: ddae616d-3214-6d23-ca0c-435445842531}
-# - {diaobject_id: 8dc76b99-420f-4826-9ae5-33c31c7b4f02}
+# - {provenance_id: 4844e14c-44ef-7ba7-925a-5dc3b999de08}
+# - {diaobject_id: 0fd3742f-dda0-47ef-996b-5393cc40fbb5}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -56,4 +56,4 @@
 # - {post_transient_images: 0}
 # schema: astropy-2.0
 mjd flux flux_err zpt NEA sky_rms observation_id sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
-62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.85410580816 127021.05784706218 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0
+62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.854106 127021.057847 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0

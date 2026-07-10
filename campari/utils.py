@@ -57,6 +57,8 @@ class campari_lightcurve_model:
         post_transient_images=None,
         sky_background=None,
         image_collection_prov=None,
+        sca_x_locations = None,
+        sca_y_locations = None,
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -105,6 +107,10 @@ class campari_lightcurve_model:
             The local surface brightness around the transient location in mag/arcsec^2.
         sky_background: list
             The sky background fluxes subtracted out of each image cutout.
+        sca_x_locations : list
+            The x pixel locations of the transient in each SCA.
+        sca_y_locations : list
+            The y pixel locations of the transient in each SCA.
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -130,6 +136,8 @@ class campari_lightcurve_model:
         self.post_transient_images = post_transient_images
         self.sky_background = sky_background
         self.image_collection_prov = image_collection_prov
+        self.sca_x_locations = sca_x_locations
+        self.sca_y_locations = sca_y_locations
 
 
 def gaussian(x, A, mu, sigma):
