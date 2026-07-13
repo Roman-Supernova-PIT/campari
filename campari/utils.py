@@ -2,8 +2,11 @@
 import warnings
 
 # Common Library
+import csv
 import numpy as np
-import tracemalloc
+import os
+import psutil
+import time
 
 # Astronomy Library
 from astropy.stats import sigma_clipped_stats, SigmaClip
@@ -54,6 +57,8 @@ class campari_lightcurve_model:
         post_transient_images=None,
         sky_background=None,
         image_collection_prov=None,
+        sca_x_locations = None,
+        sca_y_locations = None
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -127,6 +132,8 @@ class campari_lightcurve_model:
         self.post_transient_images = post_transient_images
         self.sky_background = sky_background
         self.image_collection_prov = image_collection_prov
+        self.sca_x_locations = sca_x_locations
+        self.sca_y_locations = sca_y_locations
 
 
 def gaussian(x, A, mu, sigma):
@@ -369,19 +376,59 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     return LSB
 
 
-def print_memory_usage_summary(flag):
+def clear_memory_file():
+    cfg = Config.get()
+    if cfg.value("photometry.campari.save_memory_file_name") != "None":
+        debug_dir = cfg.value("photometry.campari_io.debug_dir")
+        csv_name = cfg.value("photometry.campari.save_memory_file_name")
+        csv_path = f"{debug_dir}/{csv_name}.csv"
+        if os.path.exists(csv_path):
+            SNLogger.debug(f"Removing memory usage file {csv_path}")
+            os.remove(csv_path)
+
+
+global _printed_location
+_printed_location = False
+
+def print_mem(label=""):
     cfg = Config.get()
     if cfg.value("photometry.campari.print_memory_usage"):
-        SNLogger.info(flag)
-        snapshot = tracemalloc.take_snapshot()
-        top_stats = snapshot.statistics("lineno")
-        current, peak = tracemalloc.get_traced_memory()
-        SNLogger.info(f"Current memory usage is {current / 10**6}MB; Peak was {peak / 10**6}MB")
+        from campari_runner import _start_time
 
-        SNLogger.info("[ Top 10 ]")
-        printout = ""
-        for stat in top_stats[:10]:
-            printout += str(stat) + "\n"
-        SNLogger.info(printout)
-    else:
-        pass
+        mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
+        elapsed_s = time.perf_counter() - _start_time
+        current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
+        pid = os.getpid()
+        print(f"[MEM] {label}: {mem_gb:.2f} GB")
+
+        debug_dir = cfg.value("photometry.campari_io.debug_dir")
+        if cfg.value("photometry.campari.save_memory_file_name") != "None":
+            csv_name = cfg.value("photometry.campari.save_memory_file_name")
+            csv_path = f"{debug_dir}/{csv_name}.csv"
+            if not _printed_location:
+                SNLogger.debug(f"Saving memory usage to {csv_path}")
+                _printed_location = True
+
+            # Race condition stuff below written by AI
+
+            # Atomically CREATE the file only if it doesn't exist. O_CREAT|O_EXCL
+            # is a single OS-level operation: the OS checks-and-creates as one
+            # uninterruptible step, so it's impossible for two processes to both
+            # "win" this race, no matter how their timing overlaps.
+            try:
+                fd = os.open(csv_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
+                with os.fdopen(fd, "w", newline="") as f:
+                    csv.writer(f).writerow(
+                        ["elapsed_seconds", "label", "memory_gb", "timestamp", "pid"]
+                    )
+            except FileExistsError:
+                pass  # some other process already created the file + header
+
+            # Append this process's row. O_APPEND makes each write land at the
+            # end of the file atomically, so rows from different processes
+            # don't get scrambled together even if they write at the same time.
+            fd = os.open(csv_path, os.O_APPEND | os.O_WRONLY)
+            with os.fdopen(fd, "a", newline="") as f:
+                csv.writer(f).writerow(
+                    [f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}", current_time, pid]
+                )

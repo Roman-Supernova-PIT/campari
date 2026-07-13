@@ -15,7 +15,7 @@ from snappl.imagecollection import ImageCollection
 from snappl.logger import SNLogger
 
 # Campari
-from campari.utils import (calculate_background_level, print_memory_usage_summary)
+from campari.utils import (calculate_background_level, print_mem)
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -103,12 +103,9 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
 
-    deep_size = sys.getsizeof(image_list) + sum(sys.getsizeof(item) for item in image_list)
-    SNLogger.debug(f"Memory usage of image_list: {deep_size / 1e6:.2f} MB")
-
-    cutout_deep_size = sys.getsizeof(cutout_image_list) + sum(sys.getsizeof(item) for item in cutout_image_list)
-
-    SNLogger.debug(f"Cutout image list memory usage: {cutout_deep_size / 1e6:.2f} MB")
+    for im in image_list:
+        im.free()  # Save memory
+    print_mem(f"after freeing {len(image_list)} full images")
 
     return cutout_image_list, image_list, bgflux
 
@@ -145,7 +142,9 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     image: snappl.image.Image object of the entire SCA.
 
     """
+    print_mem("before image load ---------------")
     imagedata, errordata, flags = image.get_data(which="all", cache=True)
+    print_mem("after image load------------------")
 
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
     num_nans = np.isnan(image_cutout.data).sum()
@@ -193,6 +192,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
+    image.free() # Save memory
+    print_mem(f"after freeing full image {indx} ------------------")
     return image_cutout, bg
 
 
@@ -367,7 +368,5 @@ def find_all_exposures(
         transient_images = transient_images[:maxdet]
     all_images = np.hstack((transient_images, no_transient_images))
     SNLogger.debug(f"Found {len(all_images)} total images")
-
-    print_memory_usage_summary("Finished finding all exposures")
 
     return all_images, img_collection_prov

@@ -100,8 +100,9 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     SNLogger.debug("NEW LIGHTCURVE DATA:")
     SNLogger.debug(lc1)
 
+    failed_cols = []
+
     for col in bothcols:
-        SNLogger.debug(f"Checking col {col}")
         # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
         # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
         # roughly log10(2^24)=7 significant figures.  As such,
@@ -145,7 +146,10 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
         # floating point number.)
         msg = f"The lightcurves do not match for column {col}"
         if isinstance(lc1[col][0], str) or isinstance(lc1[col][0], np.str_):
-            np.testing.assert_array_equal(lc1[col], lc2[col]), msg
+            try:
+                np.testing.assert_array_equal(lc1[col], lc2[col]), msg
+            except Exception as e:
+                failed_cols.append(col)
         else:
             # Switching from one type of WCS to another gave rise in a
             # difference of about 1e-9 pixels for the grid, which led to a
@@ -155,8 +159,14 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # the WCS objects are pickled and unpickled which can
             # slightly change the numerical results. I found that it altered recovered flux
             # by about 1.4 MICRO mags. So I am increasing the rtol to 7e-6 to allow for this.
-            np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6), msg
+            try:
+                np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6), msg
+            except Exception as e:
+                failed_cols.append(col)
 
+    if len(failed_cols) > 0:
+        SNLogger.debug(f"Failed columns: {failed_cols}")
+        raise AssertionError(f"The lightcurves do not match for columns {failed_cols}")
     if overwrite_meta:
         SNLogger.debug("At this point, all the data columns match."
                        " I am now overwriting the metadata of lc2 with that of lc1.")
@@ -376,8 +386,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
 
-@pytest.mark.parametrize("nprocs", [(2), (1)])
-@pytest.mark.slow
+@pytest.mark.parametrize("nprocs", [(1), (2)])
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.

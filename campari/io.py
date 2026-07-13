@@ -59,7 +59,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     image_list = lc_model.image_list
 
     cutout_image_list = lc_model.cutout_image_list
-    band = image_list[0].band
+    band = cutout_image_list[0].band
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
@@ -84,14 +84,13 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
         "NEA": [],
     }
 
-    for i, img in enumerate(image_list):
+    for i, img in enumerate(cutout_image_list):
         if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
             data_dict["observation_id"].append(str(img.observation_id))
             data_dict["sca"].append(img.sca)
-            x, y = img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
-            data_dict["pix_x"].append(x)
-            data_dict["pix_y"].append(y)
+            data_dict["pix_x"].append(lc_model.sca_x_locations[i])
+            data_dict["pix_y"].append(lc_model.sca_y_locations[i])
             x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
             data_dict["x_cutout"].append(x_cutout)
             data_dict["y_cutout"].append(y_cutout)
