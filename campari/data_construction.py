@@ -103,10 +103,6 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
 
-    for im in image_list:
-        im.free()  # Save memory
-    print_mem(f"after freeing {len(image_list)} full images")
-
     return cutout_image_list, image_list, bgflux
 
 

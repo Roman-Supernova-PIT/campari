@@ -144,10 +144,9 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
         # restructure the order of operations in your code to avoid
         # underflow errors bigger than the number of sig figs in a
         # floating point number.)
-        msg = f"The lightcurves do not match for column {col}"
         if isinstance(lc1[col][0], str) or isinstance(lc1[col][0], np.str_):
             try:
-                np.testing.assert_array_equal(lc1[col], lc2[col]), msg
+                np.testing.assert_array_equal(lc1[col], lc2[col])
             except Exception:
                 failed_cols.append(col)
         else:
@@ -160,7 +159,7 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # slightly change the numerical results. I found that it altered recovered flux
             # by about 1.4 MICRO mags. So I am increasing the rtol to 7e-6 to allow for this.
             try:
-                np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6), msg
+                np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6)
             except Exception:
                 failed_cols.append(col)
 
