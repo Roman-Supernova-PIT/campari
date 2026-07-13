@@ -37,35 +37,9 @@ conda activate sn_pit_dev
 ```
 
 ## Doing a simple run.
-The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml. Because of different file paths on different
+The campari code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml. Because of different file paths on different
 systems, the steps are slightly different for each machine. Here's how to get a basic run going dpeending on which computer you find yourself using:
-### DCC:
 
-To do a simple test run to ensure everything is installed correctly, you can request a node:
-
-```
-srun -n 1 -N 1 -t 4:00:00 --mem 20000 -p cosmology --account=cosmology --pty bash
-conda activate sn_pit_dev
-```
-cd into your directory where the code is stored.
-Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
-
-```
-roman_path: /hpc/group/cosmology/OpenUniverse2024
-sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
-```
-
-Next, in the `temp_tds.yaml` file, make sure `file_name` is:
-```
-file_name: /hpc/group/cosmology/OpenUniverse2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits
-```
-
-and then run:
-
-```
-python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
-```
-This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
 
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
@@ -80,7 +54,6 @@ Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as 
 roman_path: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
 sn_path: /global/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
 ```
-
 Next, in the `temp_tds.yaml` file, make sure `file_name` is:
 ```
 file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/Roman_TDS_obseq_11_6_23.fits
@@ -88,9 +61,15 @@ file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/Rom
 and then run:
 
 ```
-python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
+bash /global/cfs/cdirs/m4385/env/interactive-podman-rknop-dev.sh
+pip install -e /home/campari -e /home/snappl
+cd /home/campari/campari
+SNPIT_CONFIG=../examples/perlmutter/campari_config_test.yaml
+python /home/campari/campari/RomanASP.py -f Y106 -t 10 -n 5 --diaobject-id 20172782 -f Y106 --image-collection ou2024 --diaobject-collection ou2024 --nprocs 15
+
+
 ```
-This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
+This will run the algorithm on supernova with SNID 20172782, in band Y106, using 10 images 5 of which contain SN detections.
 
 
 ## Modifying the yaml file.
@@ -268,28 +247,6 @@ These let you skip re-computing expensive parts of the model by reusing results 
 
 ---
 
-## Quick cross-reference: config key → CLI flag
+Information on the output can be found here:
 
-If you ever need to go from something you saw in a YAML file to the equivalent command-line flag (or vice versa), the rule is mechanical:
-
-photometry.campari.grid\_options.spacing   (YAML, dotted)
-
-        │
-
-        ▼  replace every "." with "-"
-
-\--photometry-campari-grid\_options-spacing  (CLI flag)
-
-The only wrinkle: the *very last* segment (the actual field name, like `spacing` or `cutout_size`) keeps its underscores as-is — it's only the dots *between* section names that turn into dashes. That's why you'll see flags like `--photometry-campari-grid_options-spacing` (dashes between sections, underscore preserved in the final field name).
-
--------------------------------------------------------------------------------------------------------------------------------------------------------|
-| true_flux             | float           | Flux of the supernova from the OpenUniverse truth files.                                                                                              |
-| MJD                   | float           | MJD date of the current epoch.                                                                                                                        |
-| confusion metric      | float           | An experimental metric measuring how much contamination the background galaxy imparts. It is the dot product of the PSF at the SN location with an image of the galaxy without a supernova detection. Essentially, it is the amount of background flux "under" the SN in a detection image!This metric seems to roughly correlate with measurement error but requires further investigation. |
-| host_sep              | float           | Separation between galaxy center and SN, from OpenUniverse truth files.                                                                              |
-| host_mag_g            | float           | Host galaxy magnitude in g band, from OpenUniverse truth files.                                                                                      |
-| sn_ra                 | float           | RA location of the SN, from OpenUniverse truth files.                                                                                                |
-| sn_dec                | float           | DEC location of the SN, from OpenUniverse truth files.                                                                                               |
-| host_ra               | float           | RA location of the host galaxy, from OpenUniverse truth files.                                                                                       |
-| host_dec              | float           | DEC location of the host galaxy, from OpenUniverse truth files.                                                                                      |
-| measured_flux         | float           | Flux as measured by the RomanASP algorithm.                                                                                                           |
+[Rich Lightcurve Link](https://github.com/Roman-Supernova-PIT/Roman-Supernova-PIT/wiki/rich_lightcurve)

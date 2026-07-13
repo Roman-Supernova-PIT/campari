@@ -98,7 +98,6 @@ default_parameters = {
     "photometry_campari_grid_options_type": None,
     "photometry_campari_grid_options_percentiles": None,
     "photometry_campari_grid_options_spacing": 1.0,
-    "photometry_campari_grid_options_turn_grid_off": None,
     "photometry_campari_grid_options_gaussian_var": None,
     "photometry_campari_grid_options_cutoff": None,
     "photometry_campari_grid_options_error_floor": None,
