@@ -28,6 +28,7 @@
 # - {subtract_background_method: calculate}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
+# - {save_memory_file_name: None}
 # - {preplot_cutouts: false}
 # - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
 # - grid_options:
@@ -44,8 +45,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: fdbc86b7-d7ff-61c0-b5f2-2f4dc259d8d6}
-# - {diaobject_id: b081d2b9-f92a-4637-ab1a-db13aa262bb7}
+# - {provenance_id: ba6125c2-5d21-d282-90c9-15284e423e15}
+# - {diaobject_id: b52ae388-36aa-4be7-aa17-b2a61780d750}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -55,4 +56,4 @@
 # - {post_transient_images: 0}
 # schema: astropy-2.0
 mjd flux flux_err zpt NEA sky_rms observation_id sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
-62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.85410580816 127021.05784706218 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0
+62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.85410581 127021.05784706 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0

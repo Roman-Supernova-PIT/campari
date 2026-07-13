@@ -148,7 +148,7 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
         if isinstance(lc1[col][0], str) or isinstance(lc1[col][0], np.str_):
             try:
                 np.testing.assert_array_equal(lc1[col], lc2[col]), msg
-            except Exception as e:
+            except Exception:
                 failed_cols.append(col)
         else:
             # Switching from one type of WCS to another gave rise in a
@@ -161,11 +161,14 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
             # by about 1.4 MICRO mags. So I am increasing the rtol to 7e-6 to allow for this.
             try:
                 np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6), msg
-            except Exception as e:
+            except Exception:
                 failed_cols.append(col)
 
     if len(failed_cols) > 0:
-        SNLogger.debug(f"Failed columns: {failed_cols}")
+        for f in failed_cols:
+            SNLogger.debug(f"Column {f} values in lc1: {lc1[f]}")
+            SNLogger.debug(f"Column {f} values in lc2: {lc2[f]}")
+            SNLogger.debug("###################################")
         raise AssertionError(f"The lightcurves do not match for columns {failed_cols}")
     if overwrite_meta:
         SNLogger.debug("At this point, all the data columns match."
@@ -664,6 +667,8 @@ def test_build_lc(cfg, overwrite_meta):
     explist = Table.from_pandas(exposures)
     explist.sort(["detected", "sca"])
 
+    sca_x_locations = np.array([68565.85410581, 68565.85410581])
+    sca_y_locations = np.array([127021.05784706, 127021.05784706])
     # Getting a WCS to use
     observation_id = "5934"
     sca = 3
@@ -702,7 +707,8 @@ def test_build_lc(cfg, overwrite_meta):
     lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
                                         sky_background=[0.0] * len(image_list), pre_transient_images=1,
-                                        post_transient_images=0)
+                                        post_transient_images=0, sca_x_locations=sca_x_locations,
+                                        sca_y_locations=sca_y_locations)
 
     upstreams = []
     cam_prov = Provenance(

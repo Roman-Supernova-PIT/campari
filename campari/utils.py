@@ -387,8 +387,8 @@ def clear_memory_file():
             os.remove(csv_path)
 
 
-global _printed_location
 _printed_location = False
+
 
 def print_mem(label=""):
     cfg = Config.get()
@@ -405,6 +405,7 @@ def print_mem(label=""):
         if cfg.value("photometry.campari.save_memory_file_name") != "None":
             csv_name = cfg.value("photometry.campari.save_memory_file_name")
             csv_path = f"{debug_dir}/{csv_name}.csv"
+            global _printed_location
             if not _printed_location:
                 SNLogger.debug(f"Saving memory usage to {csv_path}")
                 _printed_location = True

@@ -23,7 +23,6 @@ def campari_test_data(cfg):
 
 
 def test_memory(cfg):
-    # Get start time
     time_start = time.time()
 
     nprocs = 20
@@ -41,15 +40,15 @@ def test_memory(cfg):
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000 "
-#        "--photometry-campari-print_memory_usage "
-#        "--photometry-campari-save_memory_file_name test_regression"
+        "--photometry-campari-print_memory_usage "
+        "--photometry-campari-save_memory_file_name test_regression"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
     time_end = time.time()
     total_time = time_end - time_start
 
-    np.testing.assert_array_less(total_time, 150), "The test run on a SN took longer than 150 seconds,"
+    np.testing.assert_array_less(total_time, 150), "The test run on a SN took longer than 150 seconds," + \
                                                    " typical time is 110 seconds."
 
     SNLogger.debug(f"Test run on a SN took {time_end - time_start} seconds")
@@ -66,7 +65,7 @@ def test_memory(cfg):
 
     try:
         np.testing.assert_array_less(mem_df["memory_gb"].values, 1.5), "Memory usage exceeded 1.5 GB"
-    except:
+    except AssertionError:
         plt.plot(mem_df["elapsed_seconds"].values, mem_df["memory_gb"].values)
         plot_path = f"{debug_dir}/memory_usage_plot.png"
         plt.savefig(plot_path)
