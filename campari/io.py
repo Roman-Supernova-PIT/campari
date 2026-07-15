@@ -228,3 +228,17 @@ def read_healpix_file(healpix_file):
         healpix_list = pd.read_csv(healpix_file, header=None).values.flatten().tolist()
 
     return healpix_list, nside
+
+
+def save_model_if_requested(save_model, psf_matrix, sn_matrix, galaxy_psfclass, sn_psfclass, diaobj, num_total_images):
+    if save_model:
+        psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
+            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+        np.save(psf_matrix_path, psf_matrix)
+
+        sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
+            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+        np.save(sn_matrix_path, sn_matrix)
+
+        SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
+        SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")

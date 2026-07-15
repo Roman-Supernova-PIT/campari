@@ -380,6 +380,7 @@ def make_grid(
     cut_points_close_to_sn=False,
     spacing=0.75,
     subsize=9,
+    object_type=None
 ):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -411,6 +412,8 @@ def make_grid(
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     """
+    if not grid_type and object_type == "star":
+        SNLogger.warning("For fitting stars, you probably dont want a grid.")
 
     SNLogger.debug(f"Grid type: {grid_type}")
     if grid_type not in ["regular", "adaptive", "contour", "single"]:
@@ -423,10 +426,13 @@ def make_grid(
     elif grid_type == "regular":
         ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing, subsize=subsize)
 
-    if grid_type == "single":
+    elif grid_type == "single":
         if single_ra is None or single_dec is None:
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
         ra_grid, dec_grid = [single_ra], [single_dec]
+    elif grid_type == "none":
+        ra_grid = np.array([])
+        dec_grid = np.array([])
 
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
@@ -661,3 +667,23 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     print_memory_usage_summary("Finished building model for one image")
     return background_model_array, psf_source_array
+
+
+def prep_initial_guess(make_initial_guess, num_nondetect_images, grid_type, cutout_image_list, ra_grid, dec_grid,
+              num_total_images, initial_flux_guess, psf_matrix, subtract_background_method):
+    if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
+        SNLogger.debug("Making initial guess for the model")
+        x0 = generate_guess(cutout_image_list[:num_nondetect_images],
+                                ra_grid, dec_grid)
+        x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
+        x0 = np.concatenate([x0, x0_vals_for_sne], axis=0)
+        SNLogger.debug(f"setting initial guess to {initial_flux_guess}")
+
+    else:
+        x0 = None
+
+    if not make_initial_guess:
+        x0 = np.zeros(psf_matrix.shape[1])
+
+    if subtract_background_method == "fit":
+        x0 = np.concatenate([x0, np.zeros(num_total_images)], axis=0)

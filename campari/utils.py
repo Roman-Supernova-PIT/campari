@@ -159,7 +159,7 @@ def calculate_background_level(im):
     return mean
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
+def get_weights(images, ra, dec, weighting, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -182,6 +182,9 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
                 the pixels in each cutout. Each array is size: (size x size)
 
     """
+    if not weighting:
+        return [np.ones_like(im.data) for im in images]
+
     size = images[0].image_shape[0]
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
@@ -385,3 +388,19 @@ def print_memory_usage_summary(flag):
         SNLogger.info(printout)
     else:
         pass
+
+
+def load_prebuilt_matrices_if_provided(prebuilt_psf_matrix, prebuilt_sn_matrix, psf_matrix, sn_matrix):
+
+    if prebuilt_psf_matrix is None:
+        psf_matrix = np.vstack(np.array(psf_matrix))
+        SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
+    else:
+        psf_matrix = prebuilt_psf_matrix
+        SNLogger.debug(f"Using prebuilt PSF matrix of shape {psf_matrix.shape}")
+
+    if prebuilt_sn_matrix is not None:
+        sn_matrix = prebuilt_sn_matrix
+        SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
+
+    return psf_matrix, sn_matrix

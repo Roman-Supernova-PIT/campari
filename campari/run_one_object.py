@@ -17,13 +17,15 @@ from erfa import ErfaWarning
 # SN-PIT
 from campari.data_construction import construct_images, prep_data_for_fit
 from campari.model_building import (
-    generate_guess,
+    prep_initial_guess,
     make_grid,
     build_model_for_one_image,
 )
 from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
-                           convert_band_name, get_weights, print_memory_usage_summary)
+                           convert_band_name, get_weights, print_memory_usage_summary,
+                           load_prebuilt_matrices_if_provided)
+from campari.io import save_model_if_requested
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -119,39 +121,17 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                      output_path=pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) /
                      f"cutouts_{diaobj.name}.png")
 
-    sim_galra = None
-    sim_galdec = None
-    galaxy_images = None
-
     print_memory_usage_summary("After constructing images:")
 
     # Build the background grid
-    if not grid_type == "none":
-        if object_type == "star":
-            SNLogger.warning("For fitting stars, you probably dont want a grid.")
-        ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
-                                      percentiles=percentiles, single_ra=sim_galra,
-                                      single_dec=sim_galdec, spacing=spacing,
-                                      subsize=subsize)
-    else:
-        ra_grid = np.array([])
-        dec_grid = np.array([])
+    ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
+                                      percentiles=percentiles, spacing=spacing,
+                                      subsize=subsize, object_type=object_type)
 
-    # Using the images, hazard an initial guess.
     # The num_total_images - num_detect_images check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
     num_nondetect_images = num_total_images - num_detect_images
-    if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
-        SNLogger.debug("Making initial guess for the model")
-        x0test = generate_guess(cutout_image_list[:num_nondetect_images],
-                                ra_grid, dec_grid)
-        x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
-        x0test = np.concatenate([x0test, x0_vals_for_sne], axis=0)
-        SNLogger.debug(f"setting initial guess to {initial_flux_guess}")
-
-    else:
-        x0test = None
 
     banner("Building Model")
 
@@ -200,43 +180,20 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     print_memory_usage_summary("After building model:")
 
     banner("Lin Alg Section")
-    if prebuilt_psf_matrix is None:
-        psf_matrix = np.vstack(np.array(psf_matrix))
-        SNLogger.debug(f"{psf_matrix.shape} psf matrix shape")
-    else:
-        psf_matrix = prebuilt_psf_matrix
-        SNLogger.debug(f"Using prebuilt PSF matrix of shape {psf_matrix.shape}")
 
-    if prebuilt_sn_matrix is not None:
-        sn_matrix = prebuilt_sn_matrix
-        SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
+    # Load prebuilt matrices if provided, otherwise stack the matrices we just built.
+    psf_matrix, sn_matrix = load_prebuilt_matrices_if_provided(prebuilt_psf_matrix,
+                                                               prebuilt_sn_matrix, psf_matrix, sn_matrix)
 
-    # Add in the supernova images to the matrix in the appropriate location
-    # so that it matches up with the image it represents.
-    # All others should be zero.
-
-    # Get the weights
-
-    if weighting:
-        wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, gaussian_var=gaussian_var,
+    # Get the weights. If weighting is false, this will return a list of arrays of ones,
+    #  which is equivalent to no weighting.
+    wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, weighting, gaussian_var=gaussian_var,
                                  cutoff=cutoff, error_floor=error_floor)
-    else:
-        wgt_matrix = np.ones(psf_matrix.shape[0])
 
     galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
     sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
 
-    if save_model:
-        psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
-            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
-        np.save(psf_matrix_path, psf_matrix)
-
-        sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
-            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
-        np.save(sn_matrix_path, sn_matrix)
-
-        SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
-        SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")
+    save_model_if_requested(save_model, psf_matrix, sn_matrix, galaxy_psfclass, sn_psfclass, diaobj, num_total_images)
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
@@ -259,12 +216,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     num_pre_transient_images = np.sum(mjd < diaobj.mjd_start)
     num_post_transient_images = np.sum(mjd > diaobj.mjd_end)
 
-    # These if statements can definitely be written more elegantly.
-    if not make_initial_guess:
-        x0test = np.zeros(psf_matrix.shape[1])
-
-    if subtract_background_method == "fit":
-        x0test = np.concatenate([x0test, np.zeros(num_total_images)], axis=0)
+    # Using the images, hazard an initial guess.
+    x0 = prep_initial_guess(make_initial_guess, num_nondetect_images, grid_type, cutout_image_list, ra_grid, dec_grid,
+                        num_total_images, initial_flux_guess, psf_matrix, subtract_background_method)
 
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
     SNLogger.debug(f"psf matrix size: {sys.getsizeof(psf_matrix) / 1e6:.4f} MB")
@@ -273,14 +227,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"image shape: {images.shape}")
     SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
-    if method == "lsqr":
-        wgt_matrix = np.sqrt(wgt_matrix)
-        lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix,  atol=1e-12, x0=x0test,
-                              btol=1e-12, iter_lim=300000, conlim=1e10)
-        X, istop, itn, r1norm = lsqr[:4]
-        SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
-                       f"r1norm: {r1norm}")
+    wgt_matrix = np.sqrt(wgt_matrix)
+    lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
+                            images*wgt_matrix,  atol=1e-12, x0=x0,
+                            btol=1e-12, iter_lim=300000, conlim=1e10)
+    X, istop, itn, r1norm = lsqr[:4]
+    SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
+                    f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
@@ -310,7 +263,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, image_list=image_list,
-            cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
+            cutout_image_list=cutout_image_list, noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,
             post_transient_images=num_post_transient_images
