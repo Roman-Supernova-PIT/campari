@@ -7,7 +7,6 @@ from scipy.stats import binned_statistic, norm
 from astropy.io import fits
 from astropy.table import Table
 
-import snappl
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
@@ -16,74 +15,16 @@ cfg = Config.get()
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
-def plot_images(fileroot, size=11):
-    imgdata = np.load("./results/images/" + str(fileroot) + "_images.npy")
-    num_total_images = imgdata.shape[1] // size**2
-    images = imgdata[0]
-    sumimages = imgdata[1]
-
-    fluxdata = pd.read_csv("./results/lightcurves/" + str(fileroot) + "_lc.csv")
-
-    ra, dec = fluxdata["sn_ra"][0], fluxdata["sn_dec"][0]
-    galra, galdec = fluxdata["host_ra"][0], fluxdata["host_dec"][0]
-
-    hdul = fits.open("./results/images/" + str(fileroot) + "_wcs.fits")
-    cutout_wcs_list = []
-    for i, savedwcs in enumerate(hdul):
-        if i == 0:
-            continue
-        newwcs = snappl.AstropyWCS.from_header(savedwcs.header)
-        cutout_wcs_list.append(newwcs)
-
-    ra_grid, dec_grid, gridvals = np.load("./results/images/" + str(fileroot) + "_grid.npy")
-
-    plt.figure(figsize=(15, 3 * num_total_images))
-
-    for i, wcs in enumerate(cutout_wcs_list):
-        extent = [-0.5, size - 0.5, -0.5, size - 0.5]
-        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-        object_x, object_y = wcs.world_to_pixel(ra, dec)
-        galx, galy = wcs.world_to_pixel(galra, galdec)
-
-        plt.subplot(len(cutout_wcs_list), 4, 4 * i + 1)
-        vmin = np.mean(gridvals) - np.std(gridvals)
-        vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx, yy, s=1, c="k", vmin=vmin, vmax=vmax)
-        plt.title("True Image")
-        plt.scatter(object_x, object_y, c="r", s=8, marker="*")
-        plt.scatter(galx, galy, c="b", s=8, marker="*")
-        imshow = plt.imshow(images[i * size**2 : (i + 1) * size**2].reshape(size, size), origin="lower", extent=extent)
-        plt.colorbar(fraction=0.046, pad=0.04)
-
-        ############################################
-
-        plt.subplot(len(cutout_wcs_list), 4, 4 * i + 2)
-        plt.title("Model")
-
-        im1 = sumimages[i * size**2 : (i + 1) * size**2].reshape(size, size)
-        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
-
-        vmin = imshow.get_clim()[0]
-        vmax = imshow.get_clim()[1]
-
-        plt.imshow(im1, extent=extent, origin="lower", vmin=vmin, vmax=vmax)
-        plt.colorbar(fraction=0.046, pad=0.04)
-
-        ############################################
-        plt.subplot(len(cutout_wcs_list), 4, 4 * i + 3)
-        plt.title("Residuals")
-        vmin = np.mean(gridvals) - np.std(gridvals)
-        vmax = np.mean(gridvals) + np.std(gridvals)
-        plt.scatter(xx, yy, s=1, c=gridvals, vmin=vmin, vmax=vmax)
-        res = images - sumimages
-        current_res = res[i * size**2 : (i + 1) * size**2].reshape(size, size)
-        plt.imshow(current_res, extent=extent, origin="lower", cmap="seismic", vmin=-100, vmax=100)
-        plt.colorbar(fraction=0.046, pad=0.14)
-
-    plt.subplots_adjust(wspace=0.4, hspace=0.3)
-
-
 def plot_lc(filepath, return_data=False):
+    """ Plot a lightcurve from a CSV file containing the columns: sim_true_mag, mag, mag_err, mjd.
+
+    Parameters
+    ----------
+    filepath : str
+        Path to the CSV file containing the lightcurve data.
+    return_data : bool, optional
+        If True, return the data used for plotting. Default is False.
+    """
     fluxdata = pd.read_csv(filepath, comment="#", delimiter=" ")
     truth_mag = fluxdata["sim_true_mag"]
     mag = fluxdata["mag"]
@@ -133,6 +74,19 @@ def plot_lc(filepath, return_data=False):
 
 
 def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
+    """ Plot an image with a grid of RA/Dec points overlaid.
+
+    Parameters
+    ----------
+    image : 2D array
+        The image data to plot.
+    wcs : astropy.wcs.WCS
+        The WCS object for the image.
+    ra_grid : 1D array
+        The RA coordinates of the grid points to overlay.
+    dec_grid : 1D array
+        The Dec coordinates of the grid points to overlay.
+    """
     SNLogger.debug(f"WCS: {type(wcs)}")
     fig, ax = plt.subplots(subplot_kw=dict(projection=wcs))
     plt.imshow(image, origin="lower", cmap="gray")
@@ -140,6 +94,25 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
 
 
 def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
+    """ Generate diagnostic plots for the light curve and images.
+
+    Parameters
+    -----------
+    fileroot : str
+        The root name of the files to read.
+    imsize : int
+        The size of the cutout images.
+    plotname : str
+        The name of the output plot file.
+    ap_sums : list, optional
+        The aperture photometry sums for comparison.
+    ap_err : list, optional
+        The errors associated with the aperture photometry sums.
+    trueflux : list, optional
+        The true flux values for comparison.
+    err_fudge : float, optional
+        An additional error term to add in quadrature to the flux errors.
+    """
     SNLogger.debug("Generating diagnostic plots....")
     cfg = Config.get()
     debug_dir = cfg.value("photometry.campari_io.debug_dir")
@@ -184,10 +157,9 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         vmin, vmax = im.get_clim()
         xticks = np.arange(0, imsize, 5) - 0.5
 
-        if imsize < 30:
-            plt.xticks(xticks)
-            plt.yticks(xticks)
-            plt.grid(True)
+        plt.xticks(xticks)
+        plt.yticks(xticks)
+        plt.grid(True)
         plt.colorbar()
 
         ###########################################################################
@@ -200,10 +172,9 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.xlim(-0.5, imsize - 0.5)
         plt.ylim(-0.5, imsize - 0.5)
 
-        if imsize < 30:
-            plt.xticks(xticks)
-            plt.yticks(xticks)
-            plt.grid(True)
+        plt.xticks(xticks)
+        plt.yticks(xticks)
+        plt.grid(True)
         plt.imshow(modelims[i], origin="lower", vmin=vmin, vmax=vmax)
         plt.colorbar()
 
@@ -242,106 +213,127 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     plt.close()
 
     plt.clf()
-    if lc["flux_err"] is not None:
-        lc["flux_err"] = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
-    else:
-        # Noiseless tests will have no error.
-        lc["flux_err"] = np.full_like(lc["flux"], err_fudge)
+
+    lc["flux_err"] = _fudge_errors(lc, err_fudge)
     SNLogger.debug(f"Generated image diagnostics and saved to {debug_dir}/" + plotname + ".png")
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
-    if trueflux is not None:
-        plt.subplot(2, 2, 1)
-        plt.errorbar(
-            lc["mjd"],
-            lc["flux"] - trueflux,
-            yerr=lc["flux_err"],
-            marker="o",
-            linestyle="None",
-            label="Campari Fit - Truth",
-        )
-
-        residuals = lc["flux"] - trueflux
-        window_size = 3
-        if len(residuals) >= window_size:
-            rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
-            plt.plot(lc["mjd"][window_size - 1 :], rolling_avg, label="Rolling Average", color="orange")
-
-        if ap_sums is not None and ap_err is not None:
-            SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
-            plt.errorbar(
-                lc["mjd"],
-                np.array(ap_sums) - trueflux,
-                yerr=ap_err,
-                marker="o",
-                linestyle="None",
-                label="Aperture Phot - Truth",
-                color="red",
-            )
-            plt.errorbar(
-                lc["mjd"],
-                lc["flux"] - np.array(ap_sums),
-                yerr=np.sqrt(lc["flux_err"] ** 2 + np.array(ap_err) ** 2),
-                marker="o",
-                linestyle="None",
-                label="Campari - Aperture Phot",
-                color="green",
-            )
-
-            non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
-            image_sums = [np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)]
-            plt.errorbar(
-                lc["mjd"], np.array(image_sums) - trueflux, yerr=0, marker="o", linestyle="None",
-                label="Image Sum - Truth", color="purple"
-            )
-
-        SNLogger.debug(f"campari std: {np.std(lc['flux'] - trueflux)}")
-
-        plt.axhline(0, color="black", linestyle="--")
-        plt.legend()
-        plt.xlabel("MJD")
-        plt.ylabel("Flux (e-)")
-        plt.xlim(np.min(lc["mjd"]) - 10, np.max(lc["mjd"]) + 10)
-        plt.title(plotname + " Light Curve Residuals")
-
-        plt.subplot(2, 2, 2)
-        pull = (lc["flux"] - trueflux) / lc["flux_err"]
-        plt.hist(pull, bins=10, alpha=0.5, label="Campari Pull", density=True)
-        normal_dist = norm(loc=0, scale=1)
-        x = np.linspace(-5, 5, 100)
-        plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
-
-        mu, sig = norm.fit(pull)
-        plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
-        plt.legend()
-
-        plt.subplot(2, 2, 3)
-        plt.errorbar(
-            lc["mjd"], lc["flux"], yerr=lc["flux_err"], marker="o", linestyle="None", label="Campari Fit - Truth", ms=1
-        )
-        plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
-        plt.yscale("log")
-        # plt.ylim(1e3, 1e5)
-
-        plt.subplot(2, 2, 4)
-        plt.errorbar(lc["flux"], pull, yerr=None, marker="o", linestyle="None")
-        bins = np.linspace(min(lc["flux"]), max(lc["flux"]), 5)
-        bin_means, bin_edges, _ = binned_statistic(lc["flux"], pull, statistic="mean", bins=bins)
-        bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
-
-        plt.axhline(0, color="black", linestyle="--")
-        plt.xlabel("Flux")
-        plt.ylabel("Pull")
-        bin_stds, _, _ = binned_statistic(lc["flux"], pull, statistic="std", bins=bins)
-        plt.errorbar(bin_centers, bin_means, yerr=bin_stds, fmt="o", color="red", label="Binned Mean Pull with Std Dev")
-        plt.legend()
-
-        plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
+    _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname, ap_sums, ap_err, ims)
 
     SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
 
 
-def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
+def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname, ap_sums=None, ap_err=None, ims=None):
+    if trueflux is None:
+        return
+
+    plt.subplot(2, 2, 1)
+    plt.errorbar(
+        lc["mjd"],
+        lc["flux"] - trueflux,
+        yerr=lc["flux_err"],
+        marker="o",
+        linestyle="None",
+        label="Campari Fit - Truth",
+    )
+
+    residuals = lc["flux"] - trueflux
+    window_size = 3
+    if len(residuals) >= window_size:
+        rolling_avg = np.convolve(residuals, np.ones(window_size) / window_size, mode="valid")
+        plt.plot(lc["mjd"][window_size - 1 :], rolling_avg, label="Rolling Average", color="orange")
+
+    if ap_sums is not None and ap_err is not None:
+        SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
+        plt.errorbar(
+            lc["mjd"],
+            np.array(ap_sums) - trueflux,
+            yerr=ap_err,
+            marker="o",
+            linestyle="None",
+            label="Aperture Phot - Truth",
+            color="red",
+        )
+        plt.errorbar(
+            lc["mjd"],
+            lc["flux"] - np.array(ap_sums),
+            yerr=np.sqrt(lc["flux_err"] ** 2 + np.array(ap_err) ** 2),
+            marker="o",
+            linestyle="None",
+            label="Campari - Aperture Phot",
+            color="green",
+        )
+
+        non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
+        image_sums = [np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)]
+        plt.errorbar(
+            lc["mjd"], np.array(image_sums) - trueflux, yerr=0, marker="o", linestyle="None",
+            label="Image Sum - Truth", color="purple"
+        )
+
+    SNLogger.debug(f"campari std: {np.std(lc['flux'] - trueflux)}")
+
+    plt.axhline(0, color="black", linestyle="--")
+    plt.legend()
+    plt.xlabel("MJD")
+    plt.ylabel("Flux (e-)")
+    plt.xlim(np.min(lc["mjd"]) - 10, np.max(lc["mjd"]) + 10)
+    plt.title(plotname + " Light Curve Residuals")
+
+    plt.subplot(2, 2, 2)
+    pull = (lc["flux"] - trueflux) / lc["flux_err"]
+    plt.hist(pull, bins=10, alpha=0.5, label="Campari Pull", density=True)
+    normal_dist = norm(loc=0, scale=1)
+    x = np.linspace(-5, 5, 100)
+    plt.plot(x, normal_dist.pdf(x), label="Normal Dist", color="black")
+
+    mu, sig = norm.fit(pull)
+    plt.plot(x, norm.pdf(x, mu, sig), label=f"Fit: mu={mu:.2f}, sig={sig:.2f}", color="red")
+    plt.legend()
+
+    plt.subplot(2, 2, 3)
+    plt.errorbar(
+        lc["mjd"], lc["flux"], yerr=lc["flux_err"], marker="o", linestyle="None", label="Campari Fit - Truth", ms=1
+    )
+    plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
+    plt.yscale("log")
+    # plt.ylim(1e3, 1e5)
+
+    plt.subplot(2, 2, 4)
+    plt.errorbar(lc["flux"], pull, yerr=None, marker="o", linestyle="None")
+    bins = np.linspace(min(lc["flux"]), max(lc["flux"]), 5)
+    bin_means, bin_edges, _ = binned_statistic(lc["flux"], pull, statistic="mean", bins=bins)
+    bin_centers = (bin_edges[:-1] + bin_edges[1:]) / 2
+
+    plt.axhline(0, color="black", linestyle="--")
+    plt.xlabel("Flux")
+    plt.ylabel("Pull")
+    bin_stds, _, _ = binned_statistic(lc["flux"], pull, statistic="std", bins=bins)
+    plt.errorbar(bin_centers, bin_means, yerr=bin_stds, fmt="o", color="red", label="Binned Mean Pull with Std Dev")
+    plt.legend()
+
+    plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
+
+
+def _fudge_errors(lc, err_fudge):
+    """ Add an additional error term in quadrature to the flux errors.
+
+    Parameters
+    ----------
+    lc : astropy.table.Table
+        The light curve table containing the flux and flux_err columns.
+    err_fudge : float
+        The additional error term to add in quadrature to the flux errors.
+    """
+    if lc["flux_err"] is not None:
+        error = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+    else:
+        # Noiseless tests will have no error.
+        error = np.full_like(lc["flux"], err_fudge)
+    return error
+
+
+def plot_cutouts_if_requested(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
     """Plot all cutout images labeled with their MJD and the location of the supernova.
 
     Parameters
@@ -360,6 +352,8 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
     output_path : str or pathlib.Path, optional
         If provided, save the figure to this path. Otherwise, call plt.show().
     """
+    if not Config.get().value("photometry.campari.preplot_cutouts"):
+        return
     num_images = len(cutout_image_list)
     nrows = int(np.ceil(num_images / ncols))
 
@@ -396,21 +390,9 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
                        label="Peak SNR" if i == 0 else None)
 
         # Mark the SN location in cutout pixel coordinates
-        try:
-            wcs = image.get_wcs()
-            sn_x, sn_y = wcs.world_to_pixel(ra, dec)
-            ax.scatter(sn_x, sn_y, marker="+", color="red", s=100, linewidths=1.5,
-                       label="SN" if i == 0 else None)
-        except Exception:
-            SNLogger.warning(f"Could not project SN position onto cutout {i} (mjd={image.mjd:.7f})")
-
+        _try_to_plot_SN(image, ax, ra, dec, i)
         # Label with MJD; color the title to distinguish detection vs. non-detection
-        title_color = "black"
-        if diaobj is not None:
-            mjd_start = getattr(diaobj, "mjd_start", None) or -np.inf
-            mjd_end   = getattr(diaobj, "mjd_end",   None) or  np.inf
-            if mjd_start <= image.mjd <= mjd_end:
-                title_color = "red"
+        title_color = _color_title_by_whether_image_contains_transient(diaobj, image)
 
         ax.set_title(f"MJD {image.mjd:.7f} Texp: {image.exptime:.1f}s PkSNR:"
                      f" {peak_snr:.1f}", fontsize=8, color=title_color)
@@ -451,3 +433,53 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         plt.close()
     else:
         plt.show()
+
+
+def _try_to_plot_SN(image, ax, ra, dec, i):
+    """Try to plot the SN position on the cutout image. If the WCS is invalid, log a warning.
+
+    Parameters
+    ----------
+    image : snappl.image.Image
+        The cutout image.
+    ax : matplotlib.axes.Axes
+        The axes on which to plot.
+    ra : float
+        RA of the supernova in degrees.
+    dec : float
+        Dec of the supernova in degrees.
+    i : int
+        Index of the cutout image (for logging purposes).
+    """
+    try:
+        wcs = image.get_wcs()
+        sn_x, sn_y = wcs.world_to_pixel(ra, dec)
+        ax.scatter(sn_x, sn_y, marker="+", color="red", s=100, linewidths=1.5,
+                    label="SN" if i == 0 else None)
+    except Exception:
+        SNLogger.warning(f"Could not project SN position onto cutout {i} (mjd={image.mjd:.7f})")
+
+
+def _color_title_by_whether_image_contains_transient(diaobj, image):
+    """ Determine the color of the title for a cutout image based on whether it falls within the
+    transient window of a DiaObject.
+    Parameters
+    ----------
+
+    diaobj : snappl.diaobject.DiaObject
+        The DiaObject containing the transient information.
+    image : snappl.image.Image
+        The cutout image for which to determine the title color.
+
+    Returns
+    -------
+    title_color : str
+        "red" if the image falls within the transient window, "black" otherwise.
+    """
+    title_color = "black"
+    if diaobj is not None:
+        mjd_start = getattr(diaobj, "mjd_start", None) or -np.inf
+        mjd_end   = getattr(diaobj, "mjd_end",   None) or  np.inf
+        if mjd_start <= image.mjd <= mjd_end:
+            title_color = "red"
+    return title_color

@@ -2,7 +2,6 @@ import glob
 import pandas as pd
 import pathlib
 import numpy as np
-import tracemalloc
 
 # Astronomy
 from astropy.io import fits
@@ -125,8 +124,7 @@ class campari_runner:
         self.galaxy_images = None
         self.galaxy_only_model_images = None
         self.gaussian_var = self.cfg.value("photometry.campari.grid_options.gaussian_var")
-        if self.gaussian_var <= 0:
-            self.gaussian_var = None
+        self.gaussian_var = None if self.gaussian_var <= 0 else self.gaussian_var
         self.cutoff = self.cfg.value("photometry.campari.grid_options.cutoff")
         self.error_floor = self.cfg.value("photometry.campari.grid_options.error_floor")
         self.dbclient = SNPITDBClient()
@@ -152,32 +150,22 @@ class campari_runner:
                              "the galaxy be a delta function.")
 
         # Lightcurve provenance argument parsing logic:
-        SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
-        if kwargs["save_to_db"]:
-            if not self.create_ltcv_provenance:
-                if self.ltcv_provenance_tag is None and self.ltcv_process is None:
-                    raise ValueError("Must provide both"
-                          " ltcv_provenance_tag and ltcv_process.")
+        if (kwargs["save_to_db"] and not self.create_ltcv_provenance) and \
+            (self.ltcv_provenance_tag is None and self.ltcv_process is None) :
+            raise ValueError("Must provide both ltcv_provenance_tag and ltcv_process.")
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "
         er += "regular, adaptive, contour, single, or none. Details in documentation."
         if self.grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
             raise ValueError(er)
 
-        if self.max_no_transient_images is None or self.max_transient_images is None:
-            self.max_images = None
-        else:
-            self.max_images = self.max_no_transient_images + self.max_transient_images
+        self.max_images = None if (self.max_no_transient_images is None or self.max_transient_images is None) \
+            else self.max_no_transient_images + self.max_transient_images
 
-        if self.object_type == "star":
-            self.max_no_transient_images = 0
-            SNLogger.debug("Running on stars, so setting max_no_transient_images to 0.")
+        self.max_no_transient_images = 0 if self.object_type == "star" else self.max_no_transient_images
 
         if self.fetch_SED and self.SED_file is not None:
             raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
-
-        if Config.get().value("photometry.campari.print_memory_usage"):
-            tracemalloc.start()
 
     def __call__(self):
         """Run the Campari pipeline."""
@@ -209,36 +197,15 @@ class campari_runner:
         SNLogger.debug(f"Filtered arguments for finding DiaObject: {filtered_args}")
         diaobjs = DiaObject.find_objects(**filtered_args)
 
-        if len(diaobjs) == 0:
-            raise ValueError(
-                f"Could not find DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
-                f" ra={self.ra}, dec={self.dec}."
-            )
-        if len(diaobjs) > 1:
-            raise ValueError(f"Found multiple DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
-                             f" ra={self.ra}, dec={self.dec}.")
+        self._handle_diaobj_errors(diaobjs)
+
         diaobj = diaobjs[0]
         SNLogger.debug(f"Immediately after searching for objects the ID is: {diaobj.id}")
 
         # Get diaobject position using different methods depending on provenance.
-        if self.diaobject_position_provenance_tag is None:
-            diaobj.ra = diaobj.ra
-            diaobj.dec = diaobj.dec
-        else:
-            if self.ra is not None or self.dec is not None:
-                raise ValueError("Cannot provide ra or dec when also providing diaobject_position_provenance_tag."
-                                 "This would lead to provenance confusion.")
-            diaobj.ra, diaobj.dec = diaobj.get_position(provenance_tag=self.diaobject_position_provenance_tag,
-                                                        process=self.diaobject_process, dbclient=self.dbclient)
 
-        if self.ra is not None:
-            if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
-                SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
-            diaobj.ra = self.ra
-        if self.dec is not None:
-            if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
-                SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
-            diaobj.dec = self.dec
+        diaobj = self._get_diaobj_ra_dec(diaobj)
+        self._sanity_check_provided_ra_dec(diaobj)
 
         if (self.transient_start is not None):
             if (diaobj.mjd_start is not None) and np.fabs(self.transient_start - diaobj.mjd_start) > .1:
@@ -271,6 +238,41 @@ class campari_runner:
 
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
+
+    def _handle_diaobj_errors(self, diaobjs):
+        """ Check that the number of DiaObjects returned is exactly 1. If not, raise an error. """
+        if len(diaobjs) == 0:
+            raise ValueError(
+                f"Could not find DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                f" ra={self.ra}, dec={self.dec}."
+            )
+        if len(diaobjs) > 1:
+            raise ValueError(f"Found multiple DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
+                                f" ra={self.ra}, dec={self.dec}.")
+
+    def _get_diaobj_ra_dec(self, diaobj):
+        if self.diaobject_position_provenance_tag is None:
+            diaobj.ra = diaobj.ra
+            diaobj.dec = diaobj.dec
+        else:
+            if self.ra is not None or self.dec is not None:
+                raise ValueError("Cannot provide ra or dec when also providing diaobject_position_provenance_tag."
+                                 "This would lead to provenance confusion.")
+            diaobj.ra, diaobj.dec = diaobj.get_position(provenance_tag=self.diaobject_position_provenance_tag,
+                                                        process=self.diaobject_process, dbclient=self.dbclient)
+        return diaobj
+
+    def _sanity_check_provided_ra_dec(self, diaobj):
+        """ Sanity check provided ra/dec against the DiaObject's ra/dec. If they are far apart, raise a warning. """
+
+        if self.ra is not None:
+            if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
+                SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
+            diaobj.ra = self.ra
+        if self.dec is not None:
+            if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
+                SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
+            diaobj.dec = self.dec
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
@@ -423,7 +425,7 @@ class campari_runner:
 
         # identifier is a string that will be used to name the lightcurve file when saving debug files.
         # TODO: Come up with a better name for this.
-        if self.save_to_db:
+        if self.save_to_db and self.diaobject_id is not None:
             identifier = str(diaobj.id if diaobj.id is not None else diaobj.name)
         else:
             identifier = str(diaobj.name)
@@ -450,42 +452,7 @@ class campari_runner:
 
         # Now, save the images
 
-        if self.save_debug:
-            fileroot = f"{identifier}_{self.band}_{psftype}"
-
-            images_and_model = np.array(
-                [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
-            )
-
-            debug_dir = pathlib.Path(self.cfg.value("photometry.campari_io.debug_dir"))
-            SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
-            np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
-            np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
-
-            # Save the ra and dec grids
-            ra_grid = np.atleast_1d(lc_model.ra_grid)
-            dec_grid = np.atleast_1d(lc_model.dec_grid)
-            SNLogger.info(f"Saving Ra/Dec grid to {debug_dir}")
-            np.save(debug_dir / f"{fileroot}_grid.npy", [ra_grid, dec_grid,
-                    lc_model.best_fit_model_values[: np.size(ra_grid)]])
-
-            # save wcses
-            primary_hdu = fits.PrimaryHDU()
-            hdul = [primary_hdu]
-            SNLogger.info(f"Saving Image WCS headers to {debug_dir}")
-            if lc_model.cutout_image_list is not None:
-                if not isinstance(lc_model.cutout_image_list[0].get_wcs(), snappl.wcs.GWCS):
-                    for i, img in enumerate(lc_model.cutout_image_list):
-                        hdul.append(fits.ImageHDU(header=img.get_wcs().to_fits_header(), name="WCS" + str(i)))
-                    hdul = fits.HDUList(hdul)
-                    filepath = debug_dir / f"{fileroot}_wcs.fits"
-                    hdul.writeto(filepath, overwrite=True)
-                else:
-                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
-                    " Skipping saving WCS headers.")
-
-        else:
-            SNLogger.info("Not saving debug files.")
+        self._save_debug_products(identifier, psftype, lc_model)
 
     def parse_img_list(self):
         """Parse the image list file if provided."""
@@ -539,6 +506,44 @@ class campari_runner:
                              " they should be observation_id, sca, and band.")
 
         return images
+
+    def _save_debug_products(self, identifier, psftype, lc_model):
+        if self.save_debug:
+            fileroot = f"{identifier}_{self.band}_{psftype}"
+
+            images_and_model = np.array(
+                [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
+            )
+
+            debug_dir = pathlib.Path(self.cfg.value("photometry.campari_io.debug_dir"))
+            SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
+            np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
+            np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
+
+            # Save the ra and dec grids
+            ra_grid = np.atleast_1d(lc_model.ra_grid)
+            dec_grid = np.atleast_1d(lc_model.dec_grid)
+            SNLogger.info(f"Saving Ra/Dec grid to {debug_dir}")
+            np.save(debug_dir / f"{fileroot}_grid.npy", [ra_grid, dec_grid,
+                    lc_model.best_fit_model_values[: np.size(ra_grid)]])
+
+            # save wcses
+            primary_hdu = fits.PrimaryHDU()
+            hdul = [primary_hdu]
+            SNLogger.info(f"Saving Image WCS headers to {debug_dir}")
+            if lc_model.cutout_image_list is not None:
+                if not isinstance(lc_model.cutout_image_list[0].get_wcs(), snappl.wcs.GWCS):
+                    for i, img in enumerate(lc_model.cutout_image_list):
+                        hdul.append(fits.ImageHDU(header=img.get_wcs().to_fits_header(), name="WCS" + str(i)))
+                    hdul = fits.HDUList(hdul)
+                    filepath = debug_dir / f"{fileroot}_wcs.fits"
+                    hdul.writeto(filepath, overwrite=True)
+                else:
+                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
+                    " Skipping saving WCS headers.")
+
+        else:
+            SNLogger.info("Not saving debug files.")
 
     def prune_images_to_correct_band(self, image_list):
         """Prune the given image list to only include images in the correct band."""

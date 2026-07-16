@@ -1,3 +1,4 @@
+# ruff: noqa: D103, C901
 # Standard Libary
 import os
 import uuid
@@ -565,7 +566,7 @@ def test_get_weights():
     wcs = snappl_image.get_wcs()
     SNLogger.debug(wcs.pixel_to_world(2044, 2044))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
-    wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
+    wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec, True,
                              gaussian_var=1000, cutoff=4)
 
     test_wgt_matrix = np.load(pathlib.Path(__file__).parent

@@ -306,12 +306,28 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
 
 
 def banner(text):
+    """ Print a banner.
+
+    Parameters
+    ----------
+    text : str
+        The text to print in the banner.
+
+    """
     length = len(text) + 8
     message = "\n" + "#" * length + "\n" + "#   " + text + "   # \n" + "#" * length
     SNLogger.debug(message)
 
 
 def make_sim_param_grid(params):
+    """Make a grid of simulation parameters to loop over
+
+    Parameters
+    ----------
+
+    params : list of lists
+        A list of lists, where each inner list contains the values for a single parameter.
+    """
     nd_grid = np.meshgrid(*params)
     flat_grid = np.array(nd_grid, dtype=float).reshape(len(params), -1)
     SNLogger.debug(f"Created a grid of simulation parameters with a total of {flat_grid.shape[1]} combinations.")
@@ -373,6 +389,14 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
 
 
 def print_memory_usage_summary(flag):
+    """ Print a summary of the memory usage.
+
+    Parameters
+    ----------
+    flag : str
+        A flag to indicate the context of the memory usage summary.
+
+    """
     cfg = Config.get()
     if cfg.value("photometry.campari.print_memory_usage"):
         SNLogger.info(flag)
@@ -391,6 +415,19 @@ def print_memory_usage_summary(flag):
 
 
 def load_prebuilt_matrices_if_provided(prebuilt_psf_matrix, prebuilt_sn_matrix, psf_matrix, sn_matrix):
+    """ If the user has provided prebuilt PSF and SN matrices, use them instead of calculating them.
+
+    Parameters
+    ----------
+    prebuilt_psf_matrix : np.ndarray or None
+        The prebuilt PSF matrix, if provided.
+    prebuilt_sn_matrix : np.ndarray or None
+        The prebuilt SN matrix, if provided.
+    psf_matrix : list of np.ndarray
+        The PSF matrix to use if no prebuilt matrix is provided (i.e., built in this campari run).
+    sn_matrix : list of np.ndarray
+        The SN matrix to use if no prebuilt matrix is provided (i.e., built in this campari run).
+    """
 
     if prebuilt_psf_matrix is None:
         psf_matrix = np.vstack(np.array(psf_matrix))

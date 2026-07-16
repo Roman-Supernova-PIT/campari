@@ -416,8 +416,8 @@ def make_grid(
         SNLogger.warning("For fitting stars, you probably dont want a grid.")
 
     SNLogger.debug(f"Grid type: {grid_type}")
-    if grid_type not in ["regular", "adaptive", "contour", "single"]:
-        raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
+    if grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
+        raise ValueError("Grid type must be one of: regular, adaptive, contour, single, none")
     if grid_type == "contour":
         ra_grid, dec_grid = make_contour_grid(images[0], subsize=subsize)
 
