@@ -329,6 +329,31 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         test_run_on_star(campari_test_data, cfg, overwrite_meta=False)
 
 
+def _compare_regression_arrays():
+    regression_images = np.load(pathlib.Path(__file__).parent / "testdata/regression_images.npy", allow_pickle=True)
+    current_saved_debug = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / \
+        "20172782_Y106_romanpsf_images.npy"
+    comparison_images = np.load(current_saved_debug, allow_pickle=True)
+
+    labels = ["images", "model_images", "wgt_matrix", "galaxy_only_model_images"]
+
+    failed = []
+    errs = []
+    for i in range(4):
+        err_msg = f"Regression test failed for {labels[i]}: the current run does not match the regression data."
+        regression_image = regression_images[i]
+        current_image = comparison_images[i]
+        try:
+            np.testing.assert_allclose(regression_image, current_image, rtol=1e-7, err_msg=err_msg)
+        except AssertionError as e:
+            errs.append(str(e))
+            failed.append(labels[i])
+    if len(failed) > 0:
+        raise AssertionError(f"Regression test failed for the following arrays: {failed}. "
+                             f"See the debug images in {current_saved_debug} for more information."
+                             f" Errors: {errs}")
+
+
 def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
@@ -338,9 +363,13 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     cfg = Config.get()
     curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
+
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
+    assert not debug_file.exists()
 
     a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
@@ -352,6 +381,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
          "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc",
+         "--photometry-campari_io-save_debug"
          ]
 
     SNLogger.debug(f"Args for test: {' '.join(a)}")
@@ -363,6 +393,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         RomanASP.main()
         cfg = Config.get()
 
+        _compare_regression_arrays()
         compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
                             overwrite_meta=overwrite_meta)
 
@@ -370,6 +401,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         sys.argv = orig_argv
         # ugly :( never do in real life
         cfg._data = orig_config._data
+
+
 
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
@@ -386,9 +419,12 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
 
     curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
+    assert not debug_file.exists()
 
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
@@ -407,6 +443,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
+    _compare_regression_arrays()
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
