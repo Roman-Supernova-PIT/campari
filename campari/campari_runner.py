@@ -274,6 +274,9 @@ class campari_runner:
 
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
+        SNLogger.debug(f"Finished Campari run for SN {self.diaobject_name} with ID {self.diaobject_id} in"
+                          f" collection {self.diaobject_collection}.")
+        SNLogger.debug("Campari finished gracefully!")
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
