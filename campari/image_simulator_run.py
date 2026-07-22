@@ -117,7 +117,7 @@ def run_sim(
         + f" --height 32 --pixscale 0.11 -t {mjd_str} --image-centers {image_centers_str} -θ {thetas_str} -r"
         + f" {sky_noise_key} -s 0 "
         + f" --no-star-noise {transient_noise_key} --overwrite {static_source_key if static_source else ''}"
-        + f" --psf-class {psf_class} "
+        + f" --psf-class {psf_class} --numstarprocs 1 "
     )
 
     if transient_peak_mag is not None:

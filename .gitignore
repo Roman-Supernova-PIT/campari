@@ -178,7 +178,6 @@ cython_debug/
 *.png
 *.pdf
 *.fits
-misc_sed_files/
 old_examples/
 prebuilt_models/
 image_simulations_Y106/
