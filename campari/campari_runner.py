@@ -27,7 +27,7 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner, redirect_photometry_test_data
+from campari.utils import banner, convert_band_name
 
 
 class campari_runner:
@@ -275,27 +275,15 @@ class campari_runner:
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
 
-        if self.img_list is not None and self.img_glob is not None:
-            raise ValueError("Cannot provide both img_list and img_glob. These are two different ways to provide a list"
-                             " of images to run on, and if both are provided, it is ambiguous which the user intends to"
-                             " use. Please choose one or the other.")
-
-        if self.img_glob is not None:
-
-            if self.image_collection == "manual_fits":
-                raise ValueError("Cannot provide img_glob when using the manual_fits image collection. The manual_fits"
-                                 " collection is designed to be used with img_list, where the user provides a list of"
-                                 " file roots (not including _data.fits, _noise.fits, etc.) and the collection logic"
-                                 " adds the appropriate suffixes to find the files. Please use img_list instead.")
-
         if self.img_list is not None or self.img_glob is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
+            image_list = self.prune_images_to_correct_band(image_list)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
             SNLogger.debug(f"MJDs: {mjd_list}")
 
-            if all(mjd == mjd_list[0] for mjd in mjd_list):
+            if all(mjd == mjd_list[0] for mjd in mjd_list) and len(mjd_list) > 1:
                 SNLogger.warning("All images in provided image list have the same MJD. This may cause issues with"
                                  " the pipeline, which relies on differences in MJD to distinguish between"
                                  " transient and non-transient images if transient_start and transient_end are not"
@@ -503,12 +491,18 @@ class campari_runner:
         """Parse the image list file if provided."""
         if self.img_list is not None:
             df = pd.read_csv(self.img_list, comment="#", header=None, skipinitialspace=True)
-            img_list_lines = df[0].str.strip().tolist()
+            img_list_lines = df.to_numpy().astype(str).tolist()
+
         else:
             img_list_lines = glob.glob(self.img_glob)
-            img_list_lines = [line for line in img_list_lines if pathlib.Path(line).is_file()]
+            img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
+
+        SNLogger.debug("Read the following img_list_lines from the provided img_list file:")
+        SNLogger.debug(img_list_lines)
+        for line in img_list_lines:
+            SNLogger.debug(line)
 
         my_image_collection = ImageCollection()
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
@@ -516,42 +510,52 @@ class campari_runner:
                                                                  subset=self.image_collection_subset,
                                                                  base_path=self.image_collection_basepath)
         images = []
-        if all(len(line.split(",")) == 3 for line in img_list_lines):
+        if all(len(line) == 3 for line in img_list_lines):
             self.observation_id_list = []
             # each line of file is observation_id sca band
             for line in img_list_lines:
-                vals = line.split(",")
+                vals = line
                 images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]), band=vals[2]))
                 self.observation_id_list.append(vals[0])
-        elif all(len(line.split(",")) == 2 for line in img_list_lines):
+        elif all(len(line) == 2 for line in img_list_lines):
             # each line of file is observation_id sca
             self.observation_id_list = []
             for line in img_list_lines:
-                vals = line.split(",")
+                vals = line
+                SNLogger.debug(f"vals: {vals}")
                 images.append(my_image_collection.get_image(observation_id=vals[0], sca=int(vals[1]),
                               band=self.band))
                 self.observation_id_list.append(vals[0])
-        elif all(len(line.split(",")) == 1 for line in img_list_lines):
+        elif all(len(line) == 1 for line in img_list_lines):
             # each line of file is path to image
-            rejected_images = 0
             self.observation_id_list = None
             for line in img_list_lines:
-                potential_image = my_image_collection.get_image(path=line)
-                if potential_image.band == self.band:
-                    images.append(potential_image)
-                else:
-                    SNLogger.debug(f"Rejected image with MJD {potential_image.mjd} and "
-                                   f"band {potential_image.band} because it was not in the correct band {self.band}.")
-                    rejected_images += 1
-            SNLogger.debug(f"Rejected {rejected_images} images from the provided image list because they were not in"
-                            f" the correct band {self.band}.")
+                images.append(my_image_collection.get_image(path=line[0]))
+
         else:
-            raise ValueError("Invalid img_list. Should be either paths, lines of observation_id sca band, or lines of"
-                             " observation_id and sca.")
-        if len(images) == 0:
-            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
+            raise ValueError("The provided img_list file is not in a recognized format. Each line must have either"
+                             " 1, 2, or 3 columns. If there is 1 column, it should be the path to the image."
+                             " If there are 2 columns, they should be observation_id and sca. If there are 3 columns, "
+                             " they should be observation_id, sca, and band.")
 
         return images
+
+    def prune_images_to_correct_band(self, image_list):
+        """Prune the given image list to only include images in the correct band."""
+        pruned_image_list = []
+        requested_band = convert_band_name(self.band)
+        for image in image_list:
+            image_band = convert_band_name(image.band)
+            if image_band == requested_band:
+                pruned_image_list.append(image)
+            else:
+                SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
+                               f"band {image.band} because it was not in the correct band {self.band}.")
+        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
+                       f"because they were not in the correct band {self.band}.")
+        if len(pruned_image_list) == 0:
+            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
+        return pruned_image_list
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
         upstreams = []
