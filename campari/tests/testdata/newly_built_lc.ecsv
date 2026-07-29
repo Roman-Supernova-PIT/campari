@@ -29,22 +29,23 @@
 # - {use_real_images: true}
 # - {print_memory_usage: false}
 # - {preplot_cutouts: true}
-# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow_photonshoot}
 # - grid_options:
 #     cutoff: 4
-#     error_floor: 1.0
+#     error_floor: 1
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
-#     spacing: 0.75
+#     spacing: 1.0
 #     subsize: 4
 #     turn_grid_off: false
-#     type: contour
+#     type: none
 # - {ID: '20172782'}
 # - {ra: 7.0}
 # - {dec: -41.0}
 # - {band: Y106}
-# - {provenance_id: a0cf18ce-73db-1392-47da-f42f70c3e3e4}
-# - {diaobject_id: c1ef0ce6-885f-40d2-a163-49ab71dfa245}
+# - {diaobject_position_id: null}
+# - {provenance_id: aa389e7b-ca20-5ce4-e433-2ff8f91aad62}
+# - {diaobject_id: 2a036e77-9bbe-48c3-9504-eade9dba2896}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
