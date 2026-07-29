@@ -419,3 +419,30 @@ def redirect_photometry_test_data(path):
     if path != new_path:
         SNLogger.debug(f"Redirecting path {path} to {new_path} for photometry test data.")
     return new_path
+
+
+
+def standardize_zeropoints(ims, zpt_list, common_zpt=None):
+    """ Bring all of the images  a common zeropoint. If no zeropoint is specified, the first image's zeropoint is
+     used.
+     Inputs:
+     ------------
+        ims: list of snappl.image.Image objects, the images to be standardized
+        zpt_list: list of floats, the zeropoints of the images
+        common_zpt: float, the zeropoint to which all images should be standardized.
+    Outputs:
+    ------------
+        ims: list of snappl.image.Image objects, the images with standardized zeropoints
+    """
+    if common_zpt is None:
+        common_zpt = zpt_list[-1]
+    zpt_list = np.array(zpt_list)
+    zpt_diffs = common_zpt - zpt_list
+    flux_ratios = 10**(-0.4 * zpt_diffs)
+    SNLogger.debug(f"Standardizing images to common zeropoint {common_zpt:.3f}."
+                   f" Flux ratios: {np.array2string(flux_ratios, precision=3)}")
+    for im, flux_ratio in zip(ims, flux_ratios):
+        im.data *= flux_ratio
+        im.noise *= flux_ratio
+
+    return ims
