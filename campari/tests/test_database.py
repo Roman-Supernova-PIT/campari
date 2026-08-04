@@ -27,6 +27,7 @@ warnings.filterwarnings("ignore", category=ErfaWarning)
 def campari_test_data(cfg):
     return cfg.value("system.paths.campari_test_data")
 
+
 @pytest.mark.requires_simdex
 def test_find_diaobject():
     provenance_tag = "ou24"
@@ -48,6 +49,7 @@ def test_find_diaobject():
     np.testing.assert_equal(diaobj.mjd_peak, regression_data["mjd_peak"])
     np.testing.assert_equal(diaobj.mjd_start, regression_data["mjd_start"])
 
+
 @pytest.mark.requires_simdex
 def test_get_image_collection():
     image_collection = "snpitdb"
@@ -61,6 +63,7 @@ def test_get_image_collection():
 
     np.testing.assert_equal(img_collection.provenance.id, uuid.UUID("305dbfc3-bbb4-8dde-f008-e616e3625e51"))
 
+
 @pytest.mark.requires_simdex
 def test_get_image_collection_missing_provenance():
     image_collection = "snpitdb"
@@ -71,6 +74,7 @@ def test_get_image_collection_missing_provenance():
         ImageCollection().get_collection(
             collection=image_collection, provenance_tag=provenance_tag, process=process, dbclient=dbclient
         )
+
 
 @pytest.mark.requires_simdex
 def test_find_exposures():

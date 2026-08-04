@@ -802,6 +802,7 @@ def test_handle_partial_overlap():
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 
+
 @pytest.mark.requires_simdex # I think this image is in the photometry_test_data, fix this at some point.
 def test_calculate_surface_brightness():
     size = 25
@@ -822,7 +823,6 @@ def test_calculate_surface_brightness():
     observation_id = "13205"
     sca = 1
     snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
-
 
     # Both of these test images contain this SN
     provenance_tag = "ou24"

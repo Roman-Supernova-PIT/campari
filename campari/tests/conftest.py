@@ -37,6 +37,7 @@ def pytest_generate_tests(metafunc):
     if "overwrite_meta" in metafunc.fixturenames and option_value is not None:
         metafunc.parametrize("overwrite_meta", [option_value])
 
+
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "slow: marks tests as slow (> few minutes)"
