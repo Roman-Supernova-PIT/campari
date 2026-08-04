@@ -13,7 +13,6 @@ import numpy as np
 # SN-PIT
 from snappl.imagecollection import ImageCollection
 from snappl.logger import SNLogger
-from snappl.image import Image
 
 # Campari
 from campari.utils import (calculate_background_level, print_memory_usage_summary)
@@ -149,7 +148,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     imagedata, errordata, flags = image.get_data(which="all", cache=True)
 
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
-
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(

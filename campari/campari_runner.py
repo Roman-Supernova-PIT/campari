@@ -292,7 +292,8 @@ class campari_runner:
                     mjd_list[i] = i
                     image_list[i].mjd = i
 
-            image_list = [im for mjd, im in sorted(zip(mjd_list, image_list), key=lambda pair: pair[0])]  # Sort the images by MJD
+            # Sort images by MJD
+            image_list = [im for mjd, im in sorted(zip(mjd_list, image_list), key=lambda pair: pair[0])]
 
         else:
             # Otherwise, go find images that match the criteria.

@@ -23,8 +23,7 @@ from campari.model_building import (
 )
 from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
-                           convert_band_name, get_weights, print_memory_usage_summary,
-                           standardize_zeropoints)
+                           convert_band_name, get_weights, print_memory_usage_summary)
 from snappl.config import Config
 from snappl.logger import SNLogger
 
