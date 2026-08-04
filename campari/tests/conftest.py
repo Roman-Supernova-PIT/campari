@@ -36,3 +36,24 @@ def pytest_generate_tests(metafunc):
     option_value = metafunc.config.option.overwrite_meta
     if "overwrite_meta" in metafunc.fixturenames and option_value is not None:
         metafunc.parametrize("overwrite_meta", [option_value])
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "slow: marks tests as slow (> few minutes)"
+
+    )
+    config.addinivalue_line(
+        "markers", "requires_truth: marks tests that require the OU24 Truth library to be installed"
+
+    )
+    config.addinivalue_line(
+        "markers", "self_generating: Marks tests that generate their own data."
+    )
+    config.addinivalue_line(
+        "markers", "requires_simdex: marks tests that require Rob's simdex to be operational"
+    )
+    config.addinivalue_line(
+        "markers", "accuracy_test: This is a test that measures campari's accuracy. Hence, you may want to only"
+        "run these tests when all other tests pass, and you are ready to do a more thorough check of the"
+        "accuracy of the code."
+    )

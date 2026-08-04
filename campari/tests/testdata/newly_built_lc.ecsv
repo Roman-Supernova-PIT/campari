@@ -17,35 +17,35 @@
 # - {name: y_cutout, datatype: float64}
 # - {name: sky_background, datatype: float64}
 # meta: !!omap
-# - {cutout_size: 19}
+# - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
 # - {use_roman: true}
 # - {weighting: true}
-# - {make_initial_guess: false}
+# - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background_method: 0}
+# - {subtract_background_method: calculate}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
 # - {preplot_cutouts: true}
-# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow_photonshoot}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
-#     spacing: 1.0
+#     spacing: 0.75
 #     subsize: 4
 #     turn_grid_off: false
-#     type: none
+#     type: contour
 # - {ID: '20172782'}
 # - {ra: 7.0}
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: aa389e7b-ca20-5ce4-e433-2ff8f91aad62}
-# - {diaobject_id: d4409de0-deec-4a8d-a550-88e140156755}
+# - {provenance_id: 66051741-2df1-35c9-f1ee-b4d050358234}
+# - {diaobject_id: babefb5c-0885-47e8-89a2-b255c08cd6fb}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

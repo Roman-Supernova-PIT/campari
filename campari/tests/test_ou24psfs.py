@@ -36,6 +36,7 @@ from campari.tests.test_gausspsfs import (
 # they were real data.
 
 
+pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
 default_parameters = {

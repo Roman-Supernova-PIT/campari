@@ -97,7 +97,6 @@ addopts = "--doctest-rst"
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
     "requires_truth: marks tests that require access to the truth catalog (deselect with '-m \"not requires_truth\"')",
-    "serial",
 ]
 
 [tool.coverage.run]
@@ -206,5 +205,3 @@ showcontent = true
 directory = "campari"
 name = "campari"
 showcontent = true
-
-
