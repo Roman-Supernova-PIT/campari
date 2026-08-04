@@ -13,6 +13,7 @@ from galsim import roman
 from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
+# SN-PIT
 from snappl.config import Config
 from snappl.logger import SNLogger
 
