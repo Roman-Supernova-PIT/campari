@@ -500,7 +500,6 @@ class campari_runner:
                 SNLogger.debug(f"Found image at path {im_path}")
 
         SNLogger.debug("Read the following img_list_lines from the provided img_list file:")
-        SNLogger.debug(img_list_lines)
         for line in img_list_lines:
             SNLogger.debug(line)
 
@@ -530,6 +529,7 @@ class campari_runner:
             # each line of file is path to image
             self.observation_id_list = None
             for line in img_list_lines:
+                SNLogger.debug(f"Getting image from path: {line[0]}")
                 images.append(my_image_collection.get_image(path=line[0]))
 
         else:
