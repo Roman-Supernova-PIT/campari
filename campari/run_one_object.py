@@ -113,20 +113,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
 
-    # ZPT_dictionary =  {np.float64(60170.0047458044): np.float64(-24.81922026997242),
-    #  np.float64(60690.0047458044): np.float64(-24.96730480133145),
-    #  np.float64(60700.0047458044): np.float64(-24.967962716920432),
-    #   np.float64(60160.0047458044): np.float64(-24.817113998569926),
-    #    np.float64(60190.0047458044): np.float64(-24.82849157130255),
-    #     np.float64(60710.0047458044): np.float64(-24.96934161670558),
-    #      np.float64(60180.0047458044): np.float64(-24.82397110680385),
-    #       np.float64(60200.0047458044): np.float64(-24.829037413987784),
-    #        np.float64(60680.0047458044): np.float64(-24.96255350198531)}
-
-    # zpt_list = [ZPT_dictionary[im.mjd] for im in cutout_image_list]
-
-    # cutout_image_list = standardize_zeropoints(cutout_image_list, zpt_list=zpt_list)
-
     noise_maps = [im.noise for im in cutout_image_list]
 
     if Config.get().value("photometry.campari.preplot_cutouts"):

@@ -195,9 +195,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
             raise ValueError(f"Could not find background level in header with keyword "
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
-    SNLogger.debug(f"Before: {image_cutout.data.flatten()[:5]}")
     image_cutout.data -= bg
-    SNLogger.debug(f"After: {image_cutout.data.flatten()[:5]}")
     return image_cutout, bg
 
 

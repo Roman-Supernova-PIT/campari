@@ -281,7 +281,6 @@ class campari_runner:
             image_list = self.prune_images_to_correct_band(image_list)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
-            SNLogger.debug(f"MJDs: {mjd_list}")
 
             if all(mjd == mjd_list[0] for mjd in mjd_list) and len(mjd_list) > 1:
                 SNLogger.warning("All images in provided image list have the same MJD. This may cause issues with"
@@ -529,7 +528,6 @@ class campari_runner:
             # each line of file is path to image
             self.observation_id_list = None
             for line in img_list_lines:
-                SNLogger.debug(f"Getting image from path: {line[0]}")
                 images.append(my_image_collection.get_image(path=line[0]))
 
         else:
