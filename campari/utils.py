@@ -392,30 +392,57 @@ def print_memory_usage_summary(flag):
         pass
 
 
-def redirect_photometry_test_data(path):
-    """ In tests, the test files may point to photometry_test_data, but this folder is in
-    different places on different machines (NERSC vs SMDC, e.g.) Rather than having
-    different versions of the test files, we can just redirect the path to photometry_test_data
-    appropriate to that machine here.
+# def redirect_photometry_test_data(path):
+#     """ In tests, the test files may point to photometry_test_data, but this folder is in
+#     different places on different machines (NERSC vs SMDC, e.g.) Rather than having
+#     different versions of the test files, we can just redirect the path to photometry_test_data
+#     appropriate to that machine here.
 
-    Inputs:
-    path: str, the path as given in the test files, which will be something like "photometry_test_data/some_file.fits"
+#     Inputs:
+#     path: str, the path as given in the test files, which will be something like "photometry_test_data/some_file.fits"
 
+#     Outputs:
+#     redirected_path: str, the path to the photometry_test_data folder on the current machine,
+#     plus the filename from the input path
+#     """
+#     if "photometry_test_data/" not in path:
+#         return path
+#     path_below_photometry_test_data = path.split("photometry_test_data/")[1]
+#     #cfg = Config.get()
+#     try:
+#         photometry_test_data_dir =  photometry_test_data.__path__ #cfg.value("photometry.test_data")
+#     except KeyError:
+#         SNLogger.warning("photometry.test_data not found in config file. Please set this to the path to the"
+#                          " photometry_test_data folder on your machine. Returning original path.")
+#         return path
+#     new_path = photometry_test_data_dir + "/" + path_below_photometry_test_data
+#     if path != new_path:
+#         SNLogger.debug(f"Redirecting path {path} to {new_path} for photometry test data.")
+#     return new_path
+
+
+
+def standardize_zeropoints(ims, zpt_list, common_zpt=None):
+    """ Bring all of the images  a common zeropoint. If no zeropoint is specified, the first image's zeropoint is
+     used.
+     Inputs:
+     ------------
+        ims: list of snappl.image.Image objects, the images to be standardized
+        zpt_list: list of floats, the zeropoints of the images
+        common_zpt: float, the zeropoint to which all images should be standardized.
     Outputs:
-    redirected_path: str, the path to the photometry_test_data folder on the current machine,
-    plus the filename from the input path
+    ------------
+        ims: list of snappl.image.Image objects, the images with standardized zeropoints
     """
-    if "photometry_test_data/" not in path:
-        return path
-    path_below_photometry_test_data = path.split("photometry_test_data/")[1]
-    #cfg = Config.get()
-    try:
-        photometry_test_data_dir =  photometry_test_data.__path__ #cfg.value("photometry.test_data")
-    except KeyError:
-        SNLogger.warning("photometry.test_data not found in config file. Please set this to the path to the"
-                         " photometry_test_data folder on your machine. Returning original path.")
-        return path
-    new_path = photometry_test_data_dir + "/" + path_below_photometry_test_data
-    if path != new_path:
-        SNLogger.debug(f"Redirecting path {path} to {new_path} for photometry test data.")
-    return new_path
+    if common_zpt is None:
+        common_zpt = zpt_list[-1]
+    zpt_list = np.array(zpt_list)
+    zpt_diffs = common_zpt - zpt_list
+    flux_ratios = 10**(-0.4 * zpt_diffs)
+    SNLogger.debug(f"Standardizing images to common zeropoint {common_zpt:.3f}."
+                   f" Flux ratios: {np.array2string(flux_ratios, precision=3)}")
+    for im, flux_ratio in zip(ims, flux_ratios):
+        im.data *= flux_ratio
+        im.noise *= flux_ratio
+
+    return ims

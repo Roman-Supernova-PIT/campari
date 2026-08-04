@@ -46,8 +46,7 @@ from campari.utils import (calc_mag_and_err,
                            calculate_local_surface_brightness,
                            get_weights,
                            make_sim_param_grid,
-                           campari_lightcurve_model,
-                           redirect_photometry_test_data)
+                           campari_lightcurve_model)
 import snappl
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
@@ -803,7 +802,7 @@ def test_handle_partial_overlap():
     np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
         "The weights do not match the expected values."
 
-
+@pytest.mark.requires_simdex # I think this image is in the photometry_test_data, fix this at some point.
 def test_calculate_surface_brightness():
     size = 25
     observation_id = str(5934)
@@ -824,7 +823,6 @@ def test_calculate_surface_brightness():
     sca = 1
     snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
 
-    SNLogger.debug("Made it here")
 
     # Both of these test images contain this SN
     provenance_tag = "ou24"
@@ -1020,19 +1018,19 @@ def test_image_simulator_script():
     #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
 
 
-def test_redirect_photometry_test_data():
+# def test_redirect_photometry_test_data():
 
-    # First, a path without photometry_test_data should be unchanged
-    test_path = "/some/random/path/image.fits"
-    redirected_path = redirect_photometry_test_data(test_path)
-    assert redirected_path == test_path, "Path without photometry_test_data should be unchanged"
+#     # First, a path without photometry_test_data should be unchanged
+#     test_path = "/some/random/path/image.fits"
+#     redirected_path = redirect_photometry_test_data(test_path)
+#     assert redirected_path == test_path, "Path without photometry_test_data should be unchanged"
 
-    # Second, a path with photometry_test_data should be redirected to the testdata directory
-    test_path = "/some/random/path/photometry_test_data/image.fits"
-    cfg = Config.get()
-    ph_test_data_path = cfg.value("photometry.test_data")
+#     # Second, a path with photometry_test_data should be redirected to the testdata directory
+#     test_path = "/some/random/path/photometry_test_data/image.fits"
+#     cfg = Config.get()
+#     ph_test_data_path = cfg.value("photometry.test_data")
 
-    redirected_path = redirect_photometry_test_data(test_path)
-    expected_path = os.path.join(ph_test_data_path, "image.fits")
-    assert redirected_path == expected_path, "Path with photometry_test_data should be redirected to the" \
-    " photometry test data directory"
+#     redirected_path = redirect_photometry_test_data(test_path)
+#     expected_path = os.path.join(ph_test_data_path, "image.fits")
+#     assert redirected_path == expected_path, "Path with photometry_test_data should be redirected to the" \
+#     " photometry test data directory"

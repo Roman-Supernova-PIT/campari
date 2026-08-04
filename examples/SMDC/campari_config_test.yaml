@@ -68,7 +68,7 @@ photometry:
     run_name: whatever
 
   snappl:
-    simdex_server: https://roman-desc-simdex.rknop.net
+    simdex_server: https://roman-desc-simdex.lbl.gov/
 
   test_data: "/home/cfmeldorf/photometry_test_data"
 
@@ -76,7 +76,7 @@ system:
   paths:
     lightcurves: /campari_out_dir # So Cole can run tests.
   ou24:
-    simdex_server: https://roman-desc-simdex.rknop.net
+    simdex_server: https://roman-desc-simdex.lbl.gov/
     config_file: /home/cfmeldorf/campari/examples/SMDC/tds.yaml
     sn_truth_dir: /ou2024_snana
     sims_sed_library: /home/rubin_sim_data/sims_sed_library

@@ -17,28 +17,28 @@
 # - {name: y_cutout, datatype: float64}
 # - {name: sky_background, datatype: float64}
 # meta: !!omap
-# - {cutout_size: 19}
+# - {cutout_size: 11}
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
 # - {use_roman: true}
 # - {weighting: true}
-# - {make_initial_guess: false}
+# - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
-# - {subtract_background_method: 0}
+# - {subtract_background_method: calculate}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
 # - {preplot_cutouts: true}
-# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow_photonshoot}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
-#     spacing: 1.0
+#     spacing: 0.75
 #     subsize: 4
 #     turn_grid_off: false
-#     type: none
+#     type: contour
 # - {ID: '20172782'}
 # - {ra: 7.0}
 # - {dec: -41.0}
