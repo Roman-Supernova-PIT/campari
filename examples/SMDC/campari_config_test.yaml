@@ -40,11 +40,11 @@ photometry:
       subsize: 4
 
   campari_io:
-    output_dir: /home/cfmeldorf/campari_out_dir
-    debug_dir: /home/cfmeldorf/campari_debug_dir
+    output_dir: /home/campari_out_dir
+    debug_dir: /home/campari_debug_dir
     save_debug: true
     test_num: 1
-    test_data: /home/cfmeldorf/campari_test_data
+    test_data: /home/campari_test_data
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
@@ -70,20 +70,22 @@ photometry:
   snappl:
     simdex_server: https://roman-desc-simdex.lbl.gov/
 
-  test_data: "/home/cfmeldorf/photometry_test_data"
+  test_data: "/home/photometry_test_data"
 
 system:
   paths:
     lightcurves: /campari_out_dir # So Cole can run tests.
   ou24:
     simdex_server: https://roman-desc-simdex.lbl.gov/
-    config_file: /home/cfmeldorf/campari/examples/SMDC/tds.yaml
+    config_file: /home/campari/examples/SMDC/tds.yaml
     sn_truth_dir: /ou2024_snana
     sims_sed_library: /home/rubin_sim_data/sims_sed_library
-    images: /home/cfmeldorf/photometry_test_data/ou2024/RomanTDS/images/simple_model
+    images: /home/photometry_test_data/ou2024/RomanTDS/images/simple_model
     tds_base: /scratch/photometry_test_data/ou2024
 
   db:
     url: https://c3-sn.lbl.gov/roman_snpit_ou2024
     username: campari
-    passwordfile: /home/cfmeldorf/secrets/roman_snpit_ou2024_campari
+    passwordfile: /home/campari/campari/tests/test_secrets.txt
+
+    # /home/secrets/roman_snpit_ou2024_campari
