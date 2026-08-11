@@ -57,8 +57,8 @@ class campari_lightcurve_model:
         post_transient_images=None,
         sky_background=None,
         image_collection_prov=None,
-        sca_x_locations = None,
-        sca_y_locations = None
+        sca_x_locations=None,
+        sca_y_locations=None
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -376,7 +376,7 @@ def calculate_local_surface_brightness(image_object_list, cutout_pix=2, pixel_sc
     return LSB
 
 
-def clear_memory_file():
+def delete_memory_file():
     cfg = Config.get()
     if cfg.value("photometry.campari.save_memory_file_name") != "None":
         debug_dir = cfg.value("photometry.campari_io.debug_dir")

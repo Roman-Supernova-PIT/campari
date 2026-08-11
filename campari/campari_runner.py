@@ -27,7 +27,7 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner, convert_band_name, clear_memory_file
+from campari.utils import banner, convert_band_name, delete_memory_file
 
 global _start_time
 _start_time = time.perf_counter()
@@ -189,7 +189,7 @@ class campari_runner:
         # ra=self.ra, dec=self.dec
         #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
 
-        clear_memory_file()
+        delete_memory_file()
 
         SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
                        f" ra={self.ra}, dec={self.dec},"

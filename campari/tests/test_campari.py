@@ -100,6 +100,10 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     SNLogger.debug("NEW LIGHTCURVE DATA:")
     SNLogger.debug(lc1)
 
+    # This list is used to keep track of which columns failed the comparison, so we can report them all at once.
+    # This is more informative than failing on just one. For instance, if the location changed and the flux changed,
+    # we'd know that the flux changed because the location changed, but we wouldn't know that if we failed
+    # on the flux changing first. This is much more useful in my opinion.
     failed_cols = []
 
     for col in bothcols:
