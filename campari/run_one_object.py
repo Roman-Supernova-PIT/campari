@@ -286,7 +286,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                               images*wgt_matrix,  atol=1e-12,
                               btol=1e-12, iter_lim=300000, conlim=1e10)
 
-
         X, istop, itn, r1norm = lsqr[:4]
         SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                        f"r1norm: {r1norm}")
