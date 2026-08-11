@@ -267,7 +267,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     cfg = Config.get()
     psfclass = cfg.value("photometry.campari.psf.galaxy_class")
-
+    
     num_grid_points = np.size(x_sca)
 
     psfs = np.zeros((stampsize * stampsize, num_grid_points))
