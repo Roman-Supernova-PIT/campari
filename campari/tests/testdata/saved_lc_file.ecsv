@@ -7,7 +7,7 @@
 # - {name: zpt, unit: mag, datatype: float64}
 # - {name: NEA, unit: pix2, datatype: float64}
 # - {name: sky_rms, unit: ct / s, datatype: float64}
-# - {name: pointing, datatype: int64}
+# - {name: observation_id, datatype: string}
 # - {name: sca, datatype: int64}
 # - {name: pix_x, unit: pix, datatype: float64}
 # - {name: pix_y, unit: pix, datatype: float64}
@@ -28,7 +28,8 @@
 # - {subtract_background_method: calculate}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
-# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
+# - {preplot_cutouts: true}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1
@@ -43,8 +44,8 @@
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 7af295ad-3517-9484-a402-4dbe2ed1ceb6}
-# - {diaobject_id: b0570297-275e-4ca6-a33d-02b6e2aac41c}
+# - {provenance_id: 66051741-2df1-35c9-f1ee-b4d050358234}
+# - {diaobject_id: 429e8e79-db62-4a4f-bd9e-f49b1037e991}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -52,39 +53,6 @@
 # - {local_surface_brightness_Y106: 25.0}
 # - {pre_transient_images: 1}
 # - {post_transient_images: 0}
-# - __serialized_columns__:
-#     NEA:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: pix2}
-#       value: !astropy.table.SerializedColumn {name: NEA}
-#     flux:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: ct / s}
-#       value: !astropy.table.SerializedColumn {name: flux}
-#     flux_err:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: ct / s}
-#       value: !astropy.table.SerializedColumn {name: flux_err}
-#     mjd:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: d}
-#       value: !astropy.table.SerializedColumn {name: mjd}
-#     pix_x:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: &id001 !astropy.units.Unit {unit: pix}
-#       value: !astropy.table.SerializedColumn {name: pix_x}
-#     pix_y:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: *id001
-#       value: !astropy.table.SerializedColumn {name: pix_y}
-#     sky_rms:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: ct / s}
-#       value: !astropy.table.SerializedColumn {name: sky_rms}
-#     zpt:
-#       __class__: astropy.units.quantity.Quantity
-#       unit: !astropy.units.Unit {unit: mag}
-#       value: !astropy.table.SerializedColumn {name: zpt}
 # schema: astropy-2.0
-mjd flux flux_err zpt NEA sky_rms pointing sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
+mjd flux flux_err zpt NEA sky_rms observation_id sca pix_x pix_y mag_fit mag_fit_err x_cutout y_cutout sky_background
 62495.605 100.0 10.0 15.023547191066584 0.0 0.0 35198 2 68565.85410580816 127021.05784706218 27.661655753326713 0.10857362047581294 68565.85410580816 127021.05784706218 0.0

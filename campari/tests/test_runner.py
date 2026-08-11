@@ -215,8 +215,8 @@ def test_get_exposures(cfg):
     test_args.img_list = None
     test_args.image_collection = "manual_rdm"
     test_args.image_collection_subset = None
-    test_args.image_collection_basepath = "/photometry_test_data/ou2024/images/"
-    test_args.img_glob = "/photometry_test_data/sample_asdf_data/*.asdf"
+    test_args.image_collection_basepath = cfg.value("photometry.test_data")  # This is where the test data is stored.
+    test_args.img_glob = cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf"
     runner = campari_runner(**vars(test_args))
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]

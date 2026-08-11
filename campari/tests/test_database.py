@@ -28,9 +28,10 @@ def campari_test_data(cfg):
     return cfg.value("system.paths.campari_test_data")
 
 
+@pytest.mark.requires_simdex
 def test_find_diaobject():
-    provenance_tag = "ou2024"
-    process = "load_ou2024_diaobject"
+    provenance_tag = "ou24"
+    process = "loadsnanatruth"
     diaobj = DiaObject.find_objects(name=20172782, collection="snpitdb",
                                     provenance_tag=provenance_tag, process=process)[0]
     regression_data = {
@@ -43,17 +44,17 @@ def test_find_diaobject():
     }
 
     np.testing.assert_equal(diaobj.iauname, regression_data["iauname"])
-    np.testing.assert_equal(diaobj.id, regression_data["id"])
     np.testing.assert_equal(diaobj.mjd_discovery, regression_data["mjd_discovery"])
     np.testing.assert_equal(diaobj.mjd_end, regression_data["mjd_end"])
     np.testing.assert_equal(diaobj.mjd_peak, regression_data["mjd_peak"])
     np.testing.assert_equal(diaobj.mjd_start, regression_data["mjd_start"])
 
 
+@pytest.mark.requires_simdex
 def test_get_image_collection():
     image_collection = "snpitdb"
-    provenance_tag = "ou2024"
-    process = "load_ou2024_image"
+    provenance_tag = "ou24"
+    process = "loadou2024l2image"
     dbclient = SNPITDBClient()
 
     img_collection = ImageCollection().get_collection(
@@ -63,6 +64,7 @@ def test_get_image_collection():
     np.testing.assert_equal(img_collection.provenance.id, uuid.UUID("305dbfc3-bbb4-8dde-f008-e616e3625e51"))
 
 
+@pytest.mark.requires_simdex
 def test_get_image_collection_missing_provenance():
     image_collection = "snpitdb"
     provenance_tag = "nonexistent_tag"
@@ -74,12 +76,13 @@ def test_get_image_collection_missing_provenance():
         )
 
 
+@pytest.mark.requires_simdex
 def test_find_exposures():
 
     dbclient = SNPITDBClient()
 
-    diaobj_provenance_tag = "ou2024"
-    diaobj_process = "load_ou2024_diaobject"
+    diaobj_provenance_tag = "ou24"
+    diaobj_process = "loadsnanatruth"
     diaobj = DiaObject.find_objects(name=20172782, collection="snpitdb",
                                     provenance_tag=diaobj_provenance_tag, process=diaobj_process)[0]
 

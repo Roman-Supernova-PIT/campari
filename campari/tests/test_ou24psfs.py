@@ -36,6 +36,7 @@ from campari.tests.test_gausspsfs import (
 # they were real data.
 
 
+pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
 default_parameters = {
@@ -139,7 +140,14 @@ default_parameters = {
     "system_db_url": None,
     "system_db_username": None,
     "system_db_passwordfile": None,
+    "system_db_password": None,
+    "system_paths_spectra1d": None,
+    "system_paths_segmaps": None,
     "prebuilt_static_model": None,
+    "system_paths_images": None,
+    "system_paths_temp_dir": None,
+    "system_paths_snappl_A25ePSF_path": None,
+    "photometry_campari_preplot_cutouts": None,
     "img_glob": None,
 }
 

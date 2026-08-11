@@ -13,12 +13,7 @@ from galsim import roman
 from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
-# # SN-PIT
-# try:
-#     import photometry_test_data
-# except:
-#     raise ImportError("photometry_test_data module not found. Try doing the following:"
-#     "pip install git+https://github.com/Roman-Supernova-PIT/photometry_test_data.git")
+# SN-PIT
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -244,10 +239,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     return wgt_matrix
 
 
-def convert_band_name(old_band):
-    """This function takes in band names that begin with F and returns their corresponding lettered version."""
-
-    lettered_band_dicts = {
+lettered_band_dicts = {
         "F062": "R062",
         "F087": "Z087",
         "F106": "Y106",
@@ -262,6 +254,10 @@ def convert_band_name(old_band):
         "H158": "H158",
         "K213": "K213",
     }
+
+
+def convert_band_name(old_band):
+    """This function takes in band names that begin with F and returns their corresponding lettered version."""
 
     band = lettered_band_dicts[old_band]
 
@@ -389,32 +385,3 @@ def print_memory_usage_summary(flag):
         SNLogger.info(printout)
     else:
         pass
-
-
-def redirect_photometry_test_data(path):
-    """ In tests, the test files may point to photometry_test_data, but this folder is in
-    different places on different machines (NERSC vs SMDC, e.g.) Rather than having
-    different versions of the test files, we can just redirect the path to photometry_test_data
-    appropriate to that machine here.
-
-    Inputs:
-    path: str, the path as given in the test files, which will be something like "photometry_test_data/some_file.fits"
-
-    Outputs:
-    redirected_path: str, the path to the photometry_test_data folder on the current machine,
-    plus the filename from the input path
-    """
-    if "photometry_test_data/" not in path:
-        return path
-    path_below_photometry_test_data = path.split("photometry_test_data/")[1]
-    #cfg = Config.get()
-    try:
-        photometry_test_data_dir =  photometry_test_data.__path__ #cfg.value("photometry.test_data")
-    except KeyError:
-        SNLogger.warning("photometry.test_data not found in config file. Please set this to the path to the"
-                         " photometry_test_data folder on your machine. Returning original path.")
-        return path
-    new_path = photometry_test_data_dir + "/" + path_below_photometry_test_data
-    if path != new_path:
-        SNLogger.debug(f"Redirecting path {path} to {new_path} for photometry test data.")
-    return new_path

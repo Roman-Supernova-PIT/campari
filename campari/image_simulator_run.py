@@ -60,13 +60,13 @@ def run_sim(
 
     if output_path is None:
         # come up with a better default path for this! This is just a temporary placeholder.
-        output_path = "/scratch/photometry_test_data/simple_gaussian_test"
+        output_path = "/home/photometry_test_data/simple_gaussian_test"
         SNLogger.debug(f"No output_path provided, using default {output_path}")
 
     if im_sim_path is None:
-        im_sim_path = "/scratch/snappl/snappl/image_simulator.py"
+        im_sim_path = "/home/snappl/snappl/image_simulator.py"
     if test_data_path is None:
-        test_data_path = "/scratch/campari/campari/tests/testdata"
+        test_data_path = "/home/campari/campari/tests/testdata"
         SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
     if just_rotate:
         assert images_aligned == True, "Cannot both just rotate and have images not aligned"
@@ -117,7 +117,7 @@ def run_sim(
         + f" --height 32 --pixscale 0.11 -t {mjd_str} --image-centers {image_centers_str} -θ {thetas_str} -r"
         + f" {sky_noise_key} -s 0 "
         + f" --no-star-noise {transient_noise_key} --overwrite {static_source_key if static_source else ''}"
-        + f" --psf-class {psf_class} "
+        + f" --psf-class {psf_class} --numstarprocs 1 "
     )
 
     if transient_peak_mag is not None:

@@ -267,7 +267,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     cfg = Config.get()
     psfclass = cfg.value("photometry.campari.psf.galaxy_class")
-
+    
     num_grid_points = np.size(x_sca)
 
     psfs = np.zeros((stampsize * stampsize, num_grid_points))
@@ -298,6 +298,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
+        if a % 10 == 0:
+            SNLogger.debug(f"Constructed PSF for {a} of {num_grid_points} grid points")
 
     print_memory_usage_summary("Finished making Static Scene")
 

@@ -183,6 +183,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         SNLogger.debug(f"Background from user input: {bg}")
     elif subtract_background_method == "calculate":
         bg = calculate_background_level(imagedata)
+        SNLogger.debug(f"Calculated BG level of: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
 
