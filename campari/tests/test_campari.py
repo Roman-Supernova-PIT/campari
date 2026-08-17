@@ -337,7 +337,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         test_run_on_star(campari_test_data, cfg, overwrite_meta=False)
 
 
-def test_regression_function(campari_test_data, cfg, overwrite_meta, photometry_test_data):
+def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
     # you want to, e.g., do things with pdb).  test_regression runs it
