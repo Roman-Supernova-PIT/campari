@@ -499,7 +499,7 @@ class campari_runner:
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
 
-        SNLogger.debug("Read the following img_list_lines from the provided img_list file:")
+        SNLogger.debug(f"Read the following img_list_lines from the provided img_list file {self.img_list}:")
         for line in img_list_lines:
             SNLogger.debug(line)
 
