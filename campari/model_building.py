@@ -364,11 +364,6 @@ def construct_transient_scene(
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
 
-    psf_image /= psf_image.sum()
-
-    np.save(f"psf_image_MJD{image.mjd}.npy", psf_image)
-    SNLogger.debug(f"Saved psf_image_MJD{image.mjd}.npy")
-
     return psf_image.flatten()
 
 

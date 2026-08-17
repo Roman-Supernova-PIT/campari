@@ -441,6 +441,7 @@ class campari_runner:
                 output_dir = None
             else:
                 output_dir = pathlib.Path(self.cfg.value("photometry.campari_io.output_dir"))
+                output_dir.mkdir( exist_ok=True, parents=True )
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
@@ -458,6 +459,7 @@ class campari_runner:
             )
 
             debug_dir = pathlib.Path(self.cfg.value("photometry.campari_io.debug_dir"))
+            debug_dir.mkdir(exist_ok=True, parents=True)
             SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
             np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
             np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)

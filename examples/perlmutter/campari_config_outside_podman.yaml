@@ -18,13 +18,24 @@ photometry:
     use_real_images: true
     save_model: true
     save_debug: true
+<<<<<<< HEAD
+=======
     psfclass: ou24PSF
+>>>>>>> 648067e
+    subtract_background_method: calculate
+    print_memory_usage: false
+    preplot_cutouts: false
 
     paths:
       sims_sed_library: /pscratch/sd/c/cmeldorf/rubin_sim_data/sims_sed_library
-      sims_dir: /dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
+      sims_dir: /dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/images/simple_model/
       output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
       debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
+
+    psf:
+      galaxy_class: ou24PSF
+      transient_class: ou24PSF_slow
+
 
     # OMG
     galsim:
@@ -34,33 +45,61 @@ photometry:
       type: contour
       percentiles:
       - 0
-      - 88
-      - 95
+      - 90
+      - 98
       - 100
-      spacing: 0.50
+      spacing: 0.75
       turn_grid_off: false
+      gaussian_var: -1 # Gaussian weighting off by default
+      cutoff: 4
+      error_floor: 1.0
+      subsize: 4
+    psf:
+      galaxy_class: ou24PSF
+      transient_class: ou24PSF_slow
 
-    simulations:
-      avoid_non_linearity: false
-      background_level: 0
-      bg_gal_flux:
-      - 10000
-      - 100000
-      - 1000000
-      deltafcn_profile: false
-      do_rotation: true
-      do_xshift: true
-      mismatch_seds: false
-      noise: 50
-      single_grid_point: false
-      sim_galaxy_scale:
-      - 1.0
-      sim_galaxy_offset:
-      - .00001414 # sqrt(2) * 1e-5
-      base_pointing: 276
-      base_sca: 10
-      run_name: whatever
+  campari_simulations:
+    avoid_non_linearity: false
+    background_level: 0
+    bg_gal_flux:
+    - 10000
+    - 100000
+    - 1000000
+    deltafcn_profile: false
+    do_rotation: true
+    do_xshift: true
+    mismatch_seds: false
+    noise: 50
+    single_grid_point: false
+    sim_galaxy_scale:
+    - 1.0
+    sim_galaxy_offset:
+    - .00001414 # sqrt(2) * 1e-5
+    base_pointing: 276
+    base_sca: 10
+    run_name: whatever
+<<<<<<< HEAD
+=======
+  campari_io:
+    output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
+    debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
+    save_debug: false
+    test_data: /pscratch/sd/c/cmeldorf/campari_test_data
+>>>>>>> 648067e
 
+
+
+
+  campari_io:
+    output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
+    debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
+    save_debug: false
+    test_num: 1
+    test_data: /pscratch/sd/c/cmeldorf/campari_test_data
+    # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
+    # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
+    # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
+    # the provenance is new because the hash of this config file will change.
 system:
   paths:
     lightcurves: /campari_out_dir # So Cole can run tests.
@@ -81,7 +120,7 @@ system:
     config_file: /pscratch/sd/c/cmeldorf/campari/examples/perlmutter/tds_jupyter.yaml
     sn_truth_dir: /snana_pq_dir
     sims_sed_library: /home/rubin_sim_data/sims_sed_library
-    images: /sims_dir/RomanTDS/images/simple_model
+    images: /dvs_ro/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/images/simple_model/
     tds_base: /photometry_test_data/ou2024
 
   # db:
