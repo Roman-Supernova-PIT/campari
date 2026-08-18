@@ -95,6 +95,7 @@ default_parameters = {
     "photometry_campari_io_test_data": "/scratch/campari_test_data",
     "photometry_campari_use_real_images": True,
     "photometry_campari_print_memory_usage": None,
+    "photometry_campari_save_memory_file_name": "None",
     "photometry_campari_psf_galaxy_photon_ops": None,
     "photometry_campari_psf_transient_photon_ops": None,
     "photometry_campari_psf_transient_class": "ou24PSF_slow_photonshoot",

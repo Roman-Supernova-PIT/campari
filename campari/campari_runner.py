@@ -2,7 +2,7 @@ import glob
 import pandas as pd
 import pathlib
 import numpy as np
-import tracemalloc
+import time
 
 # Astronomy
 from astropy.io import fits
@@ -27,7 +27,11 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner, convert_band_name
+from campari.utils import banner, convert_band_name, delete_memory_file
+
+global _start_time
+_start_time = time.perf_counter()
+SNLogger.debug(f"Starting Campari run at time: {_start_time}")
 
 
 class campari_runner:
@@ -175,9 +179,6 @@ class campari_runner:
 
         if self.fetch_SED and self.SED_file is not None:
             raise ValueError("Cannot provide both fetch_SED and SED_file. Which should campari use? Choose one option.")
-
-        if Config.get().value("photometry.campari.print_memory_usage"):
-            tracemalloc.start()
 
     def __call__(self):
         """Run the Campari pipeline."""
