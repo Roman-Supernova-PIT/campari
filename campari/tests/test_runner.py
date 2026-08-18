@@ -215,7 +215,7 @@ def test_get_exposures(cfg):
     test_args.img_list = None
     test_args.image_collection = "manual_rdm"
     test_args.image_collection_subset = None
-    test_args.image_collection_basepath = str(cfg.value("photometry.test_data") + "/sample_asdf_data/") # This is where the test data is stored.
+    test_args.image_collection_basepath = str(cfg.value("photometry.test_data") + "/sample_asdf_data/")
     SNLogger.debug(cfg.value("photometry.test_data"))
     test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
     runner = campari_runner(**vars(test_args))

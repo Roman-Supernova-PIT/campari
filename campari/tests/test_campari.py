@@ -66,9 +66,11 @@ cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
+
 @pytest.fixture(scope="module")
 def photometry_test_data(cfg):
     return cfg.value("photometry.test_data")
+
 
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
@@ -383,8 +385,6 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         sys.argv = orig_argv
         # ugly :( never do in real life
         cfg._data = orig_config._data
-
-
 
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression_function so I am rerunning this test.")
@@ -837,8 +837,6 @@ def test_calculate_surface_brightness():
     snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
 
     # Both of these test images contain this SN
-    provenance_tag = "ou24"
-    process = "loadsnanatruth"
     SNLogger.debug("Trying to load diaobj")
     diaobj = DiaObject.find_objects(collection="ou2024", dbclient=dbclient, name=20172782)[0]
     ra, dec = diaobj.ra, diaobj.dec

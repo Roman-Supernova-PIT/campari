@@ -206,7 +206,7 @@ class campari_runner:
             "mjd_discovery_max": self.transient_end}
         filtered_args = {k: v for k, v in arguments.items() if v is not None}
         # Database can't handle nones.
-        SNLogger.debug("FILTERED ARGS") 
+        SNLogger.debug("FILTERED ARGS")
         SNLogger.debug(f"Filtered arguments for finding DiaObject: {filtered_args}")
         diaobjs = DiaObject.find_objects(**filtered_args)
 
