@@ -119,41 +119,6 @@ def test_runner_init(cfg):
     assert isinstance(runner.cfg, Config)
 
 
-# def test_decide_run_mode(cfg):
-#     test_args = create_default_test_args(cfg)
-
-#     # First test passing a diaobject_name
-#     test_args.diaobject_name = 20172782
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-#     assert runner.diaobject_name == 20172782
-
-
-#     # Now test passing RA and Dec
-#     test_args.ra = 10.684
-#     test_args.dec = 41.269
-#     test_args.transient_start = 60000.0
-#     test_args.transient_end = 60100.0
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-#     assert runner.ra == 10.684
-#     assert runner.dec == 41.269
-#     assert runner.transient_start is not None
-#     assert runner.transient_end is not None
-
-#     test_args.diaobject_collection = "ou24"
-#     test_args.diaobject_name = 20172782
-#     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-
-#     assert runner.diaobject_name == 20172782
-#     columns = ["pointing", "sca"]
-#     SNLogger.debug(pd.read_csv(test_args.img_list))
-#     np.testing.assert_array_equal(runner.pointing_list,
-#                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
-
-
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
@@ -404,27 +369,3 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
         test_build_and_save_lc(cfg, overwrite_meta=False)
-
-
-# sim param grid broken for now
-# def test_sim_param_grid(cfg):
-#     test_args = create_default_test_args(cfg)
-#     test_args.use_real_images = False
-#     test_args.diaobject_collection = "ou24"
-#     test_args.diaobject_name = 20172782
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-#     runner.bg_gal_flux_all = [1.0, 2.0]
-#     runner.sim_galaxy_scale_all = [1.0, 2.0, 3.0]
-#     runner.sim_galaxy_offset_all = 0.0
-#     # Create the simulation parameter grid
-#     runner.create_sim_param_grid()
-
-#     test_grid = np.array([[1., 2.,  1.,  2.,  1. , 2.],
-#                          [1., 1.,  2.,  2.,  3. , 3.],
-#                          [0., 0.,  0.,  0.,  0. , 0.]])
-#     np.testing.assert_array_equal(runner.param_grid, test_grid)
-
-
-# Creating the sim param grid is tested in test_campari.py, so we don't need to test it here.
-# The __call__ method is also tested in test_campari.py, so we don't need to test it here either.
