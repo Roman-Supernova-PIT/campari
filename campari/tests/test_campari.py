@@ -103,6 +103,12 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth=Fa
     SNLogger.debug("NEW LIGHTCURVE DATA:")
     SNLogger.debug(lc1)
 
+    # This list is used to keep track of which columns failed the comparison, so we can report them all at once.
+    # This is more informative than failing on just one. For instance, if the location changed and the flux changed,
+    # we'd know that the flux changed because the location changed, but we wouldn't know that if we failed
+    # on the flux changing first. This is much more useful in my opinion.
+    failed_cols = []
+
     for col in bothcols:
         SNLogger.debug(f"Checking col {col}")
 
@@ -151,9 +157,11 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth=Fa
         # restructure the order of operations in your code to avoid
         # underflow errors bigger than the number of sig figs in a
         # floating point number.)
-        msg = f"The lightcurves do not match for column {col}"
         if isinstance(lc1[col][0], str) or isinstance(lc1[col][0], np.str_):
-            np.testing.assert_array_equal(lc1[col], lc2[col]), msg
+            try:
+                np.testing.assert_array_equal(lc1[col], lc2[col])
+            except Exception:
+                failed_cols.append(col)
         else:
             # Switching from one type of WCS to another gave rise in a
             # difference of about 1e-9 pixels for the grid, which led to a
@@ -163,8 +171,17 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth=Fa
             # the WCS objects are pickled and unpickled which can
             # slightly change the numerical results. I found that it altered recovered flux
             # by about 1.4 MICRO mags. So I am increasing the rtol to 7e-6 to allow for this.
-            np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6), msg
+            try:
+                np.testing.assert_allclose(lc1[col], lc2[col], rtol=7e-6)
+            except Exception:
+                failed_cols.append(col)
 
+    if len(failed_cols) > 0:
+        for f in failed_cols:
+            SNLogger.debug(f"Column {f} values in lc1: {lc1[f]}")
+            SNLogger.debug(f"Column {f} values in lc2: {lc2[f]}")
+            SNLogger.debug("###################################")
+        raise AssertionError(f"The lightcurves do not match for columns {failed_cols}")
     if overwrite_meta:
         SNLogger.debug("At this point, all the data columns match."
                        " I am now overwriting the metadata of lc2 with that of lc1.")
@@ -391,8 +408,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
 
-@pytest.mark.parametrize("nprocs", [(2), (1)])
-@pytest.mark.slow
+@pytest.mark.parametrize("nprocs", [(1), (2)])
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
@@ -674,6 +690,8 @@ def test_build_lc(cfg, overwrite_meta):
     explist = Table.from_pandas(exposures)
     explist.sort(["detected", "sca"])
 
+    sca_x_locations = np.array([68565.85410581, 68565.85410581])
+    sca_y_locations = np.array([127021.05784706, 127021.05784706])
     # Getting a WCS to use
     observation_id = "5934"
     sca = 3
@@ -712,7 +730,8 @@ def test_build_lc(cfg, overwrite_meta):
     lc_model = campari_lightcurve_model(flux=100.0, sigma_flux=10.0, image_list=image_list,
                                         cutout_image_list=cutout_image_list, LSB=25.0, diaobj=diaobj,
                                         sky_background=[0.0] * len(image_list), pre_transient_images=1,
-                                        post_transient_images=0)
+                                        post_transient_images=0, sca_x_locations=sca_x_locations,
+                                        sca_y_locations=sca_y_locations)
 
     upstreams = []
     cam_prov = Provenance(

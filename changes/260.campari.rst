@@ -1,0 +1,1 @@
+Campari memory managed and memory logging added.

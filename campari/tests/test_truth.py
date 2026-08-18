@@ -113,6 +113,8 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
+    sca_x_locations = np.array([68565.85410581, 68565.85410581])
+    sca_y_locations = np.array([127021.05784706, 127021.05784706])
 
     wcs = snappl_image.get_wcs()
 
@@ -138,7 +140,8 @@ def test_build_lc_and_add_truth(sn_path, overwrite_meta):
 
     lc_model = campari_lightcurve_model(
         flux=100.0, sigma_flux=10.0, image_list=image_list, cutout_image_list=cutout_image_list,
-        LSB=25.0, sky_background=[0.0] * len(image_list), pre_transient_images=1, post_transient_images=0
+        LSB=25.0, sky_background=[0.0] * len(image_list), pre_transient_images=1, post_transient_images=0,
+        sca_x_locations=sca_x_locations, sca_y_locations=sca_y_locations
     )
 
     diaobj = DiaObject.find_objects(name=20172782, ra=7, dec=-41, collection="manual")[0]

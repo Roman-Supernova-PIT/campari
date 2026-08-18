@@ -61,7 +61,8 @@ def test_get_image_collection():
         collection=image_collection, provenance_tag=provenance_tag, process=process, dbclient=dbclient
     )
 
-    np.testing.assert_equal(img_collection.provenance.id, uuid.UUID("305dbfc3-bbb4-8dde-f008-e616e3625e51"))
+    # UUID updated due to new rob podman env.
+    np.testing.assert_equal(img_collection.provenance.id, uuid.UUID("4ba01839-47c4-ddf9-3c01-ed4fa92ad337"))
 
 
 @pytest.mark.requires_simdex
