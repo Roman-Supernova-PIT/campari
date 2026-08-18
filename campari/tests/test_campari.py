@@ -376,7 +376,6 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         RomanASP.main()
         cfg = Config.get()
 
-#        _compare_regression_arrays()
         compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
                             overwrite_meta=overwrite_meta)
 
@@ -427,7 +426,6 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    _compare_regression_arrays()
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
@@ -842,8 +840,7 @@ def test_calculate_surface_brightness():
     provenance_tag = "ou24"
     process = "loadsnanatruth"
     SNLogger.debug("Trying to load diaobj")
-    diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
-                                    provenance_tag=provenance_tag, process=process, name=20172782)[0]
+    diaobj = DiaObject.find_objects(collection="ou2024", dbclient=dbclient, name=20172782)[0]
     ra, dec = diaobj.ra, diaobj.dec
     cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
     cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
