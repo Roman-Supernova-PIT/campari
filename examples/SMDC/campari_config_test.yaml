@@ -71,7 +71,7 @@ photometry:
     run_name: whatever
 
   snappl:
-    simdex_server: https://roman-desc-simdex.rknop.net
+    simdex_server: https://roman-desc-simdex.lbl.gov
 
   test_data: "/photometry_test_data"
 

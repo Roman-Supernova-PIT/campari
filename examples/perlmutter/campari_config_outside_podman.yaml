@@ -18,10 +18,6 @@ photometry:
     use_real_images: true
     save_model: true
     save_debug: true
-<<<<<<< HEAD
-=======
-    psfclass: ou24PSF
->>>>>>> 648067e
     subtract_background_method: calculate
     print_memory_usage: false
     preplot_cutouts: false
@@ -78,14 +74,6 @@ photometry:
     base_pointing: 276
     base_sca: 10
     run_name: whatever
-<<<<<<< HEAD
-=======
-  campari_io:
-    output_dir: /pscratch/sd/c/cmeldorf/campari_out_dir
-    debug_dir: /pscratch/sd/c/cmeldorf/campari_debug_dir
-    save_debug: false
-    test_data: /pscratch/sd/c/cmeldorf/campari_test_data
->>>>>>> 648067e
 
 
 

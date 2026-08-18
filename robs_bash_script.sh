@@ -9,11 +9,7 @@ stars_per_job=$((file_len / n_jobs ))
 echo $stars_per_job
 
 
-
-singularity run --bind /home/rkessler/:/rick:ro \
-  --bind /mnt/roman-science-east-2/snpit/snana+romanisim+romancal/:/ricksims:ro \
-  --overlay pit_overlay \
-  /data/snpit/roman-snpit-env-cpu-0.1.36.sif \
+bash /data/snpit/env/singrun_smdc_ricksim.sh \
     bash -c '
         echo "Starting job for stars" $i
     '
