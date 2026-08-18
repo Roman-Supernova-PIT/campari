@@ -205,27 +205,3 @@ showcontent = true
 directory = "campari"
 name = "campari"
 showcontent = true
-
-[project]
-name = "test_campari_cole_meldorf"
-version = "0.0.1"
-authors = [
-  { name="Cole Meldorf", email="colefmeldorf@gmail.com" },
-]
-description = "Testing for campari package"
-readme = "README.md"
-requires-python = ">=3.9"
-classifiers = [
-    "Programming Language :: Python :: 3",
-    "Operating System :: OS Independent",
-]
-license = "MIT"
-license-files = ["LICEN[CS]E*"]
-
-[project.urls]
-Homepage = "https://github.com/Roman-Supernova-PIT/campari"
-Issues = "https://github.com/Roman-Supernova-PIT/campari/issues"
-
-[build-system]
-requires = ["hatchling >= 1.26"]
-build-backend = "hatchling.build"
