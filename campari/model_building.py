@@ -17,7 +17,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
-from campari.utils import print_memory_usage_summary
+from campari.utils import print_mem
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -257,7 +257,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     A numpy array of the PSFs at each grid point, with the shape
     (stampsize*stampsize, npoints)
     """
-
+    print_mem("Starting to make static scene")
     # I call this x_sca to highlight that it's the location in the SCA, not the cutout.
     x_sca, y_sca = sca_wcs.world_to_pixel(ra, dec)
     # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
@@ -294,14 +294,17 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     y_loc = int(np.floor(y_loc + 0.5))
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
+    galsim.ChromaticConvolution.resize_effective_prof_cache(10)
     for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
         if a % 10 == 0:
             SNLogger.debug(f"Constructed PSF for {a} of {num_grid_points} grid points")
-
-    print_memory_usage_summary("Finished making Static Scene")
+    print_mem("Finished constructing static scene")
+    galsim.ChromaticConvolution.resize_effective_prof_cache(1)
+    galsim.ChromaticConvolution._effective_prof_cache.clear()
+    galsim.roman.roman_psfs._make_aperture.clear()
 
     return psfs
 
@@ -363,6 +366,11 @@ def construct_transient_scene(
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
+    print_mem("Finished constructing TRANSIENT scene")
+    galsim.ChromaticConvolution.resize_effective_prof_cache(1)
+    galsim.ChromaticConvolution._effective_prof_cache.clear()
+    galsim.roman.roman_psfs._make_aperture.clear()
+    print_mem("Cleared various caches after constructing TRANSIENT scene")
 
     return psf_image.flatten()
 
@@ -438,8 +446,6 @@ def make_grid(
         ra_grid = ra_grid[distances > min_distance]
         dec_grid = dec_grid[distances > min_distance]
         SNLogger.debug(f"New grid size: {len(ra_grid)}")
-
-    print_memory_usage_summary("Finished making grid")
 
     return ra_grid, dec_grid
 
@@ -563,7 +569,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
                               image_index=None, num_total_images=None, num_detect_images=None,
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
-    # Passing in None for the PSF means we use the Roman PSF.
+    print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
     SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
 
@@ -591,6 +597,8 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         SNLogger.debug("Using prebuilt PSF matrix for background model")
         background_model_array = None
 
+    print_mem("Finished building background model array")
+
     if subtract_background_method == "fit" and prebuilt_psf_matrix is None:
         # If we did not manually subtract the background, we need to fit in the forward model. Since the
         # background is a constant, we add a term to the model that is all ones. But we only want the background
@@ -603,7 +611,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             else:
                 bg = np.zeros(size**2).reshape(-1, 1)
             background_model_array = np.concatenate([background_model_array, bg], axis=1)
-
+    print_mem("Finished adding background to model array")
     # Add the array of the model points and the background (if using)
     # to the matrix of all components of the model.
     # if prebuilt_psf_matrix is None:
@@ -658,5 +666,5 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
         if sn_index >= 0 and prebuilt_sn_matrix is not None:
             SNLogger.debug("Using prebuilt SN matrix for transient model")
 
-    print_memory_usage_summary("Finished building model for one image")
+    print_mem("Finished image model building")
     return background_model_array, psf_source_array

@@ -12,3 +12,4 @@ h5py
 roman_snpit_snappl==0.44.0
 galsim==2.8.4
 # The above hard requirements are temporary only!!!
+psutils
