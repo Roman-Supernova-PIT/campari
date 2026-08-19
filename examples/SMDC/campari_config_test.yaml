@@ -23,6 +23,7 @@ photometry:
     use_real_images: true
     print_memory_usage: false
     preplot_cutouts: false
+    save_memory_file_name: test_memory_file
 
     psf:
       galaxy_class: ou24PSF
