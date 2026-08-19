@@ -60,6 +60,7 @@ def test_get_image_collection():
         collection=image_collection, provenance_tag=provenance_tag, process=process, dbclient=dbclient
     )
 
+    # UUID updated due to new rob podman env.
     np.testing.assert_equal(img_collection.provenance.id, uuid.UUID("4ba01839-47c4-ddf9-3c01-ed4fa92ad337"))
 
 

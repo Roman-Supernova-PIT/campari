@@ -106,6 +106,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
+    all_sca_xs, all_sca_ys = \
+        map(list, zip(*[img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec) for img in image_list]))
+
     # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
     # some point, so this catches those cases.
     band = convert_band_name(band)
@@ -114,7 +117,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
-
+    # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
 
     plot_cutouts_if_requested(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
@@ -176,8 +179,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         psf_matrix.append(bg_model)
         if transient_model is not None:
             sn_matrix.append(transient_model)
-
-    print_memory_usage_summary("After building model:")
 
     banner("Lin Alg Section")
 
@@ -262,7 +263,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            LSB=LSB, best_fit_model_values=X, image_list=image_list,
+            LSB=LSB, best_fit_model_values=X, sca_x_locations = all_sca_xs,
+            sca_y_locations = all_sca_ys,
             cutout_image_list=cutout_image_list, noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,
