@@ -422,6 +422,8 @@ def load_prebuilt_matrices_if_provided(prebuilt_psf_matrix, prebuilt_sn_matrix, 
         SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
 
     return psf_matrix, sn_matrix
+
+
 def delete_memory_file():
     cfg = Config.get()
     if cfg.value("photometry.campari.save_memory_file_name") != "None":

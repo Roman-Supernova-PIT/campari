@@ -53,6 +53,7 @@ def _check_sim_setup(run_dir, output_path, im_sim_path, test_data_path,
 
     return run_dir, output_path, im_sim_path, test_data_path
 
+
 def run_sim(
     seed=None,
     images_aligned=None,
