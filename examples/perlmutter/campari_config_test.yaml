@@ -16,6 +16,7 @@ photometry:
     subtract_background_method: calculate
     use_real_images: true
     print_memory_usage: false
+    save_memory_file_name: "None"
     preplot_cutouts: false
 
     psf:

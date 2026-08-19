@@ -331,6 +331,8 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
+    sca_x_locations = np.array([13848.53434095, 13848.53434095, 13848.53434095])
+    sca_y_locations = np.array([9543.53719937, 9543.53719937, 9543.53719937])
 
     wcs = snappl_image.get_wcs()
 
@@ -367,7 +369,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
                                         dec_grid=dec_grid,
                                         wgt_matrix=wgt_matrix, LSB=LSB, sky_background=np.zeros(len(flux)),
                                         best_fit_model_values=best_fit_model_values,
-                                        sim_lc=sim_lc)
+                                        sim_lc=sim_lc, sca_x_locations=sca_x_locations, sca_y_locations=sca_y_locations)
 
     diaobj = DiaObject.find_objects(name=test_args.diaobject_name, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = -np.inf
