@@ -60,13 +60,13 @@ def run_sim(
 
     if output_path is None:
         # come up with a better default path for this! This is just a temporary placeholder.
-        output_path = "/scratch/photometry_test_data/simple_gaussian_test"
+        output_path = "/home/photometry_test_data/simple_gaussian_test"
         SNLogger.debug(f"No output_path provided, using default {output_path}")
 
     if im_sim_path is None:
-        im_sim_path = "/scratch/snappl/snappl/image_simulator.py"
+        im_sim_path = "/home/snappl/snappl/image_simulator.py"
     if test_data_path is None:
-        test_data_path = "/scratch/campari/campari/tests/testdata"
+        test_data_path = "/home/campari/campari/tests/testdata"
         SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
     if just_rotate:
         assert images_aligned == True, "Cannot both just rotate and have images not aligned"
