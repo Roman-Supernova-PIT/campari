@@ -1,5 +1,5 @@
 [project]
-name = "campari"
+name = "roman-snpit-campari"
 description = "Scene modelling photometry for Roman Supernova PIT"
 requires-python = ">=3.11"
 dynamic = ["version"]
