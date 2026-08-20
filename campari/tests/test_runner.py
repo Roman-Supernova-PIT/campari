@@ -180,8 +180,9 @@ def test_get_exposures(cfg):
     test_args.img_list = None
     test_args.image_collection = "manual_rdm"
     test_args.image_collection_subset = None
-    test_args.image_collection_basepath = "/photometry_test_data/ou2024/images/"
-    test_args.img_glob = "/photometry_test_data/sample_asdf_data/*.asdf"
+    test_args.image_collection_basepath = str(cfg.value("photometry.test_data") + "/sample_asdf_data/")
+    SNLogger.debug(cfg.value("photometry.test_data"))
+    test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
     runner = campari_runner(**vars(test_args))
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
@@ -235,6 +236,7 @@ def test_parse_img_list(cfg):
                 f" I only found: {[im for im in runner.img_list]}."
 
 
+@pytest.mark.requires_truth
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"

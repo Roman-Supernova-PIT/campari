@@ -34,10 +34,10 @@
 # - {print_memory_usage: false}
 # - {save_memory_file_name: None}
 # - {preplot_cutouts: false}
-# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
-#     error_floor: 1.0
+#     error_floor: 1
 #     gaussian_var: 1000
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
@@ -49,8 +49,8 @@
 # - {dec: -44.80718106491529}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 4cb7a7b2-e80e-8d8c-fdd5-25b8bf0fa665}
-# - {diaobject_id: b2ccb9c2-1828-4151-8547-520d6897381d}
+# - {provenance_id: 8c5be3c8-fa0c-3d70-0582-e276964cd65e}
+# - {diaobject_id: 3a852322-59e4-4bd6-aadd-b40a33303b2c}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
@@ -58,10 +58,6 @@
 # - {local_surface_brightness_Y106: 31.508449068242154}
 # - {pre_transient_images: 1}
 # - {post_transient_images: 0}
-# - {host_sep: 1.7006677389144897}
-# - {host_mag_g: 23.76300048828125}
-# - {host_ra: 7.550449}
-# - {host_dec: -44.8073}
 # - __serialized_columns__:
 #     NEA:
 #       __class__: astropy.units.quantity.Quantity

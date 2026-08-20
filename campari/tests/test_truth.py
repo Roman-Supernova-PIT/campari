@@ -39,6 +39,9 @@ output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
+pytestmark = pytest.mark.requires_truth  # Mark all tests in this file as requiring the OU24 Truth library.
+
+
 @pytest.fixture(scope="module")
 def sn_path(cfg):
     return cfg.value("system.ou24.sn_truth_dir")
