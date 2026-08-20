@@ -69,7 +69,7 @@ python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.9462
 
 
 ```
-This will run the algorithm on one SNe from Richard Kessler's simulations.Sure
+This will run the algorithm on one SNe from Richard Kessler's simulations.
 
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
@@ -97,15 +97,21 @@ python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.~~
 
 
-## Modifying the yaml file.
-To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
+## Modifying the config file.
 
-### lightcurves
-#### SNID_band_psftype_lc.csv
-csv file containing a measured lightcurve for the supernova.
+Before running campari, you will need to define an environment variable, SNPIT_CONFIG, that points to a config file.
+For example:
+```
+export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
+```
+This config file contains arguments that define which PSF to use, background subtraction methods, input and output paths, etc.
+Every argument in the config file can also be passed on the command line, though you need to specify the entire tree of the yaml.
+For instance, if we want to pass the "type" option for grid_options on the command line, this option is under photometry.campari.grid_options, each period becomes a hyphen so that we get: --photometry-campari-grid_options-type.
 
-| Parameter            | Type            | Description                                                                                                                                            |
-|-----------------------|-----------------|
+
+
+Note that, while in the yaml file there may be underscores ("_") all of these become hyphens ("-")
+when running on the command line.
 
 ## 1\. Target / object selection
 
