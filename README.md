@@ -97,7 +97,7 @@ python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.~~
 
 
-## Modifying the config file.
+# YAML Configuration File
 
 Before running campari, you will need to define an environment variable, SNPIT_CONFIG, that points to a config file.
 For example:
