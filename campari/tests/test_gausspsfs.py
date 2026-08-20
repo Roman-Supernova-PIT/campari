@@ -17,6 +17,7 @@ from campari.plotting import generate_diagnostic_plots
 SNLogger.set_level("DEBUG")
 
 
+pytestmark = pytest.mark.accuracy_test
 imsize = 19
 base_cmd = [
         "python", "../RomanASP.py",

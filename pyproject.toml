@@ -1,5 +1,5 @@
 [project]
-name = "campari"
+name = "roman-snpit-campari"
 description = "Scene modelling photometry for Roman Supernova PIT"
 requires-python = ">=3.11"
 dynamic = ["version"]
@@ -96,7 +96,6 @@ addopts = "--doctest-rst"
 [pytest]
 markers = [
     "slow: marks tests as slow (deselect with '-m \"not slow\"')",
-    "serial",
 ]
 
 [tool.coverage.run]

@@ -69,11 +69,16 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
 @pytest.fixture(scope="module")
+def photometry_test_data(cfg):
+    return cfg.value("photometry.test_data")
+
+
+@pytest.fixture(scope="module")
 def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
-def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
+def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth=False):
     # lc1 is new, lc2 is old
 
     lc1 = QTable.read(lc1_path, format="ascii.ecsv")
@@ -108,6 +113,12 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False):
     failed_cols = []
 
     for col in bothcols:
+        SNLogger.debug(f"Checking col {col}")
+
+        if "tru" in col and not check_truth:
+            SNLogger.debug(f"Skipping truth column {col} because check_truth is False.")
+            continue
+
         # (Rob here: 32-bit IEEE-754 floats have a 24-bit mantissa
         # (cf: https://en.wikipedia.org/wiki/IEEE_754), which means
         # roughly log10(2^24)=7 significant figures.  As such,
@@ -355,9 +366,13 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     cfg = Config.get()
     curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
+
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
+    assert not debug_file.exists()
 
     a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
@@ -368,7 +383,8 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
          "--photometry-campari-grid_options-gaussian_var", "1000",
          "--prebuilt_static_model", str(pathlib.Path(__file__).parent / "testdata/reg_psf_matrix.npy"),
          "--prebuilt_transient_model", str(pathlib.Path(__file__).parent / "testdata/reg_sn_matrix.npy"),
-         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db", "--add-truth-to-lc",
+         "--image-collection", "ou2024", "--diaobject-collection", "ou2024", "--no-save-to-db",
+         # "--add-truth-to-lc", # uncomment this to test getting truth data. Not available on all machines!
          ]
 
     SNLogger.debug(f"Args for test: {' '.join(a)}")
@@ -402,9 +418,12 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
 
     curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
     curfile.unlink(missing_ok=True)
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
+    assert not debug_file.exists()
 
     output = os.system(
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
@@ -416,7 +435,8 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
-        " --no-save-to-db --add-truth-to-lc"
+        " --no-save-to-db"
+        # "--add-truth-to-lc" Uncomment this to test getting truth information. Not available on all machines!
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000"
@@ -815,6 +835,7 @@ def test_handle_partial_overlap():
         "The weights do not match the expected values."
 
 
+@pytest.mark.requires_simdex # I think this image is in the photometry_test_data, fix this at some point.
 def test_calculate_surface_brightness():
     size = 25
     observation_id = str(5934)
@@ -835,14 +856,9 @@ def test_calculate_surface_brightness():
     sca = 1
     snappl_image_2 = img_collection.get_image(observation_id="35198", sca=2, band=band)
 
-    SNLogger.debug("Made it here")
-
     # Both of these test images contain this SN
-    provenance_tag = "ou24"
-    process = "loadsnanatruth"
     SNLogger.debug("Trying to load diaobj")
-    diaobj = DiaObject.find_objects(collection="snpitdb", dbclient=dbclient,
-                                    provenance_tag=provenance_tag, process=process, name=20172782)[0]
+    diaobj = DiaObject.find_objects(collection="ou2024", dbclient=dbclient, name=20172782)[0]
     ra, dec = diaobj.ra, diaobj.dec
     cutout_1 = snappl_image.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)
     cutout_2 = snappl_image_2.get_ra_dec_cutout(np.array([ra]), np.array([dec]), xsize=size)

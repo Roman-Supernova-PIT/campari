@@ -88,6 +88,28 @@ def run_sim(
         just_rotate, just_shift, images_aligned, run_name_base
     )
 
+<<<<<<< HEAD
+=======
+    if output_path is None:
+        # come up with a better default path for this! This is just a temporary placeholder.
+        output_path = "/home/photometry_test_data/simple_gaussian_test"
+        SNLogger.debug(f"No output_path provided, using default {output_path}")
+
+    if im_sim_path is None:
+        im_sim_path = "/home/snappl/snappl/image_simulator.py"
+    if test_data_path is None:
+        test_data_path = "/home/campari/campari/tests/testdata"
+        SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
+    if just_rotate:
+        assert images_aligned == True, "Cannot both just rotate and have images not aligned"
+    if just_shift:
+        assert images_aligned == True, "Cannot both just shift and have images not aligned"
+    assert not (just_rotate and just_shift), "Cannot both just rotate and just shift"
+
+    if run_name_base is None:
+        raise ValueError("run_name_base must be provided")  # This is important to avoid accidentally overwriting data.
+        # I want to make sure the user consciously chooses a name for the run.
+>>>>>>> main
     run_name = run_name_base + f"seed{seed}"
 
     np.set_printoptions(linewidth=np.inf, threshold=np.inf)
