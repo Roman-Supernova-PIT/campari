@@ -39,7 +39,37 @@ conda activate sn_pit_dev
 ## Doing a simple run.
 The RomanASP code can be run from the command line. Basic arguments are given in the command line and algorithm settings are given via the input file config.yaml. Because of different file paths on different
 systems, the steps are slightly different for each machine. Here's how to get a basic run going dpeending on which computer you find yourself using:
-### DCC:
+
+### SMDC:
+To do a simple test run on SMDC, try the following:
+
+```
+salloc --nodes 1 --qos interactive --time 04:00:00 -p mem-med
+
+bash /data/snpit/env/singrun_smdc_ricksim.sh
+
+cd /home/packages/
+
+git clone https://github.com/Roman-Supernova-PIT/campari/
+
+cd campari
+
+git checkout SMDC_updates
+
+export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
+
+cd ../..
+
+pip install -e /home/packages/campari -e /home/packages/snappl
+
+mkdir -p /dev_storage/campari_debug_dir
+
+python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
+
+
+```
+
+~~### DCC:
 
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
@@ -67,7 +97,7 @@ python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 ```
 This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
 
-### NERSC 
+### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
 ```
@@ -90,7 +120,7 @@ and then run:
 ```
 python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 ```
-This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
+This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.~~
 
 
 ## Modifying the yaml file.
@@ -188,17 +218,3 @@ csv file containing a measured lightcurve for the supernova.
 | host_ra               | float           | RA location of the host galaxy, from OpenUniverse truth files.                                                                                       |
 | host_dec              | float           | DEC location of the host galaxy, from OpenUniverse truth files.                                                                                      |
 | measured_flux         | float           | Flux as measured by the RomanASP algorithm.                                                                                                           |
-
-
-
-
-
-
-
-
-
-
-
-
-
-
