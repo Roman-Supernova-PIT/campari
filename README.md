@@ -69,34 +69,7 @@ python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.9462
 
 
 ```
-
-~~### DCC:
-
-To do a simple test run to ensure everything is installed correctly, you can request a node:
-
-```
-srun -n 1 -N 1 -t 4:00:00 --mem 20000 -p cosmology --account=cosmology --pty bash
-conda activate sn_pit_dev
-```
-cd into your directory where the code is stored.
-Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
-
-```
-roman_path: /hpc/group/cosmology/OpenUniverse2024
-sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
-```
-
-Next, in the `temp_tds.yaml` file, make sure `file_name` is:
-```
-file_name: /hpc/group/cosmology/OpenUniverse2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits
-```
-
-and then run:
-
-```
-python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
-```
-This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
+This will run the algorithm on one SNe from Richard Kessler's simulations.Sure
 
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
