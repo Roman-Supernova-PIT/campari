@@ -92,8 +92,6 @@ def run_sim(
         just_rotate, just_shift, images_aligned, run_name_base
     )
 
-<<<<<<< HEAD
-=======
     if output_path is None:
         # come up with a better default path for this! This is just a temporary placeholder.
         output_path = "/home/photometry_test_data/simple_gaussian_test"
@@ -113,7 +111,6 @@ def run_sim(
     if run_name_base is None:
         raise ValueError("run_name_base must be provided")  # This is important to avoid accidentally overwriting data.
         # I want to make sure the user consciously chooses a name for the run.
->>>>>>> main
     run_name = run_name_base + f"seed{seed}"
 
     np.set_printoptions(linewidth=np.inf, threshold=np.inf)
