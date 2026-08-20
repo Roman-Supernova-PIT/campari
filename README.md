@@ -107,7 +107,8 @@ export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims
 This config file contains arguments that define which PSF to use, background subtraction methods, input and output paths, etc.
 Every argument in the config file can also be passed on the command line, though you need to specify the entire tree of the yaml.
 For instance, if we want to pass the "type" option for grid_options on the command line, this option is under photometry.campari.grid_options, each period becomes a hyphen so that we get: --photometry-campari-grid_options-type.
-
+In addition, if one of the below arguments does not have a config path prefix for the yaml config file, it can be only passed
+on the command line.
 
 
 Note that, while in the yaml file there may be underscores ("_") all of these become hyphens ("-")
