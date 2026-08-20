@@ -110,10 +110,6 @@ For instance, if we want to pass the "type" option for grid_options on the comma
 In addition, if one of the below arguments does not have a config path prefix for the yaml config file, it can be only passed
 on the command line.
 
-
-Note that, while in the yaml file there may be underscores ("_") all of these become hyphens ("-")
-when running on the command line.
-
 ## 1\. Target / object selection
 
 These tell campari *which* transient (or star) to run on, and where to find it.
