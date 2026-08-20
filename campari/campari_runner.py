@@ -461,47 +461,7 @@ class campari_runner:
 
         # Now, save the images
 
-<<<<<<< HEAD
         self._save_debug_products(identifier, psftype, lc_model)
-=======
-        if self.save_debug:
-            fileroot = f"{identifier}_{self.band}_{psftype}"
-
-            images_and_model = np.array(
-                [lc_model.images, lc_model.model_images, lc_model.wgt_matrix, lc_model.galaxy_only_model_images]
-            )
-
-            debug_dir = pathlib.Path(self.cfg.value("photometry.campari_io.debug_dir"))
-            debug_dir.mkdir(exist_ok=True, parents=True)
-            SNLogger.info(f"Saving images to {debug_dir / f'{fileroot}_images.npy'}")
-            np.save(debug_dir / f"{fileroot}_images.npy", images_and_model)
-            np.save(debug_dir / f"{fileroot}_noise_maps.npy", lc_model.noise_maps)
-
-            # Save the ra and dec grids
-            ra_grid = np.atleast_1d(lc_model.ra_grid)
-            dec_grid = np.atleast_1d(lc_model.dec_grid)
-            SNLogger.info(f"Saving Ra/Dec grid to {debug_dir}")
-            np.save(debug_dir / f"{fileroot}_grid.npy", [ra_grid, dec_grid,
-                    lc_model.best_fit_model_values[: np.size(ra_grid)]])
-
-            # save wcses
-            primary_hdu = fits.PrimaryHDU()
-            hdul = [primary_hdu]
-            SNLogger.info(f"Saving Image WCS headers to {debug_dir}")
-            if lc_model.cutout_image_list is not None:
-                if not isinstance(lc_model.cutout_image_list[0].get_wcs(), snappl.wcs.GWCS):
-                    for i, img in enumerate(lc_model.cutout_image_list):
-                        hdul.append(fits.ImageHDU(header=img.get_wcs().to_fits_header(), name="WCS" + str(i)))
-                    hdul = fits.HDUList(hdul)
-                    filepath = debug_dir / f"{fileroot}_wcs.fits"
-                    hdul.writeto(filepath, overwrite=True)
-                else:
-                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
-                    " Skipping saving WCS headers.")
-
-        else:
-            SNLogger.info("Not saving debug files.")
->>>>>>> main
 
     def parse_img_list(self):
         """Parse the image list file if provided."""
