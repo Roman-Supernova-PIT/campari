@@ -41,11 +41,15 @@ def _check_sim_setup(run_dir, output_path, im_sim_path, test_data_path,
     if test_data_path is None:
         test_data_path = "/scratch/campari/campari/tests/testdata"
         SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
-    if just_rotate:
-        assert images_aligned == True, "Cannot both just rotate and have images not aligned"
-    if just_shift:
-        assert images_aligned == True, "Cannot both just shift and have images not aligned"
-    assert not (just_rotate and just_shift), "Cannot both just rotate and just shift"
+
+    import pathlib
+    test_data_path = pathlib.Path(test_data_path)
+    if just_rotate and not images_aligned:
+        raise ValueError("Cannot both just rotate and have images not aligned")
+    if just_shift and not images_aligned:
+        raise ValueError("Cannot both just shift and have images not aligned")
+    if just_rotate and just_shift:
+        raise ValueError("Cannot both just rotate and just shift")
 
     if run_name_base is None:
         raise ValueError("run_name_base must be provided")  # This is important to avoid accidentally overwriting data.

@@ -155,8 +155,9 @@ class campari_runner:
                              "the galaxy be a delta function.")
 
         # Lightcurve provenance argument parsing logic:
-        if (kwargs["save_to_db"] and not self.create_ltcv_provenance) and \
-            (self.ltcv_provenance_tag is None and self.ltcv_process is None) :
+        if (kwargs["save_to_db"] and not self.create_ltcv_provenance) and (
+            self.ltcv_provenance_tag is None or self.ltcv_process is None
+        ):
             raise ValueError("Must provide both ltcv_provenance_tag and ltcv_process.")
 
         er = f"{self.grid_type} is not a recognized grid type. Available options are "

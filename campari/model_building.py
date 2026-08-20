@@ -419,7 +419,7 @@ def make_grid(
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     """
-    if not grid_type and object_type == "star":
+    if object_type == "star" and grid_type != "none":
         SNLogger.warning("For fitting stars, you probably dont want a grid.")
 
     SNLogger.debug(f"Grid type: {grid_type}")
@@ -694,3 +694,5 @@ def prep_initial_guess(make_initial_guess, num_nondetect_images, grid_type, cuto
 
     if subtract_background_method == "fit":
         x0 = np.concatenate([x0, np.zeros(num_total_images)], axis=0)
+
+    return x0
