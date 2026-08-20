@@ -41,6 +41,63 @@ The campari code can be run from the command line. Basic arguments are given in 
 systems, the steps are slightly different for each machine. Here's how to get a basic run going dpeending on which computer you find yourself using:
 
 
+### SMDC:
+To do a simple test run on SMDC, try the following:
+
+```
+salloc --nodes 1 --qos interactive --time 04:00:00 -p mem-med
+
+bash /data/snpit/env/singrun_smdc_ricksim.sh
+
+cd /home/packages/
+
+git clone https://github.com/Roman-Supernova-PIT/campari/
+
+cd campari
+
+git checkout SMDC_updates
+
+export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
+
+cd ../..
+
+pip install -e /home/packages/campari -e /home/packages/snappl
+
+mkdir -p /dev_storage/campari_debug_dir
+
+python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
+
+
+```
+
+~~### DCC:
+
+To do a simple test run to ensure everything is installed correctly, you can request a node:
+
+```
+srun -n 1 -N 1 -t 4:00:00 --mem 20000 -p cosmology --account=cosmology --pty bash
+conda activate sn_pit_dev
+```
+cd into your directory where the code is stored.
+Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
+
+```
+roman_path: /hpc/group/cosmology/OpenUniverse2024
+sn_path: /hpc/group/cosmology/OpenUniverse2024/roman_rubin_cats_v1.1.2_faint/
+```
+
+Next, in the `temp_tds.yaml` file, make sure `file_name` is:
+```
+file_name: /hpc/group/cosmology/OpenUniverse2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits
+```
+
+and then run:
+
+```
+python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
+```
+This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.
+
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 
@@ -54,6 +111,7 @@ Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as 
 roman_path: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
 sn_path: /global/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
 ```
+
 Next, in the `temp_tds.yaml` file, make sure `file_name` is:
 ```
 file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/Roman_TDS_obseq_11_6_23.fits
@@ -61,15 +119,9 @@ file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/Rom
 and then run:
 
 ```
-bash /global/cfs/cdirs/m4385/env/interactive-podman-rknop-dev.sh
-pip install -e /home/campari -e /home/snappl
-cd /home/campari/campari
-SNPIT_CONFIG=../examples/perlmutter/campari_config_test.yaml
-python /home/campari/campari/RomanASP.py -f Y106 -t 10 -n 5 --diaobject-id 20172782 -f Y106 --image-collection ou2024 --diaobject-collection ou2024 --nprocs 15
-
-
+python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 ```
-This will run the algorithm on supernova with SNID 20172782, in band Y106, using 10 images 5 of which contain SN detections.
+This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.~~
 
 
 ## Modifying the yaml file.
