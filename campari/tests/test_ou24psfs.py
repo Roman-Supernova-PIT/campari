@@ -36,6 +36,7 @@ from campari.tests.test_gausspsfs import (
 # they were real data.
 
 
+pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
 default_parameters = {
@@ -73,7 +74,7 @@ default_parameters = {
     "diaobject_position_process": None,
     "save_to_db": False,
     "add_truth_to_lc": False,
-    "nprocs": 100,
+    "nprocs": 20,
     "photometry_campari_cutout_size": 19,
     "photometry_campari_initial_flux_guess": None,
     "photometry_campari_fetch_SED": False,
@@ -133,8 +134,14 @@ default_parameters = {
 
 
 cfg = Config.get()
+
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
+
+default_parameters["photometry_campari_io_debug_dir"] = debug_dir
+default_parameters["photometry_campari_io_output_dir"] = out_dir
+default_parameters["photometry_test_data"] = cfg.value("photometry.test_data")
+default_parameters["photometry_campari_io_test_data"] = cfg.value("photometry.campari_io.test_data")
 
 
 def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=0):

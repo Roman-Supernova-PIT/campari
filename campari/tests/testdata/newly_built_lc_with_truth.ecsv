@@ -34,10 +34,10 @@
 # - {print_memory_usage: false}
 # - {save_memory_file_name: None}
 # - {preplot_cutouts: false}
-# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF, transient_photon_ops: false}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
-#     error_floor: 1.0
+#     error_floor: 1
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75

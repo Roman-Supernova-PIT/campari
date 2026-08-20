@@ -41,46 +41,56 @@ The campari code can be run from the command line. Basic arguments are given in 
 systems, the steps are slightly different for each machine. Here's how to get a basic run going dpeending on which computer you find yourself using:
 
 
+### SMDC:
+To do a simple test run on SMDC, try the following:
+
+```
+salloc --nodes 1 --qos interactive --time 04:00:00 -p mem-med
+
+bash /data/snpit/env/singrun_smdc_ricksim.sh
+
+cd /home/packages/
+
+git clone https://github.com/Roman-Supernova-PIT/campari/
+
+cd campari
+
+git checkout SMDC_updates
+
+export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
+
+cd ../..
+
+pip install -e /home/packages/campari -e /home/packages/snappl
+
+mkdir -p /dev_storage/campari_debug_dir
+
+python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
+
+
+```
+This will run the algorithm on one SNe from Richard Kessler's simulations.
+
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
-
 ```
-salloc --nodes 1 --qos interactive --time 01:00:00 --constraint cpu --account m4385
-conda activate sn_pit_dev
+python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 ```
-cd into your directory where the code is stored.
-Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
-```
-roman_path: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
-sn_path: /global/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
-```
-Next, in the `temp_tds.yaml` file, make sure `file_name` is:
-```
-file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/Roman_TDS_obseq_11_6_23.fits
-```
-and then run:
-
-```
-bash /global/cfs/cdirs/m4385/env/interactive-podman-rknop-dev.sh
-pip install -e /home/campari -e /home/snappl
-cd /home/campari/campari
-SNPIT_CONFIG=../examples/perlmutter/campari_config_test.yaml
-python /home/campari/campari/RomanASP.py -f Y106 -t 10 -n 5 --diaobject-id 20172782 -f Y106 --image-collection ou2024 --diaobject-collection ou2024 --nprocs 15
+This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.~~
 
 
+# YAML Configuration File
+
+Before running campari, you will need to define an environment variable, SNPIT_CONFIG, that points to a config file.
+For example:
 ```
-This will run the algorithm on supernova with SNID 20172782, in band Y106, using 10 images 5 of which contain SN detections.
-
-
-## Modifying the yaml file.
-To actually have the code serve your specific needs, you can modify the yaml file to change which SN are measured and how the fit is performed.
-
-### lightcurves
-#### SNID_band_psftype_lc.csv
-csv file containing a measured lightcurve for the supernova.
-
-| Parameter            | Type            | Description                                                                                                                                            |
-|-----------------------|-----------------|
+export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
+```
+This config file contains arguments that define which PSF to use, background subtraction methods, input and output paths, etc.
+Every argument in the config file can also be passed on the command line, though you need to specify the entire tree of the yaml.
+For instance, if we want to pass the "type" option for grid_options on the command line, this option is under photometry.campari.grid_options, each period becomes a hyphen so that we get: --photometry-campari-grid_options-type.
+In addition, if one of the below arguments does not have a config path prefix for the yaml config file, it can be only passed
+on the command line.
 
 ## 1\. Target / object selection
 

@@ -17,7 +17,7 @@ cfg = Config.get()
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
-
+pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
 default_parameters = {

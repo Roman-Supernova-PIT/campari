@@ -8,6 +8,7 @@ from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import multiprocessing
 import numpy as np
+from photutils.background import LocalBackground, MedianBackground
 
 
 # SN-PIT
@@ -177,8 +178,13 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         SNLogger.debug(f"Background from user input: {bg}")
     elif subtract_background_method == "calculate":
         bg = calculate_background_level(imagedata)
+        SNLogger.debug(f"Calculated BG level of: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
+
+    elif subtract_background_method == "photutils_local":
+        lb = LocalBackground(10, 20, MedianBackground())
+        bg = lb(image_cutout.data, size//2, size//2)
     else:
         SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
         bg = image_cutout.get_fits_header()[subtract_background_method] if \

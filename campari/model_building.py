@@ -299,6 +299,8 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         psfs[:, a] = psf_object.get_stamp(
             x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
         ).flatten()
+        if a % 10 == 0:
+            SNLogger.debug(f"Constructed PSF for {a} of {num_grid_points} grid points")
     print_mem("Finished constructing static scene")
     galsim.ChromaticConvolution.resize_effective_prof_cache(1)
     galsim.ChromaticConvolution._effective_prof_cache.clear()
@@ -354,7 +356,6 @@ def construct_transient_scene(
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
 
     SNLogger.debug(f"Using psf class {snpsfclass}")
-    SNLogger.debug(f"Using SED type: {type(sed)}")
 
     if snpsfclass == "STPSF":
         sed = None
