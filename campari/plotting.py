@@ -93,7 +93,7 @@ def plot_image_and_grid(image, wcs, ra_grid, dec_grid):
     plt.scatter(ra_grid, dec_grid)
 
 
-def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_fudge=0):
+def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=None, trueflux=None, err_floor=0):
     """ Generate diagnostic plots for the light curve and images.
 
     Parameters
@@ -110,7 +110,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         The errors associated with the aperture photometry sums.
     trueflux : list, optional
         The true flux values for comparison.
-    err_fudge : float, optional
+    err_floor : float, optional
         An additional error term to add in quadrature to the flux errors.
     """
     SNLogger.debug("Generating diagnostic plots....")
@@ -214,16 +214,40 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
 
     plt.clf()
 
-    lc["flux_err"] = _fudge_errors(lc, err_fudge)
+    lc["flux_err"] = _add_error_floor(lc, err_floor)
     SNLogger.debug(f"Generated image diagnostics and saved to {debug_dir}/" + plotname + ".png")
     SNLogger.debug("Now generating light curve diagnostics...")
     # Now plot a light curve
-    _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname, ap_sums, ap_err, ims)
+    _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_floor, plotname, ap_sums, ap_err, ims)
 
     SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
 
 
-def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname, ap_sums=None, ap_err=None, ims=None):
+def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_floor, plotname,
+                                            ap_sums=None, ap_err=None, ims=None,
+                                            suffix = "_lc.png"):
+    """ Plot the light curve with residuals and pulls, optionally comparing to true flux values.
+
+    Parameters
+    ----------
+    lc : astropy.table.Table
+        The light curve data table containing the flux and flux_err columns.
+    trueflux : list or None
+        The true flux values for comparison. If None, no comparison is made.
+    err_floor : float
+        An additional error term to add in quadrature to the flux errors.
+    plotname : str
+        The name of the output plot file.
+    ap_sums : list, optional
+        The aperture photometry sums for comparison.
+    ap_err : list, optional
+        The errors associated with the aperture photometry sums.
+    ims : numpy.ndarray, optional
+        The images used in photometry. Used only to sanity check that photometry roughly scales
+        with the sum over the image.
+    suffix : str, optional
+        The suffix to append to the plot filename. Default is "_lc.png".
+    """
     if trueflux is None:
         return
 
@@ -244,10 +268,10 @@ def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname
         plt.plot(lc["mjd"][window_size - 1 :], rolling_avg, label="Rolling Average", color="orange")
 
     if ap_sums is not None and ap_err is not None:
-        SNLogger.debug(f"aperture phot std: {np.std(np.array(ap_sums) - trueflux)}")
+        SNLogger.debug(f"aperture phot std: {np.std(np.asarray(ap_sums) - trueflux)}")
         plt.errorbar(
             lc["mjd"],
-            np.array(ap_sums) - trueflux,
+            np.asarray(ap_sums) - trueflux,
             yerr=ap_err,
             marker="o",
             linestyle="None",
@@ -265,9 +289,9 @@ def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname
         )
 
         non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
-        image_sums = [np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)]
+        image_sums = np.array([np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)])
         plt.errorbar(
-            lc["mjd"], np.array(image_sums) - trueflux, yerr=0, marker="o", linestyle="None",
+            lc["mjd"], image_sums - trueflux, yerr=0, marker="o", linestyle="None",
             label="Image Sum - Truth", color="purple"
         )
 
@@ -311,24 +335,24 @@ def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname
     plt.errorbar(bin_centers, bin_means, yerr=bin_stds, fmt="o", color="red", label="Binned Mean Pull with Std Dev")
     plt.legend()
 
-    plt.savefig(f"/{debug_dir}/" + plotname + "_lc.png")
+    plt.savefig(f"/{debug_dir}/" + plotname + suffix)
 
 
-def _fudge_errors(lc, err_fudge):
+def _add_error_floor(lc, err_floor):
     """ Add an additional error term in quadrature to the flux errors.
 
     Parameters
     ----------
     lc : astropy.table.Table
         The light curve table containing the flux and flux_err columns.
-    err_fudge : float
+    err_floor : float
         The additional error term to add in quadrature to the flux errors.
     """
     if lc["flux_err"] is not None:
-        error = np.sqrt(lc["flux_err"] ** 2 + err_fudge**2)
+        error = np.sqrt(lc["flux_err"] ** 2 + err_floor**2)
     else:
-        # Noiseless tests will have no error.
-        error = np.full_like(lc["flux"], err_fudge)
+        # Noiseless tests will have no flux error column so we make a new one directly.
+        error = np.full_like(lc["flux"], err_floor)
     return error
 
 
@@ -455,7 +479,7 @@ def _try_to_plot_SN(image, ax, ra, dec, i):
         sn_x, sn_y = wcs.world_to_pixel(ra, dec)
         ax.scatter(sn_x, sn_y, marker="+", color="red", s=100, linewidths=1.5,
                     label="SN" if i == 0 else None)
-    except Exception:
+    except ValueError:
         SNLogger.warning(f"Could not project SN position onto cutout {i} (mjd={image.mjd:.7f})")
 
 

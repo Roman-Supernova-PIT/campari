@@ -5,7 +5,10 @@ import numpy as np
 import time
 
 # Astronomy
+from astropy.coordinates import SkyCoord
 from astropy.io import fits
+import astropy.units as u
+
 
 
 # SN-PIT
@@ -106,7 +109,7 @@ class campari_runner:
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
         self.subtract_background_method = self.cfg.value("photometry.campari.subtract_background_method")
-        self.weighting = self.cfg.value("photometry.campari.weighting")
+        self.use_weights = self.cfg.value("photometry.campari.use_weights")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
         self.mismatch_seds = self.cfg.value("photometry.campari_simulations.mismatch_seds")
@@ -267,15 +270,14 @@ class campari_runner:
 
     def _sanity_check_provided_ra_dec(self, diaobj):
         """ Sanity check provided ra/dec against the DiaObject's ra/dec. If they are far apart, raise a warning. """
-
-        if self.ra is not None:
-            if np.fabs(self.ra - diaobj.ra) > 1. / 3600. / np.cos(diaobj.dec * np.pi / 180.):
-                SNLogger.warning(f"Given RA {self.ra} is far from DiaObject nominal RA {diaobj.ra}")
-            diaobj.ra = self.ra
-        if self.dec is not None:
-            if np.fabs(self.dec - diaobj.dec) > 1. / 3600.:
-                SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
-            diaobj.dec = self.dec
+        self_skycoord = SkyCoord(ra=self.ra * u.deg, dec=self.dec * u.deg) if self.ra is not None and \
+            self.dec is not None else None
+        diaobj_skycoord = SkyCoord(ra=diaobj.ra * u.deg, dec=diaobj.dec * u.deg)
+        if self_skycoord is not None and diaobj_skycoord is not None:
+            sep = self_skycoord.separation(diaobj_skycoord).arcsecond
+            if sep > 1.:
+                SNLogger.warning(f"Given RA/Dec {self.ra}, {self.dec} is far from DiaObject nominal RA/Dec "
+                                 f"{diaobj.ra}, {diaobj.dec}. Separation is {sep} arcseconds.")
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""
@@ -392,7 +394,7 @@ class campari_runner:
                            fetch_SED=self.fetch_SED, sedlist=sedlist,
                            subtract_background_method=self.subtract_background_method,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
-                           weighting=self.weighting, method=self.method, grid_type=self.grid_type,
+                           use_weights=self.use_weights, method=self.method, grid_type=self.grid_type,
                            pixel=self.pixel, do_xshift=self.do_xshift,
                            do_rotation=self.do_rotation,
                            mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
@@ -542,7 +544,7 @@ class campari_runner:
                     filepath = debug_dir / f"{fileroot}_wcs.fits"
                     hdul.writeto(filepath, overwrite=True)
                 else:
-                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a fits header."
+                    SNLogger.warning("WCS is an astropy GWCS, which cannot be saved to a FITS header."
                     " Skipping saving WCS headers.")
 
         else:

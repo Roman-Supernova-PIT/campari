@@ -4,6 +4,7 @@ import os
 import glob
 from multiprocessing import Pool
 
+from snappl.config import Config
 from snappl.logger import SNLogger
 
 
@@ -25,15 +26,16 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
     SNLogger.debug(f"Finished writing image list to {filename}")
 
 
-def _check_sim_setup(run_dir, output_path, im_sim_path, test_data_path,
-                     just_rotate, just_shift, images_aligned, run_name_base):
+def _check_sim_setup(run_dir=None, output_path=None, im_sim_path=None, test_data_path=None,
+                     just_rotate=None, just_shift=None, images_aligned=None, run_name_base=None):
     if run_dir is None:
         run_dir = "OU24_psf_tests"
         SNLogger.debug(f"No run_dir provided, using default {run_dir}")
 
     if output_path is None:
-        # come up with a better default path for this! This is just a temporary placeholder.
-        output_path = "/scratch/photometry_test_data/simple_gaussian_test"
+        cfg = Config.get()
+        debug_dir = cfg.value("photometry.campari_io.debug_dir")
+        output_path = debug_dir / run_dir
         SNLogger.debug(f"No output_path provided, using default {output_path}")
 
     if im_sim_path is None:
@@ -106,12 +108,15 @@ def run_sim(
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
     run_dir, output_path, im_sim_path, test_data_path = _check_sim_setup(
-        run_dir, output_path, im_sim_path, test_data_path,
-        just_rotate, just_shift, images_aligned, run_name_base
+        run_dir=run_dir, output_path=output_path, im_sim_path=im_sim_path, test_data_path=test_data_path,
+        just_rotate=just_rotate, just_shift=just_shift, images_aligned=images_aligned,
+        run_name_base=run_name_base
     )
 
-    _check_sim_setup(run_dir, output_path, im_sim_path, test_data_path,
-                     just_rotate, just_shift, images_aligned, run_name_base)
+    _check_sim_setup(run_dir=run_dir, output_path=output_path,
+                     im_sim_path=im_sim_path, test_data_path=test_data_path,
+                     just_rotate=just_rotate, just_shift=just_shift,
+                     images_aligned=images_aligned, run_name_base=run_name_base)
     run_name = run_name_base + f"seed{seed}"
 
     np.set_printoptions(linewidth=np.inf, threshold=np.inf)

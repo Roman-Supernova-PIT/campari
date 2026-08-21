@@ -1,1 +1,1 @@
-Breaking up function into smaller functions.
+Breaking up functions into smaller functions.

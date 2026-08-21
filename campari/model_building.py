@@ -673,8 +673,11 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     return background_model_array, psf_source_array
 
 
-def prep_initial_guess(make_initial_guess, num_nondetect_images, grid_type, cutout_image_list, ra_grid, dec_grid,
-              num_total_images, initial_flux_guess, psf_matrix, subtract_background_method):
+def prep_initial_guess(make_initial_guess=None, num_nondetect_images=None,
+                      grid_type=None, cutout_image_list=None,
+                      ra_grid=None, dec_grid=None,
+                      num_total_images=None, initial_flux_guess=None,
+                      psf_matrix=None, subtract_background_method=None):
     if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
         SNLogger.debug("Making initial guess for the model")
         x0 = generate_guess(cutout_image_list[:num_nondetect_images],

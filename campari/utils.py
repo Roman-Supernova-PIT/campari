@@ -166,7 +166,7 @@ def calculate_background_level(im):
     return mean
 
 
-def get_weights(images, ra, dec, weighting, gaussian_var=1000, cutoff=4, error_floor=1):
+def get_weights(images, ra, dec, use_weights, gaussian_var=1000, cutoff=4, error_floor=1):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -179,6 +179,9 @@ def get_weights(images, ra, dec, weighting, gaussian_var=1000, cutoff=4, error_f
     Inputs:
     images: list of snappl Image objects, used to get wcs, error, and size.
     ra, dec: floats, the RA and DEC of the supernova
+    use_weights: bool, whether to use weights or not. If False, all pixels are
+                    given equal weight. Note that is also ignoring inverse variance
+                    error weighting!
     gaussian_var: float, the standard deviation squared of the Gaussian used
                     to weight   the pixels. This is in pixels.
     cutoff: float, the cutoff distance in pixels. Pixels further than this
@@ -189,7 +192,7 @@ def get_weights(images, ra, dec, weighting, gaussian_var=1000, cutoff=4, error_f
                 the pixels in each cutout. Each array is size: (size x size)
 
     """
-    if not weighting:
+    if not use_weights:
         return [np.ones_like(im.data) for im in images]
 
     size = images[0].image_shape[0]
@@ -313,13 +316,12 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
 
 
 def banner(text):
-    """ Print a banner.
+    """ Print a banner using SNLogger.
 
     Parameters
     ----------
     text : str
         The text to print in the banner.
-
     """
     length = len(text) + 8
     message = "\n" + "#" * length + "\n" + "#   " + text + "   # \n" + "#" * length

@@ -75,7 +75,7 @@ SNLogger.set_level("DEBUG")
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    subtract_background_method=None,
-                   make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
+                   make_initial_guess=None, initial_flux_guess=None, use_weights=None, method=None,
                    grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
                    mismatch_seds=None, deltafcn_profile=None, noise=None,
                    avoid_non_linearity=None, spacing=None, percentiles=None,
@@ -186,9 +186,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     psf_matrix, sn_matrix = load_prebuilt_matrices_if_provided(prebuilt_psf_matrix,
                                                                prebuilt_sn_matrix, psf_matrix, sn_matrix)
 
-    # Get the weights. If weighting is false, this will return a list of arrays of ones,
+    # Get the weights. If use_weights is false, this will return a list of arrays of ones,
     #  which is equivalent to no weighting.
-    wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, weighting, gaussian_var=gaussian_var,
+    wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, use_weights, gaussian_var=gaussian_var,
                                  cutoff=cutoff, error_floor=error_floor)
 
     galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
@@ -230,8 +230,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     wgt_matrix = np.sqrt(wgt_matrix)
     lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                            images*wgt_matrix,  atol=1e-12, x0=x0,
-                            btol=1e-12, iter_lim=300000, conlim=1e10)
+                        images*wgt_matrix, atol=1e-12, x0=x0,
+                        btol=1e-12, iter_lim=300000, conlim=1e10)
     X, istop, itn, r1norm = lsqr[:4]
     SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
                     f"r1norm: {r1norm}")
@@ -265,7 +265,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
             galaxy_only_model_images=galaxy_only_model_images,
             LSB=LSB, best_fit_model_values=X, sca_x_locations = all_sca_xs,
             sca_y_locations = all_sca_ys,
-            cutout_image_list=cutout_image_list, noise_maps=np.array(noise_maps),
+            cutout_image_list=cutout_image_list, noise_maps=np.asarray(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,
             post_transient_images=num_post_transient_images
