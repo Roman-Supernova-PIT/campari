@@ -177,13 +177,7 @@ class campari_runner:
         """Run the Campari pipeline."""
 
         banner(f"Running SN {self.diaobject_name}")
-
-        # These will need to be re included once Issue #93 is resolved.
-        # ra=self.ra, dec=self.dec
-        #    mjd_discovery_min=self.transient_start, mjd_discovery_max=self.transient_end
-
         delete_memory_file()
-
         SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
                        f" ra={self.ra}, dec={self.dec},"
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "

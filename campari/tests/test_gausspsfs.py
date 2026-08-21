@@ -206,9 +206,6 @@ def test_sky_noise_aligned_no_host():
     # Now we add just sky noise. This will introduce scatter, but campari should still agree with aperture
     # photometry.
 
-    # cmd = base_cmd + [
-    #     "--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_sky.txt",
-    # ]
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/"
     "test_gaussims_sky_no_host_more.txt"]
     cmd += ["--photometry-campari-grid_options-type", "none"]
@@ -349,7 +346,6 @@ def test_poisson_shifted_no_host():
 
     # rtol determined empirically. We expect them to be close, but there is the aperture correction etc.
     np.testing.assert_allclose(lc["flux"], ap_sums, rtol=3e-3)
-    # np.testing.assert_allclose(lc["flux_err"], ap_err, rtol=3e-3)
 
     flux = create_true_flux(lc["mjd"], peakmag=21)
     try:
@@ -488,7 +484,6 @@ def test_both_aligned_just_host():
 
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
-    # cmd += ['--save_model']
     cmd += [
         "--prebuilt_static_model",
         pathlib.Path(__file__).parent
@@ -528,7 +523,6 @@ def test_both_shifted_just_host():
 
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         pathlib.Path(__file__).parent
@@ -568,7 +562,6 @@ def test_noiseless_aligned_22mag_host():
     cmd = base_cmd + ["--img_list", pathlib.Path(__file__).parent / "testdata/test_imagelists/"
     "test_gaussims_noiseless_host_mag22.txt"]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--save_model"]
     cmd += ["--prebuilt_static_model", pathlib.Path(__file__).parent /
             "testdata/prebuilt_models/psf_matrix_gaussian_123_13_images.npy"]
 
@@ -609,7 +602,6 @@ def test_poisson_aligned_22mag_host():
     ]
 
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--save_model"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
@@ -649,7 +641,6 @@ def test_hostnoiseonly_aligned_22mag_host():
         pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_hostpoisson_aligned_hostmag22.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--save_model"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
@@ -689,7 +680,6 @@ def test_transientnoiseonly_aligned_22mag_host():
         pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_transientpoisson_aligned_hostmag22.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--save_model"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
@@ -825,7 +815,6 @@ def test_skynoise_shifted_22mag_host():
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
-    # cmd += ["--save_model"]
 
     cmd += [
         "--prebuilt_static_model",
@@ -874,7 +863,6 @@ def test_poisson_shifted_22mag_host():
     cmd += ["--photometry-campari-grid_options-type", "regular"]
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
-    # cmd += ["--save_model"]
 
     cmd += [
         "--prebuilt_static_model",
@@ -971,7 +959,6 @@ def test_both_shifted_22mag_host_varying_gaussian():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         f"{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
@@ -1151,7 +1138,6 @@ def test_skynoise_shifted_22mag_host_varying():
         pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_skynoise_shifted_varyingPSF_host.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
@@ -1199,7 +1185,6 @@ def test_poisson_shifted_22mag_host_varying():
         pathlib.Path(__file__).parent / "testdata/test_imagelists/test_gaussims_poisson_shifted_host_varyingPSF.txt",
     ]
     cmd += ["--photometry-campari-grid_options-type", "regular"]
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
@@ -1350,7 +1335,6 @@ def test_both_shifted_22mag_host_varying_gaussian_more():
     spacing_index = cmd.index("--photometry-campari-grid_options-spacing")
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
-    # cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          f"{debug_dir}/psf_matrix_varying_gaussian_a823ec9c-d418-4ee0-bd22-df5f4540544b_250_images36_points.npy",
@@ -1405,10 +1389,6 @@ def test_both_shifted_21mag_host_varying_gaussian_more():
     cmd[spacing_index + 1] = "0.75"  # Finer grid spacing
 
     cmd += ["--save_model"]
-    # cmd += [
-    #     "--prebuilt_static_model",
-    #     "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
-    # ]
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")
@@ -1462,7 +1442,6 @@ def test_both_shifted_22mag_host_faint_source_varying_gaussian_more():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    # cmd += ["--save_model"]
     cmd += [
          "--prebuilt_static_model",
          f"{debug_dir}/psf_matrix_varying_gaussian_bdd61d2f-6083-41d2-891d-421b796bedd3_250_images36_points.npy",
@@ -1521,7 +1500,6 @@ def test_skynoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         "{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
@@ -1580,7 +1558,6 @@ def test_poissonnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         "{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
@@ -1642,7 +1619,6 @@ def test_bothnoise_shifted_22mag_host_faint_source_regular_gaussian_more():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         f"{debug_dir}/psf_matrix_gaussian_5f1a0fbb-3a8b-4870-bbca-54fd4985a1e0_250_images36_points.npy",
@@ -1700,7 +1676,6 @@ def test_gaussian_bias_analysis():
     subsize_index = cmd.index("--photometry-campari-grid_options-subsize")
     cmd[subsize_index + 1] = "4"  # Smaller grid
 
-    # cmd += ["--save_model"]
     cmd += [
         "--prebuilt_static_model",
         "{debug_dir}/psf_matrix_gaussbiastest.npy",
@@ -1715,36 +1690,6 @@ def test_gaussian_bias_analysis():
     SNLogger.debug("Running command...")
     SNLogger.debug(" ".join(cmd))
 
-    # result = subprocess.run(cmd, capture_output=False, text=True)
-
-    # if result.returncode != 0:
-    #     raise RuntimeError(
-    #         f"Command failed with exit code {result.returncode}\nstdout:\n{result.stdout}\nstderr:\n{result.stderr}"
-    #     )
-
-    # # Check accuracy
-    # lc = Table.read("{out_dir}/123_R062_gaussian_lc.ecsv")
-
-    # mjd = lc["mjd"]
-    # peakflux = 10 ** ((24 - 33) / -2.5)  # note the new peakmag
-    # start_mjd = 60010
-    # peak_mjd = 60030
-    # end_mjd = 60060
-    # flux = np.zeros(len(mjd))
-    # flux[np.where(mjd < peak_mjd)] = peakflux * (mjd[np.where(mjd < peak_mjd)] - start_mjd) / (peak_mjd - start_mjd)
-    # flux[np.where(mjd >= peak_mjd)] = peakflux * (mjd[np.where(mjd >= peak_mjd)] - end_mjd) / (peak_mjd - end_mjd)
-
-    # plotname = "gaussbiastest"
-    # SNLogger.debug("Generating diagnostic plots...")
-    # generate_diagnostic_plots("123_R062_gaussian", imsize, plotname, trueflux=flux)
-    # SNLogger.debug(f"Generated saved diagnostic plots to {debug_dir}/{plotname}.png")
-
-    # try:
-    #     residuals_sigma = (lc["flux"] - flux) / lc["flux_err"]
-    #     perform_gaussianity_checks(residuals_sigma, measuredflux=lc["flux"], trueflux=flux)
-    # except AssertionError as e:
-    #     raise e
-
 
 @pytest.mark.skip(reason="This test is currently too slow to run every time.")
 def test_same_as_above_no_host():
@@ -1756,10 +1701,6 @@ def test_same_as_above_no_host():
     ]
     cmd += ["--photometry-campari-grid_options-type", "none"]
     cmd += ["--save_model"]
-    # cmd += [
-    #     "--prebuilt_static_model",
-    #     "{debug_dir}/psf_matrix_varying_gaussian_cb100078-9498-4337-acdf-94789a4039fa_75_images36_points.npy",
-    # ]
     cmd += ["--nprocs", "15"]
 
     psfclass_index = cmd.index("--photometry-campari-psf-transient_class")

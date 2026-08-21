@@ -61,8 +61,6 @@ from snappl.provenance import Provenance
 warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
-# SNLogger.set_level("DEBUG")
-
 cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
@@ -130,13 +128,15 @@ def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth=Fa
         # than this, depending on your order of operations.  For
         # example, try the following code:
         #
-        #   import numpy
-        #   a = numpy.float32( 1e8 )
-        #   print( f"a={a}" )
-        #   b = numpy.float32( 1 )
-        #   print( f"b={b}" )
-        #   print( a - ( a - b ) )
-        #   print( a - a + b )
+        """
+          import numpy
+          a = numpy.float32( 1e8 )
+          print( f"a={a}" )
+          b = numpy.float32( 1 )
+          print( f"b={b}" )
+          print( a - ( a - b ) )
+          print( a - a + b )
+        """
         #
         # If you know algebra, you know that the last two numbers
         # printed out should be exactly the same.  However, you get
