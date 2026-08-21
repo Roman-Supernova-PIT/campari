@@ -297,7 +297,6 @@ def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_fudge, plotname
     )
     plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
     plt.yscale("log")
-    # plt.ylim(1e3, 1e5)
 
     plt.subplot(2, 2, 4)
     plt.errorbar(lc["flux"], pull, yerr=None, marker="o", linestyle="None")
