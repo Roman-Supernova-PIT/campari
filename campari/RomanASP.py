@@ -58,11 +58,6 @@ def main():
     desc = "Run the campari pipeline."
     try:
         cfg = Config.get(args.config, setdefault=True)
-    # except RuntimeError:
-    #     # If it failed to load the config file, just move on with life.  This
-    #     #   may mean that things will fail later, but it may also just mean
-    #     #   that somebody is doing "--help"
-    #     cfg = None
     except RuntimeError as e:
         if str(e) == "No default config defined yet; run Config.init(configfile)":
             sys.stderr.write("Error, no configuration file defined.\n"
@@ -289,10 +284,6 @@ def main():
     if cfg is None:
         raise ValueError("Must pass a config file, or must set SNPIT_CONFIG")
     cfg.parse_args(args)
-
-    # SNLogger.debug("Running campari with the following configuration:")
-    # for arg, value in vars(args).items():
-    #     SNLogger.debug("  %s: %s", arg, value)
 
     runner = campari_runner(**vars(args))
     runner()

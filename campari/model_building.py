@@ -614,9 +614,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     print_mem("Finished adding background to model array")
     # Add the array of the model points and the background (if using)
     # to the matrix of all components of the model.
-    # if prebuilt_psf_matrix is None:
-    #     psf_matrix.append(background_model_array)
-
     # The arrays below are the length of the number of images that contain the object
     # Therefore, when we iterate onto the
     # first object image, we want to be on the first element
