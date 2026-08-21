@@ -27,7 +27,7 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner, convert_band_name
+from campari.utils import banner, convert_band_name, delete_memory_file
 
 global _start_time
 _start_time = time.perf_counter()
@@ -184,6 +184,7 @@ class campari_runner:
         """Run the Campari pipeline."""
 
         banner(f"Running SN {self.diaobject_name}")
+        delete_memory_file()
         SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
                        f" ra={self.ra}, dec={self.dec},"
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
