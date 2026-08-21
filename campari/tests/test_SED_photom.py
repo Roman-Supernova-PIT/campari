@@ -27,7 +27,6 @@ base_cmd = [
         "--transient_end", "60060",
         "--photometry-campari-psf-transient_class", "ou24PSF_slow_photonshoot",
         "--photometry-campari-psf-galaxy_class", "ou24PSF",
-        "--photometry-campari-use_real_images",
         "--diaobject-collection", "manual",
         "--no-photometry-campari-fetch_SED",
         "--photometry-campari-grid_options-spacing", "1",
@@ -36,7 +35,6 @@ base_cmd = [
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background_method", "calculate",
         "--image-collection", "manual_fits",
-        "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
         "--image-collection-basepath", "/photometry_test_data/simple_gaussian_test/sig1.0",
         "--image-collection-subset", "threefile",
         "--no-save-to-db"

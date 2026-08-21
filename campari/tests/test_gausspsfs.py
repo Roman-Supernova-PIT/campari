@@ -31,7 +31,6 @@ base_cmd = [
         "--transient_end", "60060",
         "--photometry-campari-psf-transient_class", "gaussian",
         "--photometry-campari-psf-galaxy_class", "gaussian",
-        "--photometry-campari-use_real_images",
         "--diaobject-collection", "manual",
         "--no-photometry-campari-fetch_SED",
         "--photometry-campari-grid_options-spacing", "1",
@@ -40,7 +39,6 @@ base_cmd = [
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background", "calculate",
         "--image-collection", "manual_fits",
-        "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
         "--image-collection-basepath", "/scratch/", # update in
         # SNPIT environment necessitated this change.
         # but you may need to run this code:

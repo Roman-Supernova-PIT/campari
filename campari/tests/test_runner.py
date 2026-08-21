@@ -65,23 +65,16 @@ def create_default_test_args(cfg):
     config = cfg
 
     test_args.size = config.value("photometry.campari.cutout_size")
-    test_args.avoid_non_linearity = config.value("photometry.campari_simulations.avoid_non_linearity")
-    test_args.deltafcn_profile = config.value("photometry.campari_simulations.deltafcn_profile")
-    test_args.do_xshift = config.value("photometry.campari_simulations.do_xshift")
-    test_args.do_rotation = config.value("photometry.campari_simulations.do_rotation")
-    test_args.noise = config.value("photometry.campari_simulations.noise")
     test_args.method = config.value("photometry.campari.method")
     test_args.make_initial_guess = config.value("photometry.campari.make_initial_guess")
     test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")
     test_args.initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
     test_args.spacing = config.value("photometry.campari.grid_options.spacing")
     test_args.percentiles = config.value("photometry.campari.grid_options.percentiles")
     test_args.grid_type = config.value("photometry.campari.grid_options.type")
-    test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
     test_args.observation_id_list = None
@@ -398,7 +391,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     runner.build_and_save_lightcurve(diaobj, lc_model)
 
     output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
-    filename = "20172782_Y106_romanpsf_lc.ecsv"
+    filename = "20172782_Y106_ou24psf_lc.ecsv"
     filepath = output_dir / filename
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
@@ -408,27 +401,3 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_build_and_save_lc so I am rerunning this test.")
         test_build_and_save_lc(cfg, overwrite_meta=False)
-
-
-# sim param grid broken for now
-# def test_sim_param_grid(cfg):
-#     test_args = create_default_test_args(cfg)
-#     test_args.use_real_images = False
-#     test_args.diaobject_collection = "ou24"
-#     test_args.diaobject_name = 20172782
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-#     runner.bg_gal_flux_all = [1.0, 2.0]
-#     runner.sim_galaxy_scale_all = [1.0, 2.0, 3.0]
-#     runner.sim_galaxy_offset_all = 0.0
-#     # Create the simulation parameter grid
-#     runner.create_sim_param_grid()
-
-#     test_grid = np.array([[1., 2.,  1.,  2.,  1. , 2.],
-#                          [1., 1.,  2.,  2.,  3. , 3.],
-#                          [0., 0.,  0.,  0.,  0. , 0.]])
-#     np.testing.assert_array_equal(runner.param_grid, test_grid)
-
-
-# Creating the sim param grid is tested in test_campari.py, so we don't need to test it here.
-# The __call__ method is also tested in test_campari.py, so we don't need to test it here either.

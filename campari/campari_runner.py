@@ -98,25 +98,18 @@ class campari_runner:
         self.SED_file = kwargs["SED_file"]
 
         self.size = self.cfg.value("photometry.campari.cutout_size")
-        self.avoid_non_linearity = self.cfg.value("photometry.campari_simulations.avoid_non_linearity")
-        self.deltafcn_profile = self.cfg.value("photometry.campari_simulations.deltafcn_profile")
-        self.do_xshift = self.cfg.value("photometry.campari_simulations.do_xshift")
-        self.do_rotation = self.cfg.value("photometry.campari_simulations.do_rotation")
-        self.noise = self.cfg.value("photometry.campari_simulations.noise")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
         self.subtract_background_method = self.cfg.value("photometry.campari.subtract_background_method")
         self.weighting = self.cfg.value("photometry.campari.weighting")
         self.pixel = self.cfg.value("photometry.campari.pixel")
         self.sn_truth_dir = self.cfg.value("system.ou24.sn_truth_dir")
-        self.mismatch_seds = self.cfg.value("photometry.campari_simulations.mismatch_seds")
         self.fetch_SED = self.cfg.value("photometry.campari.fetch_SED")
         self.initial_flux_guess = self.cfg.value("photometry.campari.initial_flux_guess")
         self.spacing = self.cfg.value("photometry.campari.grid_options.spacing")
         self.subsize = self.cfg.value("photometry.campari.grid_options.subsize")
         self.percentiles = self.cfg.value("photometry.campari.grid_options.percentiles")
         self.grid_type = self.cfg.value("photometry.campari.grid_options.type")
-        self.run_name = self.cfg.value("photometry.campari_simulations.run_name")
         self.save_debug = self.cfg.value("photometry.campari_io.save_debug")
         self.transient_psfclass = self.cfg.value("photometry.campari.psf.transient_class")
         self.galaxy_psfclass = self.cfg.value("photometry.campari.psf.galaxy_class")
@@ -148,12 +141,6 @@ class campari_runner:
             self.size = 11
             self.fetch_SED = False
             self.make_initial_guess = False
-
-        if self.grid_type == "single" and not self.deltafcn_profile:
-            SNLogger.warning("Using a single point on the grid without a delta function profile is not recommended."
-                             "The goal of using a single point is to run an exact fit for testing purposes,"
-                             "which requires "
-                             "the galaxy be a delta function.")
 
         # Lightcurve provenance argument parsing logic:
         SNLogger.debug("save to db is set to " + str(kwargs["save_to_db"]))
@@ -392,11 +379,8 @@ class campari_runner:
                            subtract_background_method=self.subtract_background_method,
                            make_initial_guess=self.make_initial_guess, initial_flux_guess=self.initial_flux_guess,
                            weighting=self.weighting, method=self.method, grid_type=self.grid_type,
-                           pixel=self.pixel, do_xshift=self.do_xshift,
-                           do_rotation=self.do_rotation,
-                           mismatch_seds=self.mismatch_seds, deltafcn_profile=self.deltafcn_profile,
-                           noise=self.noise,
-                           avoid_non_linearity=self.avoid_non_linearity, subsize=self.subsize,
+                           pixel=self.pixel,
+                           subsize=self.subsize,
                            spacing=self.spacing, percentiles=self.percentiles, save_model=self.save_model,
                            prebuilt_psf_matrix=prebuilt_psf_matrix,
                            prebuilt_sn_matrix=prebuilt_sn_matrix, nprocs=self.nprocs, gaussian_var=self.gaussian_var,
@@ -420,10 +404,10 @@ class campari_runner:
         None, but the lightcurve is saved locally and/or to the database.
         """
         lc_model.image_collection_prov = self.img_coll_prov
-        if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
-            psftype = "romanpsf"
-        else:
-            psftype = self.transient_psfclass.lower()
+        # if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
+        #     psftype = "romanpsf"
+        # else:
+        psftype = self.transient_psfclass.lower()
 
         # identifier is a string that will be used to name the lightcurve file when saving debug files.
         # TODO: Come up with a better name for this.

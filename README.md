@@ -73,24 +73,6 @@ This will run the algorithm on one SNe from Richard Kessler's simulations.
 
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
-
-```
-salloc --nodes 1 --qos interactive --time 01:00:00 --constraint cpu --account m4385
-conda activate sn_pit_dev
-```
-cd into your directory where the code is stored.
-Then, in the `config.yaml` file, ensure that `roman_path` and `sn_path` read as follows:
-```
-roman_path: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data
-sn_path: /global/cfs/cdirs/lsst/www/DESC_TD_PUBLIC/Roman+DESC/PQ+HDF5_ROMAN+LSST_LARGE
-```
-
-Next, in the `temp_tds.yaml` file, make sure `file_name` is:
-```
-file_name: /global/cfs/cdirs/lsst/shared/external/roman-desc-sims/Roman_data/RomanTDS/Roman_TDS_obseq_11_6_23.fits
-```
-and then run:
-
 ```
 python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
 ```
