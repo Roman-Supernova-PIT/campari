@@ -289,7 +289,8 @@ def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_floor, plotname
         )
 
         non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
-        image_sums = np.array([np.sum(ims[i + non_transient_images]) for i in range(ims.shape[0] - non_transient_images)])
+        image_sums = np.array([np.sum(ims[i + non_transient_images]) for i
+            in range(ims.shape[0] - non_transient_images)])
         plt.errorbar(
             lc["mjd"], image_sums - trueflux, yerr=0, marker="o", linestyle="None",
             label="Image Sum - Truth", color="purple"
