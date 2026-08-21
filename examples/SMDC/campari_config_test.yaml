@@ -15,7 +15,7 @@ photometry:
     initial_flux_guess: 3000
     fetch_SED: false
     use_roman: true
-    weighting: true
+    use_weights: true
     make_initial_guess: true
     method: lsqr
     pixel: false

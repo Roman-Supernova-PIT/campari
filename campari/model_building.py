@@ -387,6 +387,7 @@ def make_grid(
     cut_points_close_to_sn=False,
     spacing=0.75,
     subsize=9,
+    object_type=None
 ):
     """This is a function that returns the locations for the model grid points
     used to model the background galaxy. There are several different methods
@@ -418,10 +419,12 @@ def make_grid(
     ra_grid, dec_grid: numpy arrays of floats of the ra and dec locations for
                     model grid points.
     """
+    if object_type == "star" and grid_type != "none":
+        SNLogger.warning("For fitting stars, you probably dont want a grid.")
 
     SNLogger.debug(f"Grid type: {grid_type}")
-    if grid_type not in ["regular", "adaptive", "contour", "single"]:
-        raise ValueError("Grid type must be one of: regular, adaptive, contour, single")
+    if grid_type not in ["regular", "adaptive", "contour", "single", "none"]:
+        raise ValueError("Grid type must be one of: regular, adaptive, contour, single, none")
     if grid_type == "contour":
         ra_grid, dec_grid = make_contour_grid(images[0], subsize=subsize)
 
@@ -430,10 +433,13 @@ def make_grid(
     elif grid_type == "regular":
         ra_grid, dec_grid = make_regular_grid(images[0], spacing=spacing, subsize=subsize)
 
-    if grid_type == "single":
+    elif grid_type == "single":
         if single_ra is None or single_dec is None:
             raise ValueError("You did not simulate a galaxy, so you should not be using the single grid type.")
         ra_grid, dec_grid = [single_ra], [single_dec]
+    elif grid_type == "none":
+        ra_grid = np.array([])
+        dec_grid = np.array([])
 
     ra_grid = np.array(ra_grid)
     dec_grid = np.array(dec_grid)
@@ -665,3 +671,28 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     print_mem("Finished image model building")
     return background_model_array, psf_source_array
+
+
+def prep_initial_guess(make_initial_guess=None, num_nondetect_images=None,
+                      grid_type=None, cutout_image_list=None,
+                      ra_grid=None, dec_grid=None,
+                      num_total_images=None, initial_flux_guess=None,
+                      psf_matrix=None, subtract_background_method=None):
+    if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
+        SNLogger.debug("Making initial guess for the model")
+        x0 = generate_guess(cutout_image_list[:num_nondetect_images],
+                                ra_grid, dec_grid)
+        x0_vals_for_sne = np.full(num_total_images, initial_flux_guess)
+        x0 = np.concatenate([x0, x0_vals_for_sne], axis=0)
+        SNLogger.debug(f"setting initial guess to {initial_flux_guess}")
+
+    else:
+        x0 = None
+
+    if not make_initial_guess:
+        x0 = np.zeros(psf_matrix.shape[1])
+
+    if subtract_background_method == "fit":
+        x0 = np.concatenate([x0, np.zeros(num_total_images)], axis=0)
+
+    return x0

@@ -149,6 +149,9 @@ exclude = [
     "docs",
 ]
 
+[tool.ruff.lint.mccabe]
+# Flag errors whenever complexity exceeds this limit (default is 10)
+max-complexity = 10
 
 [tool.ruff.lint]
 preview = true
@@ -165,7 +168,8 @@ select = [ 'F', 'E101', 'E111', 'E112', 'E113', 'E115', 'E117',
            'PLE0100', 'PLE0101', 'PLE0116',
            'NPY',
            'RUF018',
-           'E301', 'E302', 'E306', 'W505', 'D200', 'D212', 'RUF021', 'Q000', 'ERA001']
+           'E301', 'E302', 'E306', 'W505', 'D200', 'D212', 'RUF021', 'Q000', 'C901', 'ERA001']
+
 
 
 [tool.towncrier]

@@ -4,6 +4,7 @@ import os
 import glob
 from multiprocessing import Pool
 
+from snappl.config import Config
 from snappl.logger import SNLogger
 
 
@@ -23,6 +24,58 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
                 SNLogger.debug(f"Writing {newpath} to image list")
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
     SNLogger.debug(f"Finished writing image list to {filename}")
+
+
+def _check_sim_setup(run_dir=None, output_path=None, im_sim_path=None, test_data_path=None,
+                     just_rotate=None, just_shift=None, images_aligned=None, run_name_base=None):
+    if run_dir is None:
+        run_dir = "OU24_psf_tests"
+        SNLogger.debug(f"No run_dir provided, using default {run_dir}")
+
+    if output_path is None:
+        cfg = Config.get()
+        debug_dir = cfg.value("photometry.campari_io.debug_dir")
+        output_path = debug_dir / run_dir
+        SNLogger.debug(f"No output_path provided, using default {output_path}")
+
+    if im_sim_path is None:
+        im_sim_path = "/scratch/snappl/snappl/image_simulator.py"
+    if test_data_path is None:
+        test_data_path = "/scratch/campari/campari/tests/testdata"
+        SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
+
+    import pathlib
+    test_data_path = pathlib.Path(test_data_path)
+    if just_rotate and not images_aligned:
+        raise ValueError("Cannot both just rotate and have images not aligned")
+    if just_shift and not images_aligned:
+        raise ValueError("Cannot both just shift and have images not aligned")
+    if just_rotate and just_shift:
+        raise ValueError("Cannot both just rotate and just shift")
+
+    if run_name_base is None:
+        raise ValueError("run_name_base must be provided")  # This is important to avoid accidentally overwriting data.
+        # I want to make sure the user consciously chooses a name for the run.
+
+    return run_dir, output_path, im_sim_path, test_data_path
+
+
+def _build_image_centers_str(xx, yy, mjd):
+    image_centers = [float(item) for pair in zip(xx, yy) for item in pair]
+    image_centers = np.array(image_centers)
+    image_centers = image_centers[: len(mjd) * 2]
+    image_centers_str = np.array2string(image_centers, separator=" ")
+    image_centers_str = image_centers_str.replace("[", "").replace("]", "")
+    return image_centers_str
+
+
+def _check_galaxy_params(static_source, bulge_R, bulge_n, disk_R, disk_n):
+    if static_source == "galaxy":
+        if any(param is None for param in [bulge_R, bulge_n, disk_R, disk_n]):
+            raise ValueError("Galaxy parameters must be provided when static_source is 'galaxy'")
+    else:
+        if any(param is not None for param in [bulge_R, bulge_n, disk_R, disk_n]):
+            raise ValueError("Galaxy parameters provided but static_source is not set to 'galaxy'")
 
 
 def run_sim(
@@ -54,29 +107,16 @@ def run_sim(
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
-    if run_dir is None:
-        run_dir = "OU24_psf_tests"
-        SNLogger.debug(f"No run_dir provided, using default {run_dir}")
+    run_dir, output_path, im_sim_path, test_data_path = _check_sim_setup(
+        run_dir=run_dir, output_path=output_path, im_sim_path=im_sim_path, test_data_path=test_data_path,
+        just_rotate=just_rotate, just_shift=just_shift, images_aligned=images_aligned,
+        run_name_base=run_name_base
+    )
 
-    if output_path is None:
-        # come up with a better default path for this! This is just a temporary placeholder.
-        output_path = "/home/photometry_test_data/simple_gaussian_test"
-        SNLogger.debug(f"No output_path provided, using default {output_path}")
-
-    if im_sim_path is None:
-        im_sim_path = "/home/snappl/snappl/image_simulator.py"
-    if test_data_path is None:
-        test_data_path = "/home/campari/campari/tests/testdata"
-        SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
-    if just_rotate:
-        assert images_aligned == True, "Cannot both just rotate and have images not aligned"
-    if just_shift:
-        assert images_aligned == True, "Cannot both just shift and have images not aligned"
-    assert not (just_rotate and just_shift), "Cannot both just rotate and just shift"
-
-    if run_name_base is None:
-        raise ValueError("run_name_base must be provided")  # This is important to avoid accidentally overwriting data.
-        # I want to make sure the user consciously chooses a name for the run.
+    _check_sim_setup(run_dir=run_dir, output_path=output_path,
+                     im_sim_path=im_sim_path, test_data_path=test_data_path,
+                     just_rotate=just_rotate, just_shift=just_shift,
+                     images_aligned=images_aligned, run_name_base=run_name_base)
     run_name = run_name_base + f"seed{seed}"
 
     np.set_printoptions(linewidth=np.inf, threshold=np.inf)
@@ -96,11 +136,7 @@ def run_sim(
     xx = list(xx.flatten())
     yy = list(yy.flatten())
 
-    image_centers = [float(item) for pair in zip(xx, yy) for item in pair]
-    image_centers = np.array(image_centers)
-    image_centers = image_centers[: len(mjd) * 2]
-    image_centers_str = np.array2string(image_centers, separator=" ")
-    image_centers_str = image_centers_str.replace("[", "").replace("]", "")
+    image_centers_str = _build_image_centers_str(xx, yy, mjd)
 
     thetas_str = "0." if (images_aligned or just_rotate) else thetas_str
     image_centers_str = "128. 42." if (images_aligned or just_shift) else image_centers_str
@@ -124,11 +160,7 @@ def run_sim(
         cmd_str += f"--transient-peak-mag {transient_peak_mag} "
         cmd_str += "--transient-ra 128 --transient-dec 42 -n 1 "
 
-    if static_source == "galaxy":
-        cmd_str += f"--galaxy-kwargs bulge_R {bulge_R} bulge_n {bulge_n} disk_R {disk_R} disk_n {disk_n} "
-    else:
-        if any(param is not None for param in [bulge_R, bulge_n, disk_R, disk_n]):
-            raise ValueError("Galaxy parameters provided but static_source is not set to 'galaxy'")
+    _check_galaxy_params(static_source, bulge_R, bulge_n, disk_R, disk_n)
 
     if sed_spec is not None:
         cmd_str += f"--sed-spec {sed_spec} --sed-wave_type {sed_wave_type} --sed-flux_type {sed_flux_type} "
