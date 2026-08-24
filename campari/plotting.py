@@ -289,8 +289,7 @@ def _plot_diagnostic_lc_with_truth_if_provided(lc, trueflux, err_floor, plotname
         )
 
         non_transient_images = lc.meta["post_transient_images"] + lc.meta["pre_transient_images"]
-        image_sums = np.array([np.sum(ims[i + non_transient_images]) for i
-            in range(ims.shape[0] - non_transient_images)])
+        image_sums = np.sum(ims[non_transient_images:], axis=(1, 2))
         plt.errorbar(
             lc["mjd"], image_sums - trueflux, yerr=0, marker="o", linestyle="None",
             label="Image Sum - Truth", color="purple"
@@ -357,7 +356,7 @@ def _add_error_floor(lc, err_floor):
     return error
 
 
-def plot_cutouts_if_requested(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
+def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
     """Plot all cutout images labeled with their MJD and the location of the supernova.
 
     Parameters
@@ -376,8 +375,6 @@ def plot_cutouts_if_requested(cutout_image_list, ra, dec, diaobj=None, ncols=5, 
     output_path : str or pathlib.Path, optional
         If provided, save the figure to this path. Otherwise, call plt.show().
     """
-    if not Config.get().value("photometry.campari.preplot_cutouts"):
-        return
     num_images = len(cutout_image_list)
     nrows = int(np.ceil(num_images / ncols))
 

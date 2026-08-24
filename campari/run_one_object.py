@@ -21,11 +21,11 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.plotting import plot_cutouts_if_requested
+from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
                            convert_band_name, get_weights, print_mem,
                            load_prebuilt_matrices_if_provided)
-from campari.io import save_model_if_requested
+from campari.io import save_scene_model
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -119,12 +119,12 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      nprocs=nprocs)
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
+    print_mem("After constructing images:")
 
-    plot_cutouts_if_requested(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
+    if Config.get().value("photometry.campari.preplot_cutouts"):
+        plot_cutouts(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
                      output_path=pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) /
                      f"cutouts_{diaobj.name}.png")
-
-    print_mem("After constructing images:")
 
     # Build the background grid
     ra_grid, dec_grid = make_grid(grid_type, cutout_image_list, diaobj.ra, diaobj.dec,
@@ -146,7 +146,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         LSB = calculate_local_surface_brightness(cutout_image_list, cutout_pix=2)
 
     # Build the backgrounds loop
-    model_results = []
+
     kwarg_dict = {"ra": diaobj.ra, "dec": diaobj.dec, "grid_type": grid_type,
                   "ra_grid": ra_grid, "dec_grid": dec_grid, "size": size, "pixel": pixel,
                   "band": band,
@@ -154,6 +154,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_total_images": num_total_images,
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
+
+    model_results = _launch_model_building(nprocs, image_list, kwarg_dict)
 
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
@@ -194,7 +196,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
     sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
 
-    save_model_if_requested(save_model, psf_matrix, sn_matrix, galaxy_psfclass, sn_psfclass, diaobj, num_total_images)
+    if save_model:
+        save_scene_model(psf_matrix, sn_matrix, galaxy_psfclass, sn_psfclass, diaobj, num_total_images)
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
@@ -221,6 +224,49 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     x0 = prep_initial_guess(make_initial_guess, num_nondetect_images, grid_type, cutout_image_list, ra_grid, dec_grid,
                         num_total_images, initial_flux_guess, psf_matrix, subtract_background_method)
 
+    flux, sigma_flux, X = _perform_lsqr_fit(psf_matrix, sn_matrix, wgt_matrix, images, x0, num_detect_images)
+
+    # Using the values found in the fit, construct the model images.
+    model_images, galaxy_only_model_images = _build_model_images(X, psf_matrix, sn_matrix, num_detect_images)
+
+    lightcurve_model = campari_lightcurve_model(
+            flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
+            ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
+            galaxy_only_model_images=galaxy_only_model_images,
+            LSB=LSB, best_fit_model_values=X, sca_x_locations = all_sca_xs,
+            sca_y_locations = all_sca_ys,
+            cutout_image_list=cutout_image_list, noise_maps=np.asarray(noise_maps),
+            diaobj=diaobj, object_type=object_type, sky_background=sky_background,
+            pre_transient_images=num_pre_transient_images,
+            post_transient_images=num_post_transient_images
+        )
+
+    return lightcurve_model
+
+# ########## HELPER FUNCTIONS FOR MAIN RUN ONE OBJECT FUNCTION ############
+
+
+def _launch_model_building(nprocs, image_list, kwarg_dict):
+    model_results = []
+    if nprocs > 1:
+        SNLogger.debug(f"Using {nprocs} processes for model building")
+        global _shared_image_list
+        _shared_image_list = image_list
+        ctx = multiprocessing.get_context("fork")
+        with ctx.Pool(nprocs) as pool:
+            for i, image in enumerate(image_list):
+                model_results.append(pool.apply_async(_build_model_for_one_image_worker,
+                                                        args=(i, kwarg_dict)))
+            pool.close()
+            pool.join()
+
+    else:
+        for i, image in enumerate(image_list):
+            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
+    return model_results
+
+
+def _perform_lsqr_fit(psf_matrix, sn_matrix, wgt_matrix, images, x0, num_detect_images):
     SNLogger.debug(f"shape psf_matrix: {psf_matrix.shape}")
     SNLogger.debug(f"psf matrix size: {sys.getsizeof(psf_matrix) / 1e6:.4f} MB")
     SNLogger.debug(f"shape wgt_matrix: {wgt_matrix.reshape(-1, 1).shape}")
@@ -251,24 +297,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     sigma_flux = np.sqrt(np.diag(cov)[-num_detect_images:]) if num_detect_images > 0 else None
 
     SNLogger.debug(f"sigma flux: {sigma_flux}")
+    return flux, sigma_flux, X
 
-    # Using the values found in the fit, construct the model images.
+
+def _build_model_images(X, psf_matrix, sn_matrix, num_detect_images):
     pred = X*psf_matrix
     model_images = np.sum(pred, axis=1)
 
     galaxy_only_model_images = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
         if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
-
-    lightcurve_model = campari_lightcurve_model(
-            flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
-            ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
-            galaxy_only_model_images=galaxy_only_model_images,
-            LSB=LSB, best_fit_model_values=X, sca_x_locations = all_sca_xs,
-            sca_y_locations = all_sca_ys,
-            cutout_image_list=cutout_image_list, noise_maps=np.asarray(noise_maps),
-            diaobj=diaobj, object_type=object_type, sky_background=sky_background,
-            pre_transient_images=num_pre_transient_images,
-            post_transient_images=num_post_transient_images
-        )
-
-    return lightcurve_model
+    return model_images, galaxy_only_model_images

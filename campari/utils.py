@@ -218,7 +218,6 @@ def get_weights(images, ra, dec, use_weights, gaussian_var=1000, cutoff=4, error
 
             wgt = np.ones(size**2)
             wgt = 5 * np.exp(-(dist**2) / gaussian_var)
-            SNLogger.debug(f"wgt max and min before cutoff: {np.max(wgt)}, {np.min(wgt)}")
             # NOTE: This 5 is here because when I made this function I was
             # checking my work by plotting and the *5 made it easier to see. I
             # thought the overall normalization
@@ -227,7 +226,7 @@ def get_weights(images, ra, dec, use_weights, gaussian_var=1000, cutoff=4, error
             # there is some way that these weights are normalized, but I don't
             # know exactly how that should be yet. Online sources speaking about
             # weighted linear regression never seem to address normalization. TODO
-
+            SNLogger.debug(f"wgt max and min before cutoff: {np.max(wgt)}, {np.min(wgt)}")
             # Here, we throw out pixels that are more than 4 pixels away from the
             # SN. The reason we do this is because by choosing an image size one
             # has set a square top hat function centered on the SN. When that image

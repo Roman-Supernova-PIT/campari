@@ -26,8 +26,8 @@ def write_image_list(output_path, run_dir, run_name, test_data_path):
     SNLogger.debug(f"Finished writing image list to {filename}")
 
 
-def _check_sim_setup(run_dir=None, output_path=None, im_sim_path=None, test_data_path=None,
-                     just_rotate=None, just_shift=None, images_aligned=None, run_name_base=None):
+def _check_sim_setup(run_name_base, run_dir=None, output_path=None, im_sim_path=None, test_data_path=None,
+                     just_rotate=False, just_shift=False, images_aligned=False):
     if run_dir is None:
         run_dir = "OU24_psf_tests"
         SNLogger.debug(f"No run_dir provided, using default {run_dir}")
@@ -54,7 +54,7 @@ def _check_sim_setup(run_dir=None, output_path=None, im_sim_path=None, test_data
         raise ValueError("Cannot both just rotate and just shift")
 
     if run_name_base is None:
-        raise ValueError("run_name_base must be provided")  # This is important to avoid accidentally overwriting data.
+        raise ValueError("run_name_base must be provided")
         # I want to make sure the user consciously chooses a name for the run.
 
     return run_dir, output_path, im_sim_path, test_data_path
@@ -107,16 +107,15 @@ def run_sim(
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
-    run_dir, output_path, im_sim_path, test_data_path = _check_sim_setup(
+    run_dir, output_path, im_sim_path, test_data_path = _check_sim_setup(run_name_base,
         run_dir=run_dir, output_path=output_path, im_sim_path=im_sim_path, test_data_path=test_data_path,
         just_rotate=just_rotate, just_shift=just_shift, images_aligned=images_aligned,
-        run_name_base=run_name_base
     )
 
-    _check_sim_setup(run_dir=run_dir, output_path=output_path,
+    _check_sim_setup(run_name_base, run_dir=run_dir, output_path=output_path,
                      im_sim_path=im_sim_path, test_data_path=test_data_path,
                      just_rotate=just_rotate, just_shift=just_shift,
-                     images_aligned=images_aligned, run_name_base=run_name_base)
+                     images_aligned=images_aligned )
     run_name = run_name_base + f"seed{seed}"
 
     np.set_printoptions(linewidth=np.inf, threshold=np.inf)

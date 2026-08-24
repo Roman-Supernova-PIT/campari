@@ -229,17 +229,16 @@ def read_healpix_file(healpix_file):
     return healpix_list, nside
 
 
-def save_model_if_requested(save_model=None, psf_matrix=None, sn_matrix=None,
-                            galaxy_psfclass=None, sn_psfclass=None, diaobj=None,
-                            num_total_images=None):
-    if save_model:
-        psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
-            / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
-        np.save(psf_matrix_path, psf_matrix)
+def save_scene_model(psf_matrix=None, sn_matrix=None,
+               galaxy_psfclass=None, sn_psfclass=None, diaobj=None,
+               num_total_images=None):
+    psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
+        / f"psf_matrix_{galaxy_psfclass}_{diaobj.id}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"
+    np.save(psf_matrix_path, psf_matrix)
 
-        sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
-            / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
-        np.save(sn_matrix_path, sn_matrix)
+    sn_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
+        / f"sn_matrix_{sn_psfclass}_{diaobj.id}_{num_total_images}_images.npy"
+    np.save(sn_matrix_path, sn_matrix)
 
-        SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
-        SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")
+    SNLogger.debug(f"Saved PSF matrix to {psf_matrix_path}")
+    SNLogger.debug(f"Saved SN matrix to {sn_matrix_path}")
