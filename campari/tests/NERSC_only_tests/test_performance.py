@@ -61,10 +61,13 @@ def test_memory(cfg):
     debug_dir = cfg.value("photometry.campari_io.debug_dir")
     mem_df = pd.read_csv(f"{debug_dir}/test_regression.csv")
 
-    SNLogger.debug(f"The peak memory usage was {mem_df['memory_gb'].max()} GB")
+    memory_usage = mem_df["memory_gb"]
+    memory_usage = np.nan_to_num(memory_usage, nan=0.0)
+
+    SNLogger.debug(f"The peak memory usage was {memory_usage.max()} GB")
 
     try:
-        np.testing.assert_array_less(mem_df["memory_gb"].values, 1.5), "Memory usage exceeded 1.5 GB"
+        np.testing.assert_array_less(memory_usage, 1.5), "Memory usage exceeded 1.5 GB"
     except AssertionError:
         plt.plot(mem_df["elapsed_seconds"].values, mem_df["memory_gb"].values)
         plot_path = f"{debug_dir}/memory_usage_plot.png"

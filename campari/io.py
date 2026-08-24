@@ -197,6 +197,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
         lc.save_to_db(dbclient=dbclient)
         lc.write()
     else:
+        SNLogger.debug("Writing LC with overwrite set to " + str(overwrite))
         lc.write(
             base_dir=output_path, filepath=filepath, filetype="ecsv", overwrite=overwrite
         )
