@@ -376,7 +376,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
 
     a = ["_", "--diaobject-name", "20172782", "-f", "Y106", "-i", f"{campari_test_data}/test_image_list.csv",
          "--no-photometry-campari-fetch_SED", "--photometry-campari-grid_options-type",
-         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-weighting",
+         "contour", "--photometry-campari-cutout_size", "19", "--photometry-campari-use_weights",
          "--photometry-campari-subtract_background_method", "SKY_MEAN",
          "--photometry-campari-psf-galaxy_class", "ou24PSF",
          "--photometry-campari-psf-transient_class", "ou24PSF_slow",
@@ -413,7 +413,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
     # outdated version of snappl.
-    # Weighting is a Gaussian width 1000 when this was made
+    # use_weights is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
     curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
@@ -431,7 +431,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
-        "--photometry-campari-weighting "
+        "--photometry-campari-use_weights "
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
@@ -822,7 +822,7 @@ def test_handle_partial_overlap():
         # This was OU24 PSF and PSF_slow in a different branch?
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate "
+        "--photometry-campari-use_weights --photometry-campari-subtract_background_method calculate "
         "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
         " --photometry-campari-grid_options-gaussian_var 1000"
     )

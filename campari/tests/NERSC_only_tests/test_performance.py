@@ -30,7 +30,7 @@ def test_memory(cfg):
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -t 10 -n 10 "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
-        "--photometry-campari-grid_options-type regular "
+        "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-use_weights "
         "--photometry-campari-subtract_background_method SKY_MEAN "
