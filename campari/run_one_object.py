@@ -207,7 +207,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # Using the images, hazard an initial guess.
     x0 = prep_initial_guess(make_initial_guess, num_nondetect_images, grid_type, cutout_image_list, ra_grid, dec_grid,
                         num_total_images, initial_flux_guess, psf_matrix, subtract_background_method)
-
+    wgt_matrix = np.sqrt(wgt_matrix)
     flux, sigma_flux, X = _perform_lsqr_fit(psf_matrix, sn_matrix, wgt_matrix, images, x0, num_detect_images)
 
     # Using the values found in the fit, construct the model images.
@@ -258,7 +258,7 @@ def _perform_lsqr_fit(psf_matrix, sn_matrix, wgt_matrix, images, x0, num_detect_
     SNLogger.debug(f"image shape: {images.shape}")
     SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
-    wgt_matrix = np.sqrt(wgt_matrix)
+
     lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
                         images*wgt_matrix, atol=1e-12, x0=x0,
                         btol=1e-12, iter_lim=300000, conlim=1e10)
