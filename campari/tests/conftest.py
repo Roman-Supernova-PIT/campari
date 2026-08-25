@@ -64,6 +64,10 @@ def pytest_configure(config):
         "run these tests when all other tests pass, and you are ready to do a more thorough check of the"
         "accuracy of the code."
     )
+    config.addinivalue_line(
+        "markers", "run_last: these run last because they enclose the functionality of other tests"
+
+    )
     if not config.getoption("--run-accuracy"):
         config.option.markexpr = "not accuracy_test"
 
