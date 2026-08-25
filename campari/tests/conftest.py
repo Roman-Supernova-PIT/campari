@@ -29,6 +29,12 @@ def pytest_addoption(parser):
     # Use with caution! Of course, worst case scenario, this only changes metdata, and you could check git history
     # to figure out what changed.
 
+    parser.addoption(
+        "--run-accuracy", action="store_true", default=False, help="run accuracy tests"
+    )
+    # This option allows you to run the accuracy tests, which are slow and not run by default.
+    # These tests check accuracy, uncertainty, and pull distributions.
+
 
 def pytest_generate_tests(metafunc):
     # This is called for every test. Only get/set command line arguments
@@ -58,3 +64,24 @@ def pytest_configure(config):
         "run these tests when all other tests pass, and you are ready to do a more thorough check of the"
         "accuracy of the code."
     )
+    config.addinivalue_line(
+        "markers", "run_last: these run last because they enclose the functionality of other tests"
+
+    )
+    if not config.getoption("--run-accuracy"):
+        config.option.markexpr = "not accuracy_test"
+
+
+def pytest_collection_modifyitems(config, items):
+    # Separate tests based on the custom 'run_last' marker
+    standard_tests = []
+    last_tests = []
+
+    for item in items:
+        if item.get_closest_marker("run_last"):
+            last_tests.append(item)
+        else:
+            standard_tests.append(item)
+
+    # Reorder the item list inline so marked tests move to the end
+    items[:] = standard_tests + last_tests

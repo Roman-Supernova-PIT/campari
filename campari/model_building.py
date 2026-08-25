@@ -287,7 +287,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     observation_id = image.observation_id if image is not None else None
     sca = image.sca if image is not None else None
 
-    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
+    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca,
                                     stamp_size=stampsize, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
@@ -362,7 +362,7 @@ def construct_transient_scene(
         SNLogger.warning("STPSF does not currently support galsim SEDs, ignoring the SED provided and using 'None'")
 
     psf_object = PSF.get_psf_object(
-        snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
+        snpsfclass, observation_id=observation_id, sca=sca,
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
@@ -371,6 +371,7 @@ def construct_transient_scene(
     galsim.ChromaticConvolution._effective_prof_cache.clear()
     galsim.roman.roman_psfs._make_aperture.clear()
     print_mem("Cleared various caches after constructing TRANSIENT scene")
+    SNLogger.debug("Returning a psf image of shape {}".format(np.shape(psf_image)))
 
     return psf_image.flatten()
 
@@ -621,7 +622,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     # predetection images: num_total_images - num_detect_images.
     # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
     sn_index = image_index - (num_total_images - num_detect_images)
-
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
         SNLogger.debug("This image has MJD " + str(image.mjd) )
