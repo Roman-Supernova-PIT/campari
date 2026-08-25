@@ -21,7 +21,7 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
-
+@pytest.mark.run_last
 def test_memory(cfg):
     time_start = time.time()
 

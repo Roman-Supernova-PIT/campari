@@ -154,7 +154,7 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
         SNLogger.debug(e)
         raise e
 
-
+@pytest.mark.run_last
 def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
     cmd = base_cmd + [
         "--img_list",

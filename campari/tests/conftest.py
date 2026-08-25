@@ -58,3 +58,17 @@ def pytest_configure(config):
         "run these tests when all other tests pass, and you are ready to do a more thorough check of the"
         "accuracy of the code."
     )
+
+def pytest_collection_modifyitems(config, items):
+    # Separate tests based on the custom 'run_last' marker
+    standard_tests = []
+    last_tests = []
+
+    for item in items:
+        if item.get_closest_marker("run_last"):
+            last_tests.append(item)
+        else:
+            standard_tests.append(item)
+
+    # Reorder the item list inline so marked tests move to the end
+    items[:] = standard_tests + last_tests
