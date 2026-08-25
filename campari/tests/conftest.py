@@ -67,6 +67,7 @@ def pytest_configure(config):
     if not config.getoption("--run-accuracy"):
         config.option.markexpr = "not accuracy_test"
 
+
 def pytest_collection_modifyitems(config, items):
     # Separate tests based on the custom 'run_last' marker
     standard_tests = []
