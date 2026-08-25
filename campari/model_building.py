@@ -371,6 +371,7 @@ def construct_transient_scene(
     galsim.ChromaticConvolution._effective_prof_cache.clear()
     galsim.roman.roman_psfs._make_aperture.clear()
     print_mem("Cleared various caches after constructing TRANSIENT scene")
+    SNLogger.debug("Returning a psf image of shape {}".format(np.shape(psf_image)))
 
     return psf_image.flatten()
 
@@ -621,7 +622,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
     # predetection images: num_total_images - num_detect_images.
     # I.e., sn_index is the 0 on the first image with an object, 1 on the second, etc.
     sn_index = image_index - (num_total_images - num_detect_images)
-
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
         SNLogger.debug("This image has MJD " + str(image.mjd) )
