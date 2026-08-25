@@ -357,7 +357,7 @@ def _add_error_floor(lc, err_floor):
     return error
 
 
-def plot_cutouts_if_requested(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
+def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=None):
     """Plot all cutout images labeled with their MJD and the location of the supernova.
 
     Parameters
@@ -376,8 +376,6 @@ def plot_cutouts_if_requested(cutout_image_list, ra, dec, diaobj=None, ncols=5, 
     output_path : str or pathlib.Path, optional
         If provided, save the figure to this path. Otherwise, call plt.show().
     """
-    if not Config.get().value("photometry.campari.preplot_cutouts"):
-        return
     num_images = len(cutout_image_list)
     nrows = int(np.ceil(num_images / ncols))
 

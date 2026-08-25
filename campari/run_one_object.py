@@ -21,7 +21,7 @@ from campari.model_building import (
     make_grid,
     build_model_for_one_image,
 )
-from campari.plotting import plot_cutouts_if_requested
+from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
                            convert_band_name, get_weights, print_mem,
                            load_prebuilt_matrices_if_provided)
@@ -120,9 +120,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
 
-    plot_cutouts_if_requested(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
+    if Config.get().value("photometry.campari.preplot_cutouts"):
+        plot_cutouts(cutout_image_list, diaobj.ra, diaobj.dec, diaobj=diaobj,
                      output_path=pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) /
                      f"cutouts_{diaobj.name}.png")
+
 
     print_mem("After constructing images:")
 
