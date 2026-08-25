@@ -822,7 +822,7 @@ def test_handle_partial_overlap():
         # This was OU24 PSF and PSF_slow in a different branch?
         "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
         " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate "
+        "--photometry-campari-use_weights --photometry-campari-subtract_background_method calculate "
         "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
         " --photometry-campari-grid_options-gaussian_var 1000"
     )
