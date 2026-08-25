@@ -33,7 +33,7 @@ base_cmd = [
         "--photometry-campari-grid_options-spacing", "1",
         "--photometry-campari-grid_options-subsize", "4",
         "--photometry-campari-cutout_size", str(imsize),
-        "--photometry-campari-weighting",
+        "--photometry-campari-use_weights",
         "--photometry-campari-subtract_background_method", "calculate",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",

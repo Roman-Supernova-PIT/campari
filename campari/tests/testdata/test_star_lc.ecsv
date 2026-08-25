@@ -21,7 +21,7 @@
 # - {initial_flux_guess: 3000}
 # - {fetch_SED: false}
 # - {use_roman: true}
-# - {weighting: true}
+# - {use_weights: true}
 # - {make_initial_guess: true}
 # - {method: lsqr}
 # - {pixel: false}
@@ -30,10 +30,10 @@
 # - {print_memory_usage: false}
 # - {save_memory_file_name: None}
 # - {preplot_cutouts: false}
-# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
+# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
 # - grid_options:
 #     cutoff: 4
-#     error_floor: 1
+#     error_floor: 1.0
 #     gaussian_var: 1000
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
@@ -45,8 +45,8 @@
 # - {dec: -44.809659}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 987e312d-4e8a-6386-15a6-b1117f617532}
-# - {diaobject_id: 43b516a0-da78-4c16-8ae6-283d7af8c6d6}
+# - {provenance_id: 1d7d7aad-79dc-780b-cd0b-5c6cd0679535}
+# - {diaobject_id: 726d19c3-14db-4f3a-89c2-9078da9f14f3}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

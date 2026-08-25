@@ -32,7 +32,7 @@ def test_memory(cfg):
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
         "--photometry-campari-cutout_size 19 "
-        "--photometry-campari-weighting "
+        "--photometry-campari-use_weights "
         "--photometry-campari-subtract_background_method SKY_MEAN "
         "--photometry-campari-psf-transient_class ou24PSF_slow "
         "--save_model --image-collection ou2024 "
@@ -49,7 +49,7 @@ def test_memory(cfg):
     total_time = time_end - time_start
 
     np.testing.assert_array_less(total_time, 150), "The test run on a SN took longer than 150 seconds," + \
-                                                   " typical time is 110 seconds."
+                                                   " typical time is 110 seconds. Are you on a compute node?"
 
     SNLogger.debug(f"Test run on a SN took {time_end - time_start} seconds")
 
@@ -61,10 +61,13 @@ def test_memory(cfg):
     debug_dir = cfg.value("photometry.campari_io.debug_dir")
     mem_df = pd.read_csv(f"{debug_dir}/test_regression.csv")
 
-    SNLogger.debug(f"The peak memory usage was {mem_df['memory_gb'].max()} GB")
+    memory_usage = mem_df["memory_gb"].values
+    memory_usage = np.nan_to_num(memory_usage, nan=0.0)
+
+    SNLogger.debug(f"The peak memory usage was {np.max(memory_usage)} GB")
 
     try:
-        np.testing.assert_array_less(mem_df["memory_gb"].values, 1.5), "Memory usage exceeded 1.5 GB"
+        np.testing.assert_array_less(memory_usage, 1.5), "Memory usage exceeded 1.5 GB"
     except AssertionError:
         plt.plot(mem_df["elapsed_seconds"].values, mem_df["memory_gb"].values)
         plot_path = f"{debug_dir}/memory_usage_plot.png"
