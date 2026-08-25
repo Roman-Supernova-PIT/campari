@@ -157,21 +157,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
 
-    if nprocs > 1:
-        SNLogger.debug(f"Using {nprocs} processes for model building")
-        global _shared_image_list
-        _shared_image_list = image_list
-        ctx = multiprocessing.get_context("fork")
-        with ctx.Pool(nprocs) as pool:
-            for i, image in enumerate(image_list):
-                model_results.append(pool.apply_async(_build_model_for_one_image_worker,
-                                                      args=(i, kwarg_dict)))
-            pool.close()
-            pool.join()
-
-    else:
-        for i, image in enumerate(image_list):
-            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
+    model_results = _launch_model_building(nprocs, image_list, kwarg_dict)
 
     for result in model_results:
         if nprocs > 1:
@@ -275,3 +261,25 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         )
 
     return lightcurve_model
+
+# ########## HELPER FUNCTIONS FOR MAIN RUN ONE OBJECT FUNCTION ############
+
+
+def _launch_model_building(nprocs, image_list, kwarg_dict):
+    model_results = []
+    if nprocs > 1:
+        SNLogger.debug(f"Using {nprocs} processes for model building")
+        global _shared_image_list
+        _shared_image_list = image_list
+        ctx = multiprocessing.get_context("fork")
+        with ctx.Pool(nprocs) as pool:
+            for i, image in enumerate(image_list):
+                model_results.append(pool.apply_async(_build_model_for_one_image_worker,
+                                                        args=(i, kwarg_dict)))
+            pool.close()
+            pool.join()
+
+    else:
+        for i, image in enumerate(image_list):
+            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
+    return model_results
