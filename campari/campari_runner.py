@@ -10,7 +10,6 @@ from astropy.io import fits
 import astropy.units as u
 
 
-
 # SN-PIT
 from snappl.dbclient import SNPITDBClient
 from snappl.diaobject import DiaObject
