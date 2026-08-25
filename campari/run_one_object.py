@@ -258,7 +258,6 @@ def _perform_lsqr_fit(psf_matrix, sn_matrix, wgt_matrix, images, x0, num_detect_
     SNLogger.debug(f"image shape: {images.shape}")
     SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
-
     lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
                         images*wgt_matrix, atol=1e-12, x0=x0,
                         btol=1e-12, iter_lim=300000, conlim=1e10)

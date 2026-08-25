@@ -450,7 +450,8 @@ class campari_runner:
                 output_dir.mkdir( exist_ok=True, parents=True )
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
-                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance, overwrite=True,
+                            save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,
+                            overwrite=True,
                             testrun=testrun, dbclient=self.dbclient, ltcv_provenance_tag=self.ltcv_provenance_tag)
         else:
             SNLogger.warning("No flux measurements were made for this object, so no lightcurve will be saved.")
