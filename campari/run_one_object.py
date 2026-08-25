@@ -25,7 +25,7 @@ from campari.plotting import plot_cutouts
 from campari.utils import (banner, calculate_local_surface_brightness, campari_lightcurve_model,
                            convert_band_name, get_weights, print_mem,
                            load_prebuilt_matrices_if_provided)
-from campari.io import save_model_if_requested
+from campari.io import save_scene_model
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -196,7 +196,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
     sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
 
-    save_model_if_requested(save_model, psf_matrix, sn_matrix, galaxy_psfclass, sn_psfclass, diaobj, num_total_images)
+    if save_model:
+        save_scene_model(psf_matrix, sn_matrix, galaxy_psfclass, sn_psfclass, diaobj, num_total_images)
 
     images, err, sn_matrix, wgt_matrix =\
         prep_data_for_fit(cutout_image_list, sn_matrix, wgt_matrix, diaobj)
