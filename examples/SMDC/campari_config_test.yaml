@@ -2,12 +2,14 @@
 # preloads:
 #   - /snpit_env/configs/nov2025_container_config.yaml
 
-# # This is used for the ASDF podman container:
-# preloads:
-#   - ${SNPIT_DEFAULT_CONFIG}
 
+#NOTE TO COLE: MAKE SURE THIS IS SET TO THE RIGHT THING FOR THE TEST ENV 
+# Currently this is /home/environment/snpit_test_config.yaml
 preloads:
-  - /home/environment/snpit_test_config.yaml
+  - ${SNPIT_DEFAULT_CONFIG}
+
+augments:
+  - campari_default_config.yaml 
 
 photometry:
   campari:

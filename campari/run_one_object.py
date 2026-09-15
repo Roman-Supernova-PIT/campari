@@ -114,6 +114,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
+    for image in cutout_image_list:
+        SNLogger.debug(f"Image {image.observation_id} has sca {image.sca} and _sca {image._sca}")
+    for image in image_list:
+        SNLogger.debug(f"FULL Image {image.observation_id} has sca {image.sca} and _sca {image._sca}")
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
 
@@ -198,6 +202,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         if transient_model is not None:
             sn_matrix.append(transient_model)
 
+    for image in cutout_image_list:
+        SNLogger.debug(f"Image {image.observation_id} has sca {image.sca} and _sca {image._sca}")
+
     banner("Lin Alg Section")
     if prebuilt_psf_matrix is None:
         psf_matrix = np.vstack(np.array(psf_matrix))
@@ -209,6 +216,9 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if prebuilt_sn_matrix is not None:
         sn_matrix = prebuilt_sn_matrix
         SNLogger.debug(f"Using prebuilt SN matrix of shape {sn_matrix.shape}")
+
+    for image in cutout_image_list:
+        SNLogger.debug(f"Image {image.observation_id} has sca {image.sca} and _sca {image._sca}")
 
     # Add in the supernova images to the matrix in the appropriate location
     # so that it matches up with the image it represents.

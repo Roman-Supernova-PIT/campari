@@ -469,7 +469,8 @@ def calculate_zeropoint_catalog(image_list, star_catalog, output_dir=None, **kwa
         star_table.meta["mjd"] = image.mjd
         star_table.meta["band"] = image.band
 
-        out_path = output_dir / f"zeropoint_stars_{image.observation_id}_{image.sca}_{image.mjd}.ecsv"
+        # Change this naming hardcode
+        out_path = output_dir / f"zeropoint_stars_{image.observation_id}_{image.sca}_{image.mjd}_crds.ecsv"
         star_table.write(out_path, format="ascii.ecsv", overwrite=True)
         SNLogger.info(f"Wrote {len(star_table)} star flux measurements to {out_path}")
 
@@ -508,7 +509,7 @@ def main():
     from snappl.imagecollection import ImageCollection
     image_collection_basepath = "/ricksims/output_images_SCAx2_ZYJHF_40day/"
     my_image_collection = ImageCollection()
-    image_collection = "manual_rdm"
+    image_collection = "manual_rdm_crds"
     SNLogger.debug(f"Using base path {image_collection_basepath}")
     my_image_collection = my_image_collection.get_collection(image_collection,
                                                                 base_path=image_collection_basepath)
@@ -613,16 +614,14 @@ if __name__ == "__main__":
         return 2.5 / np.log(10) * (flux_err / flux)
 
 
-
-
-    zpt_files = glob.glob('/dev_storage/campari_out_dir/zeropoint_*.ecsv')
+    zpt_files = glob.glob('/dev_storage/campari_out_dir/zeropoint_*crds*.ecsv')
     from matplotlib import pyplot as plt
     mjds = []
     zpts = []
     zpterrs = []
     for z in zpt_files:
         print(z)
-        mjd = z.split("_")[-1].split(".")[0]
+        mjd = z.split("_")[-2].split(".")[0]
         print(mjd)
         zpt, zpterr = _load_saved_ecsv_and_determine_zpt(z)
         if float(mjd) > 60000:
@@ -635,13 +634,18 @@ if __name__ == "__main__":
     plt.savefig("test_zeropoint.png")
     plt.close()
 
-    df = Table.read('/dev_storage/campari_out_dir/testing_zpts_F129_stpsf_lc.ecsv', format="ascii.ecsv")
+    plt.figure(figsize=(10, 8), dpi = 300)
+    #df = Table.read('/dev_storage/campari_out_dir/testing_zpts_F129_stpsf_lc.ecsv', format="ascii.ecsv")
+    df = Table.read('/dev_storage/campari_out_dir/testing_zpts_crds_F129_stpsf_lc.ecsv', format="ascii.ecsv")
     mag = -2.5 * np.log10(df['flux'])
     #mag_cal = mag + 25.530294003
-    mag_cal = mag + 25.4806851
+    #mag_cal = mag + 25.4806851
+    mag_cal = mag + 25.566
     mag_err = _flux_err_to_mag_err(df['flux'], df['flux_err'])
-    mag_err = np.sqrt(mag_err**2 + 0.008**2)
+    mag_err = np.sqrt(mag_err**2 + 0.001**2)
     print("MAG ERR:", mag_err)
+    print(truth_df_subset.columns)
+    plt.subplot(2, 1, 1)
     plt.errorbar(df['mjd'], mag_cal, yerr=mag_err, marker='o', linestyle='-', label='Measured')
     truth_mag = -2.5 * np.log10(truth_df_subset['FLUXCAL']) + 31.4
     truth_mag_err = _flux_err_to_mag_err(truth_df_subset['FLUXCAL'], truth_df_subset['FLUXCAL_ERR'])
@@ -650,6 +654,35 @@ if __name__ == "__main__":
     plt.errorbar(truth_df_subset['MJD'], truth_mag, yerr=truth_mag_err, marker='s', linestyle='--', color='red', label='Truth')
     plt.xlim(60100, 60300)
     plt.ylim(26, 24)
-    plt.savefig("test_zeropoint_lc.png")
+    plt.ylabel("Magnitude (GAIA Calibrated)")
+    plt.xlabel("MJD")
+    plt.legend()
+    plt.subplot(2, 1, 2)
+
+    campari_mjd = df["mjd"].astype(int)
+    truth_mjd = truth_df_subset['MJD'].astype(int)
+
+    truth_mag = truth_mag[np.isin(truth_mjd, campari_mjd)]
+    truth_mag_err = truth_mag_err[np.isin(truth_mjd, campari_mjd)]
+    total_err = np.sqrt(mag_err**2 + truth_mag_err**2) / np.sqrt(2)
+
+
+
+    plt.errorbar(df['mjd'], mag_cal - truth_mag, yerr=np.sqrt(total_err**2), marker='o', linestyle='-', label='Measured - Truth')
+
+    chi_sq_terms = ((mag_cal - truth_mag) / np.sqrt(total_err**2))**2
+    print("CHI SQ TERMS:", chi_sq_terms)
+    chi_sq = np.nansum(chi_sq_terms)
+    dof = len(mag_cal) - 1
+    reduced_chi_sq = chi_sq / dof
+    plt.title(f"Reduced Chi-Squared: {reduced_chi_sq:.2f}")
+
+    plt.axhline(0, color='black', linestyle='--')
+    plt.xlim(60100, 60300)
+    plt.ylim(-0.5, 0.5)
+    plt.xlabel("MJD")
+    plt.ylabel("Mag Difference")
+    plt.tight_layout()
+    plt.savefig("test_zeropoint_lc_crds.png")
 
     #main()

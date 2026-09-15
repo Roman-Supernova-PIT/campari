@@ -66,6 +66,9 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})
 
+    SNLogger.info("META DICT TO BE SAVED TO LIGHTCURVE:")
+    SNLogger.info(meta_dict)
+
     data_dict = {
         "mjd": [],
         "flux": flux,
@@ -83,12 +86,16 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
         "sky_rms": [],
         "NEA": [],
     }
+    SNLogger.debug("Data dict to be saved to lightcurve:")
+    SNLogger.debug(data_dict)
 
     for i, img in enumerate(cutout_image_list):
         if img.mjd >= diaobj.mjd_start and img.mjd <= diaobj.mjd_end:
             data_dict["mjd"].append(img.mjd)
             data_dict["observation_id"].append(str(img.observation_id))
             data_dict["sca"].append(img.sca)
+            SNLogger.debug(f"Image has sca {img.sca} and observation_id {img.observation_id}")
+            SNLogger.debug(f"Meanwhile image._sca is {img._sca}")
             data_dict["pix_x"].append(lc_model.sca_x_locations[i])
             data_dict["pix_y"].append(lc_model.sca_y_locations[i])
             x_cutout, y_cutout = cutout_image_list[i].get_wcs().world_to_pixel(diaobj.ra, diaobj.dec)
