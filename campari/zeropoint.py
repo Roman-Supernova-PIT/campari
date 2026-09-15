@@ -4,10 +4,12 @@ import pathlib
 import warnings
 
 # Common Library
+import argparse
 import numpy as np
+import pandas as pd
+import matplotlib.pyplot as plt
 
 # Astronomy Library
-from astropy.stats import SigmaClip
 from astropy.table import Table
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
@@ -21,6 +23,7 @@ from snappl.sed import Flat_SED
 from campari.data_construction import is_number
 from campari.model_building import construct_transient_scene
 from campari.utils import calculate_background_level, get_weights
+from campari.RomanASP import _parse_args_and_instantiate_runner
 
 from pathlib import Path
 from astropy.table import Table, vstack, hstack, join
@@ -478,6 +481,7 @@ def calculate_zeropoint_catalog(image_list, star_catalog, output_dir=None, **kwa
 
     return all_tables
 
+
 def _load_star_cat():
     star_cat_parent = Path( "/ricktruth/" )
     gaiacat_path = star_cat_parent / "STARS_GAIA_ELAIS.csv.gz"
@@ -487,37 +491,28 @@ def _load_star_cat():
     star_catalog = vstack([gaiacat, syncat])
     return star_catalog
 
+
 def main():
     """Run the zeropoint calibration utility from the command line.
 
     This is a convenience wrapper around calculate_zeropoint_catalog that
-    reads the input star catalog and image list from disk, and writes the
-    per-image ECSV files to disk. See calculate_zeropoint_catalog's
-    docstring for details on its parameters and return value.
+    reads the input star catalog, uses campari's runner to find images, and writes the
+    per-image ECSV files.
     """
 
     cfg = Config.get()
-
     output_dir = cfg.value("photometry.campari_io.output_dir")
     star_catalog = _load_star_cat()
-    img_glob = "/ricksims/output_images_SCAx2_ZYJHF_40day//SNP*WFI01*F129*L2.asdf"
-    img_list_lines = glob.glob(img_glob)
-    img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
-    for im_path in img_list_lines:
-        SNLogger.debug(f"Found image at path {im_path}")
 
-    from snappl.imagecollection import ImageCollection
-    image_collection_basepath = "/ricksims/output_images_SCAx2_ZYJHF_40day/"
-    my_image_collection = ImageCollection()
-    image_collection = "manual_rdm_crds"
-    SNLogger.debug(f"Using base path {image_collection_basepath}")
-    my_image_collection = my_image_collection.get_collection(image_collection,
-                                                                base_path=image_collection_basepath)
-    image_list = []
-    for line in img_list_lines:
-        image_list.append(my_image_collection.get_image(path=line[0]))
+    # Copy the campari pipeline setup but don't actually run SMP! Just get images in the exact
+    # same way!
+    runner = _parse_args_and_instantiate_runner()
+    diaobjs = runner.find_diaobjs()
+    diaobj = runner._setup_diaobj(diaobjs)
+    image_list = runner.get_exposures(diaobj)
 
     calculate_zeropoint_catalog(image_list, star_catalog, output_dir=output_dir)
+    calc_all_zeropoints_from_saved_files(f"{output_dir}/zeropoint_stars_*.ecsv")
 
 
 def _load_saved_ecsv_and_determine_zpt(ecsv_file_path):
@@ -552,10 +547,7 @@ def _load_saved_ecsv_and_determine_zpt(ecsv_file_path):
     popt, pcov = curve_fit(line, star_table["mag"], -2.5 * np.log10(star_table["F129"]))
     print("Fitted line parameters:", popt, "+/-", np.sqrt(np.diag(pcov)))
 
-
-    from matplotlib import pyplot as plt
     plt.title("Zeropoint Calibration")
-
 
     # Fit a line
     plt.scatter(star_table["mag"], -2.5 * np.log10(star_table["F129"]), label="Data")
@@ -571,11 +563,28 @@ def _load_saved_ecsv_and_determine_zpt(ecsv_file_path):
     zpt = popt[0]
     zpt_err = np.sqrt(np.diag(pcov))[0]
 
-    return zpt,zpt_err
+    return zpt, zpt_err
+
+
+def calc_all_zeropoints_from_saved_files(zpt_glob):
+    """Load all zeropoint ECSV files matching a glob, and compute the
+    photometric zeropoint for each one.
+
+    Parameters
+    ----------
+    zpt_glob : str
+        A glob pattern to match zeropoint ECSV files previously written by
+        calculate_zeropoint_catalog.
+    """
+    zpt_files = glob.glob(zpt_glob)
+    for z in zpt_files:
+        print(z)
+        zpt, zpterr = _load_saved_ecsv_and_determine_zpt(z)
+        print(f"Zeropoint for {z}: {zpt} +/- {zpterr}")
 
 if __name__ == "__main__":
     """
-    python /home/snpit/packages/campari/campari/RomanASP.py --photometry-campari-psf-transient_class STPSF \
+    python /home/snpit/packages/campari/campari/zeropoint.py --photometry-campari-psf-transient_class STPSF \
  --photometry-campari-psf-galaxy_class gaussian --photometry-campari-use_real_images --no-photometry-campari-fetch_SED \
  --photometry-campari-grid_options-type none --photometry-campari-grid_options-spacing 0.75 \
  --photometry-campari-grid_options-subsize 4 --photometry-campari-grid_options-error_floor 0 \
@@ -586,103 +595,106 @@ if __name__ == "__main__":
  /ricksims/output_images_SCAx2_ZYJHF_40day/ --ra 9.418392 --dec -43.942912 --transient_end 60400 \
  -f F129 --diaobject-name testing_zpts
     """
-    import pandas as pd
-    import matplotlib.pyplot as plt
+
+
+
+
     #--bind /home/rkessler/romanisim/input_catalogs/:/ricktruth:ro
 
-    truth_dir = "/ricktruth/snana_sim_pilot+deep/TRUTH_HL*SNANA*"
-    # search for matching ra/dec
-    truthfiles = glob.glob(truth_dir)
-    print(f"Found {len(truthfiles)} truth files: {truthfiles}")
-    truth_df  = pd.read_csv(truthfiles[0], comment="#", sep = "\s+")
-    truth_df_subset = truth_df[np.abs(truth_df["RA"] - 9.418392) < 0.01]
-    truth_df_subset = truth_df_subset[np.abs(truth_df_subset["DEC"] - -43.942912) < 0.01]
-    print(truth_df_subset)
-    print("RA DEC MATCHES ^")
+    # truth_dir = "/ricktruth/snana_sim_pilot+deep/TRUTH_HL*SNANA*"
+    # # search for matching ra/dec
+    # truthfiles = glob.glob(truth_dir)
+    # print(f"Found {len(truthfiles)} truth files: {truthfiles}")
+    # truth_df  = pd.read_csv(truthfiles[0], comment="#", sep = "\s+")
+    # truth_df_subset = truth_df[np.abs(truth_df["RA"] - 9.418392) < 0.01]
+    # truth_df_subset = truth_df_subset[np.abs(truth_df_subset["DEC"] - -43.942912) < 0.01]
+    # print(truth_df_subset)
+    # print("RA DEC MATCHES ^")
 
 
-    truth_dir = "/ricktruth/snana_sim_pilot+deep/TRUTH_HL*LCPLOT*"
-    truthfiles = glob.glob(truth_dir)
-    print(f"Found {len(truthfiles)} truth files: {truthfiles}")
-    truth_df  = pd.read_csv(truthfiles[0], comment="#", sep = "\s+")
+    # truth_dir = "/ricktruth/snana_sim_pilot+deep/TRUTH_HL*LCPLOT*"
+    # truthfiles = glob.glob(truth_dir)
+    # print(f"Found {len(truthfiles)} truth files: {truthfiles}")
+    # truth_df  = pd.read_csv(truthfiles[0], comment="#", sep = "\s+")
 
-    truth_df_subset = truth_df[truth_df["CID"] == 56]
-    truth_df_subset = truth_df_subset[truth_df_subset["BAND"] == "J"]
-    print(truth_df_subset)
+    # truth_df_subset = truth_df[truth_df["CID"] == 56]
+    # truth_df_subset = truth_df_subset[truth_df_subset["BAND"] == "J"]
+    # print(truth_df_subset)
 
-    def _flux_err_to_mag_err(flux, flux_err):
-        return 2.5 / np.log(10) * (flux_err / flux)
-
-
-    zpt_files = glob.glob('/dev_storage/campari_out_dir/zeropoint_*crds*.ecsv')
-    from matplotlib import pyplot as plt
-    mjds = []
-    zpts = []
-    zpterrs = []
-    for z in zpt_files:
-        print(z)
-        mjd = z.split("_")[-2].split(".")[0]
-        print(mjd)
-        zpt, zpterr = _load_saved_ecsv_and_determine_zpt(z)
-        if float(mjd) > 60000:
-            mjds.append(float(mjd))
-            zpts.append(zpt)
-            zpterrs.append(zpterr)
-    plt.errorbar(mjds, zpts, yerr=zpterrs, linestyle='-', label='Measured')
-    plt.xlabel("MJD")
-    plt.ylabel("Zeropoint")
-    plt.savefig("test_zeropoint.png")
-    plt.close()
-
-    plt.figure(figsize=(10, 8), dpi = 300)
-    #df = Table.read('/dev_storage/campari_out_dir/testing_zpts_F129_stpsf_lc.ecsv', format="ascii.ecsv")
-    df = Table.read('/dev_storage/campari_out_dir/testing_zpts_crds_F129_stpsf_lc.ecsv', format="ascii.ecsv")
-    mag = -2.5 * np.log10(df['flux'])
-    #mag_cal = mag + 25.530294003
-    #mag_cal = mag + 25.4806851
-    mag_cal = mag + 25.566
-    mag_err = _flux_err_to_mag_err(df['flux'], df['flux_err'])
-    mag_err = np.sqrt(mag_err**2 + 0.001**2)
-    print("MAG ERR:", mag_err)
-    print(truth_df_subset.columns)
-    plt.subplot(2, 1, 1)
-    plt.errorbar(df['mjd'], mag_cal, yerr=mag_err, marker='o', linestyle='-', label='Measured')
-    truth_mag = -2.5 * np.log10(truth_df_subset['FLUXCAL']) + 31.4
-    truth_mag_err = _flux_err_to_mag_err(truth_df_subset['FLUXCAL'], truth_df_subset['FLUXCAL_ERR'])
-    truth_mag_err = np.where(truth_mag_err > 0, truth_mag_err, np.nan)
-    print("TRUTH MAG ERR:", truth_mag_err)
-    plt.errorbar(truth_df_subset['MJD'], truth_mag, yerr=truth_mag_err, marker='s', linestyle='--', color='red', label='Truth')
-    plt.xlim(60100, 60300)
-    plt.ylim(26, 24)
-    plt.ylabel("Magnitude (GAIA Calibrated)")
-    plt.xlabel("MJD")
-    plt.legend()
-    plt.subplot(2, 1, 2)
-
-    campari_mjd = df["mjd"].astype(int)
-    truth_mjd = truth_df_subset['MJD'].astype(int)
-
-    truth_mag = truth_mag[np.isin(truth_mjd, campari_mjd)]
-    truth_mag_err = truth_mag_err[np.isin(truth_mjd, campari_mjd)]
-    total_err = np.sqrt(mag_err**2 + truth_mag_err**2) / np.sqrt(2)
+    # def _flux_err_to_mag_err(flux, flux_err):
+    #     return 2.5 / np.log(10) * (flux_err / flux)
 
 
+    # zpt_files = glob.glob('/dev_storage/campari_out_dir/zeropoint_*crds*.ecsv')
+    # from matplotlib import pyplot as plt
+    # mjds = []
+    # zpts = []
+    # zpterrs = []
+    # for z in zpt_files:
+    #     print(z)
+    #     mjd = z.split("_")[-2].split(".")[0]
+    #     print(mjd)
+    #     zpt, zpterr = _load_saved_ecsv_and_determine_zpt(z)
+    #     if float(mjd) > 60000:
+    #         mjds.append(float(mjd))
+    #         zpts.append(zpt)
+    #         zpterrs.append(zpterr)
+    # plt.errorbar(mjds, zpts, yerr=zpterrs, linestyle='-', label='Measured')
+    # plt.xlabel("MJD")
+    # plt.ylabel("Zeropoint")
+    # plt.savefig("test_zeropoint.png")
+    # plt.close()
 
-    plt.errorbar(df['mjd'], mag_cal - truth_mag, yerr=np.sqrt(total_err**2), marker='o', linestyle='-', label='Measured - Truth')
+    # plt.figure(figsize=(10, 8), dpi = 300)
+    # #df = Table.read('/dev_storage/campari_out_dir/testing_zpts_F129_stpsf_lc.ecsv', format="ascii.ecsv")
+    # df = Table.read('/dev_storage/campari_out_dir/testing_zpts_crds_no_wgt_F129_stpsf_lc.ecsv', format="ascii.ecsv")
+    # mag = -2.5 * np.log10(df['flux'])
+    # #mag_cal = mag + 25.530294003
+    # #mag_cal = mag + 25.4806851
+    # mag_cal = mag + 25.566
+    # mag_err = _flux_err_to_mag_err(df['flux'], df['flux_err'])
+    # mag_err = np.sqrt(mag_err**2 + 0.001**2)
+    # print("MAG ERR:", mag_err)
+    # print(truth_df_subset.columns)
+    # plt.subplot(2, 1, 1)
+    # plt.errorbar(df['mjd'], mag_cal, yerr=mag_err, marker='o', linestyle='-', label='Measured')
+    # truth_mag = -2.5 * np.log10(truth_df_subset['FLUXCAL']) + 31.4
+    # truth_mag_err = _flux_err_to_mag_err(truth_df_subset['FLUXCAL'], truth_df_subset['FLUXCAL_ERR'])
+    # truth_mag_err = np.where(truth_mag_err > 0, truth_mag_err, np.nan)
+    # print("TRUTH MAG ERR:", truth_mag_err)
+    # plt.errorbar(truth_df_subset['MJD'], truth_mag, yerr=truth_mag_err, marker='s', linestyle='--', color='red', label='Truth')
+    # plt.xlim(60100, 60300)
+    # plt.ylim(26, 24)
+    # plt.ylabel("Magnitude (GAIA Calibrated)")
+    # plt.xlabel("MJD")
+    # plt.legend()
+    # plt.subplot(2, 1, 2)
 
-    chi_sq_terms = ((mag_cal - truth_mag) / np.sqrt(total_err**2))**2
-    print("CHI SQ TERMS:", chi_sq_terms)
-    chi_sq = np.nansum(chi_sq_terms)
-    dof = len(mag_cal) - 1
-    reduced_chi_sq = chi_sq / dof
-    plt.title(f"Reduced Chi-Squared: {reduced_chi_sq:.2f}")
+    # campari_mjd = df["mjd"].astype(int)
+    # truth_mjd = truth_df_subset['MJD'].astype(int)
 
-    plt.axhline(0, color='black', linestyle='--')
-    plt.xlim(60100, 60300)
-    plt.ylim(-0.5, 0.5)
-    plt.xlabel("MJD")
-    plt.ylabel("Mag Difference")
-    plt.tight_layout()
-    plt.savefig("test_zeropoint_lc_crds.png")
+    # truth_mag = truth_mag[np.isin(truth_mjd, campari_mjd)]
+    # truth_mag_err = truth_mag_err[np.isin(truth_mjd, campari_mjd)]
+    # #total_err = np.sqrt(mag_err**2 + truth_mag_err**2) / np.sqrt(2)
+    # total_err = mag_err
 
-    #main()
+
+
+    # plt.errorbar(df['mjd'], mag_cal - truth_mag, yerr=mag_err, marker='o', linestyle='-', label='Measured - Truth')
+
+    # chi_sq_terms = ((mag_cal - truth_mag) / mag_err)**2
+    # print("CHI SQ TERMS:", chi_sq_terms)
+    # chi_sq = np.nansum(chi_sq_terms)
+    # dof = len(mag_cal) - 1
+    # reduced_chi_sq = chi_sq / dof
+    # plt.title(f"Reduced Chi-Squared: {reduced_chi_sq:.2f}")
+
+    # plt.axhline(0, color='black', linestyle='--')
+    # plt.xlim(60100, 60300)
+    # plt.ylim(-0.5, 0.5)
+    # plt.xlabel("MJD")
+    # plt.ylabel("Mag Difference")
+    # plt.tight_layout()
+    # plt.savefig("test_zeropoint_lc_crds.png")
+
+    main()
