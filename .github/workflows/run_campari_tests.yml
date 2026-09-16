@@ -1,8 +1,5 @@
 name: Run CAMPARI Tests
 
-env:
-  SNPIT_CONFIG: "examples/test_env/campari_config_test.yaml"
-
 on:
   push:
     branches:
@@ -78,7 +75,7 @@ jobs:
           docker compose up -d webserver shell
           docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
           echo $SNPIT_CONFIG
-          docker compose exec shell bash -c 'cd /packages/campari/campari/tests && pytest -v -k "not NERSC" -m "not accuracy_test"'
+          docker compose exec shell bash -c 'cd /packages/campari/campari/tests && SNPIT_CONFIG=examples/test_env/campari_config_test.yaml pytest -v -k "not NERSC" -m "not accuracy_test"'
           docker compose down -v
           # move the snappl checkout back to where further github
           # actions will expect it.  (TODO: see if there's a way we
