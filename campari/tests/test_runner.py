@@ -240,7 +240,7 @@ def test_parse_img_list(cfg):
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
-    test_args.diaobject_name = 40120913
+    test_args.diaobject_name = 20172782
 
     img = FITSImageStdHeaders(
         header=None,
