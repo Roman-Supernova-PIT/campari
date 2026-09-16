@@ -70,7 +70,6 @@ jobs:
           # get to where it was checked out
           cd ..
           # test environment expects then snappl checkout to be in the packages subdir
-          mv snappl packages/
           mv campari packages/
           cd packages/environment/test-docker-environment
           docker compose up -d webserver shell
@@ -83,7 +82,6 @@ jobs:
           # can tell the workflow that snappl is checked out in
           # $WHATEVER/packages/snappl, not just $WHATEVER/snappl.)
           cd ../../
-          mv snappl ../
           mv campari ../
           cd ..
           pwd
