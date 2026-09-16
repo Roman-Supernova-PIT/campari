@@ -243,10 +243,11 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.subplot(ims.shape[0], numcols, numcols * i + k)
         if i == 0:
             plt.title("Residuals")
-        maxval = np.max(np.abs(ims[i] - modelims[i]))
+
 
         mask = np.ones_like(ims[i], dtype=bool)
         mask[np.where(wgt_ims[i] == 0)] = 0
+        maxval = np.max(np.abs(ims[i] - modelims[i]) * mask)
 
         plt.imshow((ims[i] - modelims[i]) * mask, origin="lower", vmin=-maxval, vmax=maxval, cmap="seismic")
 

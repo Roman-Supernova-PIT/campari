@@ -20,7 +20,7 @@ photometry:
     pixel: false
     subtract_background_method: calculate
     use_real_images: true
-    print_memory_usage: false
+    print_memory_usage: true
     preplot_cutouts: true
     save_memory_file_name: ricksims_memory_file
 
