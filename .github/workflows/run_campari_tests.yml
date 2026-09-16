@@ -74,7 +74,7 @@ jobs:
           cd packages/environment/test-docker-environment
           docker compose up -d webserver shell
           docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
-          docker compose exec shell bash -c 'cd /packges/campari && export SNPIT_CONFIG=examples/test_env/campari_config_test.yaml'
+          docker compose exec shell bash -c 'cd /packages/campari && export SNPIT_CONFIG=examples/test_env/campari_config_test.yaml'
           docker compose exec shell bash -c 'cd /packages/campari/campari/tests && pytest -v -k "not NERSC" -m "not accuracy_test"'
           docker compose down -v
           # move the snappl checkout back to where further github
