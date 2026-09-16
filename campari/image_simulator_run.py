@@ -5,6 +5,7 @@ import glob
 from multiprocessing import Pool
 
 from snappl.logger import SNLogger
+import snappl
 
 
 def write_image_list(output_path, run_dir, run_name, test_data_path):
@@ -64,7 +65,8 @@ def run_sim(
         SNLogger.debug(f"No output_path provided, using default {output_path}")
 
     if im_sim_path is None:
-        im_sim_path = "/home/snappl/snappl/image_simulator.py"
+        snappl_location = snappl.__file__
+        im_sim_path = os.path.join(os.path.dirname(snappl_location), "image_simulator.py")
     if test_data_path is None:
         test_data_path = "/home/campari/campari/tests/testdata"
         SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
