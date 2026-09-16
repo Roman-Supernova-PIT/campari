@@ -114,10 +114,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
-    for image in cutout_image_list:
-        SNLogger.debug(f"Image {image.observation_id} has sca {image.sca} and _sca {image._sca}")
-    for image in image_list:
-        SNLogger.debug(f"FULL Image {image.observation_id} has sca {image.sca} and _sca {image._sca}")
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
 

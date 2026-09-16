@@ -147,6 +147,7 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     lc = Table.read(f"/{out_dir}/{fileroot}_lc.ecsv")
     ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
     modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    wgt_ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[2].reshape(-1, imsize, imsize)
     noise_maps = np.load(f"/{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
 
 
@@ -243,7 +244,12 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         if i == 0:
             plt.title("Residuals")
         maxval = np.max(np.abs(ims[i] - modelims[i]))
-        plt.imshow((ims[i] - modelims[i]), origin="lower", vmin=-maxval, vmax=maxval, cmap="seismic")
+
+        mask = np.ones_like(ims[i], dtype=bool)
+        mask[np.where(wgt_ims[i] == 0)] = 0
+
+        plt.imshow((ims[i] - modelims[i]) * mask, origin="lower", vmin=-maxval, vmax=maxval, cmap="seismic")
+
 
         # ###############################
         k += 1
