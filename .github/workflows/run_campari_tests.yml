@@ -1,0 +1,88 @@
+name: Run CAMPARI Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  tests:
+    name: run campari tests in docker container
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Dump docker logs on failure
+        if: failure()
+        uses: jwalton/gh-docker-logs@v2
+
+      - name: checkout code
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: run ruff
+        uses: astral-sh/ruff-action@v3
+
+      - name: checkout photometry test data
+        run: |
+          cd ..
+          mkdir packages
+          cd packages
+          git clone http://github.com/Roman-Supernova-PIT/photometry_test_data
+
+      - name: log into github container registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: cleanup
+        run: |
+          # try to save HDD space on the runner by removing some unneeded stuff (~8GB)
+          # ref: https://github.com/actions/runner-images/issues/2840#issuecomment-790492173
+          # (For some perverse reason, this step seems to take 1.5-2 minutes on github runners!
+          # For that reason, this is commented out, for now.  Uncomment it if we run into trouble.)
+          df -h
+          # echo "------"
+          # sudo rm -rf /usr/share/dotnet
+          # sudo rm -rf /opt/ghc
+          # sudo rm -rf "/usr/local/share/boost"
+          # sudo rm -rf "$AGENT_TOOLSDIRECTORY"
+          # echo "------"
+          # df -h
+
+      - name: pull environment archive
+        run: |
+          cd ../packages
+          git clone https://github.com/Roman-Supernova-PIT/environment.git
+
+      - name: pull docker images
+        run: |
+          cd ../packages/environment/test-docker-environment
+          docker compose pull mailhog postgres webserver shell
+
+      - name: run test
+        run: |
+          # These actions start in the snappl checkout, so go up one to
+          # get to where it was checked out
+          cd ..
+          # test environment expects then snappl checkout to be in the packages subdir
+          mv campari packages/
+          cd packages/environment/test-docker-environment
+          docker compose up -d webserver shell
+          docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
+          docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
+          docker compose exec shell bash -c 'cd /packages/campari/campari/tests && export SNPIT_CONFIG=/packages/campari/examples/test_env/campari_config_test.yaml && pytest -v -k "not NERSC" -m "not accuracy_test"'
+          docker compose down -v
+          # move the snappl checkout back to where further github
+          # actions will expect it.  (TODO: see if there's a way we
+          # can tell the workflow that snappl is checked out in
+          # $WHATEVER/packages/snappl, not just $WHATEVER/snappl.)
+          cd ../../
+          mv campari ../
+          cd ..
+          pwd
+          ls -l
