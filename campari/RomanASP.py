@@ -45,9 +45,7 @@ Adapted from code by Pedro Bernardinelli
 
 
 """
-
-
-def main():
+def _parse_args_and_instantiate_runner():
     # Run one arg pass just to get the config file, so we can augment
     #   the full arg parser later with config options
     configparser = argparse.ArgumentParser(add_help=False)
@@ -286,6 +284,10 @@ def main():
     cfg.parse_args(args)
 
     runner = campari_runner(**vars(args))
+    return runner
+
+def main():
+    runner = _parse_args_and_instantiate_runner()
     runner()
 
 

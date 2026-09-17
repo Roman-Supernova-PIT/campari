@@ -185,6 +185,27 @@ class campari_runner:
 
         banner(f"Running SN {self.diaobject_name}")
         delete_memory_file()
+        diaobjs = self.find_diaobjs()
+        diaobj = self._setup_diaobj(diaobjs)
+
+        image_list = self.get_exposures(diaobj)
+        sedlist = self.get_sedlist(diaobj.id, image_list)
+
+        SNLogger.debug("Building Campari provenance")
+        self.cam_prov = self.build_campari_provenance(image_list=image_list, diaobj=diaobj,
+                                                      obj_pos_prov=self.diaobject_position_provenance_tag,
+                                                      dbclient=self.dbclient)
+
+        # This has to go after get_exposures because the infs break the simdex.
+        if diaobj.mjd_start is None:
+            diaobj.mjd_start = -np.inf
+        if diaobj.mjd_end is None:
+            diaobj.mjd_end = np.inf
+
+        lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
+        self.build_and_save_lightcurve(diaobj, lightcurve_model)
+
+    def find_diaobjs(self):
         SNLogger.debug(f"Searching for DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
                        f" ra={self.ra}, dec={self.dec},"
                        f" collection={self.diaobject_collection}, provenance_tag={self.diaobject_provenance_tag}, "
@@ -206,7 +227,9 @@ class campari_runner:
         SNLogger.debug("FILTERED ARGS")
         SNLogger.debug(f"Filtered arguments for finding DiaObject: {filtered_args}")
         diaobjs = DiaObject.find_objects(**filtered_args)
+        return diaobjs
 
+    def _setup_diaobj(self, diaobjs):
         if len(diaobjs) == 0:
             raise ValueError(
                 f"Could not find DiaObject with id={self.diaobject_id}, name={self.diaobject_name},"
@@ -253,22 +276,7 @@ class campari_runner:
         SNLogger.debug(f"Object info for SN {self.diaobject_name} with ID {self.diaobject_id} in"
                        f" collection {self.diaobject_collection}: ra={diaobj.ra},"
                        f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
-        image_list = self.get_exposures(diaobj)
-        sedlist = self.get_sedlist(diaobj.id, image_list)
-
-        SNLogger.debug("Building Campari provenance")
-        self.cam_prov = self.build_campari_provenance(image_list=image_list, diaobj=diaobj,
-                                                      obj_pos_prov=self.diaobject_position_provenance_tag,
-                                                      dbclient=self.dbclient)
-
-        # This has to go after get_exposures because the infs break the simdex.
-        if diaobj.mjd_start is None:
-            diaobj.mjd_start = -np.inf
-        if diaobj.mjd_end is None:
-            diaobj.mjd_end = np.inf
-
-        lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
-        self.build_and_save_lightcurve(diaobj, lightcurve_model)
+        return diaobj
 
     def get_exposures(self, diaobj):
         """Call the find_all_exposures function to get the exposures for the given RA, Dec, and time frame."""

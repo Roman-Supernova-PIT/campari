@@ -2,14 +2,11 @@
 # preloads:
 #   - /snpit_env/configs/nov2025_container_config.yaml
 
-
-#NOTE TO COLE: MAKE SURE THIS IS SET TO THE RIGHT THING FOR THE TEST ENV
-# Currently this is /home/environment/snpit_test_config.yaml
+# # This is used for the ASDF podman container:
 preloads:
-  - ${SNPIT_DEFAULT_CONFIG}
+  # - ${SNPIT_DEFAULT_CONFIG} not working for some reason
+  - /snpit_env_base/configs/smdc_ricksim_apptainer.yaml
 
-augments:
-  - campari_default_config.yaml
 
 photometry:
   campari:
@@ -23,13 +20,13 @@ photometry:
     pixel: false
     subtract_background_method: calculate
     use_real_images: true
-    print_memory_usage: false
-    preplot_cutouts: false
-    save_memory_file_name: test_memory_file
+    print_memory_usage: true
+    preplot_cutouts: true
+    save_memory_file_name: ricksims_memory_file
 
     psf:
-      galaxy_class: ou24PSF
-      transient_class: ou24PSF_slow
+      galaxy_class: gaussian
+      transient_class: STPSF
 
     grid_options:
       type: contour
@@ -50,7 +47,7 @@ photometry:
     debug_dir: ${system.paths.dev_storage}/campari_debug_dir
     save_debug: true
     test_num: 1
-    test_data: /home/packages/campari/tests/testdata/test_imagelists/
+    test_data: /home/packages/campari/campari/tests/testdata/test_imagelists
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
@@ -74,7 +71,7 @@ photometry:
     run_name: whatever
 
   snappl:
-    simdex_server: https://roman-desc-simdex.lbl.gov
+    simdex_server: https://roman-desc-simdex.lbl.gov/
 
   test_data: "/photometry_test_data"
 

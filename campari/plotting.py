@@ -147,12 +147,43 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
     lc = Table.read(f"/{out_dir}/{fileroot}_lc.ecsv")
     ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[0].reshape(-1, imsize, imsize)
     modelims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[1].reshape(-1, imsize, imsize)
+    wgt_ims = np.load(f"/{debug_dir}/{fileroot}_images.npy")[2].reshape(-1, imsize, imsize)
     noise_maps = np.load(f"/{debug_dir}/{fileroot}_noise_maps.npy").reshape(-1, imsize, imsize)
+
+
+    # perform ap phot on the cutouts
+    from photutils.aperture import CircularAperture
+    from photutils.aperture import aperture_photometry
+    cutout_x = lc["x_cutout"]
+    cutout_y = lc["y_cutout"]
+    positions = np.transpose((cutout_x, cutout_y))
+
+    lower_bound = ims.shape[0] - lc.meta["post_transient_images"] - lc.meta["pre_transient_images"] - 1
+
+    ap_ims = ims.reshape(-1, imsize, imsize)
+    ap_ims = ap_ims[lower_bound:]
+
+    ap_phot_fluxes = []
+    for i in range(ap_ims.shape[0]):
+        aperture = CircularAperture(positions[i], r=5)
+        ap_phot = aperture_photometry(ap_ims[i], aperture)
+        print(ap_phot)
+        ap_phot_fluxes.append(ap_phot["aperture_sum"][0])
+
+    plt.scatter(lc["mjd"], ap_phot_fluxes, color="red", label="Aperture Photometry")
+    plt.scatter(lc["mjd"], lc["flux"], color="blue", label="Campari Fit")
+
+    plt.xlabel("MJD")
+    plt.ylabel("Flux")
+    plt.legend()
+    plt.savefig(f"/{debug_dir}/" + plotname + "_ap_phot.png")
+    print("Saved aperture photometry plot to " + f"/{debug_dir}/" + plotname + "_ap_phot.png")
 
     galra, galdec = 128.00003, 42.00003
 
     hdul = fits.open(f"/{debug_dir}/" + str(fileroot) + "_wcs.fits")
     cutout_wcs_list = []
+
     for i, savedwcs in enumerate(hdul):
         if i == 0:
             continue
@@ -212,8 +243,14 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         plt.subplot(ims.shape[0], numcols, numcols * i + k)
         if i == 0:
             plt.title("Residuals")
-        maxval = np.max(np.abs(ims[i] - modelims[i]))
-        plt.imshow((ims[i] - modelims[i]), origin="lower", vmin=-maxval, vmax=maxval, cmap="seismic")
+
+
+        mask = np.ones_like(ims[i], dtype=bool)
+        mask[np.where(wgt_ims[i] == 0)] = 0
+        maxval = np.max(np.abs(ims[i] - modelims[i]) * mask)
+
+        plt.imshow((ims[i] - modelims[i]) * mask, origin="lower", vmin=-maxval, vmax=maxval, cmap="seismic")
+
 
         # ###############################
         k += 1

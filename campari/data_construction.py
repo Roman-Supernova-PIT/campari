@@ -9,7 +9,7 @@ from erfa import ErfaWarning
 import multiprocessing
 import numpy as np
 from photutils.background import LocalBackground, MedianBackground
-
+from astropy.nddata.utils import NoOverlapError
 
 # SN-PIT
 from snappl.imagecollection import ImageCollection
@@ -143,7 +143,22 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     imagedata, errordata, flags = image.get_data(which="all", cache=True)
     print_mem("after image load------------------")
 
-    image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    try:
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    except NoOverlapError as e:
+        ra_corners = []
+        dec_corners = []
+        for i in ["00", "01", "10", "11"]:
+            ra_corners.append(getattr(image, f"ra_corner_{i}"))
+            dec_corners.append(getattr(image, f"dec_corner_{i}"))
+        corner_pairs = list(zip(ra_corners, dec_corners))
+
+        #corner_pairs = [zip(getattr(image, f"ra_corner_{i}"), getattr(image, f"dec_corner_{i}")) for i in ["00", "01", "10", "11"]]
+        SNLogger.debug(f"SN is not contained in this image. Something has gone wrong. This image has corners:"
+                       f" RA/DEC: {corner_pairs}. SN is at RA: {ra}, DEC: {dec}.")
+        raise ValueError(e)
+
+
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(
