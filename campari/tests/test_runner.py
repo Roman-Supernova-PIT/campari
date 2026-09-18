@@ -368,7 +368,6 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     # in snappl, so I am making this temporary change to pre-delete the file so tests pass
     runner.build_and_save_lightcurve(diaobj, lc_model)
 
-
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
     compare_lightcurves(filepath, pathlib.Path(__file__).parent / "testdata/test_build_lc.ecsv",
