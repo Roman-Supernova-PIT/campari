@@ -66,10 +66,10 @@ jobs:
 
       - name: run test
         run: |
-          # These actions start in the snappl checkout, so go up one to
+          # These actions start in the campari checkout, so go up one to
           # get to where it was checked out
           cd ..
-          # test environment expects then snappl checkout to be in the packages subdir
+          # test environment expects then campari checkout to be in the packages subdir
           mv campari packages/
           cd packages/environment/test-docker-environment
           docker compose up -d webserver shell
@@ -77,7 +77,7 @@ jobs:
           docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
           docker compose exec shell bash -c 'cd /packages/campari/campari/tests && export SNPIT_CONFIG=/packages/campari/examples/test_env/campari_config_test.yaml && pytest -v -k "not NERSC" -m "not accuracy_test"'
           docker compose down -v
-          # move the snappl checkout back to where further github
+          # move the campari checkout back to where further github
           # actions will expect it.  (TODO: see if there's a way we
           # can tell the workflow that snappl is checked out in
           # $WHATEVER/packages/snappl, not just $WHATEVER/snappl.)
