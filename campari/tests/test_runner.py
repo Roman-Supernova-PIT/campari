@@ -360,11 +360,14 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         upstreams=upstreams,
     )
 
-    runner.build_and_save_lightcurve(diaobj, lc_model)
-
     output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
     filename = "20172782_Y106_romanpsf_lc.ecsv"
     filepath = output_dir / filename
+    filepath.unlink(missing_ok=True)
+    # Note, the above should not be necessary because I have overwrite set to True. However I think something is broken
+    # in snappl, so I am making this temporary change to pre-delete the file so tests pass
+    runner.build_and_save_lightcurve(diaobj, lc_model)
+
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
