@@ -169,6 +169,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     SNLogger.debug(f"saving lightcurve for diaobject id={identifier}, band={band}, psftype={psftype}")
     SNLogger.debug(f"save_to_database = {save_to_database}")
     SNLogger.debug(f"new_provenance = {new_provenance}")
+    SNLogger.debug(f"overwrite is set to {overwrite}")
 
     if save_to_database:
         if output_path is not None:
