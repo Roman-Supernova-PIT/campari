@@ -75,7 +75,7 @@ jobs:
           docker compose up -d webserver shell
           docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
           docker compose exec shell bash -c 'cd /packages/campari && pip install -e .'
-          docker compose exec shell bash -c 'cd /packages/campari/campari/tests && export SNPIT_CONFIG=/packages/campari/examples/test_env/campari_config_test.yaml && pytest -v -k "not NERSC" -m "not accuracy_test"'
+          docker compose exec shell bash -c 'cd /packages/campari/campari/tests && export SNPIT_CONFIG=/packages/campari/examples/test_env/campari_config_test.yaml && pytest -v -m "not accuracy_test and not NERSC"'
           docker compose down -v
           # move the campari checkout back to where further github
           # actions will expect it.  (TODO: see if there's a way we
