@@ -17,11 +17,13 @@ output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 
+@pytest.mark.NERSC
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
+@pytest.mark.NERSC
 def test_memory(cfg):
     time_start = time.time()
 
