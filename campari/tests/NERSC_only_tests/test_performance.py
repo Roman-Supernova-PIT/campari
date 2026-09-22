@@ -22,6 +22,7 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
+@pytest.mark.NERSC
 def test_memory(cfg):
     time_start = time.time()
 

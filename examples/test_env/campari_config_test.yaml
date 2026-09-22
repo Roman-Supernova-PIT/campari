@@ -1,13 +1,6 @@
-# # This is used for the Nov 2025 podman container:
-# preloads:
-#   - /snpit_env/configs/nov2025_container_config.yaml
-
-# # This is used for the ASDF podman container:
-# preloads:
-#   - ${SNPIT_DEFAULT_CONFIG}
-
 preloads:
-  - /home/environment/configs/snpit_test_config.yaml
+  - /snpit_test_config.yaml
+
 
 photometry:
   campari:
@@ -74,12 +67,5 @@ photometry:
   snappl:
     simdex_server: https://roman-desc-simdex.lbl.gov
 
-  test_data: "/photometry_test_data"
+  test_data: "/packages/photometry_test_data"
 
-# system:
-#   ou24:
-#     tds_base: /photometry_test_data/ou2024
-#     config_file: /photometry_test_data/ou2024/tds.yaml
-#     sn_truth_dir: /photometry_test_data/ou2024/snana_truth
-#     images: /photometry_test_data/ou2024/images/simple_model
-#     sims_sed_library: /photometry_test_data/ou2024/sims_sed_library
