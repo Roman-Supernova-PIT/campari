@@ -1,11 +1,3 @@
-# # This is used for the Nov 2025 podman container:
-# preloads:
-#   - /snpit_env/configs/nov2025_container_config.yaml
-
-# # This is used for the ASDF podman container:
-# preloads:
-#   - ${SNPIT_DEFAULT_CONFIG}
-
 preloads:
   - /snpit_test_config.yaml
 
