@@ -1,0 +1,1 @@
+Moved what is in the README.md to the docs/usage.rst file in Restructured text.
