@@ -3,6 +3,9 @@
 import argparse
 import warnings
 import sys
+import pysqlite3
+sys.modules['sqlite3'] = pysqlite3
+
 
 # Common Library
 from astropy.utils.exceptions import AstropyWarning

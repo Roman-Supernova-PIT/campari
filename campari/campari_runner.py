@@ -495,6 +495,7 @@ class campari_runner:
 
         else:
             img_list_lines = glob.glob(self.img_glob)
+            SNLogger.debug(f"Found the following image paths using glob {self.img_glob}: {img_list_lines}")
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
