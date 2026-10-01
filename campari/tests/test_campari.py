@@ -485,7 +485,6 @@ def test_regression_pointwise_parallel(campari_test_data, overwrite_meta, cfg):
         test_regression_pointwise_parallel(campari_test_data, cfg=cfg, overwrite_meta=False)
 
 
-
 def test_plot_lc():
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",

@@ -12,7 +12,6 @@ from astropy.coordinates import angular_separation
 from astropy.utils.exceptions import AstropyWarning
 from erfa import ErfaWarning
 import galsim
-from galsim import roman
 
 # SN-PIT
 from snappl.psf import PSF
@@ -316,7 +315,6 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
             stamps = pool.map(_static_scene_point_worker, range(num_grid_points), chunksize=1)
         psfs[:, :] = np.array(stamps).T
     else:
-        SNLogger.debug(f"I found that nprocs is {nprocs} and num_grid_points is {num_grid_points} so I am doing this path")
         observation_id = image.observation_id if image is not None else None
         sca = image.sca if image is not None else None
         psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca,
