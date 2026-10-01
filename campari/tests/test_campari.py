@@ -448,6 +448,44 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
         test_regression(campari_test_data, cfg=cfg, overwrite_meta=False, nprocs=nprocs)
 
 
+def test_regression_pointwise_parallel(campari_test_data, overwrite_meta, cfg):
+    # Same as other regression tests, but parallelization occurs for each model point, not for each image.
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file.unlink(missing_ok=True)
+    # Make sure the output file we're going to write doesn't exist so
+    #  we know we're really running this test!
+    assert not curfile.exists()
+    assert not debug_file.exists()
+
+    output = os.system(
+        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        "--photometry-campari-psf-galaxy_class ou24PSF "
+        "--no-photometry-campari-fetch_SED "
+        "--photometry-campari-grid_options-type contour "
+        "--photometry-campari-cutout_size 19 "
+        "--photometry-campari-weighting "
+        "--photometry-campari-subtract_background_method SKY_MEAN "
+        "--photometry-campari-psf-transient_class ou24PSF_slow "
+        "--save_model --image-collection ou2024 "
+        " --no-save-to-db "
+        "--parallel_mode"
+        " point"
+        # "--add-truth-to-lc" Uncomment this to test getting truth information. Not available on all machines!
+        " --diaobject-collection ou2024"
+        f" --nprocs 10"
+        " --photometry-campari-grid_options-gaussian_var 1000"
+    )
+    assert output == 0, "The test run on a SN failed. Check the logs"
+
+    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
+    if overwrite_meta:
+        SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
+        test_regression_pointwise_parallel(campari_test_data, cfg=cfg, overwrite_meta=False)
+
+
+
 def test_plot_lc():
     output = plot_lc(pathlib.Path(__file__).parent
                      / "testdata/test_lc_plot.ecsv",
