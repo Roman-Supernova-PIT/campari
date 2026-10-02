@@ -55,6 +55,9 @@ class campari_runner:
         self.img_list = kwargs["img_list"]
         self.img_glob = kwargs.get("img_glob", None)
         self.image_collection = kwargs["image_collection"]
+        self.parallel_mode = kwargs.get("parallel_mode", "image")
+        if self.parallel_mode not in ["image", "point"]:
+            raise ValueError(f"parallel_mode must be 'image' or 'point', got {self.parallel_mode}")
 
         if self.img_list is not None and self.img_glob is not None:
             raise ValueError("Cannot provide both img_list and img_glob. These are two different ways to provide a list"
@@ -394,7 +397,7 @@ class campari_runner:
                            spacing=self.spacing, percentiles=self.percentiles, save_model=self.save_model,
                            prebuilt_psf_matrix=prebuilt_psf_matrix,
                            prebuilt_sn_matrix=prebuilt_sn_matrix, nprocs=self.nprocs, gaussian_var=self.gaussian_var,
-                           cutoff=self.cutoff, error_floor=self.error_floor)
+                           cutoff=self.cutoff, error_floor=self.error_floor, parallel_mode=self.parallel_mode)
 
         return lightcurve_model
 
@@ -495,6 +498,7 @@ class campari_runner:
 
         else:
             img_list_lines = glob.glob(self.img_glob)
+            SNLogger.debug(f"Found the following image paths using glob {self.img_glob}: {img_list_lines}")
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")

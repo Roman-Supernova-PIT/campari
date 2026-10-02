@@ -7,11 +7,11 @@
 #   - ${SNPIT_DEFAULT_CONFIG}
 
 preloads:
-  - /home/environment/configs/snpit_test_config.yaml
+  - snpit_test_config.yaml
 
 photometry:
   campari:
-    cutout_size: 11
+    cutout_size: 5
     initial_flux_guess: 3000
     fetch_SED: false
     use_roman: true
@@ -26,11 +26,11 @@ photometry:
     save_memory_file_name: test_memory_file
 
     psf:
-      galaxy_class: ou24PSF
-      transient_class: ou24PSF_slow
+      galaxy_class: STPSF
+      transient_class: STPSF
 
     grid_options:
-      type: contour
+      type: regular
       percentiles:
       - 0
       - 90
@@ -40,12 +40,12 @@ photometry:
       turn_grid_off: false
       gaussian_var: -1 # Gaussian weighting off by default
       cutoff: 4
-      error_floor: 1
+      error_floor: 0.0
       subsize: 4
 
   campari_io:
-    output_dir: ${system.paths.dev_storage}/campari_out_dir
-    debug_dir: ${system.paths.dev_storage}/campari_debug_dir
+    output_dir: /home/cfmeldorf/campari_out_dir
+    debug_dir: /home/cfmeldorf/campari_debug_dir
     save_debug: true
     test_num: 1
     test_data: /home/packages/campari/campari_test_data # hey wtf is this
