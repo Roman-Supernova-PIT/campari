@@ -398,9 +398,6 @@ class campari_runner:
         None, but the lightcurve is saved locally and/or to the database.
         """
         lc_model.image_collection_prov = self.img_coll_prov
-        # if self.transient_psfclass == "ou24PSF" or self.transient_psfclass == "ou24PSF_slow":
-        #     psftype = "romanpsf"
-        # else:
         psftype = self.transient_psfclass.lower()
 
         # identifier is a string that will be used to name the lightcurve file when saving debug files.

@@ -116,7 +116,7 @@ def main():
 
     parser.add_argument("--diaobject-collection", type=str, default="snpitdb", required=False,
                         help="Which collection of objects to use for lookup. "
-                             "Default is %(default)s, the Open Universe 2024 catalog. 'manual'"
+                             "Default is %(default)s. snpitdb is the SN-PIT personal database. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
     parser.add_argument("--diaobject-subset", type=str, default=None, required=False,
                         help="Subset of the diaobject collection to use for lookup. ")

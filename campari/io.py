@@ -156,7 +156,7 @@ def save_lightcurve(lc=None, identifier=None, psftype=None, output_path=None,
     lc: the lightcurve data, in the form of a snappl.lightcurve.Lightcurve object
     identifier (str): the supernova ID or "simulated"
     band (str): the bandpass of the images used
-    psftype (str): The type of PSF corresponding to a snappl PSF type.
+    psftype (str): The type of PSF. This must correspond to a snappl PSF type.
     output_path (str): the path to save the lightcurve to.  Defaults to
       config value system.paths.lightcurves
     Returns:
