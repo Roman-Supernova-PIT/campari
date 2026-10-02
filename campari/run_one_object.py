@@ -74,9 +74,8 @@ SNLogger.set_level("DEBUG")
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    subtract_background_method=None,
                    make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
-                   grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
-                   mismatch_seds=None, deltafcn_profile=None, noise=None,
-                   avoid_non_linearity=None, spacing=None, percentiles=None,
+                   grid_type=None, pixel=None, noise=None,
+                   spacing=None, percentiles=None,
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None,
@@ -272,16 +271,13 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"image shape: {images.shape}")
     SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
-    if method == "lsqr":
-        wgt_matrix = np.sqrt(wgt_matrix)
-
-        lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                              images*wgt_matrix,  atol=1e-12,
-                              btol=1e-12, iter_lim=300000, conlim=1e10, x0=x0test)
-
-        X, istop, itn, r1norm = lsqr[:4]
-        SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
-                       f"r1norm: {r1norm}")
+    wgt_matrix = np.sqrt(wgt_matrix)
+    lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
+                            images*wgt_matrix,  atol=1e-12, x0=x0test,
+                            btol=1e-12, iter_lim=300000, conlim=1e10)
+    X, istop, itn, r1norm = lsqr[:4]
+    SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
+                    f"r1norm: {r1norm}")
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
