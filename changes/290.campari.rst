@@ -1,0 +1,1 @@
+Gave campari a new parallel mode which goes point by point rather than image by image.
