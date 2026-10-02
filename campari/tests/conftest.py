@@ -72,7 +72,6 @@ def pytest_configure(config):
         "markers", "NERSC: marks tests that require NERSC to be operational"
     )
 
-
     if not config.getoption("--run-accuracy"):
         config.option.markexpr = "not accuracy_test"
 
