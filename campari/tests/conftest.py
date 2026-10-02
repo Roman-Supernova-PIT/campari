@@ -68,6 +68,11 @@ def pytest_configure(config):
         "markers", "run_last: these run last because they enclose the functionality of other tests"
 
     )
+    config.addinivalue_line(
+        "markers", "NERSC: marks tests that require NERSC to be operational"
+    )
+
+
     if not config.getoption("--run-accuracy"):
         config.option.markexpr = "not accuracy_test"
 
@@ -83,5 +88,5 @@ def pytest_collection_modifyitems(config, items):
         else:
             standard_tests.append(item)
 
-    # Reorder the item list inline so marked tests move to the end
+     # Reorder the item list inline so marked tests move to the end
     items[:] = standard_tests + last_tests
