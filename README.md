@@ -45,7 +45,11 @@ systems, the steps are slightly different for each machine. Here's how to get a 
 To do a simple test run on SMDC, try the following:
 
 ```
+pip install roman-snpit-campari==0.1.4
+
 salloc --nodes 1 --qos interactive --time 04:00:00 -p mem-med
+
+### CD To the directory above wherever you have your packages directory ###
 
 bash /data/snpit/env/singrun_smdc_ricksim.sh
 

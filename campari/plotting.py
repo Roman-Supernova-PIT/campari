@@ -321,7 +321,6 @@ def generate_diagnostic_plots(fileroot, imsize, plotname, ap_sums=None, ap_err=N
         )
         plt.errorbar(lc["mjd"], trueflux, yerr=None, marker="o", linestyle="None", label="Truth", color="black", ms=1)
         plt.yscale("log")
-        # plt.ylim(1e3, 1e5)
 
         plt.subplot(2, 2, 4)
         plt.errorbar(lc["flux"], pull, yerr=None, marker="o", linestyle="None")

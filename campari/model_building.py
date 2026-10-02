@@ -287,7 +287,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     observation_id = image.observation_id if image is not None else None
     sca = image.sca if image is not None else None
 
-    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca, size=stampsize,
+    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca,
                                     stamp_size=stampsize, seed=None, image=image)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
@@ -362,7 +362,7 @@ def construct_transient_scene(
         SNLogger.warning("STPSF does not currently support galsim SEDs, ignoring the SED provided and using 'None'")
 
     psf_object = PSF.get_psf_object(
-        snpsfclass, observation_id=observation_id, sca=sca, size=stampsize,
+        snpsfclass, observation_id=observation_id, sca=sca,
         image=image, stamp_size=stampsize, sed=sed
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
@@ -613,9 +613,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, grid_type=None, ra_
     print_mem("Finished adding background to model array")
     # Add the array of the model points and the background (if using)
     # to the matrix of all components of the model.
-    # if prebuilt_psf_matrix is None:
-    #     psf_matrix.append(background_model_array)
-
     # The arrays below are the length of the number of images that contain the object
     # Therefore, when we iterate onto the
     # first object image, we want to be on the first element

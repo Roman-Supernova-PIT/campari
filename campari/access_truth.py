@@ -42,11 +42,6 @@ def main():
     desc = "Run the campari pipeline."
     try:
         _ = Config.get(args.config, setdefault=True)
-    # except RuntimeError:
-    #     # If it failed to load the config file, just move on with life.  This
-    #     #   may mean that things will fail later, but it may also just mean
-    #     #   that somebody is doing "--help"
-    #     cfg = None
     except RuntimeError as e:
         if str(e) == "No default config defined yet; run Config.init(configfile)":
             sys.stderr.write(

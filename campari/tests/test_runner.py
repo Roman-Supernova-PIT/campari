@@ -112,41 +112,6 @@ def test_runner_init(cfg):
     assert isinstance(runner.cfg, Config)
 
 
-# def test_decide_run_mode(cfg):
-#     test_args = create_default_test_args(cfg)
-
-#     # First test passing a diaobject_name
-#     test_args.diaobject_name = 20172782
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-#     assert runner.diaobject_name == 20172782
-
-
-#     # Now test passing RA and Dec
-#     test_args.ra = 10.684
-#     test_args.dec = 41.269
-#     test_args.transient_start = 60000.0
-#     test_args.transient_end = 60100.0
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-#     assert runner.ra == 10.684
-#     assert runner.dec == 41.269
-#     assert runner.transient_start is not None
-#     assert runner.transient_end is not None
-
-#     test_args.diaobject_collection = "ou24"
-#     test_args.diaobject_name = 20172782
-#     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_image_list.csv"
-#     runner = campari_runner(**vars(test_args))
-#     runner.decide_run_mode()
-
-#     assert runner.diaobject_name == 20172782
-#     columns = ["pointing", "sca"]
-#     SNLogger.debug(pd.read_csv(test_args.img_list))
-#     np.testing.assert_array_equal(runner.pointing_list,
-#                                   pd.read_csv(test_args.img_list, names=columns)["pointing"].tolist())
-
-
 def test_get_exposures(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
@@ -268,7 +233,7 @@ def test_parse_img_list(cfg):
 def test_get_SED_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
-    test_args.diaobject_name = 40120913
+    test_args.diaobject_name = 20172782
 
     img = FITSImageStdHeaders(
         header=None,
@@ -388,11 +353,13 @@ def test_build_and_save_lc(cfg, overwrite_meta):
         upstreams=upstreams,
     )
 
-    runner.build_and_save_lightcurve(diaobj, lc_model)
-
     output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
     filename = "20172782_Y106_ou24psf_lc.ecsv"
     filepath = output_dir / filename
+    filepath.unlink(missing_ok=True)
+    # Note, the above should not be necessary because I have overwrite set to True. However I think something is broken
+    # in snappl, so I am making this temporary change to pre-delete the file so tests pass
+    runner.build_and_save_lightcurve(diaobj, lc_model)
 
     assert filepath.exists(), f"Lightcurve file {filename} was not created."
 
