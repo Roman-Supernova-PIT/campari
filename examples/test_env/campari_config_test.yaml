@@ -1,12 +1,6 @@
-# # This is used for the Nov 2025 podman container:
-# preloads:
-#   - /snpit_env/configs/nov2025_container_config.yaml
-
-
-#NOTE TO COLE: MAKE SURE THIS IS SET TO THE RIGHT THING FOR THE TEST ENV
-# Currently this is /home/environment/snpit_test_config.yaml
 preloads:
-  - /home/environment/configs/snpit_test_config.yaml
+  - /snpit_test_config.yaml
+
 
 photometry:
   campari:
@@ -47,7 +41,7 @@ photometry:
     debug_dir: ${system.paths.dev_storage}/campari_debug_dir
     save_debug: true
     test_num: 1
-    test_data: /home/packages/campari/tests/testdata/test_imagelists/
+    test_data: /home/packages/campari/campari_test_data # hey wtf is this
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
@@ -73,12 +67,5 @@ photometry:
   snappl:
     simdex_server: https://roman-desc-simdex.lbl.gov
 
-  test_data: "/photometry_test_data"
+  test_data: "/packages/photometry_test_data"
 
-# system:
-#   ou24:
-#     tds_base: /photometry_test_data/ou2024
-#     config_file: /photometry_test_data/ou2024/tds.yaml
-#     sn_truth_dir: /photometry_test_data/ou2024/snana_truth
-#     images: /photometry_test_data/ou2024/images/simple_model
-#     sims_sed_library: /photometry_test_data/ou2024/sims_sed_library
