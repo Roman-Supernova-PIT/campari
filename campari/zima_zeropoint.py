@@ -462,7 +462,6 @@ def main():
     """
 
     cfg = Config.get()
-    output_dir = cfg.value("photometry.campari_io.output_dir")
     star_catalog = _load_star_cat()
 
     # Copy the campari pipeline setup but don't actually run SMP! Just get images in the exact
@@ -472,8 +471,15 @@ def main():
     diaobj = runner._setup_diaobj(diaobjs)
     image_list = runner.get_exposures(diaobj)
 
-    calculate_zeropoint_catalog(image_list, star_catalog, output_dir=output_dir)
-    calc_all_zeropoints_from_saved_files(f"{output_dir}/zeropoint_stars_*.ecsv")
+    working_dir = pathlib.Path( cfg.value( "system.paths.temp_dir" ) ) / "".join( random.choices( 'abcdefghijlkmnopqrstuvwxyz', k=10 ) )
+
+    calculate_zeropoint_catalog(image_list, star_catalog, output_dir=working_dir)
+    if somebody_asked_me_to_save_all_the_ecsv_files:
+        # Copy all files from working_dir to pathlib.Path( cfg.value( "system.paths.dev_storage" ) ) / "zima_io"
+        pass
+
+    calc_all_zeropoints_from_saved_files(f"{str(working_dir)}/zeropoint_stars_*.ecsv")
+
 
 
 def _load_saved_ecsv_and_determine_zpt(ecsv_file_path):
