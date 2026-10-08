@@ -65,23 +65,16 @@ def create_default_test_args(cfg):
     config = cfg
 
     test_args.size = config.value("photometry.campari.cutout_size")
-    test_args.avoid_non_linearity = config.value("photometry.campari_simulations.avoid_non_linearity")
-    test_args.deltafcn_profile = config.value("photometry.campari_simulations.deltafcn_profile")
-    test_args.do_xshift = config.value("photometry.campari_simulations.do_xshift")
-    test_args.do_rotation = config.value("photometry.campari_simulations.do_rotation")
-    test_args.noise = config.value("photometry.campari_simulations.noise")
     test_args.method = config.value("photometry.campari.method")
     test_args.make_initial_guess = config.value("photometry.campari.make_initial_guess")
     test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
     test_args.weighting = config.value("photometry.campari.weighting")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")
     test_args.initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
     test_args.spacing = config.value("photometry.campari.grid_options.spacing")
     test_args.percentiles = config.value("photometry.campari.grid_options.percentiles")
     test_args.grid_type = config.value("photometry.campari.grid_options.type")
-    test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
     test_args.observation_id_list = None
@@ -361,7 +354,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     )
 
     output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
-    filename = "20172782_Y106_romanpsf_lc.ecsv"
+    filename = "20172782_Y106_ou24psf_lc.ecsv"
     filepath = output_dir / filename
     filepath.unlink(missing_ok=True)
     # Note, the above should not be necessary because I have overwrite set to True. However I think something is broken

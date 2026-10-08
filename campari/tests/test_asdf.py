@@ -57,7 +57,6 @@ def test_asdf(overwrite_meta):
             "--photometry-campari-psf-transient_class", "gaussian",
             "--photometry-campari-psf-galaxy_class", "gaussian", # this can't stay, this needs to be
             # updated to whatever PSF I am supposed to use for ASDF images.
-            "--photometry-campari-use_real_images",
             "--no-photometry-campari-fetch_SED",
             "--photometry-campari-grid_options-type", "regular",
             "--photometry-campari-grid_options-spacing", "1",
