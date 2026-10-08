@@ -28,6 +28,7 @@ from campari.io import (
 )
 from campari.run_one_object import run_one_object
 from campari.utils import banner, convert_band_name, delete_memory_file
+from campari.plotting import plot_postrun_summary
 
 global _start_time
 _start_time = time.perf_counter()

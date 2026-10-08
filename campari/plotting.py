@@ -481,6 +481,15 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
     model = np.asarray(lc_model.model_images).reshape(n_epochs, size, size)
     resid = data - model
 
+    # Weights are stored in the same flat, epoch-by-epoch order as the images.
+    # A weight of zero means the pixel was excluded from the fit (outside the
+    # `cutoff` radius, or NaN in the original image).
+    if lc_model.wgt_matrix is not None:
+        zero_weight = np.asarray(lc_model.wgt_matrix).reshape(n_epochs, size, size) == 0
+    else:
+        SNLogger.warning("No weights found on lc_model; not masking any pixels in the post-run plot.")
+        zero_weight = np.zeros((n_epochs, size, size), dtype=bool)
+
     is_detection = (mjds >= diaobj.mjd_start) & (mjds <= diaobj.mjd_end)
 
     # The fit orders images as [non-detections..., detections...], each sorted by
@@ -512,6 +521,8 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
     # Residual colormap: masked pixels are drawn white
     resid_cmap = matplotlib.colormaps["seismic"].copy()
     resid_cmap.set_bad("white")
+    model_cmap = matplotlib.colormaps["viridis"].copy()
+    model_cmap.set_bad("white")
 
     # One row per epoch
     for row, i in enumerate(order):
@@ -523,14 +534,20 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
         finite = data[i][np.isfinite(data[i])]
         vmin, vmax = (np.percentile(finite, 1), np.percentile(finite, 99)) if finite.size else (0, 1)
 
+                # The real image is shown in full, for reference.
         im0 = ax_data.imshow(data[i], origin="lower", vmin=vmin, vmax=vmax)
-        im1 = ax_model.imshow(model[i], origin="lower", vmin=vmin, vmax=vmax)
 
-        masked_resid = np.ma.masked_where((resid[i] == 0) | ~np.isfinite(resid[i]), resid[i])
-        if masked_resid.count() > 0:
-            rmax = np.max(np.abs(masked_resid))
-        else:
-            rmax = 1.0
+        # Model and residuals hide every pixel that had zero weight in the fit
+        # (and any non-finite values).
+        hide = zero_weight[i] | ~np.isfinite(model[i]) | ~np.isfinite(resid[i])
+        masked_model = np.ma.masked_where(hide, model[i])
+        masked_resid = np.ma.masked_where(hide, resid[i])
+
+        im1 = ax_model.imshow(masked_model, origin="lower", cmap=model_cmap, vmin=vmin, vmax=vmax)
+
+        # Symmetric color scale built only from pixels that were actually fit,
+        # so the excluded corners can't dominate the scale.
+        rmax = np.max(np.abs(masked_resid)) if masked_resid.count() > 0 else 1.0
         im2 = ax_resid.imshow(masked_resid, origin="lower", cmap=resid_cmap, vmin=-rmax, vmax=rmax)
 
         for ax, im in ((ax_data, im0), (ax_model, im1), (ax_resid, im2)):
@@ -543,7 +560,7 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
         if row == 0:
             ax_data.set_title("Real image")
             ax_model.set_title("Model")
-            ax_resid.set_title("Residual (data - model)\nzero pixels masked")
+            ax_resid.set_title("Residual (data - model)\nzero-weight pixels masked")
 
     # Matplotlib refuses to write images over ~65000 pixels on a side, so lower
     # the resolution for runs with a very large number of epochs.
