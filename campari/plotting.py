@@ -13,7 +13,6 @@ import snappl
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
-Config.init("/home/cfmeldorf/campari/examples/SMDC/campari_config_test.yaml")
 cfg = Config.get()
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
