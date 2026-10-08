@@ -3,6 +3,9 @@
 import argparse
 import warnings
 import sys
+import pysqlite3
+sys.modules['sqlite3'] = pysqlite3
+
 
 # Common Library
 from astropy.utils.exceptions import AstropyWarning
@@ -276,6 +279,7 @@ def main():
                         "will add the truth fluxes from ou2024 to the lightcurve output. Default False.")
 
     parser.add_argument("--nprocs", type=int, default=10, help="Number of processes to use. Default 10.")
+
 
     if cfg is not None:
         cfg.augment_argparse(parser)
