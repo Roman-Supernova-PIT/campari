@@ -488,7 +488,12 @@ class campari_runner:
         else:
             SNLogger.info("Not saving debug files.")
 
-        if Config.get().value("photometry.campari.postplot_cutouts"):
+        try:
+            postplot = Config.get().value("photometry.campari.postplot_cutouts")
+        except Exception as e:
+            postplot = False
+
+        if postplot:
             if lc_model.images is None or lc_model.cutout_image_list is None:
                 SNLogger.warning("postplot_cutout requested but the lightcurve model has no images; skipping.")
             else:
