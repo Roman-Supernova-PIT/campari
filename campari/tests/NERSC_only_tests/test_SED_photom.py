@@ -10,7 +10,7 @@ from snappl.config import Config
 from snappl.logger import SNLogger
 
 from campari.tests.test_gausspsfs import generate_diagnostic_plots, perform_gaussianity_checks
-
+pytestmark = pytest.mark.NERSC
 cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
