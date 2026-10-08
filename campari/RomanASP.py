@@ -279,6 +279,11 @@ def main():
                         "will add the truth fluxes from ou2024 to the lightcurve output. Default False.")
 
     parser.add_argument("--nprocs", type=int, default=10, help="Number of processes to use. Default 10.")
+    parser.add_argument("--parallel_mode", type=str, choices=["image", "point"], default="image",
+                        help="How to parallelize model building across --nprocs processes. "
+                        "'image': one worker per image (best when images >= nprocs). "
+                        "'point': images one at a time, one worker per model grid point "
+                        "(best when model points >> images). (Default: %(default)s)")
 
 
     if cfg is not None:
