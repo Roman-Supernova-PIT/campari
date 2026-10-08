@@ -3,8 +3,11 @@
 import argparse
 import warnings
 import sys
-import pysqlite3
-sys.modules["sqlite3"] = pysqlite3
+try:
+    import pysqlite3
+    sys.modules["sqlite3"] = pysqlite3
+except ModuleNotFoundError:
+    pass
 
 # Common Library
 from astropy.utils.exceptions import AstropyWarning
