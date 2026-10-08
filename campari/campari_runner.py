@@ -490,7 +490,7 @@ class campari_runner:
 
         try:
             postplot = Config.get().value("photometry.campari.postplot_cutouts")
-        except Exception as e:
+        except Exception:
             postplot = False
 
         if postplot:
