@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
+import matplotlib
 from matplotlib import pyplot as plt
+from matplotlib.figure import Figure
 
 from scipy.stats import binned_statistic, norm
 
@@ -11,7 +13,7 @@ import snappl
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
-
+Config.init("/home/cfmeldorf/campari/examples/SMDC/campari_config_test.yaml")
 cfg = Config.get()
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
@@ -450,3 +452,119 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         plt.close()
     else:
         plt.show()
+
+
+def plot_postrun_summary(lc_model, diaobj, output_path):
+    """Make a summary figure after a campari run.
+
+    Top: light curve (flux vs. MJD with error bars).
+    Below: one row per epoch with [real image | model image | residuals].
+    In the residual panels, pixels whose residual is exactly zero (or not
+    finite) are masked, so they show up blank.
+
+    Parameters
+    ----------
+    lc_model : campari_lightcurve_model
+        Output of run_one_object.
+    diaobj : snappl.diaobject.DiaObject
+        Used for mjd_start / mjd_end to flag detection epochs.
+    output_path : str or pathlib.Path
+        Where to save the .png.
+    """
+    cutouts = lc_model.cutout_image_list
+    n_epochs = len(cutouts)
+    size = cutouts[0].image_shape[0]
+    mjds = np.array([im.mjd for im in cutouts])
+
+    # lc_model.images / model_images are flat 1D arrays with the pixels of every
+    # epoch concatenated, so reshape to (epoch, y, x).
+    data = np.asarray(lc_model.images).reshape(n_epochs, size, size)
+    model = np.asarray(lc_model.model_images).reshape(n_epochs, size, size)
+    resid = data - model
+
+    # Weights are stored in the same flat, epoch-by-epoch order as the images.
+    # A weight of zero means the pixel was excluded from the fit (outside the
+    # `cutoff` radius, or NaN in the original image).
+    if lc_model.wgt_matrix is not None:
+        zero_weight = np.asarray(lc_model.wgt_matrix).reshape(n_epochs, size, size) == 0
+    else:
+        SNLogger.warning("No weights found on lc_model; not masking any pixels in the post-run plot.")
+        zero_weight = np.zeros((n_epochs, size, size), dtype=bool)
+
+    is_detection = (mjds >= diaobj.mjd_start) & (mjds <= diaobj.mjd_end)
+
+    # The fit orders images as [non-detections..., detections...], each sorted by
+    # MJD. For display we want strict time order.
+    order = np.argsort(mjds)
+
+    # Figure setup
+    lc_height = 4.0
+    row_height = 2.6
+    fig_height = lc_height + row_height * n_epochs
+    fig = Figure(figsize=(12, fig_height))
+    gs = fig.add_gridspec(n_epochs + 1, 3, height_ratios=[lc_height / row_height] + [1] * n_epochs,
+                          hspace=0.35, wspace=0.35)
+
+    # Top panel: light curve
+    ax_lc = fig.add_subplot(gs[0, :])
+    if lc_model.flux is not None:
+        det_mjds = mjds[is_detection]  # already in the same order as lc_model.flux
+        ax_lc.errorbar(det_mjds, np.atleast_1d(lc_model.flux), yerr=np.atleast_1d(lc_model.sigma_flux),
+                       fmt="o", color="purple", capsize=2)
+        ax_lc.axhline(0, color="k", ls="--", lw=0.8)
+        ax_lc.set_xlabel("MJD")
+        ax_lc.set_ylabel("Flux (e-/s)")
+    else:
+        ax_lc.text(0.5, 0.5, "No detection images, so no light curve", ha="center", va="center",
+                   transform=ax_lc.transAxes)
+    ax_lc.set_title(f"Campari light curve: {getattr(diaobj, 'name', '')}")
+
+    # Residual colormap: masked pixels are drawn white
+    resid_cmap = matplotlib.colormaps["seismic"].copy()
+    resid_cmap.set_bad("white")
+    model_cmap = matplotlib.colormaps["viridis"].copy()
+    model_cmap.set_bad("white")
+
+    # One row per epoch
+    for row, i in enumerate(order):
+        ax_data = fig.add_subplot(gs[row + 1, 0])
+        ax_model = fig.add_subplot(gs[row + 1, 1])
+        ax_resid = fig.add_subplot(gs[row + 1, 2])
+
+        # Real and model images share a color scale so they can be compared by eye.
+        finite = data[i][np.isfinite(data[i])]
+        vmin, vmax = (np.percentile(finite, 1), np.percentile(finite, 99)) if finite.size else (0, 1)
+
+                # The real image is shown in full, for reference.
+        im0 = ax_data.imshow(data[i], origin="lower", vmin=vmin, vmax=vmax)
+
+        # Model and residuals hide every pixel that had zero weight in the fit
+        # (and any non-finite values).
+        hide = zero_weight[i] | ~np.isfinite(model[i]) | ~np.isfinite(resid[i])
+        masked_model = np.ma.masked_where(hide, model[i])
+        masked_resid = np.ma.masked_where(hide, resid[i])
+
+        im1 = ax_model.imshow(masked_model, origin="lower", cmap=model_cmap, vmin=vmin, vmax=vmax)
+
+        # Symmetric color scale built only from pixels that were actually fit,
+        # so the excluded corners can't dominate the scale.
+        rmax = np.max(np.abs(masked_resid)) if masked_resid.count() > 0 else 1.0
+        im2 = ax_resid.imshow(masked_resid, origin="lower", cmap=resid_cmap, vmin=-rmax, vmax=rmax)
+
+        for ax, im in ((ax_data, im0), (ax_model, im1), (ax_resid, im2)):
+            fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
+            ax.set_xticks([])
+            ax.set_yticks([])
+
+        label_color = "red" if is_detection[i] else "black"
+        ax_data.set_ylabel(f"MJD {mjds[i]:.3f}", color=label_color, fontsize=9)
+        if row == 0:
+            ax_data.set_title("Real image")
+            ax_model.set_title("Model")
+            ax_resid.set_title("Residual (data - model)\nzero-weight pixels masked")
+
+    # Matplotlib refuses to write images over ~65000 pixels on a side, so lower
+    # the resolution for runs with a very large number of epochs.
+    dpi = int(min(100, 60000 / fig_height))
+    fig.savefig(output_path, dpi=dpi, bbox_inches="tight")
+    SNLogger.info(f"Saved post-run summary plot to {output_path}")

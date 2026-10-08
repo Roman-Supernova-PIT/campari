@@ -28,6 +28,7 @@ from campari.io import (
 )
 from campari.run_one_object import run_one_object
 from campari.utils import banner, convert_band_name, delete_memory_file
+from campari.plotting import plot_postrun_summary
 
 global _start_time
 _start_time = time.perf_counter()
@@ -487,6 +488,15 @@ class campari_runner:
         else:
             SNLogger.info("Not saving debug files.")
 
+        if Config.get().value("photometry.campari.postplot_cutouts"):
+            if lc_model.images is None or lc_model.cutout_image_list is None:
+                SNLogger.warning("postplot_cutout requested but the lightcurve model has no images; skipping.")
+            else:
+                plot_dir = pathlib.Path(self.cfg.value("photometry.campari_io.debug_dir"))
+                plot_dir.mkdir(exist_ok=True, parents=True)
+                plot_postrun_summary(lc_model, diaobj,
+                                     plot_dir / f"postplot_{identifier}_{self.band}_{psftype}.png")
+
     def parse_img_list(self):
         """Parse the image list file if provided."""
         if self.img_list is not None:
@@ -495,6 +505,7 @@ class campari_runner:
 
         else:
             img_list_lines = glob.glob(self.img_glob)
+            SNLogger.debug(f"Found the following image paths using glob {self.img_glob}: {img_list_lines}")
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
             for im_path in img_list_lines:
                 SNLogger.debug(f"Found image at path {im_path}")
