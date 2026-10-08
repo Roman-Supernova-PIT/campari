@@ -80,7 +80,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None,
-                   nprocs=None, parallel_mode="image"):
+                   nprocs=None):
     psf_matrix = []
     sn_matrix = []
 
@@ -173,17 +173,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                   "num_detect_images": num_detect_images, "prebuilt_psf_matrix": prebuilt_psf_matrix,
                   "prebuilt_sn_matrix": prebuilt_sn_matrix, "subtract_background_method": subtract_background_method}
 
-    if parallel_mode == "point":
-        SNLogger.debug(f"Using {nprocs} processes for point-wise model building")
-        # Images one at a time; the grid points within each image are split across nprocs workers.
-        # (Can't also pool over images: workers in a pool can't start pools of their own.)
-        SNLogger.debug(f"Point-parallel model building with up to {nprocs} workers per image")
-        for i, image in enumerate(image_list):
-            model_results.append(build_model_for_one_image(
-                image=image, image_index=i, nprocs_points=nprocs, **kwarg_dict))
-
-    elif nprocs > 1:
-        SNLogger.debug(f"Using {nprocs} processes for image-wise model building")
+    if nprocs > 1:
+        SNLogger.debug(f"Using {nprocs} processes for model building")
         global _shared_image_list
         _shared_image_list = image_list
         ctx = multiprocessing.get_context("fork")
@@ -198,9 +189,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         for i, image in enumerate(image_list):
             model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
 
-    results_are_async = (parallel_mode == "image" and nprocs > 1)
     for result in model_results:
-        if results_are_async:
+        if nprocs > 1:
             bg_model, transient_model = result.get()
         else:
             bg_model, transient_model = result

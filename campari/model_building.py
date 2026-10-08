@@ -2,7 +2,6 @@
 import warnings
 
 # Common Library
-import multiprocessing
 import numpy as np
 from scipy.interpolate import RegularGridInterpolator
 
@@ -235,35 +234,8 @@ def generate_guess(imlist, ra_grid, dec_grid):
     return all_vals / len(wcslist)
 
 
-# State for point-parallel workers. Filled in once per worker process by
-# _init_static_scene_worker. With the "fork" start method, the arguments to the
-# initializer are inherited by the child process, not pickled, so passing the
-# image here is safe even for ASDF images.
-_static_scene_state = {}
-
-
-def _init_static_scene_worker(psfclass, image, stampsize, x_sca, y_sca, x_loc, y_loc):
-    observation_id = image.observation_id if image is not None else None
-    sca = image.sca if image is not None else None
-    _static_scene_state["psf_object"] = PSF.get_psf_object(
-        psfclass, observation_id=observation_id, sca=sca,
-        stamp_size=stampsize, seed=None, image=image)
-    _static_scene_state["x_sca"] = x_sca
-    _static_scene_state["y_sca"] = y_sca
-    _static_scene_state["x_loc"] = x_loc
-    _static_scene_state["y_loc"] = y_loc
-
-
-def _static_scene_point_worker(a):
-    """Draw the PSF stamp for grid point number a."""
-    s = _static_scene_state
-    return s["psf_object"].get_stamp(
-        x0=s["x_loc"], y0=s["y_loc"], x=s["x_sca"][a], y=s["y_sca"][a], flux=1.0
-    ).flatten()
-
-
 def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=None, stampsize=None,
-                           pixel=False, band=None, image=None, nprocs=1):
+                           pixel=False, band=None, image=None):
     """Constructs the background model around a certain image (x,y) location
     and a given array of RA and DECs.
 
@@ -279,9 +251,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         instead.
     pixel: bool, If True, use a pixel tophat function to convolve the PSF with,
         otherwise use a delta function. Does not seem to hugely affect results.
-    nprocs: int, if > 1, grid points are distributed over up to min(nprocs, number of
-        grid points) worker processes, one point per task. Must not be used from
-        inside another multiprocessing pool.
+
 
     Returns:
     A numpy array of the PSFs at each grid point, with the shape
@@ -298,31 +268,37 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     num_grid_points = np.size(x_sca)
     psfs = np.zeros((stampsize * stampsize, num_grid_points))
 
+
+    sed = galsim.SED(
+        galsim.LookupTable([100, 2600], [1, 1], interpolant="linear"), wave_type="nm", flux_type="fphotons"
+    )
+
+    if pixel:
+        point = galsim.Pixel(0.1) * sed
+    else:
+        point = galsim.DeltaFunction()
+        point *= sed
+
+    point = point.withFlux(1, bpass)
+
+    observation_id = image.observation_id if image is not None else None
+    sca = image.sca if image is not None else None
+
+    psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca,
+                                    stamp_size=stampsize, seed=None, image=image)
+
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
 
     galsim.ChromaticConvolution.resize_effective_prof_cache(10)
 
-    if nprocs > 1 and num_grid_points > 1:
-        nworkers = min(nprocs, num_grid_points)
-        SNLogger.debug(f"Building {num_grid_points} grid point PSFs with {nworkers} workers")
-        ctx = multiprocessing.get_context("fork")
-        with ctx.Pool(nworkers, initializer=_init_static_scene_worker,
-                      initargs=(psfclass, image, stampsize, x_sca.flatten(), y_sca.flatten(),
-                                x_loc, y_loc)) as pool:
-            # chunksize=1: each task is one grid point; idle workers grab the next point.
-            stamps = pool.map(_static_scene_point_worker, range(num_grid_points), chunksize=1)
-        psfs[:, :] = np.array(stamps).T
-    else:
-        observation_id = image.observation_id if image is not None else None
-        sca = image.sca if image is not None else None
-        psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca,
-                                        stamp_size=stampsize, seed=None, image=image)
-        for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
-            psfs[:, a] = psf_object.get_stamp(x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0).flatten()
-            if a % 10 == 0:
-                SNLogger.debug(f"Constructed PSF for {a} of {num_grid_points} grid points")
+    for a, (x, y) in enumerate(zip(x_sca.flatten(), y_sca.flatten())):
+        psfs[:, a] = psf_object.get_stamp(
+            x0=x_loc, y0=y_loc, x=x, y=y, flux=1.0
+        ).flatten()
+        if a % 10 == 0:
+            SNLogger.debug(f"Constructed PSF for {a} of {num_grid_points} grid points")
 
     print_mem("Finished constructing static scene")
     galsim.ChromaticConvolution.resize_effective_prof_cache(1)
@@ -589,8 +565,7 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
                               image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
-                              nprocs_points=1):
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
 
     print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
@@ -615,7 +590,6 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
             pixel=pixel,
             image=image,
             band=band,
-            nprocs=nprocs_points
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:
         SNLogger.debug("Using prebuilt PSF matrix for background model")

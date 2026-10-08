@@ -453,6 +453,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
     else:
         plt.show()
 
+
 def plot_postrun_summary(lc_model, diaobj, output_path):
     """Make a summary figure after a campari run.
 
