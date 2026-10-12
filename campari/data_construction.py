@@ -185,6 +185,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
             )
             bg_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
             background_calculation_data = bg_cutout.data
+            del bg_cutout
         else:
             background_calculation_data = image_cutout.data
 
