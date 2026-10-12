@@ -303,7 +303,7 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -331,7 +331,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
                         overwrite_meta=overwrite_meta)
 
-    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -363,7 +363,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
 
     debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
@@ -415,7 +415,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
-    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
     debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
     debug_file.unlink(missing_ok=True)
