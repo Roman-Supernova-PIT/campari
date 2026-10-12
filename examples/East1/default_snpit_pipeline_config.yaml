@@ -1,0 +1,28 @@
+# THIS FILE IS OUT OF DATE AND SHOULD PROBABLY BE REMOVED?
+# It's referenced in the dockerfile, so leave it here for now.
+# Further thought required.
+
+# This is the default SNPIT config for pipeline settings.  Ideally,
+#  everything in all pipelines should have values here, but it's
+#  currently not up to date.
+#
+# Ideally, you will be able to include this in a parent config alongside
+#  a system file that configures access to the database.
+#
+# For our tests (at least the snappl tests), this file is included by
+#  snpit_test_config.yaml
+
+photometry:
+  phrosty:
+    force_sky_subtract: true
+    keep_intermediate: true
+    remove_temp_dir: false
+    mem_trace: false
+    kerpolyorder: 2
+
+    sfft:
+      radius_cut_detmask: 2
+
+    psf:
+      type: ou24PSF
+      params: {}
