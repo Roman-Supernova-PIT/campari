@@ -536,11 +536,21 @@ def test_make_contour_grid():
 
 
 def test_calculate_background_level():
+    size = 31
     rng1 = np.random.default_rng(seed=424242424242424)
-    test_data = rng1.normal(loc=20, scale=5, size=(265, 265))
+    test_data = rng1.normal(loc=20, scale=5, size=(size, size))
     expected_output = 20
     output = calculate_background_level(test_data)
     np.testing.assert_allclose(output, expected_output, rtol=1e-3)  # 0.1% accuracy, should be good enough?
+
+    # Now again with some injected fake sources
+    test_data_with_sources = test_data.copy()
+
+    gaussian = np.zeros((size, size))
+    gaussian = 100 * np.exp(-((np.arange(size) - size//2)**2 + (np.arange(size)[:, None] - size//2)**2) / (2 * 1.0**2))
+    test_data_with_sources += gaussian
+    output_with_sources = calculate_background_level(test_data_with_sources)
+    np.testing.assert_allclose(output_with_sources, expected_output, rtol=1e-3)  # Should still be close to 20
 
 
 def test_calc_mag_and_err():
