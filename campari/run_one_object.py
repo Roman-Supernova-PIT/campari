@@ -218,7 +218,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if weighting:
         wgt_matrix = get_weights(cutout_image_list, diaobj.ra, diaobj.dec, gaussian_var=gaussian_var,
-                                 cutoff=cutoff, error_floor=error_floor)
+                                 cutoff=cutoff, error_floor=error_floor,
+                                 psf_matrix=psf_matrix, sn_matrix=sn_matrix)
     else:
         wgt_matrix = np.ones(psf_matrix.shape[0])
 
