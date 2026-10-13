@@ -180,13 +180,13 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         bg = float(subtract_background_method)
         SNLogger.debug(f"Background from user input: {bg}")
     elif subtract_background_method == "calculate":
-        if image_cutout.data.shape[0] < min_background_cutout_size or
-            image_cutout.data.shape[1] < min_background_cutout_size:
+        if image_cutout.data.shape[0] < min_background_cutout_size or \
+        image_cutout.data.shape[1] < min_background_cutout_size:
             # In test_campari.py, I found that the background subtraction is accurate to 0.1% only when using at least
             # a 31x31 region. If we want more accurate, this minimal value may need to be increased.
             SNLogger.info(
-                f"Image cutout is smaller than {min_background_cutout_size}x{min_background_cutout_size} pixels."
-                f" Taking a {min_background_cutout_size}x{min_background_cutout_size} region for background calculation."
+                f"Image cutout is smaller than {min_background_cutout_size}x{min_background_cutout_size} pixels. "
+                f"Taking a {min_background_cutout_size}x{min_background_cutout_size} region for background calculation."
             )
             bg_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
             background_calculation_data = bg_cutout.data
