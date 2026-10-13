@@ -6,8 +6,8 @@
 # preloads:
 #   - ${SNPIT_DEFAULT_CONFIG}
 
-preloads:
-  - snpit_test_config.yaml
+# preloads:
+#   - snpit_test_config.yaml
 
 photometry:
   campari:
@@ -48,7 +48,8 @@ photometry:
     debug_dir: /home/cfmeldorf/campari_debug_dir
     save_debug: true
     test_num: 1
-    test_data: /home/packages/campari/campari_test_data # hey wtf is this
+    # How do I de-hardcode this name for the directory?
+    test_data: /home/cfmeldorf/packages/campari/campari_test_data
     # test_num is a hack suggested by Rob. If you want to save a lc to the database, it needs a provenance.
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
@@ -74,12 +75,62 @@ photometry:
   snappl:
     simdex_server: https://roman-desc-simdex.lbl.gov
 
-  test_data: "/photometry_test_data"
+  test_data: "/home/cfmeldorf/packages/photometry_test_data"
 
-# system:
-#   ou24:
-#     tds_base: /photometry_test_data/ou2024
-#     config_file: /photometry_test_data/ou2024/tds.yaml
-#     sn_truth_dir: /photometry_test_data/ou2024/snana_truth
-#     images: /photometry_test_data/ou2024/images/simple_model
-#     sims_sed_library: /photometry_test_data/ou2024/sims_sed_library
+# Once we get the Apptainer on East1 this should be removed.
+system:
+  db:
+    url: https://webserver:8080/
+    username: test
+    # In an actual config, you should set password to null
+    #   and create a single-line text file with your
+    #   password in a secure location.  Put the
+    #   location of that file in password_file.
+    password: test_password
+    passwordfile: null
+
+  # Paths on your system.  Most of these will need
+  # to be changed when running somewhere else.
+  paths:
+    # Base directory where single-epoch 1d spectra are written
+    spectra1d: /data/spectra1d
+
+    # Base directory where all lightcurves saved to the database are stored
+    lightcurves: /data/lightcurves
+
+    # Base directory where all segmentation maps saved to the database are stored
+    segmaps: /data/segmaps
+
+    # Base directory where... at least some... sometimes... l2 images are stored
+    images: /data/l2images
+
+    # For basic temp usage
+    temp_dir: /tmp
+
+    # For stuff that's written out that we might want to look at later
+    # but aren't formal data products
+    dev_storage: /dev_storage
+
+    # Paths used by snappl library modules
+    snappl:
+      A25ePSF_path: /packages/snappl/snappl/tests/testdata/A25ePSF
+
+  ou24:
+    simdex_server: https://roman-desc-simdex.lbl.gov
+
+    tds_base: /home/cfmeldorf/packages/campari/examples/East1
+    config_file: /home/cfmeldorf/packages/campari/examples/East1/tds.yaml
+
+    sn_truth_dir: /home/cfmeldorf/packages/photometry_test_data/ou2024/snana_truth
+    # sn_truth_dir: /snana_pq_dir
+
+    images: /home/cfmeldorf/packages/photometry_test_data/ou2024/images/simple_model
+
+    sims_sed_library: /home/cfmeldorf/packages/photometry_test_data/ou2024/sims_sed_library
+    # Comment from Cole & Rob: This is a path to the SEDs that were used to generate the
+    # OU24 simulations.  Only a subset of the files are stored in
+    # photometry_test_data, so if you want to use it for real, you'll need
+    # to get the file yourself.  If you are interested in getting the SEDs yourself,
+    # go into the directory where you want it to live and run the command:
+    # curl https://s3df.slac.stanford.edu/groups/rubin/static/sim-data/sed_library/seds_170124.tar.gz  | tar xv
+    # Courtesy of M. Troxel ^^^

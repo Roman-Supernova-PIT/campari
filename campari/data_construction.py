@@ -116,7 +116,7 @@ def is_number(s):
 
 
 def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
-                        subtract_background_method=None):
+                        subtract_background_method=None, min_background_cutout_size=31):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -133,6 +133,9 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         level is stored in. If the keyword is not found, an error is raised.
     truth: str, either "truth" or "simple_model", whether to use truth images
         or OU2024 simple model images.
+    min_background_cutout_size: int, the minimum size of the cutout to be used for background calculation.
+        If the cutout is smaller than this size, a larger cutout will be used for background calculation, and
+        then deleted.
 
     Returns:
     cutout_image: snappl.image.Image object, cutout on the object location.
@@ -177,7 +180,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         bg = float(subtract_background_method)
         SNLogger.debug(f"Background from user input: {bg}")
     elif subtract_background_method == "calculate":
-        if image_cutout.data.shape[0] < 31 or image_cutout.data.shape[1] < 31:
+        if image_cutout.data.shape[0] < min_background_cutout_size or
+            .data.shape[1] < min_background_cutout_size:
             # In test_campari.py, I found that the background subtraction is accurate to 0.1% only when using at least
             # a 31x31 region. If we want more accurate, this minimal value may need to be increased.
             SNLogger.info(
