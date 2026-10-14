@@ -23,12 +23,6 @@ photometry:
       galaxy_class: ou24PSF
       transient_class: ou24PSF_slow
 
-    psf:
-      galaxy_photon_ops: false
-      transient_photon_ops: false
-      transient_class: ou24PSF
-      galaxy_class: ou24PSF
-
     grid_options:
       type: contour
       percentiles:
@@ -74,6 +68,7 @@ photometry:
     base_pointing: 276
     base_sca: 10
     run_name: whatever
+
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
   test_data: /photometry_test_data
