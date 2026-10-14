@@ -7,7 +7,7 @@
 #   - ${SNPIT_DEFAULT_CONFIG}
 
 preloads:
-  - /home/environment/snpit_test_config.yaml
+  - /home/environment/configs/snpit_test_config.yaml
 
 photometry:
   campari:

@@ -1,0 +1,1 @@
+Apply the cutoff weighting (i.e., set weights on pixels to zero if they are too far from the SN) whether or not a gaussian weighting is applied.

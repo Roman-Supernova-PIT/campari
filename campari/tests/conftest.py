@@ -68,6 +68,10 @@ def pytest_configure(config):
         "markers", "run_last: these run last because they enclose the functionality of other tests"
 
     )
+    config.addinivalue_line(
+        "markers", "NERSC: marks tests that require NERSC to be operational"
+    )
+
     if not config.getoption("--run-accuracy"):
         config.option.markexpr = "not accuracy_test"
 
