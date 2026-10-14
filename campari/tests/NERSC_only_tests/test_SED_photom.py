@@ -40,6 +40,7 @@ base_cmd = [
         "--no-save-to-db"
     ]
 
+
 @pytest.mark.NERSC
 @pytest.mark.skip(reason="This test simply confirms that fitting with the same SED as simulated is optimal.")
 def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
@@ -99,6 +100,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
         SNLogger.debug(f"Generated saved diagnostic plots to /{debug_dir}/{plotname}.png")
         SNLogger.debug(e)
         raise e
+
 
 @pytest.mark.NERSC
 @pytest.mark.skip(reason="This test is superseded by tests with noise.")
