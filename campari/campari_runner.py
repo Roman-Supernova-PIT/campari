@@ -440,7 +440,7 @@ class campari_runner:
                 output_dir = None
             else:
                 output_dir = pathlib.Path(self.cfg.value("photometry.campari_io.output_dir"))
-                output_dir.mkdir( exist_ok=True, parents=True )
+                output_dir.mkdir(exist_ok=True, parents=True)
             testrun = getattr(self, "testrun", None)
             save_lightcurve(lc=lc, identifier=identifier, psftype=psftype, output_path=output_dir,
                             save_to_database=self.save_to_db, new_provenance=self.create_ltcv_provenance,

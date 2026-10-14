@@ -92,7 +92,7 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             pool.join()
     else:
         for indx, image in enumerate(image_list):
-            SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+            SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
             results.append(construct_one_image(indx=indx, image=image,
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background_method=subtract_background_method))
@@ -184,7 +184,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
 
     elif subtract_background_method == "photutils_local":
         lb = LocalBackground(10, 20, MedianBackground())
-        bg = lb(image_cutout.data, size//2, size//2)
+        bg = lb(image_cutout.data, size // 2, size // 2)
     else:
         SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
         bg = image_cutout.get_fits_header()[subtract_background_method] if \
@@ -194,7 +194,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
-    image.free() # Save memory
+    image.free()  # Save memory
     print_mem(f"after freeing full image {indx} ------------------")
     return image_cutout, bg
 

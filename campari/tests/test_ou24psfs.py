@@ -19,7 +19,7 @@ from campari.tests.test_gausspsfs import (
     perform_gaussianity_checks,
 )
 
-##### CAMPARI TESTING DOCUMENTATION #################
+# CAMPARI TESTING DOCUMENTATION #################
 # These tests serve to test campari at varying levels of complexity. When campari does not work,
 # we want to be able to trace the error to the simplest case where it occurs, as this would hint at
 # the issue (e.g. if it fails on noiseless images, it's likely a problem with the PSF or the fitting routine,
@@ -211,9 +211,9 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_
         raise e
 
 
-########### TESTS BEGIN BELOW HERE ####################
+# TESTS BEGIN BELOW HERE ####################
 
-########## NO NOISE TESTS #############################
+# NO NOISE TESTS #############################
 # This first test has no host and no noise. This is a sanity check to make sure the PSF is being placed
 # in the correct location and that we can recover the flux in the simplest case.
 
@@ -291,7 +291,7 @@ def test_noiseless_aligned_22maghost_withphotops():
     }
 
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
-############## PARTIAL NOISE TESTS #############################
+# PARTIAL NOISE TESTS #############################
 
 # This test has no host and only sky noise.
 
@@ -326,7 +326,7 @@ def test_extended_nohost_poissonnoiseonly():
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
-############ ALL NOISE NO HOST TESTS ###############################
+# ALL NOISE NO HOST TESTS ###############################
 
 # This test has all sources of noise but no contaminating host galaxy. Again,
 # we are essentially just checking campari's ability to do PSF photometry.
@@ -351,7 +351,7 @@ def test_bothnoise_shifted_NOhost_ou24PSF_slow_photops(simulation_number):
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
-######## ALL NOISE + HOST TESTS #################
+# ALL NOISE + HOST TESTS #################
 
 # 45, 48, 49
 # For some reason, just 45, 48 and 49 fail. 45 and 49 are skewed and 48 has a very high bias (~0.37)

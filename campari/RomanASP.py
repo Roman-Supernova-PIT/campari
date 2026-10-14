@@ -99,11 +99,11 @@ def main():
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
-    parser.add_argument("--prebuilt_static_model", type=str, default=None,  required=False,
+    parser.add_argument("--prebuilt_static_model", type=str, default=None, required=False,
                         help="A path to a .npy file containing a prebuilt static model. "
                              "If given, will use this model instead of building a new one. ")
 
-    parser.add_argument("--prebuilt_transient_model", type=str, default=None,  required=False,
+    parser.add_argument("--prebuilt_transient_model", type=str, default=None, required=False,
                         help="A path to a .npy file containing a prebuilt transient model. "
                              "If given, will use this model instead of building a new one. ")
 

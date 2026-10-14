@@ -41,7 +41,7 @@ base_cmd = [
         "--photometry-campari-subtract_background", "calculate",
         "--image-collection", "manual_fits",
         "--photometry-campari_simulations-run_name", "gauss_source_no_grid",
-        "--image-collection-basepath", "/scratch/", # update in
+        "--image-collection-basepath", "/scratch/",  # update in
         # SNPIT environment necessitated this change.
         # but you may need to run this code:
         # ln -s /scratch/photometry_test_data /photometry_test_data
@@ -108,7 +108,7 @@ def perform_gaussianity_checks(residuals_sigma, measuredflux=None, trueflux=None
     SNLogger.info(inspect.stack()[1][3])
     SNLogger.info(f"NUM POINTS: {len(residuals_sigma)}")
     if measuredflux is not None and trueflux is not None:
-        delta_mag = (measuredflux/trueflux - 1) * 1000  # in mmag
+        delta_mag = (measuredflux / trueflux - 1) * 1000  # in mmag
         delta_mag = delta_mag[np.isfinite(delta_mag)]
         SNLogger.info(f"Campari delta mag (mmag) mean: {np.nanmean(delta_mag)}, std: {np.nanstd(delta_mag)}")
     SNLogger.info("Fitted residuals mu: " + str(mu) + ", sig: " + str(sig) + "\n mu tolerance: " + str(mu_atol))
