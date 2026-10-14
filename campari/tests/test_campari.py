@@ -366,7 +366,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
 
-    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_ou24psf_slow_images.npy"
     debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -417,7 +417,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
 
     curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
-    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_ou24psf_slow_images.npy"
     debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
