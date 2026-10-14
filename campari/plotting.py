@@ -478,6 +478,7 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
     # lc_model.images / model_images are flat 1D arrays with the pixels of every
     # epoch concatenated, so reshape to (epoch, y, x).
     data = np.asarray(lc_model.images).reshape(n_epochs, size, size)
+    error = np.asarray(lc_model.noise_maps).reshape(n_epochs, size, size)
     model = np.asarray(lc_model.model_images).reshape(n_epochs, size, size)
     resid = data - model
 
@@ -548,7 +549,12 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
         # Symmetric color scale built only from pixels that were actually fit,
         # so the excluded corners can't dominate the scale.
         rmax = np.max(np.abs(masked_resid)) if masked_resid.count() > 0 else 1.0
-        im2 = ax_resid.imshow(masked_resid, origin="lower", cmap=resid_cmap, vmin=-rmax, vmax=rmax)
+
+        #masked_pull = np.ma.masked_where(hide, resid[i] / error[i])
+        #rmax = np.max(np.abs(masked_pull)) if masked_pull.count() > 0 else 1.0
+        #rmax = 3.0 if rmax < 3.0 else rmax  # don't let the color scale be too small
+
+        im2 = ax_resid.imshow(masked_resid, origin="lower", cmap=model_cmap, vmin=vmin, vmax=vmax)
 
         for ax, im in ((ax_data, im0), (ax_model, im1), (ax_resid, im2)):
             fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)

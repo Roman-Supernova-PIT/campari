@@ -119,7 +119,7 @@ def main():
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
 
-    parser.add_argument("--diaobject-collection", type=str, default="snpitdb", required=False,
+    parser.add_argument("--diaobject-collection", type=str, default="manual", required=False,
                         help="Which collection of objects to use for lookup. "
                              "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
@@ -127,13 +127,12 @@ def main():
                         help="Subset of the diaobject collection to use for lookup. ")
     # Campari currently does not use this?
 
-    parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
+    parser.add_argument("--image-collection", type=str, default="manual_rdm", required=False,
                         help="Which collection of images to use for lookup. ")
     parser.add_argument("--image-collection-basepath", type=str, default=None, required=False,
                         help="Path provided as the basepath to the ImageCollection object. In most cases, "
                         "this is not needed because the basepath is configured for the database, you only"
                         "really need this for manual collections. ")
-    # Changed subset this might break tests remove this before pushing! XXX TODO
     parser.add_argument("--image-collection-subset", type=str, default=None, required=False,
                         help="Subset argument provided to the image collection object to use for lookup. ")
     # Campari currently does not use this?

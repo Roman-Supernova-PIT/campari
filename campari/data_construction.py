@@ -194,7 +194,11 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
-    image.free() # Save memory
+    try:
+        image.free() # Save memory
+    except Exception as e:
+        SNLogger.warning(f"Could not free image {indx} from memory: {e}")
+        del image
     print_mem(f"after freeing full image {indx} ------------------")
     return image_cutout, bg
 

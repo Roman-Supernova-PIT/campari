@@ -278,6 +278,7 @@ class campari_runner:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
             image_list = self.prune_images_to_correct_band(image_list)
+            image_list = self.prune_images_to_include_ra_dec(image_list)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
 
@@ -570,6 +571,22 @@ class campari_runner:
                        f"because they were not in the correct band {self.band}.")
         if len(pruned_image_list) == 0:
             raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
+        return pruned_image_list
+
+    def prune_images_to_include_ra_dec(self, image_list):
+        ra = self.ra
+        dec = self.dec
+        pruned_image_list = []
+        for image in image_list:
+            im_wcs = image.get_wcs()
+            x, y = im_wcs.world_to_pixel(ra=ra, dec=dec)
+            print(f"Image MJD: {image.mjd}, Band: {image.band}, RA: {ra}, Dec: {dec}, X: {x}, Y: {y}, Image Shape: {image.data.shape}")
+            if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
+                pruned_image_list.append(image)
+            else:
+                SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
+                                f"band {image.band} because it did not include the transient RA/DEC.")
+
         return pruned_image_list
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
