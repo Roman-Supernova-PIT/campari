@@ -300,6 +300,7 @@ def test_savelightcurve():
         # TODO: look at contents?
 
 
+@pytest.mark.run_last
 def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
@@ -356,6 +357,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
         test_run_on_star(campari_test_data, cfg, overwrite_meta=False)
 
 
+@pytest.mark.run_last
 def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # This runs the same test as test_regression, with a different
     # interface.  This one calls the main() function (so is useful if
@@ -408,6 +410,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
         test_regression_function(campari_test_data, cfg, overwrite_meta=False)
 
 
+@pytest.mark.run_last
 @pytest.mark.parametrize("nprocs", [(1), (2)])
 def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Regression lightcurve was changed on June 6th 2025 because we were on an
