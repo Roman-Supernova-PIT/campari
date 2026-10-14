@@ -1,0 +1,1 @@
+Added an automatic residual and lightcurve plotter.

@@ -6,6 +6,7 @@ from multiprocessing import Pool
 
 from snappl.config import Config
 from snappl.logger import SNLogger
+import snappl
 
 
 def write_image_list(output_path, run_dir, run_name, test_data_path):

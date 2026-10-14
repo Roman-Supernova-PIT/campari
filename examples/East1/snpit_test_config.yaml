@@ -1,0 +1,68 @@
+# These values set up the database and paths that are used by
+# the test environment defined in the test-docker-environment
+# subdirectory of the roman snpit environment git repo.
+#
+# They will not be right for any production installation.
+
+augments:
+  - default_snpit_pipeline_config.yaml
+
+system:
+  # The database sever to connect to
+  db:
+    url: https://webserver:8080/
+    username: test
+    # In an actual config, you should set password to null
+    #   and create a single-line text file with your
+    #   password in a secure location.  Put the
+    #   location of that file in password_file.
+    password: test_password
+    passwordfile: null
+
+  # Paths on your system.  Most of these will need
+  # to be changed when running somewhere else.
+  paths:
+    # Base directory where single-epoch 1d spectra are written
+    spectra1d: /data/spectra1d
+
+    # Base directory where all lightcurves saved to the database are stored
+    lightcurves: /data/lightcurves
+
+    # Base directory where all segmentation maps saved to the database are stored
+    segmaps: /data/segmaps
+
+    # Base directory where... at least some... sometimes... l2 images are stored
+    images: /data/l2images
+
+    # For basic temp usage
+    temp_dir: /tmp
+
+    # For stuff that's written out that we might want to look at later
+    # but aren't formal data products
+    dev_storage: /dev_storage
+
+    # Paths used by snappl library modules
+    snappl:
+      A25ePSF_path: /packages/snappl/snappl/tests/testdata/A25ePSF
+
+
+  # General OpenUniverse 2024 configurations
+  ou24:
+    simdex_server: https://roman-desc-simdex.lbl.gov
+
+    tds_base: /packages/photometry_test_data/ou2024
+    config_file: /packages/photometry_test_data/ou2024/tds.yaml
+
+    sn_truth_dir: /packages/photometry_test_data/ou2024/snana_truth
+    # sn_truth_dir: /snana_pq_dir
+
+    images: /packages/photometry_test_data/ou2024/images/simple_model
+
+    sims_sed_library: /packages/photometry_test_data/ou2024/sims_sed_library
+    # Comment from Cole & Rob: This is a path to the SEDs that were used to generate the
+    # OU24 simulations.  Only a subset of the files are stored in
+    # photometry_test_data, so if you want to use it for real, you'll need
+    # to get the file yourself.  If you are interested in getting the SEDs yourself,
+    # go into the directory where you want it to live and run the command:
+    # curl https://s3df.slac.stanford.edu/groups/rubin/static/sim-data/sed_library/seds_170124.tar.gz  | tar xv
+    # Courtesy of M. Troxel ^^^

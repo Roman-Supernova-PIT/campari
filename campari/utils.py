@@ -226,7 +226,19 @@ def get_weights(images, ra, dec, use_weights, gaussian_var=1000, cutoff=4, error
             # there is some way that these weights are normalized, but I don't
             # know exactly how that should be yet. Online sources speaking about
             # weighted linear regression never seem to address normalization. TODO
-            SNLogger.debug(f"wgt max and min before cutoff: {np.max(wgt)}, {np.min(wgt)}")
+
+        else:
+            wgt = np.ones(size**2)
+
+        if cutoff is not None:
+            xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
+            xx = xx.flatten()
+            yy = yy.flatten()
+
+            object_x, object_y = wcs.world_to_pixel(ra, dec)
+
+            dist = np.sqrt((xx - object_x) ** 2 + (yy - object_y) ** 2)
+            wgt[np.where(dist > cutoff)] = 0
             # Here, we throw out pixels that are more than 4 pixels away from the
             # SN. The reason we do this is because by choosing an image size one
             # has set a square top hat function centered on the SN. When that image
@@ -235,13 +247,7 @@ def get_weights(images, ra, dec, use_weights, gaussian_var=1000, cutoff=4, error
             # course this is not a perfect solution, because the pixellation of the
             # circle means that still some pixels will enter and leave, but it
             # seems to minimize the problem.
-            wgt[np.where(dist > cutoff)] = 0
-            if error[i] is None:
-                error[i] = np.ones_like(wgt)
-                SNLogger.debug(f"wgt before: {np.mean(wgt)}")
-        else:
-
-            wgt = np.ones(size**2)
+            SNLogger.debug(f"Weighting pixels to zero that are beyond cutoff {cutoff} pixels from the SN location.")
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
         inv_var = 1 / (error[i].flatten())**2

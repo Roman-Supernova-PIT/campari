@@ -58,3 +58,6 @@ def pytest_configure(config):
         "run these tests when all other tests pass, and you are ready to do a more thorough check of the"
         "accuracy of the code."
     )
+    config.addinivalue_line(
+        "markers", "NERSC: marks tests that require NERSC to be operational"
+    )
