@@ -33,7 +33,7 @@
 # - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
-#     error_floor: 1
+#     error_floor: 1.0
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
@@ -45,8 +45,13 @@
 # - {dec: -44.4589649005717}
 # - {band: Y106}
 # - {diaobject_position_id: null}
+<<<<<<< HEAD
+# - {provenance_id: d697a5f8-a3d3-fe58-7f95-cc8ff7649f4c}
+# - {diaobject_id: 58ede743-a75b-458f-a44a-d3b86ce4c530}
+=======
 # - {provenance_id: 3b83626b-6dfc-fd0d-2de2-70d1954f10e4}
 # - {diaobject_id: d69f23c8-cd4a-4060-809b-9e3b17079381}
+>>>>>>> main
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
