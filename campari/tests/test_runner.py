@@ -73,7 +73,7 @@ def create_default_test_args(cfg):
     test_args.method = config.value("photometry.campari.method")
     test_args.make_initial_guess = config.value("photometry.campari.make_initial_guess")
     test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
-    test_args.weighting = config.value("photometry.campari.weighting")
+    test_args.use_weights = config.value("photometry.campari.use_weights")
     test_args.pixel = config.value("photometry.campari.pixel")
     test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")

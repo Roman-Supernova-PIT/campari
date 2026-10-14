@@ -63,7 +63,7 @@ def test_asdf(overwrite_meta):
             "--photometry-campari-grid_options-spacing", "1",
             "--photometry-campari-grid_options-subsize", "3", # Change this back when off im fixed
             "--photometry-campari-cutout_size", str(imsize),
-            "--photometry-campari-weighting",
+            "--photometry-campari-use_weights",
             "--photometry-campari-subtract_background", "calculate",
             "--image-collection", "snpitdb",
             "--no-save-to-db",

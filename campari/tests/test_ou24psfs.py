@@ -79,7 +79,7 @@ default_parameters = {
     "photometry_campari_initial_flux_guess": None,
     "photometry_campari_fetch_SED": False,
     "photometry_campari_use_roman": None,
-    "photometry_campari_weighting": True,
+    "photometry_campari_use_weights": True,
     "photometry_campari_make_initial_guess": False,
     # For some reason generating x0 is broken when using
         # presaved models. I need to come back to this at some point. XXX

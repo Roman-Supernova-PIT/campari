@@ -5,7 +5,7 @@ photometry:
     fetch_SED: true
     source_phot_ops: true
     use_roman: true
-    weighting: true
+    use_weights: true
     make_initial_guess: true
     method: lsqr
     pixel: false
