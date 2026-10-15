@@ -116,7 +116,7 @@ def is_number(s):
 
 
 def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
-                        subtract_background_method=None, min_background_cutout_size=31):
+                        subtract_background_method=None, min_background_cutout_size=51):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -188,13 +188,17 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                 f"Image cutout is smaller than {min_background_cutout_size}x{min_background_cutout_size} pixels. "
                 f"Taking a {min_background_cutout_size}x{min_background_cutout_size} region for background calculation."
             )
-            bg_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+            bg_cutout = image.get_ra_dec_cutout(ra, dec, min_background_cutout_size, mode="partial", fill_value=np.nan)
             background_calculation_data = bg_cutout.data
+            SNLogger.debug(f"Background calculation cutout shape: {background_calculation_data.shape}")
             del bg_cutout
         else:
             background_calculation_data = image_cutout.data
 
         bg = calculate_background_level(background_calculation_data)
+
+        if not is_number(bg):
+            raise ValueError(f"Background calculation returned a non-numeric value: {bg}")
         SNLogger.debug(f"Calculated BG level of: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
@@ -211,7 +215,11 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
-    image.free() # Save memory
+    try:
+        image.free() # Save memory
+    except Exception as e:
+        SNLogger.warning(f"Could not free image {indx} from memory: {e}")
+        del image
     print_mem(f"after freeing full image {indx} ------------------")
     return image_cutout, bg
 
