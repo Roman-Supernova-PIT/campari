@@ -163,7 +163,6 @@ def calculate_background_level(im):
         mask = None
         SNLogger.warning("Photutils did not find any sources in the image. Are you sure this is the right image?")
     mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
-    SNLogger.debug(f"Calculated background level: mean={mean}, median={median}, std={std}, Num pixels in mask: {np.sum(mask)}")
     return mean
 
 

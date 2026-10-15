@@ -286,8 +286,6 @@ class campari_runner:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
             image_list = self.prune_images(image_list)
-            #image_list = self.prune_images_to_correct_band(image_list)
-            #image_list = self.prune_images_to_include_ra_dec(image_list)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
 
@@ -523,7 +521,6 @@ class campari_runner:
             SNLogger.debug(f"Found the following {len(img_list_lines)} files matching the glob {self.img_glob}:")
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
 
-
         my_image_collection = ImageCollection()
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
         my_image_collection = my_image_collection.get_collection(self.image_collection,
@@ -585,7 +582,7 @@ class campari_runner:
             with ctx.Pool(self.nprocs) as pool:
                 for i, image in enumerate(image_list):
                     pool.apply_async(self._prune_one_image, args=(image,),
-                    callback=lambda pruned_image: pruned_image_list.append(pruned_image) if pruned_image is not None \
+                    callback=lambda pruned_image: pruned_image_list.append(pruned_image) if pruned_image is not None
                          else None)
                 pool.close()
                 pool.join()
@@ -599,7 +596,6 @@ class campari_runner:
             raise ValueError(f"No images in the given image list or paths matched the requested band {self.band},"
                              "or none of them contained the transient.")
         return pruned_image_list
-
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
         upstreams = []
