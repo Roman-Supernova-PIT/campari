@@ -152,7 +152,7 @@ def calculate_background_level(im):
     bg, float, the estimated background level.
 
     """
-
+    SNLogger.debug(f"--BG CALC-- with cutout of size {im.shape}")
     sigma_clip = SigmaClip(sigma=3.0, maxiters=40)
     threshold = detect_threshold(im, nsigma=2.0, sigma_clip=sigma_clip)
     segment_img = detect_sources(im, threshold, npixels=10)

@@ -116,7 +116,7 @@ def is_number(s):
 
 
 def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
-                        subtract_background_method=None, min_background_cutout_size=31):
+                        subtract_background_method=None, min_background_cutout_size=51):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images

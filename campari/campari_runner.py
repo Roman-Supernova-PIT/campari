@@ -1,7 +1,9 @@
 import glob
 import pandas as pd
 import pathlib
+import multiprocessing
 import numpy as np
+import re
 import time
 
 # Astronomy
@@ -45,6 +47,12 @@ class campari_runner:
         self.cfg = Config.get()
 
         self.band = kwargs["filter"]
+        # make the f uppercase
+        pattern = r"^f(\d{3})$" # an f followed by 3 digits
+        if re.match(pattern, self.band):
+            self.band = self.band.upper()
+            SNLogger.debug(f"Band {kwargs['filter']} converted to uppercase: {self.band}")
+
         self.max_no_transient_images = kwargs["max_no_transient_images"]
         self.max_transient_images = kwargs["max_transient_images"]
         self.image_selection_start = kwargs["image_selection_start"]
@@ -277,7 +285,7 @@ class campari_runner:
         if self.img_list is not None or self.img_glob is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
-            image_list = self.prune_images_to_correct_band(image_list)
+            image_list = self.prune_images(image_list)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
 
@@ -510,14 +518,8 @@ class campari_runner:
 
         else:
             img_list_lines = glob.glob(self.img_glob)
-            SNLogger.debug(f"Found the following image paths using glob {self.img_glob}: {img_list_lines}")
+            SNLogger.debug(f"Found the following {len(img_list_lines)} files matching the glob {self.img_glob}:")
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
-            for im_path in img_list_lines:
-                SNLogger.debug(f"Found image at path {im_path}")
-
-        SNLogger.debug(f"Read the following img_list_lines from the provided img_list file {self.img_list}:")
-        for line in img_list_lines:
-            SNLogger.debug(line)
 
         my_image_collection = ImageCollection()
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
@@ -555,21 +557,44 @@ class campari_runner:
 
         return images
 
-    def prune_images_to_correct_band(self, image_list):
-        """Prune the given image list to only include images in the correct band."""
-        pruned_image_list = []
+    def _prune_one_image(self, image):
+        ra = self.ra
+        dec = self.dec
         requested_band = convert_band_name(self.band)
-        for image in image_list:
-            image_band = convert_band_name(image.band)
-            if image_band == requested_band:
-                pruned_image_list.append(image)
+        image_band = convert_band_name(image.band)
+        if image_band == requested_band:
+            im_wcs = image.get_wcs()
+            x, y = im_wcs.world_to_pixel(ra=ra, dec=dec)
+            if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
+                return image
             else:
                 SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
-                               f"band {image.band} because it was not in the correct band {self.band}.")
+                                f"band {image.band} because it did not include the transient RA/DEC.")
+        else:
+            SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
+                            f"band {image.band} because it was not in the correct band {self.band}.")
+
+    def prune_images(self, image_list):
+        """Prune the given image list to only include images in the correct band and that contain the transient."""
+        if self.nprocs > 1:
+            pruned_image_list = []
+            ctx = multiprocessing.get_context("fork")
+            with ctx.Pool(self.nprocs) as pool:
+                for i, image in enumerate(image_list):
+                    pool.apply_async(self._prune_one_image, args=(image,),
+                    callback=lambda pruned_image: pruned_image_list.append(pruned_image) if pruned_image is not None
+                         else None)
+                pool.close()
+                pool.join()
+
+        else:
+            pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(image) for image in image_list)
+                            if pruned_image is not None]
         SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
-                       f"because they were not in the correct band {self.band}.")
+                       f"because they were not in the correct band {self.band} or did not contain the transient.")
         if len(pruned_image_list) == 0:
-            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
+            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band},"
+                             "or none of them contained the transient.")
         return pruned_image_list
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):

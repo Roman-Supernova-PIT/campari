@@ -361,9 +361,10 @@ def construct_transient_scene(
         sed = None
         SNLogger.warning("STPSF does not currently support galsim SEDs, ignoring the SED provided and using 'None'")
 
+    kwargs = {"sigmax": 0.43, "sigmay": 0.43}
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca,
-        image=image, stamp_size=stampsize, sed=sed
+        image=image, stamp_size=stampsize, sed=sed, **kwargs,
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
     print_mem("Finished constructing TRANSIENT scene")
