@@ -95,7 +95,7 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("--diaobject-name", default=None,
+    parser.add_argument("--diaobject-name", "--name", default=None,
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
@@ -129,8 +129,8 @@ def main():
 
     parser.add_argument("--image-collection", type=str, default="manual_rdm", required=False,
                         help="Which collection of images to use for lookup. ")
-    parser.add_argument("--image-collection-basepath", type=str, default=None, required=False,
-                        help="Path provided as the basepath to the ImageCollection object. In most cases, "
+    parser.add_argument("--image-collection-basepath", "--bp", type=str, default=None, required=False,
+                        help="Path provided as the f to the ImageCollection object. In most cases, "
                         "this is not needed because the basepath is configured for the database, you only"
                         "really need this for manual collections. ")
     parser.add_argument("--image-collection-subset", type=str, default=None, required=False,

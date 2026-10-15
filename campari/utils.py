@@ -152,7 +152,7 @@ def calculate_background_level(im):
     bg, float, the estimated background level.
 
     """
-
+    SNLogger.debug(f"--BG CALC-- with cutout of size {im.shape}")
     sigma_clip = SigmaClip(sigma=3.0, maxiters=40)
     threshold = detect_threshold(im, nsigma=2.0, sigma_clip=sigma_clip)
     segment_img = detect_sources(im, threshold, npixels=10)
@@ -163,6 +163,7 @@ def calculate_background_level(im):
         mask = None
         SNLogger.warning("Photutils did not find any sources in the image. Are you sure this is the right image?")
     mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
+    SNLogger.debug(f"Calculated background level: mean={mean}, median={median}, std={std}, Num pixels in mask: {np.sum(mask)}")
     return mean
 
 
