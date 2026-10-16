@@ -22,7 +22,8 @@ photometry:
     subtract_background_method: calculate
     use_real_images: true
     print_memory_usage: false
-    preplot_cutouts: false
+    preplot_cutouts: true
+    postplot_cutouts: true
     save_memory_file_name: test_memory_file
 
     psf:
@@ -39,9 +40,9 @@ photometry:
       spacing: 0.75
       turn_grid_off: false
       gaussian_var: -1 # Gaussian weighting off by default
-      cutoff: 4
+      cutoff: 7
       error_floor: 0.0
-      subsize: 4
+      subsize: 7
 
   campari_io:
     output_dir: /home/cfmeldorf/campari_out_dir
