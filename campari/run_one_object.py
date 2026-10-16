@@ -114,6 +114,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                                                                      subtract_background_method=
                                                                      subtract_background_method,
                                                                      nprocs=nprocs)
+    banner(f"Constructed {len(cutout_image_list)} cutouts for {diaobj.name} in band {band}")
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
 

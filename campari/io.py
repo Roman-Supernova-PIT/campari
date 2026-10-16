@@ -67,6 +67,7 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
             zpt_list.append(img.get_zeropoint())
 
     SNLogger.debug(f"zpt_list: {zpt_list}")
+
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band, zp = np.array(zpt_list))
 
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")

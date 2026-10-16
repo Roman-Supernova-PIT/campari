@@ -197,6 +197,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
 
     SNLogger.debug(f"Using an error floor of {error_floor} in get_weights to avoid excessively high weights from "
     "very low error pixels.")
+    SNLogger.debug(f"Weighting pixels to zero that are beyond cutoff {cutoff} pixels from the SN location.")
+
 
     for i, wcs in enumerate(wcs_list):
         if gaussian_var is not None:
@@ -242,7 +244,6 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             # course this is not a perfect solution, because the pixellation of the
             # circle means that still some pixels will enter and leave, but it
             # seems to minimize the problem.
-            SNLogger.debug(f"Weighting pixels to zero that are beyond cutoff {cutoff} pixels from the SN location.")
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
         inv_var = 1 / (error[i].flatten())**2
@@ -309,7 +310,7 @@ def calc_mag_and_err(flux, sigma_flux, band, zp=None):
 
     area_eff = roman.collecting_area
     zp = roman.getBandpasses()[band].zeropoint if zp is None else zp
-    mag = -2.5 * np.log10(flux) + 2.5 * np.log10(exptime[band] * area_eff) + zp
+    mag = -2.5 * np.log10(flux) + zp
     magerr = 2.5 / np.log(10) * (sigma_flux / flux)
     magerr[flux < 0] = np.nan
     return mag, magerr, zp

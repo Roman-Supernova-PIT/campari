@@ -147,6 +147,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     print_mem("after image load------------------")
 
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+
+    SNLogger.debug(f"In campari, cutout wcs is {image_cutout._wcs}")
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(
