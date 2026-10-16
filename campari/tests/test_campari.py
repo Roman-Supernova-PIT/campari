@@ -534,6 +534,7 @@ def test_make_contour_grid():
         msg = f"Dec vals do not match to {atol:.1e}."
         np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
+
 @pytest.mark.parametrize("BG_SIZE", [31, 51, 101])
 @pytest.mark.parametrize("BG_TRUTH", [0.23])
 @pytest.mark.parametrize("source_brightness", [0, 1e-1, 1e0, 1e1, 1e2])
@@ -558,6 +559,7 @@ def test_calculate_background_level_with_sources(BG_SIZE, BG_TRUTH, source_brigh
     se = sigma / np.sqrt(n_eff)
     SNLogger.debug(f"Output with sources: {output_with_sources}, Expected: {BG_TRUTH}, SE: {se}, using source brightness: {source_brightness}")
     np.testing.assert_allclose(output, BG_TRUTH, rtol=1e-3)
+
 
 def test_calc_mag_and_err():
     flux = np.array([-1e2, 1e2, 1e3, 1e4])
