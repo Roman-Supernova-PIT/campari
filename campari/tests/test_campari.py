@@ -538,21 +538,18 @@ def test_make_contour_grid():
 @pytest.mark.parametrize("BG_SIZE", [39, 71, 101])
 @pytest.mark.parametrize("BG_TRUTH", [0.23])
 @pytest.mark.parametrize("source_brightness", [0, 1e0, 1e1, 1e2])
-
 def test_calculate_background_level_with_sources(BG_SIZE, BG_TRUTH, source_brightness):
     sigma = .02
     size = BG_SIZE
     rng1 = np.random.default_rng(seed=4242424242424242)
     test_data = rng1.normal(loc=BG_TRUTH, scale=sigma, size=(size, size))
-    expected_output = BG_TRUTH
-    output = calculate_background_level(test_data)
 
-    # Now again with some injected fake sources
+    # Now with an injected fake source
     test_data_with_sources = test_data.copy()
 
     gaussian = np.zeros((size, size))
-    gaussian = source_brightness * np.exp(-((np.arange(size) - size//2)**2 +
-         (np.arange(size)[:, None] - size//2)**2) / (2 * 1.0**2))
+    gaussian = source_brightness * np.exp(-((np.arange(size) - size // 2)**2 +
+         (np.arange(size)[:, None] - size // 2)**2) / (2 * 1.0**2))
     test_data_with_sources += gaussian
     output_with_sources = calculate_background_level(test_data_with_sources)
     np.testing.assert_allclose(output_with_sources, BG_TRUTH, rtol=1e-3)
