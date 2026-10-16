@@ -177,8 +177,8 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # here.
     bg = 0
     # Just on the off chance the cutout is not square.
-    min_background_cutout_size = max( min_background_cutout_size, image_cutout.data.shape[0],
-        image_cutout.data.shape[1] )
+    min_background_cutout_size = max(min_background_cutout_size, image_cutout.data.shape[0],
+        image_cutout.data.shape[1])
     if is_number(subtract_background_method):
         bg = float(subtract_background_method)
         SNLogger.debug(f"Background from user input: {bg}")
@@ -219,7 +219,7 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # Changed this from _data to data
     image_cutout.data -= bg
     try:
-        image.free() # Save memory
+        image.free()  # Save memory
     except Exception as e:
         SNLogger.warning(f"Could not free image {indx} from memory: {e}")
     del image
