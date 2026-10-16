@@ -534,24 +534,30 @@ def test_make_contour_grid():
         msg = f"Dec vals do not match to {atol:.1e}."
         np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
-BG_SIZE = 51
-BG_TRUTH = 20
-def test_calculate_background_level():
-    rng1 = np.random.default_rng(seed=424242424242424)
-    test_data = rng1.normal(loc=BG_TRUTH, scale=5, size=(BG_SIZE, BG_SIZE))
-    output = calculate_background_level(test_data)
-    np.testing.assert_allclose(output, BG_TRUTH, rtol=1e-3)  # 0.1% accuracy, should be good enough?
+@pytest.mark.parametrize("BG_SIZE", [31, 51, 101])
+@pytest.mark.parametrize("BG_TRUTH", [0.23])
+@pytest.mark.parametrize("source_brightness", [0, 1e-1, 1e0, 1e1, 1e2])
 
-def test_calculate_background_level_with_sources():
-    # Now again with some injected fake sources
+def test_calculate_background_level_with_sources(BG_SIZE, BG_TRUTH, source_brightness):
+    sigma = .02
+    size = BG_SIZE
     rng1 = np.random.default_rng(seed=4242424242424242)
-    test_data = rng1.normal(loc=BG_TRUTH, scale=5, size=(BG_SIZE, BG_SIZE))
-    gaussian = np.zeros((BG_SIZE, BG_SIZE))
-    gaussian = 100 * np.exp(-((np.arange(BG_SIZE) - BG_SIZE//2)**2 + (np.arange(BG_SIZE)[:, None] - BG_SIZE//2)**2) / (2 * 1.0**2))
-    test_data_with_sources = test_data + gaussian
-    output_with_sources = calculate_background_level(test_data_with_sources)
-    np.testing.assert_allclose(output_with_sources, BG_TRUTH, rtol=1e-3)  # Should still be close to 20
+    test_data = rng1.normal(loc=BG_TRUTH, scale=sigma, size=(size, size))
+    expected_output = BG_TRUTH
+    output = calculate_background_level(test_data)
 
+    # Now again with some injected fake sources
+    test_data_with_sources = test_data.copy()
+
+    gaussian = np.zeros((size, size))
+    gaussian = source_brightness * np.exp(-((np.arange(size) - size//2)**2 + (np.arange(size)[:, None] - size//2)**2) / (2 * 1.0**2))
+    SNLogger.debug(f"data max before adding sources: {np.max(test_data_with_sources)}, max of gaussian: {np.max(gaussian)}")
+    test_data_with_sources += gaussian
+    output_with_sources = calculate_background_level(test_data_with_sources)
+    n_eff = size**2
+    se = sigma / np.sqrt(n_eff)
+    SNLogger.debug(f"Output with sources: {output_with_sources}, Expected: {BG_TRUTH}, SE: {se}, using source brightness: {source_brightness}")
+    np.testing.assert_allclose(output, BG_TRUTH, rtol=1e-3)
 
 def test_calc_mag_and_err():
     flux = np.array([-1e2, 1e2, 1e3, 1e4])
