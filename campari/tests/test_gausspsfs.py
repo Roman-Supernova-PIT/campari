@@ -39,7 +39,7 @@ base_cmd = [
         "--photometry-campari-weighting",
         "--photometry-campari-subtract_background", "calculate",
         "--image-collection", "manual_fits",
-        "--image-collection-basepath", "/scratch/", # update in
+        "--image-collection-basepath", "/scratch/",  # update in
         # SNPIT environment necessitated this change.
         # but you may need to run this code:
         # ln -s /scratch/photometry_test_data /photometry_test_data
