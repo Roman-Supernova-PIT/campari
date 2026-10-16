@@ -534,23 +534,23 @@ def test_make_contour_grid():
         msg = f"Dec vals do not match to {atol:.1e}."
         np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
-
+BG_SIZE = 51
+BG_TRUTH = 20
 def test_calculate_background_level():
-    size = 31
-    rng1 = np.random.default_rng(seed=4242424242424242)
-    test_data = rng1.normal(loc=20, scale=5, size=(size, size))
-    expected_output = 20
+    rng1 = np.random.default_rng(seed=424242424242424)
+    test_data = rng1.normal(loc=BG_TRUTH, scale=5, size=(BG_SIZE, BG_SIZE))
     output = calculate_background_level(test_data)
-    np.testing.assert_allclose(output, expected_output, rtol=1e-3)  # 0.1% accuracy, should be good enough?
+    np.testing.assert_allclose(output, BG_TRUTH, rtol=1e-3)  # 0.1% accuracy, should be good enough?
 
+def test_calculate_background_level_with_sources():
     # Now again with some injected fake sources
-    test_data_with_sources = test_data.copy()
-
-    gaussian = np.zeros((size, size))
-    gaussian = 100 * np.exp(-((np.arange(size) - size//2)**2 + (np.arange(size)[:, None] - size//2)**2) / (2 * 1.0**2))
-    test_data_with_sources += gaussian
+    rng1 = np.random.default_rng(seed=4242424242424242)
+    test_data = rng1.normal(loc=BG_TRUTH, scale=5, size=(BG_SIZE, BG_SIZE))
+    gaussian = np.zeros((BG_SIZE, BG_SIZE))
+    gaussian = 100 * np.exp(-((np.arange(BG_SIZE) - BG_SIZE//2)**2 + (np.arange(BG_SIZE)[:, None] - BG_SIZE//2)**2) / (2 * 1.0**2))
+    test_data_with_sources = test_data + gaussian
     output_with_sources = calculate_background_level(test_data_with_sources)
-    np.testing.assert_allclose(output_with_sources, expected_output, rtol=1e-3)  # Should still be close to 20
+    np.testing.assert_allclose(output_with_sources, BG_TRUTH, rtol=1e-3)  # Should still be close to 20
 
 
 def test_calc_mag_and_err():
