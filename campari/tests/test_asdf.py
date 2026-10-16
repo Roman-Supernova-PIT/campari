@@ -30,14 +30,14 @@ in_asdf_pod = os.getenv("IN_ASDF_POD") if os.getenv("IN_ASDF_POD") is not None e
 # ASDF tests will only run if using the rob_dev podman environment.
 
 
-@pytest.mark.skipif( not in_asdf_pod, reason="IN_ASDF_POD is not set" )
+@pytest.mark.skipif(not in_asdf_pod, reason="IN_ASDF_POD is not set")
 def test_asdf(overwrite_meta):
 
     provenance_tag = "asdf_functional_test"
     diaobj_process = "load_objects_for_49"
     image_process = "load_rdm_image"
 
-    diaobj = DiaObject.find_objects(name="182.8445_+32.2046", #collection="snpitdb",
+    diaobj = DiaObject.find_objects(name="182.8445_+32.2046",  # collection="snpitdb",
                                     provenance_tag=provenance_tag, process=diaobj_process)[0]
 
     np.testing.assert_equal(diaobj.name, "182.8445_+32.2046")
@@ -55,12 +55,12 @@ def test_asdf(overwrite_meta):
             "--diaobject-name", diaobj.name,
             "-f", "F062",
             "--photometry-campari-psf-transient_class", "gaussian",
-            "--photometry-campari-psf-galaxy_class", "gaussian", # this can't stay, this needs to be
+            "--photometry-campari-psf-galaxy_class", "gaussian",  # this can't stay, this needs to be
             # updated to whatever PSF I am supposed to use for ASDF images.
             "--no-photometry-campari-fetch_SED",
             "--photometry-campari-grid_options-type", "regular",
             "--photometry-campari-grid_options-spacing", "1",
-            "--photometry-campari-grid_options-subsize", "3", # Change this back when off im fixed
+            "--photometry-campari-grid_options-subsize", "3",  # Change this back when off im fixed
             "--photometry-campari-cutout_size", str(imsize),
             "--photometry-campari-weighting",
             "--photometry-campari-subtract_background", "calculate",

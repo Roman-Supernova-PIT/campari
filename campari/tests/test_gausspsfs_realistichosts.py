@@ -103,7 +103,7 @@ default_parameters = {
 }
 
 
-############################## TESTS BEGIN HERE ##############################
+# TESTS BEGIN HERE ##############################
 # This test has a host galaxy and a faint transient but no noise.
 
 # Right now this is failing due to a skew. I believe this is
@@ -123,7 +123,7 @@ def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
 
 
-############ TESTS WITH NOISE #############
+# TESTS WITH NOISE #############
 generate_simulations = False
 
 # This test has all of the bells and whistles: a host galaxy, a faint transient, and both object and sky noise.
@@ -142,7 +142,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         SNLogger.debug(f"Generating new simulations for {func_name}. This may take a while.")
         # The image data does not currently exist, so we will create it.
         run_sim(
-            seed=seed, # Set seed for reproducibility, this is the seed that Cole started with.
+            seed=seed,  # Set seed for reproducibility, this is the seed that Cole started with.
             images_aligned=False,
             poisson_noise=True,
             sky_noise=True,

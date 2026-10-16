@@ -110,8 +110,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     band = convert_band_name(band)
 
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
-                                                                     subtract_background_method=
-                                                                     subtract_background_method,
+                                                                     subtract_background_method=subtract_background_method,
                                                                      nprocs=nprocs)
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
@@ -272,8 +271,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"images size: {sys.getsizeof(images) / 1e6:.4f} MB")
 
     wgt_matrix = np.sqrt(wgt_matrix)
-    lsqr = sp.linalg.lsqr(psf_matrix*wgt_matrix.reshape(-1, 1),
-                            images*wgt_matrix,  atol=1e-12, x0=x0test,
+    lsqr = sp.linalg.lsqr(psf_matrix * wgt_matrix.reshape(-1, 1),
+                            images * wgt_matrix, atol=1e-12, x0=x0test,
                             btol=1e-12, iter_lim=300000, conlim=1e10)
     X, istop, itn, r1norm = lsqr[:4]
     SNLogger.debug(f"Stop Condition {istop}, iterations: {itn}," +
@@ -296,18 +295,18 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     SNLogger.debug(f"sigma flux: {sigma_flux}")
 
     # Using the values found in the fit, construct the model images.
-    pred = X*psf_matrix
+    pred = X * psf_matrix
     model_images = np.sum(pred, axis=1)
 
-    galaxy_only_model_images = np.sum(X[:-num_detect_images]*psf_matrix[:, :-num_detect_images], axis=1) \
-        if num_detect_images > 0 else np.sum(X*psf_matrix, axis=1)
+    galaxy_only_model_images = np.sum(X[:-num_detect_images] * psf_matrix[:, :-num_detect_images], axis=1) \
+        if num_detect_images > 0 else np.sum(X * psf_matrix, axis=1)
 
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,
             ra_grid=ra_grid, dec_grid=dec_grid, wgt_matrix=wgt_matrix,
             galaxy_only_model_images=galaxy_only_model_images,
-            LSB=LSB, best_fit_model_values=X, sca_x_locations = all_sca_xs,
-            sca_y_locations = all_sca_ys,
+            LSB=LSB, best_fit_model_values=X, sca_x_locations=all_sca_xs,
+            sca_y_locations=all_sca_ys,
             cutout_image_list=cutout_image_list, galaxy_images=np.array(galaxy_images), noise_maps=np.array(noise_maps),
             diaobj=diaobj, object_type=object_type, sky_background=sky_background,
             pre_transient_images=num_pre_transient_images,
