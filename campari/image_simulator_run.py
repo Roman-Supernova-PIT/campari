@@ -71,9 +71,9 @@ def run_sim(
         test_data_path = "/home/campari/campari/tests/testdata"
         SNLogger.debug(f"No test_data_path provided, using default {test_data_path}")
     if just_rotate:
-        assert images_aligned == True, "Cannot both just rotate and have images not aligned"
+        assert images_aligned, "Cannot both just rotate and have images not aligned"
     if just_shift:
-        assert images_aligned == True, "Cannot both just shift and have images not aligned"
+        assert images_aligned, "Cannot both just shift and have images not aligned"
     assert not (just_rotate and just_shift), "Cannot both just rotate and just shift"
 
     if run_name_base is None:

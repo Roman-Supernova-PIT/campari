@@ -99,11 +99,11 @@ def main():
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
-    parser.add_argument("--prebuilt_static_model", type=str, default=None,  required=False,
+    parser.add_argument("--prebuilt_static_model", type=str, default=None, required=False,
                         help="A path to a .npy file containing a prebuilt static model. "
                              "If given, will use this model instead of building a new one. ")
 
-    parser.add_argument("--prebuilt_transient_model", type=str, default=None,  required=False,
+    parser.add_argument("--prebuilt_transient_model", type=str, default=None, required=False,
                         help="A path to a .npy file containing a prebuilt transient model. "
                              "If given, will use this model instead of building a new one. ")
 
@@ -121,7 +121,7 @@ def main():
 
     parser.add_argument("--diaobject-collection", type=str, default="manual", required=False,
                         help="Which collection of objects to use for lookup. "
-                             "Default is 'ou24', the Open Universe 2024 catalog. 'manual'"
+                             "Default is %(default)s. snpitdb is the SN-PIT personal database. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
     parser.add_argument("--diaobject-subset", type=str, default=None, required=False,
                         help="Subset of the diaobject collection to use for lookup. ")
