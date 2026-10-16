@@ -537,7 +537,7 @@ def test_make_contour_grid():
 
 def test_calculate_background_level():
     size = 31
-    rng1 = np.random.default_rng(seed=424242424242424)
+    rng1 = np.random.default_rng(seed=4242424242424242)
     test_data = rng1.normal(loc=20, scale=5, size=(size, size))
     expected_output = 20
     output = calculate_background_level(test_data)
