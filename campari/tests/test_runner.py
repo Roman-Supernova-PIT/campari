@@ -180,8 +180,8 @@ def test_get_exposures(cfg):
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
     compare_list = [60627.500299]
-    np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg=
-    "The set of MJDs recovered from globbing does not match the expected set of MJDs.")
+    np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg="The set of MJDs "
+    "recovered from globbing does not match the expected set of MJDs.")
 
     # Unfortunately, directly globbing an input path doesn't work with FITS. This is because FITS files in snappl are
     # either A.) Treated as ManualFITSImages which have essentially no reliable header info, so
@@ -203,7 +203,7 @@ def test_parse_img_list(cfg):
     # More advanced globbing tests, as per MWV's suggestion.
     test_args = create_default_test_args(cfg)
     test_args.image_collection = "manual_rdm"
-    globtions = ["a/b/", "a/b/c/", "a/b/c/*.asdf", "a/b/c/*[!.txt]",  "a/b/c/*"]
+    globtions = ["a/b/", "a/b/c/", "a/b/c/*.asdf", "a/b/c/*[!.txt]", "a/b/c/*"]
     truth = [[], [], ["B"], ["A", "B"], ["A", "B", "C"]]
 
     with tempfile.TemporaryDirectory() as tmpdirname:

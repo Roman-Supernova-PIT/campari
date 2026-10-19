@@ -623,7 +623,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, grid_type=None, ra_
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
-        SNLogger.debug("This image has MJD " + str(image.mjd) )
+        SNLogger.debug("This image has MJD " + str(image.mjd))
         # sedlist is the length of the number of supernova
         # detection images. Therefore, when we iterate onto the
         # first supernova image, we want to be on the first element

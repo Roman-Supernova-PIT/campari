@@ -538,12 +538,24 @@ def test_make_contour_grid():
         np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
 
-def test_calculate_background_level():
-    rng1 = np.random.default_rng(seed=424242424242424)
-    test_data = rng1.normal(loc=20, scale=5, size=(265, 265))
-    expected_output = 20
-    output = calculate_background_level(test_data)
-    np.testing.assert_allclose(output, expected_output, rtol=1e-3)  # 0.1% accuracy, should be good enough?
+@pytest.mark.parametrize("BG_SIZE", [39, 71, 101])
+@pytest.mark.parametrize("BG_TRUTH", [0.23])
+@pytest.mark.parametrize("source_brightness", [0, 1e0, 1e1, 1e2])
+def test_calculate_background_level_with_sources(BG_SIZE, BG_TRUTH, source_brightness):
+    sigma = .02
+    size = BG_SIZE
+    rng1 = np.random.default_rng(seed=4242424242424242)
+    test_data = rng1.normal(loc=BG_TRUTH, scale=sigma, size=(size, size))
+
+    # Now with an injected fake source
+    test_data_with_sources = test_data.copy()
+
+    gaussian = np.zeros((size, size))
+    gaussian = source_brightness * np.exp(-((np.arange(size) - size // 2)**2 +
+         (np.arange(size)[:, None] - size // 2)**2) / (2 * 1.0**2))
+    test_data_with_sources += gaussian
+    output_with_sources = calculate_background_level(test_data_with_sources)
+    np.testing.assert_allclose(output_with_sources, BG_TRUTH, rtol=1e-3)
 
 
 def test_calc_mag_and_err():
@@ -552,7 +564,7 @@ def test_calc_mag_and_err():
     band = "Y106"
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
-    test_mag = np.array([np.nan, 27.66165575,  25.16165575,  22.66165575])
+    test_mag = np.array([np.nan, 27.66165575, 25.16165575, 22.66165575])
     test_magerr = np.array([np.nan, 1.0857362e-01,
                             1.0857362e-02, 1.0857362e-03])
     test_zp = 15.023547191066587
@@ -837,7 +849,7 @@ def test_handle_partial_overlap():
         "The weights do not match the expected values."
 
 
-@pytest.mark.requires_simdex # I think this image is in the photometry_test_data, fix this at some point.
+@pytest.mark.requires_simdex  # I think this image is in the photometry_test_data, fix this at some point.
 def test_calculate_surface_brightness():
     size = 25
     observation_id = str(5934)
@@ -886,7 +898,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
     for oid, sca in zip(observation_ids, scas):
         image_list.append(img_collection.get_image(observation_id=oid, sca=sca, band=band))
 
-    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl" , "rb") as f:
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl", "rb") as f:
         reg_cutout_list = pickle.load(f)
 
     ra = 7.551093401915147
@@ -903,7 +915,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
             with Pool(nprocs) as pool:
                 for indx, image in enumerate(image_list):
                     SNLogger.debug(f"image path {image.full_filepath}")
-                    SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                    SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
                     results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
                                                                                "ra": ra, "dec": dec, "size": size,
                                                                                "truth": truth,
@@ -914,7 +926,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
                 pool.join()
         else:
             for indx, image in enumerate(image_list):
-                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
                 results.append(construct_one_image(indx=indx, image=image,
                                                    ra=ra, dec=dec, size=size, truth=truth,
                                                    subtract_background_method=subtract_background_method))
