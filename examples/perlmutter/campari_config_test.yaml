@@ -1,6 +1,6 @@
 # This goes with the interactive-podman-ou2024-sh but this might also work with rknop dev?
 preloads:
-  - /snpit_env/configs/ou2024_container_config.yaml  # Env variable borken. Rob says this should be
+  - /snpit_env_base/configs/ou2024_container_config.yaml  # Env variable borken. Rob says this should be
   # ${SNPIT_DEFAULT_CONFIG} but I am waiting on him to fix that functionality.
 
 photometry:
@@ -22,12 +22,6 @@ photometry:
     psf:
       galaxy_class: ou24PSF
       transient_class: ou24PSF_slow
-
-    psf:
-      galaxy_photon_ops: false
-      transient_photon_ops: false
-      transient_class: ou24PSF
-      galaxy_class: ou24PSF
 
     grid_options:
       type: contour
@@ -57,23 +51,6 @@ photometry:
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
     # the provenance is new because the hash of this config file will change.
 
-  campari_simulations:
-    avoid_non_linearity: false
-    background_level: 0
-    bg_gal_flux: 100000.0
-    deltafcn_profile: false
-    do_rotation: true
-    do_xshift: true
-    mismatch_seds: false
-    noise: 0
-    sim_gal_dec_offset: 0.00001
-    sim_gal_ra_offset: 0.00001
-    single_grid_point: false
-    sim_galaxy_scale: 1.0
-    sim_galaxy_offset: .00001414 # sqrt(2) * 1e-5
-    base_pointing: 276
-    base_sca: 10
-    run_name: whatever
   snappl:
     simdex_server: https://roman-desc-simdex.rknop.net
   test_data: /photometry_test_data

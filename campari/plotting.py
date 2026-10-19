@@ -399,7 +399,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
         else:
             data = image.data
 
-        ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap = "viridis")
+        ax.imshow(data, origin="lower", vmin=vmin, vmax=vmax, cmap="viridis")
         plt.colorbar(ax.images[0], ax=ax, fraction=0.046, pad=0.04)
 
         error = image.noise
@@ -437,7 +437,7 @@ def plot_cutouts(cutout_image_list, ra, dec, diaobj=None, ncols=5, output_path=N
     ]
     if diaobj is not None:
         from matplotlib.patches import Patch
-        legend_elements.append(Patch(edgecolor="red",  facecolor="none", label="Detection image"))
+        legend_elements.append(Patch(edgecolor="red", facecolor="none", label="Detection image"))
         legend_elements.append(Patch(edgecolor="black", facecolor="none", label="Non-detection image"))
     if not plot_noise:
         legend_elements.append(plt.Line2D([0], [0], marker="o", color="blue", linestyle="None",
@@ -538,7 +538,7 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
         finite = data[i][np.isfinite(data[i])]
         vmin, vmax = (np.percentile(finite, 1), np.percentile(finite, 99)) if finite.size else (0, 1)
 
-                # The real image is shown in full, for reference.
+        # The real image is shown in full, for reference.
         im0 = ax_data.imshow(data[i], origin="lower", vmin=vmin, vmax=vmax)
 
         # Model and residuals hide every pixel that had zero weight in the fit

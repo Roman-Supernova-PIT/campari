@@ -75,10 +75,9 @@ SNLogger.set_level("DEBUG")
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
                    subtract_background_method=None,
-                   make_initial_guess=None, initial_flux_guess=None, use_weights=None, method=None,
-                   grid_type=None, pixel=None, do_xshift=None, bg_gal_flux=None, do_rotation=None,
-                   mismatch_seds=None, deltafcn_profile=None, noise=None,
-                   avoid_non_linearity=None, spacing=None, percentiles=None,
+                   make_initial_guess=None, initial_flux_guess=None, weighting=None, method=None,
+                   grid_type=None, pixel=None, noise=None,
+                   spacing=None, percentiles=None,
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None,
@@ -114,8 +113,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     band = convert_band_name(band)
 
     cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
-                                                                     subtract_background_method=
-                                                                     subtract_background_method,
+                                                                     subtract_background_method=subtract_background_method,
                                                                      nprocs=nprocs)
     # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]

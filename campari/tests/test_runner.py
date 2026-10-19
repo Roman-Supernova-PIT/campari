@@ -65,23 +65,16 @@ def create_default_test_args(cfg):
     config = cfg
 
     test_args.size = config.value("photometry.campari.cutout_size")
-    test_args.avoid_non_linearity = config.value("photometry.campari_simulations.avoid_non_linearity")
-    test_args.deltafcn_profile = config.value("photometry.campari_simulations.deltafcn_profile")
-    test_args.do_xshift = config.value("photometry.campari_simulations.do_xshift")
-    test_args.do_rotation = config.value("photometry.campari_simulations.do_rotation")
-    test_args.noise = config.value("photometry.campari_simulations.noise")
     test_args.method = config.value("photometry.campari.method")
     test_args.make_initial_guess = config.value("photometry.campari.make_initial_guess")
     test_args.subtract_background_method = config.value("photometry.campari.subtract_background_method")
     test_args.use_weights = config.value("photometry.campari.use_weights")
     test_args.pixel = config.value("photometry.campari.pixel")
-    test_args.mismatch_seds = config.value("photometry.campari_simulations.mismatch_seds")
     test_args.fetch_SED = config.value("photometry.campari.fetch_SED")
     test_args.initial_flux_guess = config.value("photometry.campari.initial_flux_guess")
     test_args.spacing = config.value("photometry.campari.grid_options.spacing")
     test_args.percentiles = config.value("photometry.campari.grid_options.percentiles")
     test_args.grid_type = config.value("photometry.campari.grid_options.type")
-    test_args.run_name = config.value("photometry.campari_simulations.run_name")
     test_args.param_grid = None
     test_args.config = None
     test_args.observation_id_list = None
@@ -187,8 +180,8 @@ def test_get_exposures(cfg):
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
     compare_list = [60627.500299]
-    np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg=
-    "The set of MJDs recovered from globbing does not match the expected set of MJDs.")
+    np.testing.assert_allclose(np.array(mjd_list), np.array(compare_list), rtol=1e-5, err_msg="The set of MJDs "
+    "recovered from globbing does not match the expected set of MJDs.")
 
     # Unfortunately, directly globbing an input path doesn't work with FITS. This is because FITS files in snappl are
     # either A.) Treated as ManualFITSImages which have essentially no reliable header info, so
@@ -210,7 +203,7 @@ def test_parse_img_list(cfg):
     # More advanced globbing tests, as per MWV's suggestion.
     test_args = create_default_test_args(cfg)
     test_args.image_collection = "manual_rdm"
-    globtions = ["a/b/", "a/b/c/", "a/b/c/*.asdf", "a/b/c/*[!.txt]",  "a/b/c/*"]
+    globtions = ["a/b/", "a/b/c/", "a/b/c/*.asdf", "a/b/c/*[!.txt]", "a/b/c/*"]
     truth = [[], [], ["B"], ["A", "B"], ["A", "B", "C"]]
 
     with tempfile.TemporaryDirectory() as tmpdirname:
@@ -361,7 +354,7 @@ def test_build_and_save_lc(cfg, overwrite_meta):
     )
 
     output_dir = pathlib.Path(cfg.value("photometry.campari_io.output_dir"))
-    filename = "20172782_Y106_romanpsf_lc.ecsv"
+    filename = "20172782_Y106_ou24psf_slow_lc.ecsv"
     filepath = output_dir / filename
     filepath.unlink(missing_ok=True)
     # Note, the above should not be necessary because I have overwrite set to True. However I think something is broken
