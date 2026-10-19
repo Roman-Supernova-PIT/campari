@@ -1,0 +1,1 @@
+Added functionality to check that all of the pixels that are being missed by the model are not weighted.
