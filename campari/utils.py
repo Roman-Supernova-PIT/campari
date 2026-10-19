@@ -244,7 +244,7 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint, threshold=0,
     return wgt_matrix
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
-    psf_matrix=None, sn_matrix=None, footprint_threshold=0, relative=True):
+    psf_matrix=None, sn_matrix=None, footprint_threshold=0.1, relative=True):
     """This function calculates the weights for each pixel in the cutout
         images.
 
