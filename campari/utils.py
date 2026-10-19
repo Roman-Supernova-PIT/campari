@@ -165,6 +165,7 @@ def calculate_background_level(im):
     mean, median, std = sigma_clipped_stats(im, sigma=3.0, mask=mask)
     return mean
 
+
 def build_model_footprint(psf_matrix, sn_matrix, num_total_images, size_sq):
     """Calculate the model's "footprint". What I mean is collapse the model into one number per pixel:
     how much total model (galaxy grid + transient) lands on that pixel. We want to make sure later that every pixel
@@ -242,6 +243,7 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint, threshold=0,
     SNLogger.debug(f"Footprint check (threshold={threshold}): zeroed {total_zeroed} additional pixel weights "
                    f"out of {num_images * size_sq} total pixels.")
     return wgt_matrix
+
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
     psf_matrix=None, sn_matrix=None, footprint_threshold=0.1, relative=True):
