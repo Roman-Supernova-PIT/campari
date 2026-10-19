@@ -2,7 +2,6 @@
 preloads:
   - /snpit_env_base/configs/ou2024_container_config.yaml  # Env variable borken. Rob says this should be
   # ${SNPIT_DEFAULT_CONFIG} but I am waiting on him to fix that functionality.
-  - /snpit_env_base/configs/rknop_dev_container_config.yaml
 
 augments:
   - ../../campari/tests/master_test_config.yaml
