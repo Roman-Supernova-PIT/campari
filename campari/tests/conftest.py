@@ -87,5 +87,5 @@ def pytest_collection_modifyitems(config, items):
         else:
             standard_tests.append(item)
 
-     # Reorder the item list inline so marked tests move to the end
+    # Reorder the item list inline so marked tests move to the end
     items[:] = standard_tests + last_tests
