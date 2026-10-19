@@ -73,7 +73,10 @@ def pytest_configure(config):
     )
 
     if not config.getoption("--run-accuracy"):
-        config.option.markexpr = "not accuracy_test"
+        if config.option.markexpr:
+            config.option.markexpr += " and not accuracy_test"
+        else:
+            config.option.markexpr = "not accuracy_test"
 
 
 def pytest_collection_modifyitems(config, items):
