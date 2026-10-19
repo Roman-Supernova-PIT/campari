@@ -72,6 +72,7 @@ BAND = "Y106"
 RA0, DEC0 = 7.471881246770769, -44.82824910386988
 X0 = Y0 = 2044
 
+
 @pytest.fixture(scope="module")
 def photometry_test_data(cfg):
     return cfg.value("photometry.test_data")
@@ -1104,6 +1105,7 @@ def test_image_simulator_script():
     # To update regression, do:
     # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test/*
     #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
+
 
 def test_model_covers_only_a_small_part_of_cutout(setup):
     # The addition of these functions only makes sense if the model is a fraction of the cutout.
