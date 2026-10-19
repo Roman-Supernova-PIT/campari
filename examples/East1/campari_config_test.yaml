@@ -40,9 +40,9 @@ photometry:
       spacing: 0.75
       turn_grid_off: false
       gaussian_var: -1 # Gaussian weighting off by default
-      cutoff: 7
+      cutoff: 5
       error_floor: 0.0
-      subsize: 7
+      subsize: 8
 
   campari_io:
     output_dir: /home/cfmeldorf/campari_out_dir

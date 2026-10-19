@@ -158,6 +158,7 @@ def main():
 
     parser.add_argument(
         "--transient_start",
+        "--start",
         type=float,
         required=False,
         help="MJD of first epoch of transient. Only used when --diaobject-collection is manual. Otherwise, "

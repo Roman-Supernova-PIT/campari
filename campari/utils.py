@@ -192,6 +192,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
     size = images[0].image_shape[0]
     wcs_list = [im.get_wcs() for im in images]
     error = [im.noise for im in images]
+    masked_pixels = [im.flags for im in images]
 
     wgt_matrix = []
 
@@ -248,7 +249,14 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
         inv_var = 1 / (error[i].flatten())**2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
+
+        wgt[np.where(masked_pixels[i].flatten() != 0)] = 0
+        SNLogger.debug(f"Removing {len(np.where(masked_pixels[i].flatten() != 0)[0])} masked pixels from the weight matrix.")
+
+
         wgt_matrix.append(wgt)
+
+
     return wgt_matrix
 
 
