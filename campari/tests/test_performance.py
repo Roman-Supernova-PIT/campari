@@ -22,8 +22,16 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
-@pytest.mark.NERSC
 def test_memory(cfg):
+
+    if os.getenv("GITHUB_ACTIONS") == "true":
+        print("Running inside GitHub Actions!")
+        location = "github_actions"
+    else:
+        if "NERSC_HOST" not in os.environ:
+            raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
+            location = "NERSC"
+
     time_start = time.time()
 
     nprocs = 20
@@ -49,8 +57,13 @@ def test_memory(cfg):
     time_end = time.time()
     total_time = time_end - time_start
 
-    np.testing.assert_array_less(total_time, 150), "The test run on a SN took longer than 150 seconds," + \
-                                                   " typical time is 110 seconds."
+    time_thresh = {
+        "NERSC": 150,
+        "github_actions": 150
+    }
+
+    np.testing.assert_array_less(total_time, time_thresh[location]), "The test run on a SN took longer than "
+    + str(time_thresh[location]) + " seconds, typical time is ~ 110 seconds."
 
     SNLogger.debug(f"Test run on a SN took {time_end - time_start} seconds")
 
@@ -64,10 +77,17 @@ def test_memory(cfg):
 
     SNLogger.debug(f"The peak memory usage was {mem_df['memory_gb'].max()} GB")
 
+    memory_thresh = {
+        "NERSC": 1.5,
+        "github_actions": 1.5
+    }
+
     try:
-        np.testing.assert_array_less(mem_df["memory_gb"].values, 1.5), "Memory usage exceeded 1.5 GB"
+        np.testing.assert_array_less(mem_df["memory_gb"].values, memory_thresh[location]),
+        f"Memory usage exceeded the threshold for {location}, which is {memory_thresh[location]} GB"
     except AssertionError:
         plt.plot(mem_df["elapsed_seconds"].values, mem_df["memory_gb"].values)
         plot_path = f"{debug_dir}/memory_usage_plot.png"
         plt.savefig(plot_path)
-        raise ValueError(f"Memory usage exceeded 1.5 GB. See plot at {plot_path} for details.")
+        raise ValueError(f"Memory usage exceeded {memory_thresh[location]} GB. "
+        f"See plot at {plot_path} for details.")
