@@ -343,8 +343,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
         wgt *= inv_var
 
         wgt[np.where(masked_pixels[i].flatten() != 0)] = 0
-        SNLogger.debug(f"Removing {len(np.where(masked_pixels[i].flatten() != 0)[0])} masked pixels from the weight matrix.")
-
+        SNLogger.debug(f"Removing {len(np.where(masked_pixels[i].flatten() != 0)[0])} masked pixels"
+        " from the weight matrix.")
 
         wgt_matrix.append(wgt)
 

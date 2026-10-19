@@ -48,7 +48,7 @@ class campari_runner:
 
         self.band = kwargs["filter"]
         # make the f uppercase
-        pattern = r"^f(\d{3})$" # an f followed by 3 digits
+        pattern = r"^f(\d{3})$"  # an f followed by 3 digits
         if re.match(pattern, self.band):
             self.band = self.band.upper()
             SNLogger.debug(f"Band {kwargs['filter']} converted to uppercase: {self.band}")
