@@ -149,6 +149,9 @@ exclude = [
     "docs",
 ]
 
+[tool.ruff.lint.mccabe]
+# Flag errors whenever complexity exceeds this limit (default is 10)
+max-complexity = 10
 
 [tool.ruff.lint]
 preview = true
