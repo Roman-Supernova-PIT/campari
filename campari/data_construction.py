@@ -92,7 +92,7 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
             pool.join()
     else:
         for indx, image in enumerate(image_list):
-            SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+            SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
             results.append(construct_one_image(indx=indx, image=image,
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background_method=subtract_background_method))
@@ -116,7 +116,7 @@ def is_number(s):
 
 
 def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
-                        subtract_background_method=None):
+                        subtract_background_method=None, min_background_cutout_size=39):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -133,6 +133,9 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
         level is stored in. If the keyword is not found, an error is raised.
     truth: str, either "truth" or "simple_model", whether to use truth images
         or OU2024 simple model images.
+    min_background_cutout_size: int, the minimum size of the cutout to be used for background calculation.
+        If the cutout is smaller than this size, a larger cutout will be used for background calculation, and
+        then deleted.
 
     Returns:
     cutout_image: snappl.image.Image object, cutout on the object location.
@@ -173,18 +176,39 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     # level as a free parameter in our fit, so it should not be subtracted
     # here.
     bg = 0
+    # Just on the off chance the cutout is not square.
+    min_background_cutout_size = max(min_background_cutout_size, image_cutout.data.shape[0],
+        image_cutout.data.shape[1])
     if is_number(subtract_background_method):
         bg = float(subtract_background_method)
         SNLogger.debug(f"Background from user input: {bg}")
     elif subtract_background_method == "calculate":
-        bg = calculate_background_level(imagedata)
+        if image_cutout.data.shape[0] < min_background_cutout_size or \
+        image_cutout.data.shape[1] < min_background_cutout_size:
+            # In test_campari.py, I found that the background subtraction is accurate to 0.1% only when using at least
+            # a 39x39 region. If we want more accurate, this minimal value may need to be increased.
+            SNLogger.info(
+                f"Image cutout is smaller than {min_background_cutout_size}x{min_background_cutout_size} pixels. "
+                f"Taking a {min_background_cutout_size}x{min_background_cutout_size} region for background calculation."
+            )
+            bg_cutout = image.get_ra_dec_cutout(ra, dec, min_background_cutout_size, mode="partial", fill_value=np.nan)
+            background_calculation_data = bg_cutout.data
+            SNLogger.debug(f"Background calculation cutout shape: {background_calculation_data.shape}")
+            del bg_cutout
+        else:
+            background_calculation_data = image_cutout.data
+
+        bg = calculate_background_level(background_calculation_data)
+
+        if not is_number(bg):
+            raise ValueError(f"Background calculation returned a non-numeric value: {bg}")
         SNLogger.debug(f"Calculated BG level of: {bg}")
     elif subtract_background_method == "fit":
         bg = 0
 
     elif subtract_background_method == "photutils_local":
         lb = LocalBackground(10, 20, MedianBackground())
-        bg = lb(image_cutout.data, size//2, size//2)
+        bg = lb(image_cutout.data, size // 2, size // 2)
     else:
         SNLogger.debug(f"Trying to get background from header: {subtract_background_method}")
         bg = image_cutout.get_fits_header()[subtract_background_method] if \
@@ -194,7 +218,11 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
-    image.free() # Save memory
+    try:
+        image.free()  # Save memory
+    except Exception as e:
+        SNLogger.warning(f"Could not free image {indx} from memory: {e}")
+    del image
     print_mem(f"after freeing full image {indx} ------------------")
     return image_cutout, bg
 

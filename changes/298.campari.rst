@@ -1,0 +1,1 @@
+Sped up background calculation by doing it on cutouts only.
