@@ -361,9 +361,10 @@ def construct_transient_scene(
         sed = None
         SNLogger.warning("STPSF does not currently support galsim SEDs, ignoring the SED provided and using 'None'")
 
+    kwargs = {"sigmax": 0.43, "sigmay": 0.43}
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca,
-        image=image, stamp_size=stampsize, sed=sed
+        image=image, stamp_size=stampsize, sed=sed, **kwargs,
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
     print_mem("Finished constructing TRANSIENT scene")
@@ -381,7 +382,6 @@ def make_grid(
     ra=None,
     dec=None,
     percentiles=[0, 90, 95, 100],
-    make_exact=False,
     single_ra=None,
     single_dec=None,
     cut_points_close_to_sn=False,
@@ -564,7 +564,7 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
     return ra_grid, dec_grid
 
 
-def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=None, grid_type=None, ra_grid=None,
+def build_model_for_one_image(image=None, ra=None, dec=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
                               image_index=None, num_total_images=None, num_detect_images=None,
                               prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
@@ -624,7 +624,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, use_real_images=Non
 
     if sn_index >= 0 and prebuilt_sn_matrix is None:
         SNLogger.debug("Constructing transient model array for image " + str(image_index) + " ---------------")
-        SNLogger.debug("This image has MJD " + str(image.mjd) )
+        SNLogger.debug("This image has MJD " + str(image.mjd))
         # sedlist is the length of the number of supernova
         # detection images. Therefore, when we iterate onto the
         # first supernova image, we want to be on the first element

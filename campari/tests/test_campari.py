@@ -64,6 +64,13 @@ cfg = Config.get()
 output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
+SIZE = 31
+SIZE_SQ = SIZE**2
+N_IMAGES = 2          # image 0 plays a non-detection epoch, image 1 the detection epoch
+BAND = "Y106"
+# Pixel (2044, 2044) of this image is at this position (see test_wcs_regression).
+RA0, DEC0 = 7.471881246770769, -44.82824910386988
+X0 = Y0 = 2044
 
 @pytest.fixture(scope="module")
 def photometry_test_data(cfg):
@@ -73,6 +80,49 @@ def photometry_test_data(cfg):
 @pytest.fixture(scope="module")
 def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
+
+
+@pytest.fixture(scope="module")
+def setup(cfg):
+    """Build the expensive pieces once and share them between the tests.
+       Drawing PSFs is slow, so this avoids repeating it per test.
+    """
+    img_collection = ImageCollection().get_collection("ou2024")
+    snappl_image = img_collection.get_image(observation_id="5934", sca=3, band=BAND)
+    wcs = snappl_image.get_wcs()
+
+    # 5x5 grid of model points, 1 pixel apart, centred on the stamp centre.
+    offsets = np.arange(-2, 3)
+    xx, yy = np.meshgrid(X0 + offsets, Y0 + offsets)
+    ra_grid, dec_grid = wcs.pixel_to_world(xx.flatten(), yy.flatten())
+
+    psf_matrix = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=X0, y_loc=Y0,
+                                       stampsize=SIZE, band=BAND, image=snappl_image)
+
+    # A single model point at the transient location stands in for the SN stamp.
+    sn_stamp = construct_static_scene(np.array([RA0]), np.array([DEC0]), wcs, x_loc=X0, y_loc=Y0,
+                                      stampsize=SIZE, band=BAND, image=snappl_image)[:, 0]
+
+    return {"image": snappl_image, "psf_matrix": psf_matrix, "sn_stamp": sn_stamp}
+
+
+def weights(setup, psf_matrix=None, sn_matrix=None, **kwargs):
+    """Call get_weights on fresh cutouts of the real image."""
+    cutouts = [setup["image"].get_ra_dec_cutout(np.array([RA0]), np.array([DEC0]), SIZE)
+               for _ in range(N_IMAGES)]
+    return get_weights(cutouts, np.array([RA0]), np.array([DEC0]), gaussian_var=None, cutoff=None,
+                       psf_matrix=psf_matrix, sn_matrix=sn_matrix, **kwargs)
+
+
+def footprint_per_image(psf_matrix):
+    """Calculate the footprint: total |model| per pixel."""
+    return np.abs(psf_matrix).sum(axis=1).reshape(N_IMAGES, SIZE_SQ)
+
+
+def tiled_psf(setup):
+    # Both "epochs" use the same image, so they see the same grid model. This combines the two into a single matrix for
+    # footprint calculation.
+    return np.tile(setup["psf_matrix"], (N_IMAGES, 1))
 
 
 def compare_lightcurves(lc1_path, lc2_path, overwrite_meta=False, check_truth=False):
@@ -303,7 +353,7 @@ def test_savelightcurve():
 def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     # Call it as a function first so we can pdb and such
 
-    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -331,7 +381,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_star_lc.ecsv",
                         overwrite_meta=overwrite_meta)
 
-    curfile = pathlib.Path(output_dir) / "40973166870_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "40973166870_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -363,10 +413,10 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     # from the command line.  (And we do want to make sure that works!)
 
     cfg = Config.get()
-    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
 
-    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_ou24psf_slow_images.npy"
     debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -415,9 +465,9 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     # Weighting is a Gaussian width 1000 when this was made
     # In the future, this should be True, but random seeds not working rn.
 
-    curfile = pathlib.Path(output_dir) / "20172782_Y106_romanpsf_lc.ecsv"
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
     curfile.unlink(missing_ok=True)
-    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_romanpsf_images.npy"
+    debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_ou24psf_slow_images.npy"
     debug_file.unlink(missing_ok=True)
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
@@ -535,12 +585,24 @@ def test_make_contour_grid():
         np.testing.assert_allclose(dec_grid[:4], test_dec, atol=atol, rtol=1e-9), msg
 
 
-def test_calculate_background_level():
-    rng1 = np.random.default_rng(seed=424242424242424)
-    test_data = rng1.normal(loc=20, scale=5, size=(265, 265))
-    expected_output = 20
-    output = calculate_background_level(test_data)
-    np.testing.assert_allclose(output, expected_output, rtol=1e-3)  # 0.1% accuracy, should be good enough?
+@pytest.mark.parametrize("BG_SIZE", [39, 71, 101])
+@pytest.mark.parametrize("BG_TRUTH", [0.23])
+@pytest.mark.parametrize("source_brightness", [0, 1e0, 1e1, 1e2])
+def test_calculate_background_level_with_sources(BG_SIZE, BG_TRUTH, source_brightness):
+    sigma = .02
+    size = BG_SIZE
+    rng1 = np.random.default_rng(seed=4242424242424242)
+    test_data = rng1.normal(loc=BG_TRUTH, scale=sigma, size=(size, size))
+
+    # Now with an injected fake source
+    test_data_with_sources = test_data.copy()
+
+    gaussian = np.zeros((size, size))
+    gaussian = source_brightness * np.exp(-((np.arange(size) - size // 2)**2 +
+         (np.arange(size)[:, None] - size // 2)**2) / (2 * 1.0**2))
+    test_data_with_sources += gaussian
+    output_with_sources = calculate_background_level(test_data_with_sources)
+    np.testing.assert_allclose(output_with_sources, BG_TRUTH, rtol=1e-3)
 
 
 def test_calc_mag_and_err():
@@ -549,7 +611,7 @@ def test_calc_mag_and_err():
     band = "Y106"
     mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
 
-    test_mag = np.array([np.nan, 27.66165575,  25.16165575,  22.66165575])
+    test_mag = np.array([np.nan, 27.66165575, 25.16165575, 22.66165575])
     test_magerr = np.array([np.nan, 1.0857362e-01,
                             1.0857362e-02, 1.0857362e-03])
     test_zp = 15.023547191066587
@@ -568,7 +630,7 @@ def test_construct_static_scene(cfg):
     observation_id = "5934"
     sca = 3
     size = 9
-    band = "Y106"
+    band = BAND
 
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
@@ -580,7 +642,7 @@ def test_construct_static_scene(cfg):
     dec_grid = np.array([-44.8280889, -44.82804109, -44.82799327, -44.82801657, -44.82796875])
 
     psf_background = construct_static_scene(ra_grid, dec_grid, wcs, x_loc=2044, y_loc=2044,
-                                            stampsize=size, band="Y106", image=snappl_image)
+                                            stampsize=size, band=BAND, image=snappl_image)
 
     test_psf_background = np.load(pathlib.Path(__file__).parent / "testdata/test_psf_bg.npy")
 
@@ -589,16 +651,16 @@ def test_construct_static_scene(cfg):
 
 def test_get_weights():
     size = 7
-    test_snra = np.array([7.471881246770769])
-    test_sndec = np.array([-44.82824910386988])
+    test_snra = RA0
+    test_sndec = DEC0
     observation_id = "5934"
     sca = 3
-    band = "Y106"
+    band = BAND
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
     snappl_image = img_collection.get_image(observation_id=observation_id, sca=sca, band=band)
     wcs = snappl_image.get_wcs()
-    SNLogger.debug(wcs.pixel_to_world(2044, 2044))
+    SNLogger.debug(wcs.pixel_to_world(X0, Y0))
     snappl_cutout = snappl_image.get_ra_dec_cutout(test_snra, test_sndec, size)
     wgt_matrix = get_weights([snappl_cutout], test_snra, test_sndec,
                              gaussian_var=1000, cutoff=4)
@@ -763,7 +825,7 @@ def test_build_lc(cfg, overwrite_meta):
 def test_wcs_regression():
     observation_id = "5934"
     sca = 3
-    band = "Y106"
+    band = BAND
 
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
@@ -771,15 +833,13 @@ def test_wcs_regression():
 
     wcs = snappl_image.get_wcs()
 
-    x_test, y_test = 2044, 2044
-    ra, dec = wcs.pixel_to_world(x_test, y_test)
-    np.testing.assert_allclose(ra, 7.471881246770769, atol=1e-7)
-    np.testing.assert_allclose(dec, -44.82824910386988, atol=1e-7)
+    ra, dec = wcs.pixel_to_world(X0, Y0)
+    np.testing.assert_allclose(ra, RA0, atol=1e-7)
+    np.testing.assert_allclose(dec, DEC0, atol=1e-7)
 
-    ra_test, dec_test = 7.471881246770769, -44.82824910386988
-    x, y = wcs.world_to_pixel(ra_test, dec_test)
-    np.testing.assert_allclose(x, x_test, atol=1e-7)
-    np.testing.assert_allclose(y, y_test, atol=1e-7)
+    x, y = wcs.world_to_pixel(RA0, DEC0)
+    np.testing.assert_allclose(x, X0, atol=1e-7)
+    np.testing.assert_allclose(y, Y0, atol=1e-7)
 
 
 def test_read_healpix_file():
@@ -834,7 +894,7 @@ def test_handle_partial_overlap():
         "The weights do not match the expected values."
 
 
-@pytest.mark.requires_simdex # I think this image is in the photometry_test_data, fix this at some point.
+@pytest.mark.requires_simdex  # I think this image is in the photometry_test_data, fix this at some point.
 def test_calculate_surface_brightness():
     size = 25
     observation_id = str(5934)
@@ -883,7 +943,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
     for oid, sca in zip(observation_ids, scas):
         image_list.append(img_collection.get_image(observation_id=oid, sca=sca, band=band))
 
-    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl" , "rb") as f:
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl", "rb") as f:
         reg_cutout_list = pickle.load(f)
 
     ra = 7.551093401915147
@@ -900,7 +960,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
             with Pool(nprocs) as pool:
                 for indx, image in enumerate(image_list):
                     SNLogger.debug(f"image path {image.full_filepath}")
-                    SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                    SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
                     results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
                                                                                "ra": ra, "dec": dec, "size": size,
                                                                                "truth": truth,
@@ -911,7 +971,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
                 pool.join()
         else:
             for indx, image in enumerate(image_list):
-                SNLogger.debug(f"Constructing cutout for image {indx+1} of {image}")
+                SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
                 results.append(construct_one_image(indx=indx, image=image,
                                                    ra=ra, dec=dec, size=size, truth=truth,
                                                    subtract_background_method=subtract_background_method))
@@ -1044,3 +1104,75 @@ def test_image_simulator_script():
     # To update regression, do:
     # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test/*
     #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
+
+def test_model_covers_only_a_small_part_of_cutout(setup):
+    # The addition of these functions only makes sense if the model is a fraction of the cutout.
+    # The footprint should be very small in the corners, and most pixels should be barely touched.
+    fp = footprint_per_image(tiled_psf(setup))[0]
+    peak = fp.max()
+    assert fp[0] < 1e-2 * peak and fp[-1] < 1e-2 * peak     # far corners
+    assert np.mean(fp > 1e-2 * peak) < 0.5                  # most pixels barely touched
+
+
+def test_default_threshold_masks_exactly_the_untouched_pixels(setup):
+    psf_matrix = tiled_psf(setup)
+    base = weights(setup)
+    masked = weights(setup, psf_matrix=psf_matrix)           # footprint_threshold = 0
+
+    covered = footprint_per_image(psf_matrix) > 0            # boolean array, True = model reaches pixel
+    for i in range(N_IMAGES):
+        # Multiplying by a boolean array keeps a weight where True, zeroes it where False.
+        np.testing.assert_array_equal(masked[i], base[i] * covered[i])
+
+
+def test_relative_threshold_masks_faint_wings(setup):
+    psf_matrix = tiled_psf(setup)
+    base = weights(setup)
+    fp = footprint_per_image(psf_matrix)
+
+    previous_masked = np.zeros((N_IMAGES, SIZE_SQ), dtype=bool)
+    previous_fraction = 0.0
+    for rel in [1e-4, 1e-3, 1e-2]:
+        masked = weights(setup, psf_matrix=psf_matrix, footprint_threshold=rel, relative=True)
+        dropped = fp <= rel * fp.max(axis=1, keepdims=True)  # cut is relative to each image's own peak
+        for i in range(N_IMAGES):
+            np.testing.assert_array_equal(masked[i], base[i] * ~dropped[i])
+
+        # A higher threshold must drop everything a lower one did, and more.
+        assert np.all(dropped[previous_masked])
+        assert dropped.mean() >= previous_fraction
+        previous_masked, previous_fraction = dropped, dropped.mean()
+
+    # At 1% of peak, the centre survives and the corners do not.
+    centre = (SIZE // 2) * SIZE + SIZE // 2
+    for i in range(N_IMAGES):
+        assert masked[i][centre] == base[i][centre] and base[i][centre] != 0
+        assert masked[i][0] == 0 and masked[i][-1] == 0
+    assert previous_fraction > 0.5
+
+
+def test_fit_mode_sky_columns_prevent_any_masking(setup):
+    # In "fit" mode build_model_for_one_image appends one all-ones column per
+    # image (zero on the other images). Every pixel is then touched by the model.
+    sky = np.zeros((N_IMAGES * SIZE_SQ, N_IMAGES))
+    for j in range(N_IMAGES):
+        sky[j * SIZE_SQ:(j + 1) * SIZE_SQ, j] = 1.0
+    psf_matrix = np.hstack([tiled_psf(setup), sky])
+
+    base = weights(setup)
+    for kwargs in [{}, {"footprint_threshold": 1e-2, "relative": True}]:
+        masked = weights(setup, psf_matrix=psf_matrix, **kwargs)
+        for i in range(N_IMAGES):
+            np.testing.assert_array_equal(masked[i], base[i])
+
+
+def test_transient_footprint_only_counts_in_detection_image(setup):
+    # No background grid; only a transient stamp, in the last image (the detection image).
+    psf_matrix = np.empty((N_IMAGES * SIZE_SQ, 0))
+    base = weights(setup)
+    masked = weights(setup, psf_matrix=psf_matrix, sn_matrix=[setup["sn_stamp"]])
+
+    # Non-detection image: no model at all, so every weight is dropped.
+    assert np.all(masked[0] == 0)
+    # Detection image: weight survives where the transient stamp is nonzero.
+    np.testing.assert_array_equal(masked[1], base[1] * (np.abs(setup["sn_stamp"]) > 0))
