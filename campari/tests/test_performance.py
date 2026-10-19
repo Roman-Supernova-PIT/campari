@@ -23,7 +23,10 @@ def campari_test_data(cfg):
 
 
 def test_memory(cfg):
-
+    SNLogger.debug("Running test_memory")
+    SNLogger.debug(os.getenv("GITHUB_ACTIONS"))
+    print(os.getenv("GITHUB_ACTIONS"))
+    print("Should be here")
     if os.getenv("GITHUB_ACTIONS") == "true":
         print("Running inside GitHub Actions!")
         location = "github_actions"
