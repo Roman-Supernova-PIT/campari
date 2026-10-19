@@ -49,8 +49,13 @@
 # - {dec: -44.80718106491529}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: eb7ef400-38d9-65eb-e452-9d610a40bf27}
-# - {diaobject_id: fb83ec10-ae9d-42b3-a8f2-a780639a78d2}
+<<<<<<<<< Temporary merge branch 1
+# - {provenance_id: 4cb7a7b2-e80e-8d8c-fdd5-25b8bf0fa665}
+# - {diaobject_id: 96706579-7d34-4057-b643-61831bea717a}
+=========
+# - {provenance_id: f109a627-a63a-d408-cfdd-7634cb66bc1e}
+# - {diaobject_id: d7eb5ccb-8e0a-4bba-b706-30b4fe167a10}
+>>>>>>>>> Temporary merge branch 2
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
