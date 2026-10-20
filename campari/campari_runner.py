@@ -249,6 +249,8 @@ class campari_runner:
         SNLogger.debug(f"Object info for SN {self.diaobject_name} with ID {self.diaobject_id} in"
                        f" collection {self.diaobject_collection}: ra={diaobj.ra},"
                        f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
+        self.ra = diaobj.ra
+        self.dec = diaobj.dec
         image_list = self.get_exposures(diaobj)
         sedlist = self.get_sedlist(diaobj.id, image_list)
 
@@ -547,6 +549,7 @@ class campari_runner:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra=ra, dec=dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
+                SNLogger.debug(f"Accepted image with MJD {image.mjd} and band {image.band}.")
                 return image
             else:
                 SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
@@ -557,6 +560,8 @@ class campari_runner:
 
     def prune_images(self, image_list):
         """Prune the given image list to only include images in the correct band and that contain the transient."""
+        self.nprocs = 1
+        SNLogger.debug(f"Pruning images to only include images in the correct band {self.band} and that contain the transient.")
         if self.nprocs > 1:
             pruned_image_list = []
             ctx = multiprocessing.get_context("fork")
@@ -571,8 +576,11 @@ class campari_runner:
         else:
             pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(image) for image in image_list)
                             if pruned_image is not None]
-        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
+        if len(pruned_image_list) < len(image_list):
+            SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
                        f"because they were not in the correct band {self.band} or did not contain the transient.")
+        else:
+            SNLogger.debug("All images in the provided image list were accepted.")
         if len(pruned_image_list) == 0:
             raise ValueError(f"No images in the given image list or paths matched the requested band {self.band},"
                              "or none of them contained the transient.")
