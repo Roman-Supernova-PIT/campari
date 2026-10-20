@@ -31,7 +31,6 @@
 # - {save_memory_file_name: None}
 # - {preplot_cutouts: false}
 # - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
-# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1.0
