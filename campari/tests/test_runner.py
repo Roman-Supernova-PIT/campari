@@ -143,14 +143,20 @@ def test_get_exposures(cfg):
     np.testing.assert_array_equal(regression_sca, compare_table["sca"])
     np.testing.assert_array_equal(regression_observation_id, compare_table["observation_id"])
 
-    # ### Now try with an image list
+# ### Now try with an image list
 
+
+def test_get_exposures_with_img_list(cfg):
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
+    test_args.image_collection = "ou2024"
     test_args.object_collection = "ou24"
     test_args.SNID = 20172782
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
 
-    diaobj = DiaObject.find_objects(name=20172782, ra=1, dec=2, collection="manual")[0]
+    diaobj = DiaObject.find_objects(name=20172782, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
 
@@ -169,6 +175,11 @@ def test_get_exposures(cfg):
     np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
                             "does not match the set of observation IDs in the image list file.")
 
+
+def test_get_exposures_with_img_glob(cfg):
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
     # Now we test getting images from globbing paths.
     test_args.img_list = None
     test_args.image_collection = "manual_rdm"
@@ -177,6 +188,7 @@ def test_get_exposures(cfg):
     SNLogger.debug(cfg.value("photometry.test_data"))
     test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
     runner = campari_runner(**vars(test_args))
+    diaobj = DiaObject.find_objects(name=20172782, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
     compare_list = [60627.500299]
