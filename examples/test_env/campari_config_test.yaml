@@ -18,7 +18,5 @@ photometry:
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
     # the provenance is new because the hash of this config file will change.
 
-  snappl:
-    simdex_server: https://roman-desc-simdex.lbl.gov
 
   test_data: "/packages/photometry_test_data"
