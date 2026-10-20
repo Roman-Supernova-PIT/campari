@@ -145,6 +145,7 @@ def test_get_exposures(cfg):
 
 # ### Now try with an image list
 
+
 def test_get_exposures_with_img_list(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
