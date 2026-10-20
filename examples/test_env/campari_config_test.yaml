@@ -68,4 +68,3 @@ photometry:
     simdex_server: https://roman-desc-simdex.lbl.gov
 
   test_data: "/packages/photometry_test_data"
-
