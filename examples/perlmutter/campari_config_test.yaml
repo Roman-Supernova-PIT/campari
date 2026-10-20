@@ -17,4 +17,4 @@ photometry:
     # However, if a run successfully creates a provenance but does not successfully complete, the code will fail
     # because it tries to create a provenance that already exists. By iterating this dummy parameter, we can ensure
     # the provenance is new because the hash of this config file will change.
-  test_data: /photometry_test_data
+  test_data: /home/photometry_test_data
