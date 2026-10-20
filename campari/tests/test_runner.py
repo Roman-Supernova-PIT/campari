@@ -177,6 +177,26 @@ def test_get_exposures_with_img_list(cfg):
     np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
                             "does not match the set of observation IDs in the image list file.")
 
+def test_prune_images_ra_dec(cfg):
+    # same as the above test, which does use prune images. Now we'll check that if I give a different RA/Dec,
+    # or band, it will get rid of the images that don't match.
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
+    test_args.image_collection = "ou2024"
+    test_args.object_collection = "ou24"
+    test_args.SNID = 20172782
+    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
+
+    runner = campari_runner(**vars(test_args))
+    ra = 1
+    dec = 2 # Nonsense ra/dec
+    diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
+    diaobj.mjd_start = 62654.0
+    diaobj.mjd_end = 62958.0
+    with pytest.raises(ValueError, match="No images in the given image list or paths matched the requested band"):
+        runner.get_exposures(diaobj=diaobj)
+
 
 def test_get_exposures_with_img_glob(cfg):
     test_args = create_default_test_args(cfg)
