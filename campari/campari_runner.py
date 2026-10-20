@@ -550,12 +550,15 @@ class campari_runner:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra=ra, dec=dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
+                SNLogger.debug(f"Accepted image with SCA {image.sca}, observation id {image.observation_id} MJD {image.mjd}, and band {image.band} because it included the transient RA/DEC {ra}, {dec}.")
                 return image
             else:
-                SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
-                                f"band {image.band} because it did not include the transient RA/DEC {ra}, {dec}.")
+                SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}  MJD {image.mjd} and "
+                                f"band {image.band} because it did not include the transient RA/DEC {ra}, {dec}."
+                                f"The center of the rejected image is at RA/DEC"
+                                f" {im_wcs.pixel_to_world(image.data.shape[1] / 2, image.data.shape[0] / 2)}.")
         else:
-            SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
+            SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}  MJD {image.mjd} and "
                             f"band {image.band} because it was not in the correct band {self.band}.")
 
     def prune_images(self, image_list, diaobj):
@@ -565,7 +568,8 @@ class campari_runner:
         if ra is None or dec is None:
             raise ValueError("Cannot prune images because RA and Dec are both None. Please provide either RA and Dec"
                              " or get the position from the database.")
-        self.nprocs=1
+        self.nprocs = 1
+        SNLogger.debug("Pruning images, nprocs = " + str(self.nprocs))
         if self.nprocs > 1:
             pruned_image_list = []
             ctx = multiprocessing.get_context("fork")
@@ -580,7 +584,7 @@ class campari_runner:
         else:
             pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, image) for image in image_list)
                             if pruned_image is not None]
-        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
+        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list "
                        f"because they were not in the correct band {self.band} or did not contain the transient.")
         if len(pruned_image_list) == 0:
             raise ValueError(f"No images in the given image list or paths matched the requested band {self.band},"
