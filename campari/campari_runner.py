@@ -42,7 +42,6 @@ global _start_time
 _start_time = time.perf_counter()
 SNLogger.debug(f"Starting Campari run at time: {_start_time}")
 
-_prune_images_shared_list = None
 
 class campari_runner:
     """This class is used to run the Campari pipeline."""
