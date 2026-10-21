@@ -157,7 +157,7 @@ def test_get_exposures_with_img_list(cfg):
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
     ra = 7.551093401915147
-    dec = -44.80718106491529 # These are the coords of the transient in the regression test
+    dec = -44.80718106491529  # These are the coords of the transient in the regression test
     diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
@@ -177,6 +177,7 @@ def test_get_exposures_with_img_list(cfg):
     np.testing.assert_equal(recovered_set, compare_set, "The set of observation IDs recovered from the image list "
                             "does not match the set of observation IDs in the image list file.")
 
+
 def test_prune_images_ra_dec(cfg):
     # same as the above test, which does use prune images. Now we'll check that if I give a different RA/Dec,
     # or band, it will get rid of the images that don't match.
@@ -190,7 +191,7 @@ def test_prune_images_ra_dec(cfg):
 
     runner = campari_runner(**vars(test_args))
     ra = 1
-    dec = 2 # Nonsense ra/dec
+    dec = 2  # Nonsense ra/dec
     diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
@@ -211,7 +212,7 @@ def test_get_exposures_with_img_glob(cfg):
     test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
     runner = campari_runner(**vars(test_args))
     ra = 79.92140774911647
-    dec = 30.03559210999971 # this is the center of the one asdf image we have
+    dec = 30.03559210999971  # this is the center of the one asdf image we have
     diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]

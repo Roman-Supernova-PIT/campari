@@ -552,16 +552,18 @@ class campari_runner:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra=ra, dec=dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
-                SNLogger.debug(f"Accepted image with SCA {image.sca}, observation id {image.observation_id} MJD {image.mjd}, and band {image.band} because it included the transient RA/DEC {ra}, {dec}.")
+                SNLogger.debug(f"Accepted image with SCA {image.sca}, observation id {image.observation_id} MJD"
+                f" {image.mjd}, and band {image.band} because it included the transient RA/DEC {ra}, {dec}.")
                 return image
             else:
-                SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}  MJD {image.mjd} and "
-                                f"band {image.band} because it did not include the transient RA/DEC {ra}, {dec}."
-                                f"The center of the rejected image is at RA/DEC"
+                SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}  MJD  "
+                                f"{image.mjd} and band {image.band} because it did not include the transient RA/DEC "
+                                f"{ra}, {dec}. The center of the rejected image is at RA/DEC"
                                 f" {im_wcs.pixel_to_world(image.data.shape[1] / 2, image.data.shape[0] / 2)}.")
         else:
-            SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}  MJD {image.mjd} and "
-                            f"band {image.band} because it was not in the correct band {self.band}.")
+            SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}"
+                           f"  MJD {image.mjd} and "
+                           f"band {image.band} because it was not in the correct band {self.band}.")
 
     def prune_images(self, image_list, diaobj):
         """Prune the given image list to only include images in the correct band and that contain the transient."""
@@ -583,8 +585,8 @@ class campari_runner:
                 pool.join()
 
         else:
-            pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, image) for image in image_list)
-                            if pruned_image is not None]
+            pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, image)
+                             for image in image_list) if pruned_image is not None]
         if len(pruned_image_list) < len(image_list):
             SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
                        f"because they were not in the correct band {self.band} or did not contain the transient.")
