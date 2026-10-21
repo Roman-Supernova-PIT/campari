@@ -23,6 +23,7 @@ def campari_test_data(cfg):
 
 
 @pytest.mark.NERSC
+@pytest.mark.run_last
 def test_memory(cfg):
     time_start = time.time()
 
