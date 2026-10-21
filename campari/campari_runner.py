@@ -5,6 +5,12 @@ import multiprocessing
 import numpy as np
 import re
 import time
+import sys
+try:
+    import pysqlite3
+    sys.modules["sqlite3"] = pysqlite3
+except ModuleNotFoundError:
+    pass
 
 # Astronomy
 from astropy.io import fits
@@ -551,7 +557,7 @@ class campari_runner:
         image_band = convert_band_name(image.band)
         if image_band == requested_band:
             im_wcs = image.get_wcs()
-                x, y = im_wcs.world_to_pixel(ra, dec)
+            x, y = im_wcs.world_to_pixel(ra, dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
                 SNLogger.debug(f"Accepted image with SCA {image.sca}, observation id {image.observation_id} MJD"
                 f" {image.mjd}, and band {image.band} because it included the transient RA/DEC {ra}, {dec}.")
@@ -577,7 +583,7 @@ class campari_runner:
         if self.nprocs > 1:
             global _prune_images_shared_list
             _prune_images_shared_list = image_list
-            pruned_image_list = []
+            results = []
             ctx = multiprocessing.get_context("fork")
             with ctx.Pool(self.nprocs) as pool:
                 for image in image_list:

@@ -178,7 +178,8 @@ def test_get_exposures_with_img_list(cfg):
                             "does not match the set of observation IDs in the image list file.")
 
 
-def test_prune_images_ra_dec(cfg):
+@pytest.mark.parametrize("nprocs", [1, 2])
+def test_prune_images_ra_dec(cfg, nprocs):
     # same as the above test, which does use prune images. Now we'll check that if I give a different RA/Dec,
     # or band, it will get rid of the images that don't match.
     test_args = create_default_test_args(cfg)
@@ -187,6 +188,7 @@ def test_prune_images_ra_dec(cfg):
     test_args.image_collection = "ou2024"
     test_args.object_collection = "ou24"
     test_args.SNID = 20172782
+    test_args.nprocs = nprocs
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
 
     runner = campari_runner(**vars(test_args))
@@ -236,10 +238,12 @@ def test_get_exposures_with_img_glob(cfg):
         runner.get_exposures(diaobj=diaobj)
 
 
-def test_prune_images_band(cfg):
+@pytest.mark.parametrize("nprocs", [1, 2])
+def test_prune_images_band(cfg, nprocs):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
     test_args.diaobject_name = 20172782
+    test_args.nprocs = nprocs
     # Now we test getting images from globbing paths.
     test_args.img_list = None
     test_args.image_collection = "manual_rdm"
@@ -247,7 +251,7 @@ def test_prune_images_band(cfg):
     test_args.image_collection_basepath = str(cfg.value("photometry.test_data") + "/sample_asdf_data/")
     SNLogger.debug(cfg.value("photometry.test_data"))
     test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
-    test_args.filter = "F184"
+    test_args.filter = "F184"  # Intentionally give the wrong band
     runner = campari_runner(**vars(test_args))
 
     ra = 79.92140774911647
