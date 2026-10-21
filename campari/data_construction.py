@@ -142,9 +142,6 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     image: snappl.image.Image object of the entire SCA.
 
     """
-    print_mem("before image load ---------------")
-    imagedata, errordata, flags = image.get_data(which="all", cache=True)
-    print_mem("after image load------------------")
 
     image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
     num_nans = np.isnan(image_cutout.data).sum()
