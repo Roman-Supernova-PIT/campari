@@ -550,7 +550,7 @@ class campari_runner:
         image_band = convert_band_name(image.band)
         if image_band == requested_band:
             im_wcs = image.get_wcs()
-            x, y = im_wcs.world_to_pixel(ra=ra, dec=dec)
+                x, y = im_wcs.world_to_pixel(ra, dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
                 SNLogger.debug(f"Accepted image with SCA {image.sca}, observation id {image.observation_id} MJD"
                 f" {image.mjd}, and band {image.band} because it included the transient RA/DEC {ra}, {dec}.")
@@ -570,19 +570,17 @@ class campari_runner:
         ra = self.ra if self.ra is not None else diaobj.ra
         dec = self.dec if self.dec is not None else diaobj.dec
         if ra is None or dec is None:
-            raise ValueError("Cannot prune images because RA and Dec are both None. Please provide either RA and Dec"
+            raise ValueError("Cannot prune images because both RA and Dec must be provided. Please provide them"
                              " or get the position from the database.")
         SNLogger.debug("Pruning images, nprocs = " + str(self.nprocs))
         if self.nprocs > 1:
-            pruned_image_list = []
+            results = []
             ctx = multiprocessing.get_context("fork")
             with ctx.Pool(self.nprocs) as pool:
-                for i, image in enumerate(image_list):
-                    pool.apply_async(self._prune_one_image, args=(ra, dec, image),
-                    callback=lambda pruned_image: pruned_image_list.append(pruned_image) if pruned_image is not None
-                         else None)
-                pool.close()
-                pool.join()
+                for image in image_list:
+                    results.append(pool.apply_async(self._prune_one_image, args=(ra, dec, image)))
+                pruned_image_list = [result.get() for result in results]
+            pruned_image_list = [image for image in pruned_image_list if image is not None]
 
         else:
             pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, image)
@@ -593,7 +591,7 @@ class campari_runner:
         else:
             SNLogger.debug("All images in the provided image list were accepted.")
         if len(pruned_image_list) == 0:
-            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band},"
+            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}, "
                              "or none of them contained the transient.")
         return pruned_image_list
 
