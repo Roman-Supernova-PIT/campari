@@ -236,6 +236,27 @@ def test_get_exposures_with_img_glob(cfg):
         runner.get_exposures(diaobj=diaobj)
 
 
+def test_prune_images_band(cfg):
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
+    # Now we test getting images from globbing paths.
+    test_args.img_list = None
+    test_args.image_collection = "manual_rdm"
+    test_args.image_collection_subset = None
+    test_args.image_collection_basepath = str(cfg.value("photometry.test_data") + "/sample_asdf_data/")
+    SNLogger.debug(cfg.value("photometry.test_data"))
+    test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
+    test_args.filter = "F184"
+    runner = campari_runner(**vars(test_args))
+
+    ra = 79.92140774911647
+    dec = 30.03559210999971  # this is the center of the one asdf image we have
+    diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
+    with pytest.raises(ValueError, match="No images in the given image list or paths matched the requested band"):
+        runner.get_exposures(diaobj=diaobj)
+
+
 def test_parse_img_list(cfg):
     # More advanced globbing tests, as per MWV's suggestion.
     test_args = create_default_test_args(cfg)

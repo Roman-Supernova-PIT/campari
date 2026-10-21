@@ -36,6 +36,7 @@ global _start_time
 _start_time = time.perf_counter()
 SNLogger.debug(f"Starting Campari run at time: {_start_time}")
 
+_prune_images_shared_list = None
 
 class campari_runner:
     """This class is used to run the Campari pipeline."""
@@ -574,6 +575,8 @@ class campari_runner:
                              " or get the position from the database.")
         SNLogger.debug("Pruning images, nprocs = " + str(self.nprocs))
         if self.nprocs > 1:
+            global _prune_images_shared_list
+            _prune_images_shared_list = image_list
             pruned_image_list = []
             ctx = multiprocessing.get_context("fork")
             with ctx.Pool(self.nprocs) as pool:
