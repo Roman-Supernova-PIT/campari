@@ -828,25 +828,39 @@ def test_handle_partial_overlap():
     assert not curfile.exists()
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
-    output = os.system(
-        f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
-        " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
-        " --photometry-campari-psf-galaxy_class ou24PSF_photonshoot "
-        " --photometry-campari-psf-transient_class ou24PSF_slow_photonshoot "
-        # This was OU24 PSF and PSF_slow in a different branch?
-        "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
-        " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
-        "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate "
-        "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
-        " --photometry-campari-grid_options-gaussian_var 1000"
-    )
-    assert output == 0, "The test run on a SN failed. Check the logs"
 
-    current = np.load(curfile, allow_pickle=True)
-    comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+    orig_footprint_thresh = cfg.value("photometry.campari.footprint_threshold")
 
-    np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
-        "The weights do not match the expected values."
+    try:
+        cfg._static = False
+        cfg.set_value("photometry.campari.footprint_threshold", None)
+        cfg._static = True
+
+        output = os.system(
+            f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
+            " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
+            " --photometry-campari-psf-galaxy_class ou24PSF_photonshoot "
+            " --photometry-campari-psf-transient_class ou24PSF_slow_photonshoot "
+            # This was OU24 PSF and PSF_slow in a different branch?
+            "--no-photometry-campari-fetch_SED --photometry-campari-grid_options-type regular"
+            " --photometry-campari-grid_options-spacing 5.0 --photometry-campari-cutout_size 101 "
+            "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate "
+            "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
+            " --photometry-campari-grid_options-gaussian_var 1000"
+            " --photometry-campari-footprint_threshold -1" # Don't want to confuse with weights
+        # lost due to footprint thresholding
+        )
+        assert output == 0, "The test run on a SN failed. Check the logs"
+
+        current = np.load(curfile, allow_pickle=True)
+        comparison_weights = np.load(pathlib.Path(__file__).parent / "testdata/partial_overlap_weights.npy")
+
+        np.testing.assert_allclose(current[2], comparison_weights, atol=1e-7), \
+            "The weights do not match the expected values."
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.footprint_threshold", orig_footprint_thresh)
+        cfg._static = True
 
 
 @pytest.mark.requires_simdex  # I think this image is in the photometry_test_data, fix this at some point.
@@ -1125,15 +1139,27 @@ def test_model_covers_only_a_small_part_of_cutout(setup):
     assert np.mean(fp > 1e-2 * peak) < 0.5                  # most pixels barely touched
 
 
-def test_default_threshold_masks_exactly_the_untouched_pixels(setup):
+def test_zero_threshold_masks_exactly_the_untouched_pixels(setup):
     psf_matrix = tiled_psf(setup)
     base = weights(setup)
-    masked = weights(setup, psf_matrix=psf_matrix)           # footprint_threshold = 0
 
-    covered = footprint_per_image(psf_matrix) > 0            # boolean array, True = model reaches pixel
-    for i in range(N_IMAGES):
-        # Multiplying by a boolean array keeps a weight where True, zeroes it where False.
-        np.testing.assert_array_equal(masked[i], base[i] * covered[i])
+    orig_footprint_threshold = cfg.value("photometry.campari.footprint_threshold")
+
+    try:
+        cfg._static = False
+        cfg.set_value("photometry.campari.footprint_threshold", 0)
+        cfg._static = True
+
+        masked = weights(setup, psf_matrix=psf_matrix)           # footprint_threshold = 0
+
+        covered = footprint_per_image(psf_matrix) > 0            # boolean array, True = model reaches pixel
+        for i in range(N_IMAGES):
+            # Multiplying by a boolean array keeps a weight where True, zeroes it where False.
+            np.testing.assert_array_equal(masked[i], base[i] * covered[i])
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.footprint_threshold", orig_footprint_threshold)
+        cfg._static = True
 
 
 def test_relative_threshold_masks_faint_wings(setup):
@@ -1143,16 +1169,26 @@ def test_relative_threshold_masks_faint_wings(setup):
 
     previous_masked = np.zeros((N_IMAGES, SIZE_SQ), dtype=bool)
     previous_fraction = 0.0
+    orig_footprint_threshold = cfg.value("photometry.campari.footprint_threshold")
     for rel in [1e-4, 1e-3, 1e-2]:
-        masked = weights(setup, psf_matrix=psf_matrix, footprint_threshold=rel, relative=True)
-        dropped = fp <= rel * fp.max(axis=1, keepdims=True)  # cut is relative to each image's own peak
-        for i in range(N_IMAGES):
-            np.testing.assert_array_equal(masked[i], base[i] * ~dropped[i])
 
-        # A higher threshold must drop everything a lower one did, and more.
-        assert np.all(dropped[previous_masked])
-        assert dropped.mean() >= previous_fraction
-        previous_masked, previous_fraction = dropped, dropped.mean()
+        try:
+            cfg._static = False
+            cfg.set_value("photometry.campari.footprint_threshold", rel)
+            cfg._static = True
+            masked = weights(setup, psf_matrix=psf_matrix)
+            dropped = fp <= rel * fp.max(axis=1, keepdims=True)  # cut is relative to each image's own peak
+            for i in range(N_IMAGES):
+                np.testing.assert_array_equal(masked[i], base[i] * ~dropped[i])
+
+            # A higher threshold must drop everything a lower one did, and more.
+            assert np.all(dropped[previous_masked])
+            assert dropped.mean() >= previous_fraction
+            previous_masked, previous_fraction = dropped, dropped.mean()
+        finally:
+            cfg._static = False
+            cfg.set_value("photometry.campari.footprint_threshold", orig_footprint_threshold)
+            cfg._static = True
 
     # At 1% of peak, the centre survives and the corners do not.
     centre = (SIZE // 2) * SIZE + SIZE // 2
@@ -1180,10 +1216,21 @@ def test_fit_mode_sky_columns_prevent_any_masking(setup):
 def test_transient_footprint_only_counts_in_detection_image(setup):
     # No background grid; only a transient stamp, in the last image (the detection image).
     psf_matrix = np.empty((N_IMAGES * SIZE_SQ, 0))
-    base = weights(setup)
-    masked = weights(setup, psf_matrix=psf_matrix, sn_matrix=[setup["sn_stamp"]])
 
-    # Non-detection image: no model at all, so every weight is dropped.
-    assert np.all(masked[0] == 0)
-    # Detection image: weight survives where the transient stamp is nonzero.
-    np.testing.assert_array_equal(masked[1], base[1] * (np.abs(setup["sn_stamp"]) > 0))
+    orig_footprint_threshold = cfg.value("photometry.campari.footprint_threshold")
+    try:
+        cfg._static = False
+        cfg.set_value("photometry.campari.footprint_threshold", 0)
+        cfg._static = True
+
+        base = weights(setup)
+        masked = weights(setup, psf_matrix=psf_matrix, sn_matrix=[setup["sn_stamp"]])
+
+        # Non-detection image: no model at all, so every weight is dropped.
+        assert np.all(masked[0] == 0)
+        # Detection image: weight survives where the transient stamp is nonzero.
+        np.testing.assert_array_equal(masked[1], base[1] * (np.abs(setup["sn_stamp"]) > 0))
+    finally:
+        cfg._static = False
+        cfg.set_value("photometry.campari.footprint_threshold", orig_footprint_threshold)
+        cfg._static = True

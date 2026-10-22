@@ -230,11 +230,10 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint):
     """
     relative = Config.get().value("photometry.campari.footprint_threshold_is_relative")
     threshold = Config.get().value("photometry.campari.footprint_threshold")
-    if threshold == 0 or threshold is None:
-        SNLogger.debug(f"Footprint check skipped because threshold is 0 or None. It is: {threshold}.")
+    if threshold is None or threshold < 0:
+        SNLogger.debug(f"Footprint check skipped because threshold is None. It is: {threshold}.")
         return wgt_matrix
     else:
-
         if relative is None:
             raise ValueError("Threshold check is requested but footprint_threshold_is_relative is None."
             " Choose a value.")
