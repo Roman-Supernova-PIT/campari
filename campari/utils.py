@@ -201,7 +201,8 @@ def build_model_footprint(psf_matrix, sn_matrix, num_total_images, size_sq):
     return footprint
 
 
-def check_footprint_and_adjust_weights(wgt_matrix, model_footprint, threshold=0, relative=True):
+
+def check_footprint_and_adjust_weights(wgt_matrix, model_footprint):
     """Set the weight of every pixel the model doesn't reach to zero.
 
     A pixel is "reached" if the model's footprint there is strictly greater
@@ -215,12 +216,12 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint, threshold=0,
         Per-image weights, as built in get_weights. Modified in place.
     model_footprint : 1D array, length len(wgt_matrix) * size**2
         Output of build_model_footprint.
-    threshold : float
+    threshold : float (passed from the config file)
         The threshold for determining if a pixel is "reached" by the model.
         If `relative` is True, this is a multiplier on the maximum footprint
         in each image. If `relative` is False, this is an absolute value.
         Pixels with footprint <= threshold get weight 0.
-    relative : bool
+    relative : bool (passed from the config file)
         If True, threshold is relative to the maximum footprint in each image.
         If False, threshold is an absolute value.
 
@@ -228,6 +229,16 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint, threshold=0,
     -------
     wgt_matrix : the same list, with uncovered pixels zeroed.
     """
+    relative = Config.get().value("photometry.campari.footprint_threshold_is_relative")
+    threshold = Config.get().value("photometry.campari.footprint_threshold")
+    if threshold == 0 or threshold is None:
+        SNLogger.debug(f"Footprint check skipped because threshold is 0 or None. It is: {threshold}.")
+        return wgt_matrix
+    else:
+
+        if relative is None:
+            raise ValueError("Threshold check is requested but footprint_threshold_is_relative is None. Choose a value.")
+
     num_images = len(wgt_matrix)
     size_sq = len(wgt_matrix[0])
     # One row per image, so row i lines up with wgt_matrix[i].
@@ -246,7 +257,7 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint, threshold=0,
 
 
 def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
-    psf_matrix=None, sn_matrix=None, footprint_threshold=0.1, relative=True):
+    psf_matrix=None, sn_matrix=None):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -269,12 +280,6 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
     sn_matrix: list/array of d arrays, each of length size**2, or None
                 Transient model, one stamp per detection image. The detection images
                 are the LAST d images, matching prep_data_for_fit.
-    footprint_threshold: float
-                The threshold for determining if a pixel is "reached" by the model.
-                If `relative` is True, this is a multiplier on the maximum footprint
-                in each image. If `relative` is False, this is an absolute value.
-                Pixels with footprint <= threshold get weight 0.
-    relative: bool, whether the footprint threshold is relative to the maximum footprint in each image.
 
     Outputs:
     wgt_matrix: list of numpy arrays of floats, each array is the weights for
@@ -346,8 +351,7 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
     # If not, we set their weights to zero.
     if psf_matrix is not None or sn_matrix is not None:
         footprint = build_model_footprint(psf_matrix, sn_matrix, len(images), size**2)
-        wgt_matrix = check_footprint_and_adjust_weights(wgt_matrix, footprint,
-                                                        relative=relative, threshold=footprint_threshold)
+        wgt_matrix = check_footprint_and_adjust_weights(wgt_matrix, footprint)
     return wgt_matrix
 
 
