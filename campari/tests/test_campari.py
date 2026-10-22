@@ -1207,10 +1207,20 @@ def test_fit_mode_sky_columns_prevent_any_masking(setup):
     psf_matrix = np.hstack([tiled_psf(setup), sky])
 
     base = weights(setup)
-    for kwargs in [{}, {"footprint_threshold": 1e-2, "relative": True}]:
-        masked = weights(setup, psf_matrix=psf_matrix, **kwargs)
-        for i in range(N_IMAGES):
-            np.testing.assert_array_equal(masked[i], base[i])
+    for footprint_threshold in [0, 1e-2]:
+        orig_footprint_threshold = cfg.value("photometry.campari.footprint_threshold")
+        try:
+            cfg._static = False
+            cfg.set_value("photometry.campari.footprint_threshold", footprint_threshold)
+            cfg._static = True
+
+            masked = weights(setup, psf_matrix=psf_matrix)
+            for i in range(N_IMAGES):
+                np.testing.assert_array_equal(masked[i], base[i])
+        finally:
+            cfg._static = False
+            cfg.set_value("photometry.campari.footprint_threshold", orig_footprint_threshold)
+            cfg._static = True
 
 
 def test_transient_footprint_only_counts_in_detection_image(setup):
