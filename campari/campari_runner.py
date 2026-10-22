@@ -42,6 +42,8 @@ global _start_time
 _start_time = time.perf_counter()
 SNLogger.debug(f"Starting Campari run at time: {_start_time}")
 
+_prune_images_shared_list = None  # Global variable to share the list of images between processes for pruning
+
 
 class campari_runner:
     """This class is used to run the Campari pipeline."""
@@ -550,7 +552,8 @@ class campari_runner:
 
         return images
 
-    def _prune_one_image(self, ra, dec, image):
+    def _prune_one_image(self, ra, dec, index):
+        image = _prune_images_shared_list[index]
         requested_band = convert_band_name(self.band)
         image_band = convert_band_name(image.band)
         img_desc = f"image with SCA {image.sca}, observation id {image.observation_id} MJD"
@@ -577,20 +580,22 @@ class campari_runner:
                              " or get the position from the database.")
         if len(image_list) == 0:
             raise ValueError("No images were found in the provided image list or paths.")
+        # This is necessary because ASDF images are not pickleable, so we can't pass them directly to the
+        #  multiprocessing pool. Instead, we use a global variable to share the list of images between processes.
+        global _prune_images_shared_list
+        _prune_images_shared_list = image_list
         if self.nprocs > 1:
-            global _prune_images_shared_list
-            _prune_images_shared_list = image_list
             results = []
             ctx = multiprocessing.get_context("fork")
             with ctx.Pool(self.nprocs) as pool:
-                for image in image_list:
-                    results.append(pool.apply_async(self._prune_one_image, args=(ra, dec, image)))
+                for i in range(len(image_list)):
+                    results.append(pool.apply_async(self._prune_one_image, args=(ra, dec, i)))
                 pruned_image_list = [result.get() for result in results]
             pruned_image_list = [image for image in pruned_image_list if image is not None]
 
         else:
-            pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, image)
-                             for image in image_list) if pruned_image is not None]
+            pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, i)
+                             for i in range(len(image_list))) if pruned_image is not None]
         if len(pruned_image_list) < len(image_list):
             SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
                        f"because they were not in the correct band {self.band} or did not contain the transient.")
