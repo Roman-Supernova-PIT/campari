@@ -1060,6 +1060,7 @@ def test_image_simulator_script():
     # mv /scratch/campari/campari/tests/testdata/image_simulator_script_test/*
     #  /scratch/campari/campari/tests/testdata/image_simulator_script_regression
 
+
 # Full disclosure: These tests were written by Claude but I have checked them. I knew what I wanted the tests to be
 # and I knew how to write them, I just figured this would be faster. I also added some comments to make it more
 # readable.

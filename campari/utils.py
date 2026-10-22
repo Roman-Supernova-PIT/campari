@@ -201,7 +201,6 @@ def build_model_footprint(psf_matrix, sn_matrix, num_total_images, size_sq):
     return footprint
 
 
-
 def check_footprint_and_adjust_weights(wgt_matrix, model_footprint):
     """Set the weight of every pixel the model doesn't reach to zero.
 
@@ -237,7 +236,8 @@ def check_footprint_and_adjust_weights(wgt_matrix, model_footprint):
     else:
 
         if relative is None:
-            raise ValueError("Threshold check is requested but footprint_threshold_is_relative is None. Choose a value.")
+            raise ValueError("Threshold check is requested but footprint_threshold_is_relative is None."
+            " Choose a value.")
 
     num_images = len(wgt_matrix)
     size_sq = len(wgt_matrix[0])
