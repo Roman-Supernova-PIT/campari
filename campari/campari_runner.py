@@ -1,8 +1,16 @@
 import glob
 import pandas as pd
 import pathlib
+import multiprocessing
 import numpy as np
+import re
 import time
+import sys
+try:
+    import pysqlite3
+    sys.modules["sqlite3"] = pysqlite3
+except ModuleNotFoundError:
+    pass
 
 # Astronomy
 from astropy.io import fits
@@ -34,6 +42,8 @@ global _start_time
 _start_time = time.perf_counter()
 SNLogger.debug(f"Starting Campari run at time: {_start_time}")
 
+_prune_images_shared_list = None  # Global variable to share the list of images between processes for pruning
+
 
 class campari_runner:
     """This class is used to run the Campari pipeline."""
@@ -45,6 +55,12 @@ class campari_runner:
         self.cfg = Config.get()
 
         self.band = kwargs["filter"]
+        # make the f uppercase
+        pattern = r"^f(\d{3})$"  # an f followed by 3 digits
+        if re.match(pattern, self.band):
+            self.band = self.band.upper()
+            SNLogger.debug(f"Band {kwargs['filter']} converted to uppercase: {self.band}")
+
         self.max_no_transient_images = kwargs["max_no_transient_images"]
         self.max_transient_images = kwargs["max_transient_images"]
         self.image_selection_start = kwargs["image_selection_start"]
@@ -226,6 +242,10 @@ class campari_runner:
                 SNLogger.warning(f"Given Dec {self.dec} is far from DiaObject nominal Dec {diaobj.dec}")
             diaobj.dec = self.dec
 
+        if self.ra is None and self.dec is None:
+            self.ra = diaobj.ra
+            self.dec = diaobj.dec
+
         if (self.transient_start is not None):
             if (diaobj.mjd_start is not None) and np.fabs(self.transient_start - diaobj.mjd_start) > .1:
                 SNLogger.warning(f"Given transient_start {self.transient_start} is far from DiaObject "
@@ -241,6 +261,8 @@ class campari_runner:
         SNLogger.debug(f"Object info for SN {self.diaobject_name} with ID {self.diaobject_id} in"
                        f" collection {self.diaobject_collection}: ra={diaobj.ra},"
                        f" dec={diaobj.dec}, transient_start={diaobj.mjd_start}, transient_end={diaobj.mjd_end}")
+        self.ra = diaobj.ra
+        self.dec = diaobj.dec
         image_list = self.get_exposures(diaobj)
         sedlist = self.get_sedlist(diaobj.id, image_list)
 
@@ -264,7 +286,7 @@ class campari_runner:
         if self.img_list is not None or self.img_glob is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
-            image_list = self.prune_images_to_correct_band(image_list)
+            image_list = self.prune_images(image_list, diaobj)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
 
@@ -491,14 +513,8 @@ class campari_runner:
 
         else:
             img_list_lines = glob.glob(self.img_glob)
-            SNLogger.debug(f"Found the following image paths using glob {self.img_glob}: {img_list_lines}")
+            SNLogger.debug(f"Found the following {len(img_list_lines)} files matching the glob {self.img_glob}:")
             img_list_lines = [[line] for line in img_list_lines if pathlib.Path(line).is_file()]
-            for im_path in img_list_lines:
-                SNLogger.debug(f"Found image at path {im_path}")
-
-        SNLogger.debug(f"Read the following img_list_lines from the provided img_list file {self.img_list}:")
-        for line in img_list_lines:
-            SNLogger.debug(line)
 
         my_image_collection = ImageCollection()
         SNLogger.debug(f"Using base path {self.image_collection_basepath}")
@@ -536,21 +552,59 @@ class campari_runner:
 
         return images
 
-    def prune_images_to_correct_band(self, image_list):
-        """Prune the given image list to only include images in the correct band."""
-        pruned_image_list = []
+    def _prune_one_image(self, ra, dec, index):
+        image = _prune_images_shared_list[index]
         requested_band = convert_band_name(self.band)
-        for image in image_list:
-            image_band = convert_band_name(image.band)
-            if image_band == requested_band:
-                pruned_image_list.append(image)
+        image_band = convert_band_name(image.band)
+        img_desc = f"image with SCA {image.sca}, observation id {image.observation_id} MJD"
+        f" {image.mjd}, and band {image.band}"
+        if image_band == requested_band:
+            im_wcs = image.get_wcs()
+            x, y = im_wcs.world_to_pixel(ra, dec)
+            if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
+                SNLogger.debug(f"Accepted {img_desc} because it included the transient RA/DEC {ra}, {dec}.")
+                return index
             else:
-                SNLogger.debug(f"Rejected image with MJD {image.mjd} and "
-                               f"band {image.band} because it was not in the correct band {self.band}.")
-        SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
-                       f"because they were not in the correct band {self.band}.")
+                SNLogger.debug(f"Rejected {img_desc} because it did not include the transient RA/DEC "
+                                f"{ra}, {dec}. The center of the rejected image is at RA/DEC"
+                                f" {im_wcs.pixel_to_world(image.data.shape[1] / 2, image.data.shape[0] / 2)}.")
+        else:
+            SNLogger.debug(f"Rejected {img_desc} because it was not in the correct band {self.band}.")
+
+    def prune_images(self, image_list, diaobj):
+        """Prune the given image list to only include images in the correct band and that contain the transient."""
+        ra = self.ra if self.ra is not None else diaobj.ra
+        dec = self.dec if self.dec is not None else diaobj.dec
+        if ra is None or dec is None:
+            raise ValueError("Cannot prune images because both RA and Dec must be provided. Please provide them"
+                             " or get the position from the database.")
+        if len(image_list) == 0:
+            raise ValueError("No images were found in the provided image list or paths.")
+        # This is necessary because ASDF images are not pickleable, so we can't pass them directly to the
+        #  multiprocessing pool. Instead, we use a global variable to share the list of images between processes.
+        global _prune_images_shared_list
+        _prune_images_shared_list = image_list
+        if self.nprocs > 1:
+            results = []
+            ctx = multiprocessing.get_context("fork")
+            with ctx.Pool(self.nprocs) as pool:
+                for i in range(len(image_list)):
+                    results.append(pool.apply_async(self._prune_one_image, args=(ra, dec, i)))
+                pruned_image_list = [result.get() for result in results]
+            pruned_image_list = [image_list[index] for index in pruned_image_list if index is not None]
+
+        else:
+            pruned_image_list = [image_list[index] for index in (self._prune_one_image(ra, dec, i)
+                             for i in range(len(image_list))) if index is not None]
+        if len(pruned_image_list) < len(image_list):
+            SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
+                       f"because they were not in the correct band {self.band} or did not contain the transient.")
+
         if len(pruned_image_list) == 0:
-            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}.")
+            raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}, "
+                             "or none of them contained the transient.")
+        if len(pruned_image_list) == len(image_list):
+            SNLogger.debug("All images in the provided image list were accepted.")
         return pruned_image_list
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):

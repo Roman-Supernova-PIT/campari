@@ -112,7 +112,7 @@ def test_runner_init(cfg):
     assert isinstance(runner.cfg, Config)
 
 
-def test_get_exposures(cfg):
+def test_get_exposures_fetch(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
     test_args.diaobject_name = 20172782
@@ -138,8 +138,9 @@ def test_get_exposures(cfg):
 
     np.testing.assert_array_equal(mjd_list, compare_table["date"])
     regression_sca = np.array([a.sca for a in image_list])[order]
+    SNLogger.debug(f"Regression SCA: {regression_sca}")
     regression_observation_id = np.array([a.observation_id for a in image_list])[order]
-
+    SNLogger.debug(f"Regression observation_id: {regression_observation_id}")
     np.testing.assert_array_equal(regression_sca, compare_table["sca"])
     np.testing.assert_array_equal(regression_observation_id, compare_table["observation_id"])
 
@@ -155,8 +156,9 @@ def test_get_exposures_with_img_list(cfg):
     test_args.SNID = 20172782
     test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
     runner = campari_runner(**vars(test_args))
-
-    diaobj = DiaObject.find_objects(name=20172782, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    ra = 7.551093401915147
+    dec = -44.80718106491529  # These are the coords of the transient in the regression test
+    diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
 
@@ -176,6 +178,29 @@ def test_get_exposures_with_img_list(cfg):
                             "does not match the set of observation IDs in the image list file.")
 
 
+@pytest.mark.parametrize("nprocs", [1, 2])
+def test_prune_images_ra_dec(cfg, nprocs):
+    # same as the above test, which does use prune images. Now we'll check that if I give a different RA/Dec,
+    # or band, it will get rid of the images that don't match.
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
+    test_args.image_collection = "ou2024"
+    test_args.object_collection = "ou24"
+    test_args.SNID = 20172782
+    test_args.nprocs = nprocs
+    test_args.img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_image_list.csv"
+
+    runner = campari_runner(**vars(test_args))
+    ra = 1
+    dec = 2  # Nonsense ra/dec
+    diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
+    diaobj.mjd_start = 62654.0
+    diaobj.mjd_end = 62958.0
+    with pytest.raises(ValueError, match="No images in the given image list or paths matched the requested band"):
+        runner.get_exposures(diaobj=diaobj)
+
+
 def test_get_exposures_with_img_glob(cfg):
     test_args = create_default_test_args(cfg)
     test_args.diaobject_collection = "ou24"
@@ -188,7 +213,9 @@ def test_get_exposures_with_img_glob(cfg):
     SNLogger.debug(cfg.value("photometry.test_data"))
     test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
     runner = campari_runner(**vars(test_args))
-    diaobj = DiaObject.find_objects(name=20172782, ra=7.731890048839705, dec=-44.4589649005717, collection="manual")[0]
+    ra = 79.92140774911647
+    dec = 30.03559210999971  # this is the center of the one asdf image we have
+    diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
     runner.get_exposures(diaobj=diaobj)
     mjd_list = [im.mjd for im in runner.image_list]
     compare_list = [60627.500299]
@@ -208,6 +235,29 @@ def test_get_exposures_with_img_glob(cfg):
     test_args.image_collection = "manual_fits"
     with pytest.raises(ValueError, match="Cannot provide img_glob"):
         runner = campari_runner(**vars(test_args))
+        runner.get_exposures(diaobj=diaobj)
+
+
+@pytest.mark.parametrize("nprocs", [1, 2])
+def test_prune_images_band(cfg, nprocs):
+    test_args = create_default_test_args(cfg)
+    test_args.diaobject_collection = "ou24"
+    test_args.diaobject_name = 20172782
+    test_args.nprocs = nprocs
+    # Now we test getting images from globbing paths.
+    test_args.img_list = None
+    test_args.image_collection = "manual_rdm"
+    test_args.image_collection_subset = None
+    test_args.image_collection_basepath = str(cfg.value("photometry.test_data") + "/sample_asdf_data/")
+    SNLogger.debug(cfg.value("photometry.test_data"))
+    test_args.img_glob = str(cfg.value("photometry.test_data") + "/sample_asdf_data/*.asdf")
+    test_args.filter = "F184"  # Intentionally give the wrong band
+    runner = campari_runner(**vars(test_args))
+
+    ra = 79.92140774911647
+    dec = 30.03559210999971  # this is the center of the one asdf image we have
+    diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
+    with pytest.raises(ValueError, match="No images in the given image list or paths matched the requested band"):
         runner.get_exposures(diaobj=diaobj)
 
 
