@@ -50,15 +50,15 @@ system:
   ou24:
     simdex_server: https://roman-desc-simdex.lbl.gov
 
-    tds_base: /packages/photometry_test_data/ou2024
-    config_file: /packages/photometry_test_data/ou2024/tds.yaml
+    tds_base: /home/cfmeldorf/packages/photometry_test_data/ou2024
+    config_file: /home/cfmeldorf/packages/photometry_test_data/ou2024/tds.yaml
 
-    sn_truth_dir: /packages/photometry_test_data/ou2024/snana_truth
+    sn_truth_dir: /home/cfmeldorf/packages/photometry_test_data/ou2024/snana_truth
     # sn_truth_dir: /snana_pq_dir
 
-    images: /packages/photometry_test_data/ou2024/images/simple_model
+    images: /home/cfmeldorf/packages/photometry_test_data/ou2024/images/simple_model
 
-    sims_sed_library: /packages/photometry_test_data/ou2024/sims_sed_library
+    sims_sed_library: /home/cfmeldorf/packages/photometry_test_data/ou2024/sims_sed_library
     # Comment from Cole & Rob: This is a path to the SEDs that were used to generate the
     # OU24 simulations.  Only a subset of the files are stored in
     # photometry_test_data, so if you want to use it for real, you'll need
