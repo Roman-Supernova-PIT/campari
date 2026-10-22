@@ -847,7 +847,7 @@ def test_handle_partial_overlap():
             "--photometry-campari-weighting --photometry-campari-subtract_background_method calculate "
             "--transient_start 63000 --transient_end 63000.0001 --no-save-to-db --image-collection ou2024"
             " --photometry-campari-grid_options-gaussian_var 1000"
-            " --photometry-campari-footprint_threshold -1" # Don't want to confuse with weights
+            " --photometry-campari-footprint_threshold -1"  # Don't want to confuse with weights
         # lost due to footprint thresholding
         )
         assert output == 0, "The test run on a SN failed. Check the logs"
