@@ -551,25 +551,22 @@ class campari_runner:
         return images
 
     def _prune_one_image(self, ra, dec, image):
-
         requested_band = convert_band_name(self.band)
         image_band = convert_band_name(image.band)
+        img_desc = f"image with SCA {image.sca}, observation id {image.observation_id} MJD"
+        f" {image.mjd}, and band {image.band}"
         if image_band == requested_band:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra, dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
-                SNLogger.debug(f"Accepted image with SCA {image.sca}, observation id {image.observation_id} MJD"
-                f" {image.mjd}, and band {image.band} because it included the transient RA/DEC {ra}, {dec}.")
+                SNLogger.debug(f"Accepted {img_desc} because it included the transient RA/DEC {ra}, {dec}.")
                 return image
             else:
-                SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}  MJD  "
-                                f"{image.mjd} and band {image.band} because it did not include the transient RA/DEC "
+                SNLogger.debug(f"Rejected {img_desc} because it did not include the transient RA/DEC "
                                 f"{ra}, {dec}. The center of the rejected image is at RA/DEC"
                                 f" {im_wcs.pixel_to_world(image.data.shape[1] / 2, image.data.shape[0] / 2)}.")
         else:
-            SNLogger.debug(f"Rejected image with SCA {image.sca}, observation id {image.observation_id}"
-                           f"  MJD {image.mjd} and "
-                           f"band {image.band} because it was not in the correct band {self.band}.")
+            SNLogger.debug(f"Rejected {img_desc} because it was not in the correct band {self.band}.")
 
     def prune_images(self, image_list, diaobj):
         """Prune the given image list to only include images in the correct band and that contain the transient."""
@@ -578,7 +575,8 @@ class campari_runner:
         if ra is None or dec is None:
             raise ValueError("Cannot prune images because both RA and Dec must be provided. Please provide them"
                              " or get the position from the database.")
-        SNLogger.debug("Pruning images, nprocs = " + str(self.nprocs))
+        if len(image_list) == 0:
+            raise ValueError("No images were found in the provided image list or paths.")
         if self.nprocs > 1:
             global _prune_images_shared_list
             _prune_images_shared_list = image_list
@@ -596,11 +594,12 @@ class campari_runner:
         if len(pruned_image_list) < len(image_list):
             SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
                        f"because they were not in the correct band {self.band} or did not contain the transient.")
-        else:
-            SNLogger.debug("All images in the provided image list were accepted.")
+
         if len(pruned_image_list) == 0:
             raise ValueError(f"No images in the given image list or paths matched the requested band {self.band}, "
                              "or none of them contained the transient.")
+        if len(pruned_image_list) == len(image_list):
+            SNLogger.debug("All images in the provided image list were accepted.")
         return pruned_image_list
 
     def build_campari_provenance(self, image_list=None, diaobj=None, obj_pos_prov=None, dbclient=None):
