@@ -32,8 +32,13 @@
 # - {subtract_background_method: SKY_MEAN}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
-# - {preplot_cutouts: false}
 # - {save_memory_file_name: None}
+# - {preplot_cutouts: false}
+<<<<<<< HEAD
+# - {postplot_cutouts: true}
+=======
+# - {save_memory_file_name: None}
+>>>>>>> e2f4a8bef605d35bd255678af468627e0c6fd7b8
 # - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
