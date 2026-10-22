@@ -563,7 +563,7 @@ class campari_runner:
             x, y = im_wcs.world_to_pixel(ra, dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
                 SNLogger.debug(f"Accepted {img_desc} because it included the transient RA/DEC {ra}, {dec}.")
-                return image
+                return index
             else:
                 SNLogger.debug(f"Rejected {img_desc} because it did not include the transient RA/DEC "
                                 f"{ra}, {dec}. The center of the rejected image is at RA/DEC"
@@ -591,11 +591,11 @@ class campari_runner:
                 for i in range(len(image_list)):
                     results.append(pool.apply_async(self._prune_one_image, args=(ra, dec, i)))
                 pruned_image_list = [result.get() for result in results]
-            pruned_image_list = [image for image in pruned_image_list if image is not None]
+            pruned_image_list = [image_list[index] for index in pruned_image_list if index is not None]
 
         else:
-            pruned_image_list = [pruned_image for pruned_image in (self._prune_one_image(ra, dec, i)
-                             for i in range(len(image_list))) if pruned_image is not None]
+            pruned_image_list = [image_list[index] for index in (self._prune_one_image(ra, dec, i)
+                             for i in range(len(image_list))) if index is not None]
         if len(pruned_image_list) < len(image_list):
             SNLogger.debug(f"Rejected {len(image_list) - len(pruned_image_list)} images from the provided image list"
                        f"because they were not in the correct band {self.band} or did not contain the transient.")
