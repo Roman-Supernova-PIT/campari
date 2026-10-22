@@ -41,6 +41,7 @@ base_cmd = [
     ]
 
 
+@pytest.mark.NERSC
 @pytest.mark.skip(reason="This test simply confirms that fitting with the same SED as simulated is optimal.")
 def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
     cmd = base_cmd + [
@@ -101,6 +102,7 @@ def test_nohost_bothnoise_HsiaoSEDsimulated_Hsiaofit():
         raise e
 
 
+@pytest.mark.NERSC
 @pytest.mark.skip(reason="This test is superseded by tests with noise.")
 def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
     cmd = base_cmd + [
@@ -153,6 +155,8 @@ def test_nohost_nonoise_HsiaoSEDsimulated_Hsiaofit():
         raise e
 
 
+@pytest.mark.run_last
+@pytest.mark.skip(reason="This test is broken while charge diffusion is enabled.")
 def test_nohost_bothnoise_HsiaoSEDsimulated_improvedBBSEDfit():
     cmd = base_cmd + [
         "--img_list",

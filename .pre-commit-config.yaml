@@ -14,3 +14,12 @@ repos:
         exclude: "roman-snpit-campari"
       - id: debug-statements
         exclude: "roman-snpit-campari"
+
+  - repo: https://github.com/astral-sh/ruff-pre-commit
+    # Use the ref you want to point at (e.g., latest stable version)
+    rev: v0.17.1
+    hooks:
+      # Run the linter
+      - id: ruff-check
+      # Run the formatter
+      - id: ruff-format

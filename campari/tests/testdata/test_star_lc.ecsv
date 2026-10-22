@@ -30,7 +30,8 @@
 # - {print_memory_usage: false}
 # - {save_memory_file_name: None}
 # - {preplot_cutouts: false}
-# - psf: {galaxy_class: ou24PSF, galaxy_photon_ops: false, transient_class: ou24PSF_slow, transient_photon_ops: false}
+# - {save_memory_file_name: None}
+# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
 # - grid_options:
 #     cutoff: 4
 #     error_floor: 1.0
@@ -45,8 +46,8 @@
 # - {dec: -44.809659}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: b74ff08a-009e-de15-294a-1b01a1fbd124}
-# - {diaobject_id: c5f90077-996f-4ea5-a5a2-bae2e7a100f6}
+# - {provenance_id: bfeccb2d-5df8-c006-e25d-fe152cafb8a6}
+# - {diaobject_id: d99f3210-4177-4f86-a129-4baff602913f}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}
