@@ -182,6 +182,8 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     import os
     SNLogger.debug("These are the files that I see:")
     SNLogger.debug(os.listdir(test_data_path / "../pull_test_images"))
+    for f in os.listdir(test_data_path / "../pull_test_images"):
+        SNLogger.debug(f)
 
     for line in open(imagelist_filename):
         image_path = line.strip() + "_image.fits"
