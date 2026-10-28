@@ -128,7 +128,6 @@ default_parameters = {
     "system_paths_temp_dir": None,
     "system_paths_snappl_A25ePSF_path": None,
     "photometry_campari_preplot_cutouts": None,
-    "img_glob": None,
 }
 
 
@@ -162,7 +161,7 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_
     filename = f"{diaobject_name}_{roman_filter}_{psf.lower()}"
     filepath = f"/{out_dir}/{filename}_lc.ecsv"
 
-    # So we can ignore random snappl args we don't need (e.g. for phrosty)
+    # So we can ignore random snappl args we don't need (e.g. for)
     class SafeNamespace(SimpleNamespace):
         def __getattr__(self, name):
             return None

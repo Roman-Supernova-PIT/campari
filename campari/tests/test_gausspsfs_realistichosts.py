@@ -178,29 +178,26 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     if not pathlib.Path(imagelist_filename).exists():
         raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Sim may have"
         " failed to run.")
-    # check that each image in the list exists
+
     import os
-    SNLogger.debug("These are the files that I see:")
-    for f in os.listdir(test_data_path / "../pull_test_images"):
-        SNLogger.debug(f)
+    image_dir = (test_data_path / "../pull_test_images").resolve()
+    new_imagepath_file = test_data_path / f"image_list_{run_name}_unique.txt"
+    # delete this file if it exists
+    if new_imagepath_file.exists():
+        new_imagepath_file.unlink()
+    unique_image_paths = set()
+    for f in os.listdir(image_dir):
+        if f.endswith("_image.fits"):
+            base_name = f[:-11]  # Remove the "_image.fits" suffix
+            SNLogger.debug(f"Adding {image_dir / base_name} to unique image paths.")
+            unique_image_paths.add(image_dir / base_name)
 
-    for line in open(imagelist_filename):
-        # snip off the file name to get the parent directory of this path:
-        image_dir = (test_data_path / "../pull_test_images").resolve()
-        SNLogger.debug(f"Looking in {image_dir}")
-        for f in os.listdir(image_dir):
-            SNLogger.debug(image_dir / f)
-
-        image_path = line.strip() + "_image.fits"
-        if not pathlib.Path(image_path).exists():
-            raise FileNotFoundError(f"Expected image at {image_path} not found. Sim may have failed to run.")
-        break
+    new_imagepath_file.write_text("\n".join(str(path) for path in sorted(unique_image_paths)))
 
     args = {
-        "img_list": pathlib.Path(__file__).parent / imagelist_filename,
+        "img_list": str(new_imagepath_file),
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
-        "save_model": "True",
         "prebuilt_static_model": f"{test_data_path}/prebuilt_models/pull_test_prebuilt_model.npy",
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
