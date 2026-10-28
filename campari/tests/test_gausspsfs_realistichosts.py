@@ -189,7 +189,9 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         parent_dir = os.path.dirname(line.strip())
         SNLogger.debug(f"Checking for images in {parent_dir}")
         for f in os.listdir(test_data_path / "../pull_test_images"):
-            SNLogger.debug(f)
+            # print the full filepath of these images
+            fullpath = os.path.abspath(f)
+            SNLogger.debug(fullpath)
 
         image_path = line.strip() + "_image.fits"
         if not pathlib.Path(image_path).exists():
