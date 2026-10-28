@@ -175,7 +175,6 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     # Check if the image list exists at the expected location. If not, raise an error.
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
 
-
     if not pathlib.Path(imagelist_filename).exists():
         raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Sim may have"
         " failed to run.")
