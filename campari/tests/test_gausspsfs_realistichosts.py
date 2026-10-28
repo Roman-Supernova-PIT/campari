@@ -181,14 +181,21 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     # check that each image in the list exists
     import os
     SNLogger.debug("These are the files that I see:")
-    SNLogger.debug(os.listdir(test_data_path / "../pull_test_images"))
     for f in os.listdir(test_data_path / "../pull_test_images"):
         SNLogger.debug(f)
 
     for line in open(imagelist_filename):
+        # snip off the file name to get the parent directory of this path:
+        parent_dir = os.path.dirname(line.strip())
+        SNLogger.debug(f"Checking for images in {parent_dir}")
+        for f in os.listdir(test_data_path / "../pull_test_images"):
+            SNLogger.debug(f)
+
+
         image_path = line.strip() + "_image.fits"
         if not pathlib.Path(image_path).exists():
             raise FileNotFoundError(f"Expected image at {image_path} not found. Sim may have failed to run.")
+        break
 
     args = {
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
