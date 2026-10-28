@@ -191,7 +191,6 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         for f in os.listdir(test_data_path / "../pull_test_images"):
             SNLogger.debug(f)
 
-
         image_path = line.strip() + "_image.fits"
         if not pathlib.Path(image_path).exists():
             raise FileNotFoundError(f"Expected image at {image_path} not found. Sim may have failed to run.")
