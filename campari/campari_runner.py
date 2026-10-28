@@ -276,7 +276,7 @@ class campari_runner:
             diaobj.mjd_start = -np.inf
         if diaobj.mjd_end is None:
             diaobj.mjd_end = np.inf
-        SNLogger.debug(f"Calling run on object.")
+        SNLogger.debug("Calling run on object.")
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
 
