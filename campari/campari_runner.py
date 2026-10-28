@@ -276,7 +276,7 @@ class campari_runner:
             diaobj.mjd_start = -np.inf
         if diaobj.mjd_end is None:
             diaobj.mjd_end = np.inf
-
+        SNLogger.debug(f"Calling run on object.")
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
 
@@ -569,7 +569,6 @@ class campari_runner:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra, dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
-                SNLogger.debug(f"Accepted {img_desc} because it included the transient RA/DEC {ra}, {dec}.")
                 return index
             else:
                 SNLogger.debug(f"Rejected {img_desc} because it did not include the transient RA/DEC "

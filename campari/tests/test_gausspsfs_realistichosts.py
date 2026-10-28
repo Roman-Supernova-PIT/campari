@@ -189,7 +189,6 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     for f in os.listdir(image_dir):
         if f.endswith("_image.fits"):
             base_name = f[:-11]  # Remove the "_image.fits" suffix
-            SNLogger.debug(f"Adding {image_dir / base_name} to unique image paths.")
             unique_image_paths.add(image_dir / base_name)
 
     new_imagepath_file.write_text("\n".join(str(path) for path in sorted(unique_image_paths)))
