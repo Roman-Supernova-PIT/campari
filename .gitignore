@@ -179,7 +179,7 @@ cython_debug/
 *.pdf
 #*.fits
 old_examples/
-prebuilt_models/
+#prebuilt_models/
 image_simulations_Y106/
 gaussim_files/
 test_imagelists/

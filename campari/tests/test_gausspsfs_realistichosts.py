@@ -198,5 +198,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
         "prebuilt_static_model": f"{test_data_path}/prebuilt_models/pull_test_prebuilt_model.npy",
+        "photometry_campari_preplot_cutouts": False,
+        "photometry_campari_postplot_cutouts": False,
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
