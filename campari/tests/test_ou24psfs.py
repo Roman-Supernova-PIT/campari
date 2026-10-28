@@ -162,7 +162,11 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_
     filename = f"{diaobject_name}_{roman_filter}_{psf.lower()}"
     filepath = f"/{out_dir}/{filename}_lc.ecsv"
 
-    cfg.parse_args(SimpleNamespace(**args))
+    class SafeNamespace(SimpleNamespace):
+        def __getattr__(self, name):
+            return None
+
+    cfg.parse_args(SafeNamespace(**args))
     runner = campari_runner(**args)
     if pathlib.Path(filepath).exists():
         pathlib.Path(filepath).unlink()
