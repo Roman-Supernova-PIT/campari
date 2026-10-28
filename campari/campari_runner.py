@@ -392,8 +392,6 @@ class campari_runner:
 
         SNLogger.debug("prebuilt static model is set to " + str(self.prebuilt_static_model))
 
-
-
         if prebuilt_psf_matrix is not None:
             SNLogger.debug(f"Using prebuilt static model from {self.prebuilt_static_model}")
         if prebuilt_sn_matrix is not None:
