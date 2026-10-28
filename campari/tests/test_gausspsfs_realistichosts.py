@@ -122,7 +122,7 @@ default_parameters = {
 
 # TESTS BEGIN HERE ##############################
 
-generate_simulations = False
+generate_simulations = True
 
 # This test has all of the bells and whistles: a host galaxy, a faint transient, and both object and sky noise.
 # The images are unaligned and the PSF is gaussian.
@@ -142,12 +142,12 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         run_sim(
             seed=seed,  # Set seed for reproducibility, this is the seed that Cole started with.
             images_aligned=False,
-            poisson_noise=True, # change this back to True
-            sky_noise=True, # change this back to True
-            static_source="galaxy", # change this back to galaxy
+            poisson_noise=True,
+            sky_noise=True,
+            static_source="galaxy",
             static_source_mag=22,
             transient_peak_mag=24,
-            mjd=np.arange(60000, 60075, 1.5),# CHANGE THIS BACK TO 1.5
+            mjd=np.arange(60000, 60075, 0.75),
             psf_class="gaussian",
             run_dir=func_name,
             output_path=test_data_path,
@@ -156,37 +156,17 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
             bulge_n=3,
             disk_R=4,
             disk_n=1,  # Simulated Galaxy Params
-            test_data_path=test_data_path
+            test_data_path=test_data_path,
+            overwrite=True,
         )
 
     # Perform sanity check against cached image.
-    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_regression.fits")
+    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_"
+    "unlaligned_realisticgalaxyseed45_60000.0_regression.fits")
     new_image = fits.open(
         f"{test_data_path}/../pull_test_images/"
         "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
     )
-
-
-    # import matplotlib.pyplot as plt
-    # plt.figure(figsize=(10, 5))
-    # plt.subplot(1, 3, 1)
-    # plt.imshow(cached_image[0].data, cmap='gray')
-    # plt.title('Cached Image')
-    # plt.colorbar()
-    # plt.subplot(1, 3, 2)
-    # plt.imshow(new_image[0].data, cmap='gray')
-    # plt.title('Newly Generated Image')
-    # plt.colorbar()
-    # plt.subplot(1, 3, 3)
-    # plt.imshow(cached_image[0].data - new_image[0].data, cmap='gray')
-    # plt.title('Difference Image')
-    # plt.colorbar()
-    # plt.tight_layout()
-    # plt.savefig(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/"
-    #             f"test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_difference_image.png")
-    # print(f"Difference image saved to {test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/"
-    #         f"test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_difference_image.png")
-
 
     np.testing.assert_allclose(cached_image[0].data, new_image[0].data, rtol=1e-5, err_msg="The newly generated image"
     " does not match the cached image. This suggests that there may be a problem with the simulation code or that"
@@ -202,5 +182,6 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
+        "--save_model": "True",
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)

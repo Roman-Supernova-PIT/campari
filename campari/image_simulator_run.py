@@ -52,6 +52,7 @@ def run_sim(
     test_data_path=None,
     band=None,
     observation_id=None,
+    overwrite=False,
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
@@ -150,10 +151,20 @@ def run_sim(
     os.chdir("..")
     SNLogger.debug(f"Changed directory to {os.getcwd()}")
     # make a directory for test images
-    os.makedirs(f"pull_test_images", exist_ok=True)
+    os.makedirs("pull_test_images", exist_ok=True)
     # move into that directory
-    os.chdir(f"pull_test_images")
+    os.chdir("pull_test_images")
     SNLogger.debug(f"Changed directory to {os.getcwd()}")
+
+    # check if there are any files in the directory, if so, delete them
+    files = glob.glob("*transient*fits")
+    if overwrite and files:
+        SNLogger.debug(f"Deleting {len(files)} files in {os.getcwd()}")
+        for f in files:
+            os.remove(f)
+    if not overwrite and files:
+        raise RuntimeError(f"Directory {os.getcwd()} is not empty. Use overwrite=True to delete existing files.")
+    SNLogger.debug(f"Deleted {len(files)} files in {os.getcwd()}")
 
     result = os.system(cmd_str)
     if result != 0:
@@ -170,7 +181,6 @@ def run_sim(
     SNLogger.debug(f"Present working directory: {pwd}")
     filename = test_data_path / f"image_list_{run_name}.txt"
 
-
     with open(filename, "w") as f:
         for item in file_list:
             SNLogger.debug(item)
@@ -181,7 +191,6 @@ def run_sim(
                 SNLogger.debug(f"Writing {newpath} to image list")
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
     SNLogger.debug(f"Finished writing image list to {filename}")
-
 
     # move back to whereever we were before
     os.chdir(current_dir)
