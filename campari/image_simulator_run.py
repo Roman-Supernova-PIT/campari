@@ -53,6 +53,7 @@ def run_sim(
     band=None,
     observation_id=None,
     overwrite=False,
+    output_dir=None,
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
@@ -152,9 +153,9 @@ def run_sim(
         os.chdir("..")
         SNLogger.debug(f"Changed directory to {os.getcwd()}")
         # make a directory for test images
-        os.makedirs("pull_test_images", exist_ok=True)
+        os.makedirs(output_dir, exist_ok=True)
         # move into that directory
-        os.chdir("pull_test_images")
+        os.chdir(output_dir)
         SNLogger.debug(f"Changed directory to {os.getcwd()}")
 
         # check if there are any files in the directory, if so, delete them

@@ -158,6 +158,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
             disk_n=1,  # Simulated Galaxy Params
             test_data_path=test_data_path,
             overwrite=True,
+            output_dir="pull_test_images"
         )
 
     # Perform sanity check against cached image.
