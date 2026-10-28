@@ -142,6 +142,18 @@ def run_sim(
         cmd_str += f"--observation-id {observation_id} "
 
     SNLogger.debug(cmd_str)
+    # get current dir
+    current_dir = os.getcwd()
+    # cd to testdata path
+    os.chdir(test_data_path)
+    # move up one level
+    os.chdir("..")
+    SNLogger.debug(f"Changed directory to {os.getcwd()}")
+    # make a directory for test images
+    os.makedirs(f"pull_test_images", exist_ok=True)
+    # move into that directory
+    os.chdir(f"pull_test_images")
+    SNLogger.debug(f"Changed directory to {os.getcwd()}")
 
     result = os.system(cmd_str)
     if result != 0:
@@ -151,19 +163,14 @@ def run_sim(
     if not os.path.exists(f"{output_path}/{run_dir}/{run_name}"):
         os.makedirs(f"{output_path}/{run_dir}/{run_name}")
         print(f"Created directory {output_path}/{run_dir}/{run_name}")
-    # for item in file_list:
-    #     print(f"Moving {item} to {output_path}/{run_dir}/{run_name}")
-    #     os.system(f"mv {item} {output_path}/{run_dir}/{run_name}")
-
-    #os.system(f"mv *{run_name}* {output_path}/{run_dir}/{run_name}")
-    #SNLogger.debug(f"Moved all files to {output_path}/{run_dir}/{run_name}")
-    #import pdb; pdb.set_trace()
 
     # get present working directory
     pwd = os.getcwd()
     base_path = pwd
     SNLogger.debug(f"Present working directory: {pwd}")
     filename = test_data_path / f"image_list_{run_name}.txt"
+
+
     with open(filename, "w") as f:
         for item in file_list:
             SNLogger.debug(item)
@@ -175,7 +182,9 @@ def run_sim(
                 f.write(f"{newpath.split('cmeldorf')[-1]}\n")
     SNLogger.debug(f"Finished writing image list to {filename}")
 
-    #write_image_list(output_path, run_dir, run_name, test_data_path)
+
+    # move back to whereever we were before
+    os.chdir(current_dir)
 
 
 def run_sims_in_parallel(

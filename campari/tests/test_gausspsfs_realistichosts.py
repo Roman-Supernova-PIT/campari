@@ -17,7 +17,6 @@ cfg = Config.get()
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
-#pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
 default_parameters = {
@@ -122,27 +121,8 @@ default_parameters = {
 }
 
 # TESTS BEGIN HERE ##############################
-# This test has a host galaxy and a faint transient but no noise.
 
-# Right now this is failing due to a skew. I believe this is
-# due to some bias resulting from the low SNR + Poisson noise when doing PSF fitting. More work is needed, come
-# back to this! XXX XXX XXX TODO XXX
-@pytest.mark.skip(reason="This test fails due to skew. I need to"
- " figure out if this is due to the fact that it is noiseless.")
-def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
-    args = {
-        "img_list": pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_nonoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
-        "photometry_campari_grid_options_type": "regular",
-        "photometry_campari_grid_options_spacing": 0.75,
-        "prebuilt_static_model": pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
-    }
-
-    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
-
-
-# TESTS WITH NOISE #############
-generate_simulations = True
+generate_simulations = False
 
 # This test has all of the bells and whistles: a host galaxy, a faint transient, and both object and sky noise.
 # The images are unaligned and the PSF is gaussian.
@@ -179,15 +159,12 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
             test_data_path=test_data_path
         )
 
-    # # Perform sanity check against cached image.
-    # cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/"
-    #     "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise"
-    #     "_unlaligned_realisticgalaxyseed45_sanity_image.fits")
-    # new_image = fits.open(
-    #     f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/"
-    #     "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/"
-    #     "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
-    # )
+    # Perform sanity check against cached image.
+    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_regression.fits")
+    new_image = fits.open(
+        f"{test_data_path}/../pull_test_images/"
+        "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
+    )
 
 
     # import matplotlib.pyplot as plt
@@ -211,10 +188,10 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     #         f"test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_difference_image.png")
 
 
-    # np.testing.assert_allclose(cached_image[0].data, new_image[0].data, rtol=1e-5, err_msg="The newly generated image"
-    # " does not match the cached image. This suggests that there may be a problem with the simulation code or that"
-    # " the simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the"
-    # " validity of the test results.")
+    np.testing.assert_allclose(cached_image[0].data, new_image[0].data, rtol=1e-5, err_msg="The newly generated image"
+    " does not match the cached image. This suggests that there may be a problem with the simulation code or that"
+    " the simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the"
+    " validity of the test results.")
     # Check if the image list exists at the expected location. If not, raise an error.
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
 
@@ -225,6 +202,5 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
-        #"prebuilt_static_model": pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
