@@ -388,6 +388,13 @@ class campari_runner:
         prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
             else None
 
+        SNLogger.debug("prebuilt static model is set to " + str(self.prebuilt_static_model))
+
+        if prebuilt_psf_matrix is not None:
+            SNLogger.debug(f"Using prebuilt static model from {self.prebuilt_static_model}")
+        if prebuilt_sn_matrix is not None:
+            SNLogger.debug(f"Using prebuilt transient model from {self.prebuilt_transient_model}")
+
         SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
             run_one_object(diaobj=diaobj, object_type=self.object_type, image_list=image_list,

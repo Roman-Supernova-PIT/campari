@@ -122,7 +122,7 @@ default_parameters = {
 
 # TESTS BEGIN HERE ##############################
 
-generate_simulations = True
+generate_simulations = False
 
 # This test has all of the bells and whistles: a host galaxy, a faint transient, and both object and sky noise.
 # The images are unaligned and the PSF is gaussian.
@@ -182,6 +182,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
-        "--save_model": "True",
+        "save_model": "True",
+        "prebuilt_static_model": f"{test_data_path}/prebuilt_models/pull_test_prebuilt_model.npy",
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)

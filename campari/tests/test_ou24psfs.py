@@ -43,7 +43,6 @@ default_parameters = {
     "config": None,
     "filter": "R062",
     "diaobject_name": 10046,
-    "prebuilt_transient_model": None,
     "ra": 128.0,
     "dec": 42.0,
     "radius": None,
