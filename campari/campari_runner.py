@@ -386,10 +386,13 @@ class campari_runner:
         SNLogger.debug("Inside call_run_one_object")
 
         prebuilt_psf_matrix = np.load(self.prebuilt_static_model) if self.prebuilt_static_model is not None else None
+        SNLogger.debug("Here 1")
         prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
             else None
 
         SNLogger.debug("prebuilt static model is set to " + str(self.prebuilt_static_model))
+
+
 
         if prebuilt_psf_matrix is not None:
             SNLogger.debug(f"Using prebuilt static model from {self.prebuilt_static_model}")
