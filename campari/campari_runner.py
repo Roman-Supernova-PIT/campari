@@ -383,6 +383,7 @@ class campari_runner:
 
     def call_run_one_object(self, diaobj, image_list, sedlist):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
+        SNLogger.debug("Inside call_run_one_object")
 
         prebuilt_psf_matrix = np.load(self.prebuilt_static_model) if self.prebuilt_static_model is not None else None
         prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
