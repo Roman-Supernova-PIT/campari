@@ -181,7 +181,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     # check that each image in the list exists
     import os
     SNLogger.debug("These are the files that I see:")
-    SNLogger.debug(os.listdir(test_data_path))
+    SNLogger.debug(os.listdir(test_data_path / "../pull_test_images"))
 
     for line in open(imagelist_filename):
         image_path = line.strip()
