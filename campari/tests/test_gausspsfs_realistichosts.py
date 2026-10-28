@@ -175,9 +175,16 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
     # Check if the image list exists at the expected location. If not, raise an error.
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
 
+
     if not pathlib.Path(imagelist_filename).exists():
         raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Sim may have"
         " failed to run.")
+    # check that each image in the list exists
+    for line in open(imagelist_filename):
+        image_path = line.strip()
+        if not pathlib.Path(image_path).exists():
+            raise FileNotFoundError(f"Expected image at {image_path} not found. Sim may have failed to run.")
+
     args = {
         "img_list": pathlib.Path(__file__).parent / imagelist_filename,
         "photometry_campari_grid_options_type": "regular",
