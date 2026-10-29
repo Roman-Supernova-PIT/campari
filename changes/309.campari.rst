@@ -1,0 +1,1 @@
+Masked pixels now recieve a weighting of zero.
