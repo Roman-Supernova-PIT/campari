@@ -166,7 +166,97 @@ def calculate_background_level(im):
     return mean
 
 
-def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
+def build_model_footprint(psf_matrix, sn_matrix, num_total_images, size_sq):
+    """Calculate the model's "footprint". What I mean is collapse the model into one number per pixel:
+    how much total model (galaxy grid + transient) lands on that pixel. We want to make sure later that every pixel
+    that is part of the fit has some model on it.
+
+    Parameters
+    ----------
+    psf_matrix : 2D array, shape (num_total_images * size_sq, n_grid_points)
+        Background (grid point) model. Each column is one grid point's PSF,
+        with the images stacked on top of each other.
+    sn_matrix : list/array of d arrays, each of length size_sq, or None
+        Transient model, one stamp per detection image. The detection images
+        are the LAST d images, matching prep_data_for_fit.
+    num_total_images : int
+    size_sq : int
+        Pixels per cutout (size * size).
+
+    Returns
+    -------
+    footprint : 1D array, length num_total_images * size_sq
+    """
+    footprint = np.zeros(num_total_images * size_sq)
+
+    if psf_matrix is not None and psf_matrix.shape[1] > 0:
+        footprint += np.sum(np.abs(psf_matrix), axis=1)
+
+    if sn_matrix is not None:
+        det_num = len(sn_matrix)
+        for i in range(det_num):
+            start = (num_total_images - det_num + i) * size_sq
+            footprint[start:start + size_sq] += np.abs(np.asarray(sn_matrix[i]))
+
+    return footprint
+
+
+def check_footprint_and_adjust_weights(wgt_matrix, model_footprint):
+    """Set the weight of every pixel the model doesn't reach to zero.
+
+    A pixel is "reached" if the model's footprint there is strictly greater
+    than `threshold`. With the default threshold of 0, only pixels with
+    exactly zero model are dropped. Raise the threshold to also drop pixels
+    where the model is nonzero but negligible (e.g. far PSF wings).
+
+    Parameters
+    ----------
+    wgt_matrix : list of 1D arrays, each length size**2
+        Per-image weights, as built in get_weights. Modified in place.
+    model_footprint : 1D array, length len(wgt_matrix) * size**2
+        Output of build_model_footprint.
+    threshold : float (passed from the config file)
+        The threshold for determining if a pixel is "reached" by the model.
+        If `relative` is True, this is a multiplier on the maximum footprint
+        in each image. If `relative` is False, this is an absolute value.
+        Pixels with footprint <= threshold get weight 0.
+    relative : bool (passed from the config file)
+        If True, threshold is relative to the maximum footprint in each image.
+        If False, threshold is an absolute value.
+
+    Returns
+    -------
+    wgt_matrix : the same list, with uncovered pixels zeroed.
+    """
+    relative = Config.get().value("photometry.campari.footprint_threshold_is_relative")
+    threshold = Config.get().value("photometry.campari.footprint_threshold")
+    if threshold is None or threshold < 0:
+        SNLogger.debug(f"Footprint check skipped because threshold is None. It is: {threshold}.")
+        return wgt_matrix
+    else:
+        if relative is None:
+            raise ValueError("Threshold check is requested but footprint_threshold_is_relative is None."
+            " Choose a value.")
+
+    num_images = len(wgt_matrix)
+    size_sq = len(wgt_matrix[0])
+    # One row per image, so row i lines up with wgt_matrix[i].
+    footprint = np.asarray(model_footprint).reshape(num_images, size_sq)
+
+    total_zeroed = 0
+    for i in range(num_images):
+        cut = threshold * np.max(footprint[i]) if relative else threshold
+        uncovered = footprint[i] <= cut
+        total_zeroed += np.sum(uncovered & (wgt_matrix[i] != 0))
+        wgt_matrix[i][uncovered] = 0            # boolean-mask assignment
+
+    SNLogger.debug(f"Footprint check (threshold={threshold}): zeroed {total_zeroed} additional pixel weights "
+                   f"out of {num_images * size_sq} total pixels.")
+    return wgt_matrix
+
+
+def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1,
+    psf_matrix=None, sn_matrix=None):
     """This function calculates the weights for each pixel in the cutout
         images.
 
@@ -183,6 +273,12 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
                     to weight   the pixels. This is in pixels.
     cutoff: float, the cutoff distance in pixels. Pixels further than this
                     distance from the supernova are given a weight of 0.
+    psf_matrix: 2D array, shape (num_total_images * size**2, n_grid_points)
+                Background (grid point) model. Each column is one grid point's PSF,
+                with the images stacked on top of each other.
+    sn_matrix: list/array of d arrays, each of length size**2, or None
+                Transient model, one stamp per detection image. The detection images
+                are the LAST d images, matching prep_data_for_fit.
 
     Outputs:
     wgt_matrix: list of numpy arrays of floats, each array is the weights for
@@ -249,6 +345,12 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
         wgt_matrix.append(wgt)
+
+    # In addition, we check to make sure that all unweighted pixels are hit by the model.
+    # If not, we set their weights to zero.
+    if psf_matrix is not None or sn_matrix is not None:
+        footprint = build_model_footprint(psf_matrix, sn_matrix, len(images), size**2)
+        wgt_matrix = check_footprint_and_adjust_weights(wgt_matrix, footprint)
     return wgt_matrix
 
 

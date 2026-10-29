@@ -1,6 +1,6 @@
 import pathlib
 from types import SimpleNamespace
-
+import copy
 import inspect
 import numpy as np
 import pytest
@@ -39,19 +39,19 @@ from campari.tests.test_gausspsfs import (
 pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
-default_parameters = {
-    "config": None,
+
+# Arguments campari_runner reads directly (it does kwargs["..."], so every one must exist).
+RUNNER_DEFAULTS = {
     "filter": "R062",
     "diaobject_name": 10046,
-    "prebuilt_transient_model": None,
+    "diaobject_id": None,
     "ra": 128.0,
     "dec": 42.0,
-    "radius": None,
     "diaobject_collection": "manual",
-    "diaobject_subset": None,
     "image_collection": "manual_fits",
     "image_collection_basepath": "/photometry_test_data/simple_gaussian_test/sig1.0",
     "image_collection_subset": "threefile",
+    "img_list": None,
     "max_no_transient_images": 0,
     "max_transient_images": 1,
     "image_selection_start": None,
@@ -62,89 +62,49 @@ default_parameters = {
     "object_type": "SN",
     "fast_debug": False,
     "save_model": False,
+    "prebuilt_static_model": None,
+    "prebuilt_transient_model": None,
     "image_process": None,
     "image_provenance_tag": None,
     "diaobject_provenance_tag": None,
     "diaobject_process": None,
-    "diaobject_id": None,
+    "diaobject_position_provenance_tag": None,
+    "diaobject_position_process": None,
     "ltcv_process": "campari",
     "ltcv_provenance_tag": None,
     "create_ltcv_provenance": True,
-    "diaobject_position_provenance_tag": None,
-    "diaobject_position_process": None,
     "save_to_db": False,
     "add_truth_to_lc": False,
     "nprocs": 20,
+}
+
+CONFIG_DEFAULTS = {
     "photometry_campari_cutout_size": 19,
-    "photometry_campari_initial_flux_guess": None,
     "photometry_campari_fetch_SED": False,
     "photometry_campari_weighting": True,
     "photometry_campari_make_initial_guess": False,
-    # For some reason generating x0 is broken when using
-        # presaved models. I need to come back to this at some point. XXX
-    "photometry_campari_method": None,
-    "photometry_campari_pixel": None,
-    "photometry_campari_subtract_background_method": 0,
     # NOTE: THIS IS CURRENTLY CHEATING. I need to find a way to do better sky subtraction. I found that if you
     # are looking at a small image clips, as campari does, the background subtraction is very poor because the PSF
     # is so wide that it looks like flat background near the edge of the clip. I could write a routine that goes
     #  and gets the background from a larger area or I could wait and see if campari will always be handed one,
     # e.g. from phrosty?
-    "photometry_campari_io_output_dir": "/scratch/campari_out_dir",
-    "photometry_campari_io_debug_dir": "/scratch/campari_debug_dir",
-    "photometry_campari_io_test_data": "/scratch/campari_test_data",
-    "photometry_campari_print_memory_usage": None,
+    "photometry_campari_subtract_background_method": "0",
     "photometry_campari_psf_transient_class": "ou24PSF_slow_photonshoot",
     "photometry_campari_psf_galaxy_class": "ou24PSF",
-    "photometry_campari_grid_options_type": None,
-    "photometry_campari_grid_options_percentiles": None,
     "photometry_campari_grid_options_spacing": 1.0,
-    "photometry_campari_grid_options_gaussian_var": None,
-    "photometry_campari_grid_options_cutoff": None,
-    "photometry_campari_grid_options_error_floor": None,
     "photometry_campari_grid_options_subsize": 4,
-    "photometry_campari_io_save_debug": None,
-    "photometry_campari_io_test_num": None,
-    "photometry_snappl_simdex_server": None,
-    "system_paths_lightcurves": None,
-    "system_paths_sims_sed_library": None,
-    "system_paths_campari_test_data": None,
-    "system_paths_output_dir": None,
-    "system_paths_sed_path": None,
-    "system_paths_debug_dir": None,
-    "system_ou24_simdex_server": None,
-    "system_ou24_config_file": None,
-    "system_ou24_sn_truth_dir": None,
-    "system_ou24_sims_sed_library": None,
-    "system_ou24_images": None,
-    "system_ou24_tds_base": None,
-    "system_db_url": None,
-    "system_db_username": None,
-    "system_db_passwordfile": None,
-    "system_db_password": None,
-    "system_paths_spectra1d": None,
-    "system_paths_segmaps": None,
-    "prebuilt_static_model": None,
-    "system_paths_images": None,
-    "system_paths_temp_dir": None,
-    "system_paths_snappl_A25ePSF_path": None,
-    "photometry_campari_preplot_cutouts": None,
-    "img_glob": None,
 }
 
-
 cfg = Config.get()
-
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
-default_parameters["photometry_campari_io_debug_dir"] = debug_dir
-default_parameters["photometry_campari_io_output_dir"] = out_dir
-default_parameters["photometry_test_data"] = cfg.value("photometry.test_data")
-default_parameters["photometry_campari_io_test_data"] = cfg.value("photometry.campari_io.test_data")
+# Same dict name/shape as before, so other test files that pass it in keep working.
+default_parameters = RUNNER_DEFAULTS | CONFIG_DEFAULTS
 
 
-def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters, err_fudge=0):
+def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters=default_parameters,
+                                                                  err_fudge=0):
     """ Run a test and check the results against the truth flux using the pull distribution. This
     checks that the pull distribution is gaussian, centered on zero, and not skewed.
     Inputs:
@@ -161,14 +121,26 @@ def run_test_and_check_against_truth_flux_using_pull_distribution(args, default_
     roman_filter = args["filter"]
     psf = args["photometry_campari_psf_transient_class"]
     filename = f"{diaobject_name}_{roman_filter}_{psf.lower()}"
-    filepath = f"/{out_dir}/{filename}_lc.ecsv"
+    filepath = pathlib.Path(f"/{out_dir}/{filename}_lc.ecsv")
 
-    cfg.parse_args(SimpleNamespace(**args))
-    runner = campari_runner(**args)
-    if pathlib.Path(filepath).exists():
-        pathlib.Path(filepath).unlink()
+    # Missing attributes read as None, which parse_args ignores, so we only need
+    # to list the config values we care about.
+    class SafeNamespace(SimpleNamespace):
+        def __getattr__(self, name):
+            return None
 
-    runner()
+    # Snapshot the config so this test can't leak its settings into other tests.
+    # deepcopy matters: a shallow copy would share the nested dicts, so the
+    # "backup" would get modified along with the original.
+    saved_config_data = copy.deepcopy(cfg._data)
+    try:
+        cfg.parse_args(SafeNamespace(**args))
+        runner = campari_runner(**args)
+        filepath.unlink(missing_ok=True)
+
+        runner()
+    finally:
+        cfg._data = saved_config_data
 
     # Check accuracy
     SNLogger.debug(f"Opening file at {filepath} to check accuracy.")

@@ -276,7 +276,7 @@ class campari_runner:
             diaobj.mjd_start = -np.inf
         if diaobj.mjd_end is None:
             diaobj.mjd_end = np.inf
-
+        SNLogger.debug("Calling run on object.")
         lightcurve_model = self.call_run_one_object(diaobj, image_list, sedlist)
         self.build_and_save_lightcurve(diaobj, lightcurve_model)
 
@@ -383,10 +383,19 @@ class campari_runner:
 
     def call_run_one_object(self, diaobj, image_list, sedlist):
         """Call the run_one_object function to run the pipeline for a given SNID and exposures."""
+        SNLogger.debug("Inside call_run_one_object")
 
         prebuilt_psf_matrix = np.load(self.prebuilt_static_model) if self.prebuilt_static_model is not None else None
+        SNLogger.debug("Here 1")
         prebuilt_sn_matrix = np.load(self.prebuilt_transient_model) if self.prebuilt_transient_model is not None \
             else None
+
+        SNLogger.debug("prebuilt static model is set to " + str(self.prebuilt_static_model))
+
+        if prebuilt_psf_matrix is not None:
+            SNLogger.debug(f"Using prebuilt static model from {self.prebuilt_static_model}")
+        if prebuilt_sn_matrix is not None:
+            SNLogger.debug(f"Using prebuilt transient model from {self.prebuilt_transient_model}")
 
         SNLogger.debug("Save model is set to " + str(self.save_model))
         lightcurve_model = \
@@ -562,7 +571,6 @@ class campari_runner:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra, dec)
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
-                SNLogger.debug(f"Accepted {img_desc} because it included the transient RA/DEC {ra}, {dec}.")
                 return index
             else:
                 SNLogger.debug(f"Rejected {img_desc} because it did not include the transient RA/DEC "
