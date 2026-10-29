@@ -1002,6 +1002,7 @@ def test_image_simulator_script():
         psf_class="ou24PSF_slow",
         run_dir=func_name,
         output_path=test_data_path,
+        output_dir="image_simulator_script_test",
         run_name_base=func_name,
         bulge_R=2,
         bulge_n=3,

@@ -177,12 +177,12 @@ cython_debug/
 *.ipynb_checkpoints
 *.png
 *.pdf
-*.fits
+#*.fits
 old_examples/
-prebuilt_models/
+#prebuilt_models/
 image_simulations_Y106/
 gaussim_files/
 test_imagelists/
 test_bothnoise_shifted_22magrealisticgalaxy_ou24PSF_slow_photops/
-test_faint_transient_bothnoise_unlaligned_realisticgalaxy/
+#test_faint_transient_bothnoise_unlaligned_realisticgalaxy/
 misc_scripts/
