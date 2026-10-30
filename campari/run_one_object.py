@@ -85,11 +85,31 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     percentiles = []
 
-    num_total_images = len(image_list)
-    transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
+    # Maybe this can be done in the cutout step to save memory
+    all_sca_xs, all_sca_ys = \
+        map(list, zip(*[img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec) for img in image_list]))
+
+    # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
+    # some point, so this catches those cases.
+    band = convert_band_name(band)
+
+    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size, intended_band=band,
+                                                                     subtract_background_method=subtract_background_method,
+                                                                     nprocs=nprocs)
+    del image_list  # Save memory
+
+    len_before = len(cutout_image_list)
+    cutout_image_list = [a for a in cutout_image_list if a is not None]
+    len_after = len(cutout_image_list)
+    if len_before != len_after:
+        SNLogger.warning(f"Removed {len_before - len_after} images from the cutout list because they were None.")
+    sky_background = [a for a in sky_background if a is not None]
+
+
+    transient_image_list = [a for a in cutout_image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
     num_detect_images = len(transient_image_list)
 
-    no_transient_images = [a for a in image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
+    no_transient_images = [a for a in cutout_image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
 
     transient_mjds = [a.mjd for a in transient_image_list]
     no_transient_mjds = [a.mjd for a in no_transient_images]
@@ -99,20 +119,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     transient_image_list = [transient_image_list[i] for i in transient_argsort]
     no_transient_images = [no_transient_images[i] for i in no_transient_argsort]
 
-    image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
+    cutout_image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
 
-    all_sca_xs, all_sca_ys = \
-        map(list, zip(*[img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec) for img in image_list]))
 
-    # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
-    # some point, so this catches those cases.
-    band = convert_band_name(band)
-
-    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
-                                                                     subtract_background_method=subtract_background_method,
-                                                                     nprocs=nprocs)
-    # del image_list  # Save memory
     noise_maps = [im.noise for im in cutout_image_list]
 
     if Config.get().value("photometry.campari.preplot_cutouts"):
@@ -140,6 +150,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # The num_total_images - num_detect_images check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
+    num_total_images = len(cutout_image_list)
     num_nondetect_images = num_total_images - num_detect_images
     if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
         SNLogger.debug("Making initial guess for the model")
@@ -174,17 +185,19 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
         global _shared_image_list
-        _shared_image_list = image_list
+        _shared_image_list = cutout_image_list
         ctx = multiprocessing.get_context("fork")
         with ctx.Pool(nprocs) as pool:
-            for i, image in enumerate(image_list):
+            for i, image in enumerate(cutout_image_list):
                 model_results.append(pool.apply_async(_build_model_for_one_image_worker,
                                                       args=(i, kwarg_dict)))
             pool.close()
             pool.join()
 
     else:
-        for i, image in enumerate(image_list):
+        print("Total len of cutout_image_list:", len(cutout_image_list))
+        for i, image in enumerate(cutout_image_list):
+            print("starting image:", i)
             model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
 
     for result in model_results:

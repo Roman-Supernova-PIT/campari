@@ -21,10 +21,10 @@ photometry:
     pixel: false
     subtract_background_method: calculate
     use_real_images: true
-    print_memory_usage: false
-    preplot_cutouts: true
-    postplot_cutouts: true
-    save_memory_file_name: test_memory_file
+    print_memory_usage: true
+    preplot_cutouts: false
+    postplot_cutouts: false
+    save_memory_file_name: rebekah_test_gaussian
 
     psf:
       galaxy_class: gaussian
@@ -40,9 +40,9 @@ photometry:
       spacing: 0.75
       turn_grid_off: false
       gaussian_var: -1 # Gaussian weighting off by default
-      cutoff: 5
+      cutoff: 3
       error_floor: 0.0
-      subsize: 8
+      subsize: 4
 
   campari_io:
     output_dir: /home/cfmeldorf/campari_out_dir

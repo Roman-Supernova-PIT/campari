@@ -35,7 +35,7 @@ from campari.io import (
     save_lightcurve,
 )
 from campari.run_one_object import run_one_object
-from campari.utils import banner, convert_band_name, delete_memory_file
+from campari.utils import banner, convert_band_name, delete_memory_file, print_mem
 from campari.plotting import plot_postrun_summary
 
 global _start_time
@@ -286,7 +286,7 @@ class campari_runner:
         if self.img_list is not None or self.img_glob is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
-            image_list = self.prune_images(image_list, diaobj)
+            #image_list = self.prune_images(image_list, diaobj)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
 
@@ -562,6 +562,8 @@ class campari_runner:
         return images
 
     def _prune_one_image(self, ra, dec, index):
+        print("------------")
+        print_mem("begin prune")
         image = _prune_images_shared_list[index]
         requested_band = convert_band_name(self.band)
         image_band = convert_band_name(image.band)
@@ -570,14 +572,22 @@ class campari_runner:
         if image_band == requested_band:
             im_wcs = image.get_wcs()
             x, y = im_wcs.world_to_pixel(ra, dec)
+            print_mem("after wcs")
             if 0 <= x < image.data.shape[1] and 0 <= y < image.data.shape[0]:
                 return index
             else:
                 SNLogger.debug(f"Rejected {img_desc} because it did not include the transient RA/DEC "
                                 f"{ra}, {dec}. The center of the rejected image is at RA/DEC"
                                 f" {im_wcs.pixel_to_world(image.data.shape[1] / 2, image.data.shape[0] / 2)}.")
+
+                print_mem("after wcs check")
         else:
             SNLogger.debug(f"Rejected {img_desc} because it was not in the correct band {self.band}.")
+        print("deleting image from memory")
+        del image
+        _prune_images_shared_list[index] = None
+        print_mem()
+        return None
 
     def prune_images(self, image_list, diaobj):
         """Prune the given image list to only include images in the correct band and that contain the transient."""
