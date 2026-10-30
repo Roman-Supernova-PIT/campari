@@ -9,6 +9,7 @@ from erfa import ErfaWarning
 import multiprocessing
 import numpy as np
 from photutils.background import LocalBackground, MedianBackground
+from astropy.nddata import NoOverlapError
 
 
 # SN-PIT
@@ -31,19 +32,19 @@ huge_value = 1e32
 _construct_images_shared_list = None
 
 
-def _construct_one_image_worker(indx, ra, dec, size, truth, subtract_background_method):
+def _construct_one_image_worker(indx, ra, dec, intended_band, size, truth, subtract_background_method):
     """Wrapper that pulls the image from a module-level global to avoid pickling it.
     As it turns out, something about ASDF images means their data tree can't be pickled.
     To avoid this, this worker function pulls the image from a global variable that is
     set before forking the processes, so that the image itself doesn't need to be pickled."""
     image = _construct_images_shared_list[indx]
     return construct_one_image(
-        indx=indx, image=image, ra=ra, dec=dec, size=size,
+        indx=indx, image=image, ra=ra, dec=dec, size=size, intended_band=intended_band,
         truth=truth, subtract_background_method=subtract_background_method,
     )
 
 
-def construct_images(image_list, diaobj, size, subtract_background_method=True, nprocs=1):
+def construct_images(image_list, diaobj, size, intended_band, subtract_background_method=True, nprocs=1):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -87,13 +88,13 @@ def construct_images(image_list, diaobj, size, subtract_background_method=True, 
                 results.append(
                     pool.apply_async(
                         _construct_one_image_worker,
-                        args=(indx, ra, dec, size, truth, subtract_background_method)))
+                        args=(indx, ra, dec, intended_band, size, truth, subtract_background_method)))
             pool.close()
             pool.join()
     else:
         for indx, image in enumerate(image_list):
             SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
-            results.append(construct_one_image(indx=indx, image=image,
+            results.append(construct_one_image(indx=indx, image=image, intended_band=intended_band,
                                                ra=ra, dec=dec, size=size, truth=truth,
                                                subtract_background_method=subtract_background_method))
     for r in results:
@@ -115,7 +116,7 @@ def is_number(s):
         return False
 
 
-def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, truth=None,
+def construct_one_image(indx=None, image=None, intended_band=None, ra=None, dec=None, size=None, truth=None,
                         subtract_background_method=None, min_background_cutout_size=39):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
@@ -142,11 +143,34 @@ def construct_one_image(indx=None, image=None, ra=None, dec=None, size=None, tru
     image: snappl.image.Image object of the entire SCA.
 
     """
-    print_mem("before image load ---------------")
-    imagedata, errordata, flags = image.get_data(which="all", cache=True)
-    print_mem("after image load------------------")
+    # print_mem("before image load ---------------")
+    # imagedata, errordata, flags = image.get_data(which="all", cache=True)
+    # print_mem("after image load------------------")
 
-    image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    if intended_band is None:
+        raise ValueError("intended_band must be specified.")
+    if image.band[1:] != intended_band[1:]: # Ignore letter
+        SNLogger.debug(f"Image band {image.band} does not match intended band {intended_band}. Returning None")
+        image.free()
+        del image
+        # del imagedata
+        # del errordata
+        # del flags
+        print_mem(f"after freeing full image {indx} ------------------")
+        return None, None
+
+
+    try:
+        image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)
+    except NoOverlapError:
+        SNLogger.warning(f"Image {indx} does not overlap with the cutout region. Returning None.")
+        image.free()
+        del image
+        # del imagedata
+        # del errordata
+        # del flags
+        print_mem(f"after freeing full image {indx} ------------------")
+        return None, None
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(
