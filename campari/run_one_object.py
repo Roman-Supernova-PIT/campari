@@ -222,7 +222,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     galaxy_psfclass = Config.get().value("photometry.campari.psf.galaxy_class")
     sn_psfclass = Config.get().value("photometry.campari.psf.transient_class")
-
     if save_model:
         psf_matrix_path = pathlib.Path(Config.get().value("photometry.campari_io.debug_dir")) \
             / f"psf_matrix_{galaxy_psfclass}_{diaobj.name}_{num_total_images}_images{psf_matrix.shape[1]}_points.npy"

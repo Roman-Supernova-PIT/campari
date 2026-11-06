@@ -95,7 +95,7 @@ def main():
 
     # If you specify -s or --SNID_file, then campari will look up (WHERE? TODO)
     # to find supernova RA and Dec
-    parser.add_argument("--diaobject-name", default=None,
+    parser.add_argument("--diaobject-name", "--name", default=None,
                         required=False,
                         help="Object name to run on. Meaning is dependent on the collection used.")
 
@@ -119,7 +119,7 @@ def main():
                              "around the given RA and Dec. If not given, "
                              "will return the closest.")
 
-    parser.add_argument("--diaobject-collection", type=str, default="snpitdb", required=False,
+    parser.add_argument("--diaobject-collection", type=str, default="manual", required=False,
                         help="Which collection of objects to use for lookup. "
                              "Default is %(default)s. snpitdb is the SN-PIT personal database. 'manual'"
                              "will use the input ra and dec given by the user, and not perform any lookup.")
@@ -127,13 +127,12 @@ def main():
                         help="Subset of the diaobject collection to use for lookup. ")
     # Campari currently does not use this?
 
-    parser.add_argument("--image-collection", type=str, default="snpitdb", required=False,
+    parser.add_argument("--image-collection", type=str, default="manual_rdm", required=False,
                         help="Which collection of images to use for lookup. ")
-    parser.add_argument("--image-collection-basepath", type=str, default=None, required=False,
-                        help="Path provided as the basepath to the ImageCollection object. In most cases, "
+    parser.add_argument("--image-collection-basepath", "--bp", type=str, default=None, required=False,
+                        help="Path provided as the base path to the ImageCollection object. In most cases,"
                         "this is not needed because the basepath is configured for the database, you only"
                         "really need this for manual collections. ")
-    # Changed subset this might break tests remove this before pushing! XXX TODO
     parser.add_argument("--image-collection-subset", type=str, default=None, required=False,
                         help="Subset argument provided to the image collection object to use for lookup. ")
     # Campari currently does not use this?
@@ -159,6 +158,7 @@ def main():
 
     parser.add_argument(
         "--transient_start",
+        "--start",
         type=float,
         required=False,
         help="MJD of first epoch of transient. Only used when --diaobject-collection is manual. Otherwise, "

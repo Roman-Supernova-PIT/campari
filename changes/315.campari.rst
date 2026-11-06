@@ -1,0 +1,1 @@
+Added a test that checks pull distribution of a faint transient that can be run every time.

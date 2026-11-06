@@ -1,0 +1,1 @@
+Check that manually entered images contain correct ra/dec of the transient.

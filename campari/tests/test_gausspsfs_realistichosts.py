@@ -17,7 +17,6 @@ cfg = Config.get()
 out_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
-pytestmark = pytest.mark.accuracy_test
 imsize = 19
 
 default_parameters = {
@@ -98,32 +97,31 @@ default_parameters = {
     "system_ou24_tds_base": None,
     "system_db_url": None,
     "system_db_username": None,
+    "system_db_password": None,
     "system_db_passwordfile": None,
-    "prebuilt_static_model": None
+    "prebuilt_static_model": None,
+    "system_paths_spectra1d": None,
+    "system_paths_segmaps": None,
+    "system_paths_images": None,
+    "system_paths_temp_dir": None,
+    "system_paths_dev_storage": None,
+    "system_paths_snappl_A25ePSF_path": None,
+    "photometry_campari_io_output_dir": None,
+    "photometry_campari_io_debug_dir": None,
+    "photometry_campari_io_test_data": None,
+    "photometry_test_data": None,
+    "photometry_campari_use_roman": None,
+    "photometry_campari_use_real_images": None,
+    "photometry_campari_preplot_cutouts": None,
+    "photometry_campari_postplot_cutouts": None,
+    "photometry_campari_save_memory_file_name": None,
+    "photometry_campari_footprint_threshold": None,
+    "photometry_campari_footprint_threshold_is_relative": None,
+    "photometry_campari_grid_options_turn_grid_off": None,
 }
 
-
 # TESTS BEGIN HERE ##############################
-# This test has a host galaxy and a faint transient but no noise.
 
-# Right now this is failing due to a skew. I believe this is
-# due to some bias resulting from the low SNR + Poisson noise when doing PSF fitting. More work is needed, come
-# back to this! XXX XXX XXX TODO XXX
-@pytest.mark.skip(reason="This test fails due to skew. I need to"
- " figure out if this is due to the fact that it is noiseless.")
-def test_faint_transient_nonoise_unlaligned_realisticgalaxy():
-    args = {
-        "img_list": pathlib.Path(__file__).parent
-        / "testdata/test_imagelists/test_gaussims_nonoise_faintsource_unaligned_positionfixed_realisticgal_seed45.txt",
-        "photometry_campari_grid_options_type": "regular",
-        "photometry_campari_grid_options_spacing": 0.75,
-        "prebuilt_static_model": pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
-    }
-
-    run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)
-
-
-# TESTS WITH NOISE #############
 generate_simulations = False
 
 # This test has all of the bells and whistles: a host galaxy, a faint transient, and both object and sky noise.
@@ -149,7 +147,7 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
             static_source="galaxy",
             static_source_mag=22,
             transient_peak_mag=24,
-            mjd=np.arange(60000, 60075, 0.3),
+            mjd=np.arange(60000, 60075, 0.75),
             psf_class="gaussian",
             run_dir=func_name,
             output_path=test_data_path,
@@ -158,34 +156,50 @@ def test_faint_transient_bothnoise_unlaligned_realisticgalaxy():
             bulge_n=3,
             disk_R=4,
             disk_n=1,  # Simulated Galaxy Params
-            test_data_path=test_data_path
+            test_data_path=test_data_path,
+            overwrite=True,
+            output_dir="pull_test_images"
         )
 
     # Perform sanity check against cached image.
-    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/"
-        "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/test_faint_transient_bothnoise"
-        "_unlaligned_realisticgalaxyseed45_sanity_image.fits")
+    cached_image = fits.open(f"{test_data_path}/test_faint_transient_bothnoise_"
+    "unlaligned_realisticgalaxyseed45_60000.0_regression.fits")
     new_image = fits.open(
-        f"{test_data_path}/test_faint_transient_bothnoise_unlaligned_realisticgalaxy/"
-        "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45/"
+        f"{test_data_path}/../pull_test_images/"
         "test_faint_transient_bothnoise_unlaligned_realisticgalaxyseed45_60000.0_image.fits"
     )
 
     np.testing.assert_allclose(cached_image[0].data, new_image[0].data, rtol=1e-5, err_msg="The newly generated image"
-        " does not match the cached image. This suggests that there may be a problem with the simulation code or that"
-        " the simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the"
-        " validity of the test results.")
-
+    " does not match the cached image. This suggests that there may be a problem with the simulation code or that"
+    " the simulation parameters have changed. Please investigate this issue before proceeding, as it may impact the"
+    " validity of the test results.")
     # Check if the image list exists at the expected location. If not, raise an error.
     imagelist_filename = test_data_path / f"image_list_{run_name}.txt"
 
     if not pathlib.Path(imagelist_filename).exists():
         raise FileNotFoundError(f"Expected image list at {imagelist_filename} not found. Sim may have"
         " failed to run.")
+
+    import os
+    image_dir = (test_data_path / "../pull_test_images").resolve()
+    new_imagepath_file = test_data_path / f"image_list_{run_name}_unique.txt"
+    # delete this file if it exists
+    if new_imagepath_file.exists():
+        new_imagepath_file.unlink()
+    unique_image_paths = set()
+    for f in os.listdir(image_dir):
+        if f.endswith("_image.fits"):
+            base_name = f[:-11]  # Remove the "_image.fits" suffix
+            unique_image_paths.add(image_dir / base_name)
+
+    new_imagepath_file.write_text("\n".join(str(path) for path in sorted(unique_image_paths)))
+
     args = {
-        "img_list": pathlib.Path(__file__).parent / imagelist_filename,
+        "img_list": str(new_imagepath_file),
         "photometry_campari_grid_options_type": "regular",
         "photometry_campari_grid_options_spacing": 0.75,
-        "prebuilt_static_model": pathlib.Path(__file__).parent / "testdata/prebuilt_models/gauss250images_36points.npy",
+        "prebuilt_static_model": f"{test_data_path}/prebuilt_models/pull_test_prebuilt_model.npy",
+        "photometry_campari_preplot_cutouts": False,
+        "photometry_campari_postplot_cutouts": False,
     }
     run_test_and_check_against_truth_flux_using_pull_distribution(args, default_parameters)

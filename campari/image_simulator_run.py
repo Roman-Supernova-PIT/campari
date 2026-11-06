@@ -52,6 +52,8 @@ def run_sim(
     test_data_path=None,
     band=None,
     observation_id=None,
+    overwrite=False,
+    output_dir=None,
 ):
     SNLogger.debug(f"USING OBS ID {observation_id}")
 
@@ -142,20 +144,60 @@ def run_sim(
         cmd_str += f"--observation-id {observation_id} "
 
     SNLogger.debug(cmd_str)
+    # get current dir
+    current_dir = os.getcwd()
+    try:
+        # cd to testdata path
+        os.chdir(test_data_path)
+        # move up one level
+        os.chdir("..")
+        SNLogger.debug(f"Changed directory to {os.getcwd()}")
+        # make a directory for test images
+        os.makedirs(output_dir, exist_ok=True)
+        # move into that directory
+        os.chdir(output_dir)
+        SNLogger.debug(f"Changed directory to {os.getcwd()}")
 
-    result = os.system(cmd_str)
-    if result != 0:
-        raise RuntimeError(f"Command failed with exit code {result}")
-    SNLogger.debug("Finished image simulation.")
-    file_list = glob.glob(f"*{run_name}*")
-    if not os.path.exists(f"{output_path}/{run_dir}/{run_name}"):
-        os.makedirs(f"{output_path}/{run_dir}/{run_name}")
-        print(f"Created directory {output_path}/{run_dir}/{run_name}")
-    for item in file_list:
-        print(f"Moving {item} to {output_path}/{run_dir}/{run_name}")
-        os.system(f"mv {item} {output_path}/{run_dir}/{run_name}")
+        # check if there are any files in the directory, if so, delete them
+        files = glob.glob("*transient*fits")
+        if overwrite and files:
+            SNLogger.debug(f"Deleting {len(files)} files in {os.getcwd()}")
+            for f in files:
+                os.remove(f)
+        if not overwrite and files:
+            raise RuntimeError(f"Directory {os.getcwd()} is not empty. Use overwrite=True to delete existing files.")
+        SNLogger.debug(f"Deleted {len(files)} files in {os.getcwd()}")
 
-    write_image_list(output_path, run_dir, run_name, test_data_path)
+        result = os.system(cmd_str)
+        if result != 0:
+            raise RuntimeError(f"Command failed with exit code {result}")
+        SNLogger.debug("Finished image simulation.")
+        file_list = glob.glob(f"*{run_name}*")
+        if not os.path.exists(f"{output_path}/{run_dir}/{run_name}"):
+            os.makedirs(f"{output_path}/{run_dir}/{run_name}")
+            print(f"Created directory {output_path}/{run_dir}/{run_name}")
+
+        # get present working directory
+        pwd = os.getcwd()
+        base_path = pwd
+        SNLogger.debug(f"Present working directory: {pwd}")
+        filename = test_data_path / f"image_list_{run_name}.txt"
+
+        with open(filename, "w") as f:
+            for item in file_list:
+                SNLogger.debug(item)
+                # There is an image, noise, and flags, and we don"t want to read the image thrice.
+                if "image.fits" not in item and "flags.fits" not in item and "READ" not in item:
+                    whole_path = os.path.join(base_path, item)
+                    newpath = whole_path.split("_noise.fits")[0]
+                    SNLogger.debug(f"Writing {newpath} to image list")
+                    f.write(f"{newpath.split('cmeldorf')[-1]}\n")
+        SNLogger.debug(f"Finished writing image list to {filename}")
+    finally:
+        # move back to whereever we were before
+        SNLogger.debug(f"Changing back to original directory {current_dir}")
+        os.chdir(current_dir)
+        SNLogger.debug(f"Now I am in {os.getcwd()}")
 
 
 def run_sims_in_parallel(

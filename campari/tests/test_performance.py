@@ -22,6 +22,7 @@ def campari_test_data(cfg):
     return cfg.value("photometry.campari_io.test_data")
 
 
+@pytest.mark.run_last
 def test_memory(cfg):
     SNLogger.debug("Running test_memory")
     SNLogger.debug(os.getenv("GITHUB_ACTIONS"))

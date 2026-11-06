@@ -1,0 +1,1 @@
+Split get_exposures test into 3 tests
