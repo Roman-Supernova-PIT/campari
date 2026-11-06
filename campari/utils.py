@@ -400,12 +400,15 @@ def print_mem(label=""):
     cfg = Config.get()
     if cfg.value("photometry.campari.print_memory_usage"):
         from campari_runner import _start_time
+        current_cpu_usage = psutil.Process(os.getpid()).cpu_percent(interval=1)
+        current_cpu_usage = psutil.cpu_percent(interval=1.0)
 
         mem_gb = psutil.Process(os.getpid()).memory_info().rss / 1024**3
         elapsed_s = time.perf_counter() - _start_time
         current_time = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime())
         pid = os.getpid()
         print(f"[MEM] {label}: {mem_gb:.2f} GB")
+        print(f"[MEM] Elapsed time: {elapsed_s:.2f} s, CPU Usage: {current_cpu_usage:.5f}%")
 
         debug_dir = cfg.value("photometry.campari_io.debug_dir")
         if cfg.value("photometry.campari.save_memory_file_name") != "None":
@@ -426,7 +429,7 @@ def print_mem(label=""):
                 fd = os.open(csv_path, os.O_CREAT | os.O_EXCL | os.O_WRONLY)
                 with os.fdopen(fd, "w", newline="") as f:
                     csv.writer(f).writerow(
-                        ["elapsed_seconds", "label", "memory_gb", "timestamp", "pid"]
+                        ["elapsed_seconds", "label", "memory_gb", "timestamp", "pid", "cpu_percent"]
                     )
             except FileExistsError:
                 pass  # some other process already created the file + header
@@ -437,5 +440,5 @@ def print_mem(label=""):
             fd = os.open(csv_path, os.O_APPEND | os.O_WRONLY)
             with os.fdopen(fd, "a", newline="") as f:
                 csv.writer(f).writerow(
-                    [f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}", current_time, pid]
+                    [f"{elapsed_s:.3f}", label, f"{mem_gb:.4f}", current_time, pid, f"{current_cpu_usage:.1f}"]
                 )
