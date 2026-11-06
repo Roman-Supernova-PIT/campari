@@ -51,7 +51,7 @@ def test_asdf(overwrite_meta):
 
     imsize = 19
     base_cmd = [
-            "python", "../RomanASP.py",
+            "python", "../pipeline.py",
             "--diaobject-name", diaobj.name,
             "-f", "F062",
             "--photometry-campari-psf-transient_class", "gaussian",

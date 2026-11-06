@@ -69,7 +69,7 @@ pip install -e /home/packages/campari -e /home/packages/snappl
 
 mkdir -p /dev_storage/campari_debug_dir
 
-python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
+python packages/campari/campari/pipeline.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
 
 
 ```
@@ -78,7 +78,7 @@ This will run the algorithm on one SNe from Richard Kessler's simulations.
 ### NERSC
 To do a simple test run to ensure everything is installed correctly, you can request a node:
 ```
-python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
+python pipeline.py -s 40120913 -f Y106 -t 10 -d 5
 ```
 This will run the algorithm on supernova with SNID 40120913, in band Y106, using 10 images 5 of which contain SN detections.~~
 
