@@ -20,8 +20,8 @@ To do a simple test run on SMDC, try the following:
 
     salloc --nodes 1 --qos interactive --time 04:00:00 -p mem-med
 
-    ### CD To the directory above wherever you have your packages directory ###
-
+cd To the directory above wherever you have your packages directory ###
+.. code-block:: bash
     bash /data/snpit/env/singrun_smdc_ricksim.sh
 
     cd /home/packages/
@@ -30,19 +30,17 @@ To do a simple test run on SMDC, try the following:
 
     cd campari
 
-    git checkout SMDC_updates
 
     export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
 
     cd ../..
 
-    pip install -e /home/packages/campari -e /home/packages/snappl
 
     mkdir -p /dev_storage/campari_debug_dir
 
-    python packages/campari/campari/RomanASP.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
+    python packages/campari/campari/pipeline.py -f F106 --ra 9.376416 --dec -43.946209 --diaobject-collection manual --diaobject-name coolsne --image-collection snpitdb --image-provenance-tag ricksim202608 --image-process load_ricksim --transient_start 60400 --nprocs  1  --photometry-campari-psf-transient_class gaussian  --photometry-campari-psf-galaxy_class gaussian -t 1 -n 1 --photometry-campari-grid_options-type regular --no-save-to-db
 
-This will run the algorithm on one SNe from Richard Kessler's simulations.
+This will run the algorithm on one SNe from Rick Kessler's simulations.
 
 NERSC
 -----
@@ -55,7 +53,7 @@ request a node:
     salloc --nodes 1 --qos interactive --time 01:00:00 --constraint cpu --account m4385
     conda activate sn_pit_dev
 
-``cd`` into your directory where the code is stored.
+``cd`` into your directory where the code is stored. I.e., campari/campari.
 Then, in the ``config.yaml`` file, ensure that ``roman_path`` and
 ``sn_path`` read as follows:
 
@@ -74,7 +72,7 @@ and then run:
 
 .. code-block:: bash
 
-    python RomanASP.py -s 40120913 -f Y106 -t 10 -d 5
+    python pipeline.py -s 40120913 -f Y106 -t 10 -d 5
 
 This will run the algorithm on supernova with SNID 40120913, in band Y106,
 using 10 images, 5 of which contain SN detections.
