@@ -20,7 +20,7 @@ SNLogger.set_level("DEBUG")
 pytestmark = pytest.mark.accuracy_test
 imsize = 19
 base_cmd = [
-        "python", "../RomanASP.py",
+        "python", "../pipeline.py",
         "--diaobject-name", "123",
         "-t", "1",
         "-n", "0",

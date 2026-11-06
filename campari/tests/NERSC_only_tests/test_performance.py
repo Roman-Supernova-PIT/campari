@@ -29,7 +29,7 @@ def test_memory(cfg):
 
     nprocs = 20
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -t 10 -n 10 "
+        f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -t 10 -n 10 "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
