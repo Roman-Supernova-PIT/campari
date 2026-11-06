@@ -279,6 +279,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     flux = X[-num_detect_images:] if num_detect_images > 0 else None
 
+    poisson_subtract = True
+    if poisson_subtract:
+        err_mat = 1 / np.sqrt(wgt_matrix)
+        err_mat -= np.sqrt(np.abs(images.flatten()))
+        wgt_matrix = 1 / err_mat**2
     w2 = wgt_matrix ** 2
     inv_cov = (psf_matrix * w2[:, np.newaxis]).T @ psf_matrix
 

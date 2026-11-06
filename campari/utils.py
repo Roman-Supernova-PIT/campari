@@ -225,6 +225,8 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
         else:
             wgt = np.ones(size**2)
 
+
+
         if cutoff is not None:
             xx, yy = np.meshgrid(np.arange(0, size, 1), np.arange(0, size, 1))
             xx = xx.flatten()
@@ -245,7 +247,13 @@ def get_weights(images, ra, dec, gaussian_var=1000, cutoff=4, error_floor=1):
             SNLogger.debug(f"Weighting pixels to zero that are beyond cutoff {cutoff} pixels from the SN location.")
 
         error[i][np.where(error[i] <= error_floor)] = error_floor
-        inv_var = 1 / (error[i].flatten())**2
+        poisson_subtract = True
+
+        error_for_weighting = error[i]
+        if poisson_subtract:
+            error_for_weighting -= np.sqrt(np.abs(images[i].data))
+
+        inv_var = 1 / (error_for_weighting.flatten())**2
         inv_var = np.nan_to_num(inv_var, nan=0.0)
         wgt *= inv_var
         wgt_matrix.append(wgt)

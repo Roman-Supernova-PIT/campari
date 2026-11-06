@@ -14,8 +14,10 @@ photometry:
     use_real_images: true
     print_memory_usage: false
     preplot_cutouts: false
-    postplot_cutouts: false
+    postplot_cutouts: true
     save_memory_file_name: "None"
+    footprint_threshold: 0.1
+    footprint_threshold_is_relative: true
 
     psf:
       galaxy_class: ou24PSF
@@ -31,7 +33,7 @@ photometry:
       spacing: 0.75
       turn_grid_off: false
       gaussian_var: -1 # Gaussian weighting off by default
-      cutoff: 4
+      cutoff: 6
       error_floor: 1.0
       subsize: 4
 

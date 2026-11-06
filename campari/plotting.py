@@ -479,6 +479,7 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
     # epoch concatenated, so reshape to (epoch, y, x).
     data = np.asarray(lc_model.images).reshape(n_epochs, size, size)
     model = np.asarray(lc_model.model_images).reshape(n_epochs, size, size)
+    error = np.asarray(lc_model.noise_maps).reshape(n_epochs, size, size)
     resid = data - model
 
     # Weights are stored in the same flat, epoch-by-epoch order as the images.
@@ -542,13 +543,14 @@ def plot_postrun_summary(lc_model, diaobj, output_path):
         hide = zero_weight[i] | ~np.isfinite(model[i]) | ~np.isfinite(resid[i])
         masked_model = np.ma.masked_where(hide, model[i])
         masked_resid = np.ma.masked_where(hide, resid[i])
+        masked_error = np.ma.masked_where(hide, error[i])
 
         im1 = ax_model.imshow(masked_model, origin="lower", cmap=model_cmap, vmin=vmin, vmax=vmax)
 
         # Symmetric color scale built only from pixels that were actually fit,
         # so the excluded corners can't dominate the scale.
         rmax = np.max(np.abs(masked_resid)) if masked_resid.count() > 0 else 1.0
-        im2 = ax_resid.imshow(masked_resid, origin="lower", cmap=resid_cmap, vmin=-rmax, vmax=rmax)
+        im2 = ax_resid.imshow(masked_error, origin="lower", cmap=resid_cmap) #, vmin=-rmax, vmax=rmax)
 
         for ax, im in ((ax_data, im0), (ax_model, im1), (ax_resid, im2)):
             fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
