@@ -23,6 +23,7 @@ To do a simple test run on SMDC, try the following:
 cd To the directory above wherever you have your packages directory 
 
 .. code-block:: bash
+
     bash /data/snpit/env/singrun_smdc_ricksim.sh
 
     cd /home/packages/
@@ -31,11 +32,9 @@ cd To the directory above wherever you have your packages directory
 
     cd campari
 
-
     export SNPIT_CONFIG=/home/packages/campari/examples/SMDC/campari_config_ricksims.yaml
 
     cd ../..
-
 
     mkdir -p /dev_storage/campari_debug_dir
 
