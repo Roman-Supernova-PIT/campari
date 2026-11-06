@@ -20,7 +20,8 @@ To do a simple test run on SMDC, try the following:
 
     salloc --nodes 1 --qos interactive --time 04:00:00 -p mem-med
 
-cd To the directory above wherever you have your packages directory ###
+cd To the directory above wherever you have your packages directory 
+
 .. code-block:: bash
     bash /data/snpit/env/singrun_smdc_ricksim.sh
 
