@@ -143,22 +143,14 @@ def construct_one_image(indx=None, image=None, intended_band=None, ra=None, dec=
     image: snappl.image.Image object of the entire SCA.
 
     """
-    # print_mem("before image load ---------------")
-    # imagedata, errordata, flags = image.get_data(which="all", cache=True)
-    # print_mem("after image load------------------")
-
     if intended_band is None:
         raise ValueError("intended_band must be specified.")
-    if image.band[1:] != intended_band[1:]: # Ignore letter
+    if image.band[1:] != intended_band[1:]:  # Ignore letter
         SNLogger.debug(f"Image band {image.band} does not match intended band {intended_band}. Returning None")
         image.free()
         del image
-        # del imagedata
-        # del errordata
-        # del flags
         print_mem(f"after freeing full image {indx} ------------------")
         return None, None
-
 
     try:
         image_cutout = image.get_ra_dec_cutout(ra, dec, size, mode="partial", fill_value=np.nan)

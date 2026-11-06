@@ -105,7 +105,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         SNLogger.warning(f"Removed {len_before - len_after} images from the cutout list because they were None.")
     sky_background = [a for a in sky_background if a is not None]
 
-
     transient_image_list = [a for a in cutout_image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
     num_detect_images = len(transient_image_list)
 
@@ -121,7 +120,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     cutout_image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
     # but still sorted by MJD.
-
 
     noise_maps = [im.noise for im in cutout_image_list]
 

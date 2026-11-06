@@ -286,7 +286,6 @@ class campari_runner:
         if self.img_list is not None or self.img_glob is not None:
             # If the user provided an image list, use that.
             image_list = self.parse_img_list()
-            #image_list = self.prune_images(image_list, diaobj)
             SNLogger.debug(f"Got {len(image_list)} images from provided image list.")
             mjd_list = [im.mjd for im in image_list]
 
