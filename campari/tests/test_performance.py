@@ -23,7 +23,7 @@ def campari_test_data(cfg):
 
 
 @pytest.mark.run_last
-def test_memory(cfg):
+def test_memory(cfg, capsys):
     SNLogger.debug("Running test_memory")
     SNLogger.debug(os.getenv("GITHUB_ACTIONS"))
     print(os.getenv("GITHUB_ACTIONS"))
@@ -34,7 +34,7 @@ def test_memory(cfg):
     else:
         if "NERSC_HOST" not in os.environ:
             raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
-            location = "NERSC"
+        location = "NERSC"
 
     time_start = time.time()
 
@@ -61,25 +61,27 @@ def test_memory(cfg):
     time_end = time.time()
     total_time = time_end - time_start
 
+    debug_dir = cfg.value("photometry.campari_io.debug_dir")
+    mem_df = pd.read_csv(f"{debug_dir}/test_regression.csv")
+    peak_memory = mem_df["memory_gb"].max()
+
+    # Disable output capture so these numbers appear in the log even when the test passes.
+    with capsys.disabled():
+        print(f"\ntest_memory on {location}: run time {total_time:.1f} s, peak memory {peak_memory:.3f} GB")
+
     time_thresh = {
         "NERSC": 150,
         "github_actions": 150
     }
 
-    np.testing.assert_array_less(total_time, time_thresh[location]), "The test run on a SN took longer than "
-    + str(time_thresh[location]) + " seconds, typical time is ~ 110 seconds."
-
-    SNLogger.debug(f"Test run on a SN took {time_end - time_start} seconds")
+    assert total_time < time_thresh[location], (
+        f"The test run on a SN took longer than {time_thresh[location]} seconds, typical time is ~ 110 seconds."
+    )
 
     # Typical time on a NERSC interactive (NOT LOGIN) node is 115 +/- 5 seconds for 20 procs.
     # Before making the memory improvements, the time was closer to 100 seconds, but the memory usage
     # was out of control. This is a tradeoff between memory and speed, and I think a 10% speed reduction is
     # worth worth it for a factor of >6 memory reduction.
-
-    debug_dir = cfg.value("photometry.campari_io.debug_dir")
-    mem_df = pd.read_csv(f"{debug_dir}/test_regression.csv")
-
-    SNLogger.debug(f"The peak memory usage was {mem_df['memory_gb'].max()} GB")
 
     memory_thresh = {
         "NERSC": 1.5,
