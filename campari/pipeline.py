@@ -15,7 +15,9 @@ from erfa import ErfaWarning
 
 # SN-PIT
 from snappl.config import Config
+from snappl.logger import SNLogger
 from campari.campari_runner import campari_runner
+from campari.utils import reset_start_time
 
 
 # This supresses a warning because the Open Universe Simulations dates are not
@@ -53,6 +55,10 @@ Adapted from code by Pedro Bernardinelli
 
 
 def main():
+
+
+    start = reset_start_time()
+    SNLogger.debug(f"Starting Campari run at time: {start}")
     # Run one arg pass just to get the config file, so we can augment
     #   the full arg parser later with config options
     configparser = argparse.ArgumentParser(add_help=False)

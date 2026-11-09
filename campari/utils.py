@@ -17,7 +17,6 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 # SN-PIT
-from campari.campari_runner import _start_time
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -395,6 +394,14 @@ def delete_memory_file():
 
 
 _printed_location = False
+_start_time = time.perf_counter()  # default: module import time
+
+
+def reset_start_time():
+    """Mark the start of a campari run for elapsed-time reporting in print_mem."""
+    global _start_time
+    _start_time = time.perf_counter()
+    return _start_time
 
 
 def print_mem(label=""):
