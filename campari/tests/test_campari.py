@@ -24,7 +24,7 @@ import galsim
 
 
 # SNPIT
-from campari import RomanASP
+from campari import pipeline
 from campari.data_construction import find_all_exposures, construct_one_image
 from campari.image_simulator_run import run_sim
 from campari.io import (
@@ -321,7 +321,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
 
     try:
         sys.argv = args
-        RomanASP.main()
+        pipeline.main()
     except Exception as ex:
         assert False, str(ex)
     finally:
@@ -339,7 +339,7 @@ def test_run_on_star(campari_test_data, cfg, overwrite_meta):
     assert not curfile.exists()
     # Make sure it runs from the command line
     err_code = os.system(
-        "python ../RomanASP.py --diaobject-name 40973166870 -f Y106 -i"
+        "python ../pipeline.py --diaobject-name 40973166870 -f Y106 -i"
         f" {campari_test_data}/test_image_list_star.csv --diaobject-collection manual "
         "--object_type star --photometry-campari-grid_options-type none "
         "--photometry-campari-subtract_background_method SKY_MEAN "
@@ -394,7 +394,7 @@ def test_regression_function(campari_test_data, cfg, overwrite_meta):
     orig_config = Config.get(clone=cfg)
     try:
         sys.argv = a
-        RomanASP.main()
+        pipeline.main()
         cfg = Config.get()
 
         compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
@@ -428,7 +428,7 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     assert not debug_file.exists()
 
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
+        f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -i {campari_test_data}/test_image_list.csv "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type contour "
@@ -829,7 +829,7 @@ def test_handle_partial_overlap():
 
     image_file = pathlib.Path(__file__).parent / "testdata/partial_overlap.txt"
     output = os.system(
-        f"python ../RomanASP.py --diaobject-name 30617531 -f Y106 -i {image_file}"
+        f"python ../pipeline.py --diaobject-name 30617531 -f Y106 -i {image_file}"
         " --ra 7.446894 --dec -44.771605 --diaobject-collection manual"
         " --photometry-campari-psf-galaxy_class ou24PSF_photonshoot "
         " --photometry-campari-psf-transient_class ou24PSF_slow_photonshoot "
