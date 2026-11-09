@@ -17,6 +17,7 @@ from photutils.segmentation import detect_threshold, detect_sources
 from photutils.utils import circular_footprint
 
 # SN-PIT
+from campari.campari_runner import _start_time
 from snappl.config import Config
 from snappl.logger import SNLogger
 
@@ -399,7 +400,6 @@ _printed_location = False
 def print_mem(label=""):
     cfg = Config.get()
     if cfg.value("photometry.campari.print_memory_usage"):
-        from campari_runner import _start_time
         current_cpu_usage = psutil.Process(os.getpid()).cpu_percent(interval=1)
         current_cpu_usage = psutil.cpu_percent(interval=1.0)
 
