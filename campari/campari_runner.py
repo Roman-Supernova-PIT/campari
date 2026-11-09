@@ -4,7 +4,6 @@ import pathlib
 import multiprocessing
 import numpy as np
 import re
-import time
 import sys
 try:
     import pysqlite3

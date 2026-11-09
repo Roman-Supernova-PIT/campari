@@ -56,7 +56,6 @@ Adapted from code by Pedro Bernardinelli
 
 def main():
 
-
     start = reset_start_time()
     SNLogger.debug(f"Starting Campari run at time: {start}")
     # Run one arg pass just to get the config file, so we can augment
