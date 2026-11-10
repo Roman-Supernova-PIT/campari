@@ -26,13 +26,11 @@ def campari_test_data(cfg):
 def test_memory(cfg, capsys):
     SNLogger.debug("Running test_memory")
     SNLogger.debug(os.getenv("GITHUB_ACTIONS"))
-    print(os.getenv("GITHUB_ACTIONS"))
-    print("Should be here")
     if os.getenv("GITHUB_ACTIONS") == "true":
         print("Running inside GitHub Actions!")
         location = "github_actions"
     else:
-        if "NERSC_HOST" not in os.environ:
+        if "perlmutter" not in os.getenv("SNPIT_CONFIG"):
             raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
         location = "NERSC"
 
@@ -43,7 +41,7 @@ def test_memory(cfg, capsys):
         f"python ../RomanASP.py --diaobject-name 20172782 -f Y106 -t 10 -n 10 "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
-        "--photometry-campari-grid_options-type contour "
+        "--photometry-campari-grid_options-type regular "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background_method SKY_MEAN "
