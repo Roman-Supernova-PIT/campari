@@ -17,7 +17,7 @@ debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 imsize = 19
 base_cmd = [
-        "python", "../RomanASP.py",
+        "python", "../pipeline.py",
         "-t", "1",
         "-n", "0",
         "-f", "R062",
