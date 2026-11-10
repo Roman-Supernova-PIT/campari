@@ -93,7 +93,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # some point, so this catches those cases.
     band = convert_band_name(band)
 
-    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size, intended_band=band,
+    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size, band=band,
                                                                      subtract_background_method=subtract_background_method,
                                                                      nprocs=nprocs)
     del image_list  # Save memory
@@ -103,6 +103,8 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     len_after = len(cutout_image_list)
     if len_before != len_after:
         SNLogger.warning(f"Removed {len_before - len_after} images from the cutout list because they were None.")
+    if len_after == 0:
+        raise ValueError("No images in the given image list or paths matched the requested band")
     sky_background = [a for a in sky_background if a is not None]
 
     transient_image_list = [a for a in cutout_image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]

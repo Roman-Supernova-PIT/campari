@@ -12,10 +12,10 @@ photometry:
     pixel: false
     subtract_background_method: calculate
     use_real_images: true
-    print_memory_usage: true
+    print_memory_usage: false
     preplot_cutouts: false
     postplot_cutouts: false
-    save_memory_file_name: rebekah_test_gaussian.csv
+    save_memory_file_name: "None"
 
     psf:
       galaxy_class: ou24PSF
