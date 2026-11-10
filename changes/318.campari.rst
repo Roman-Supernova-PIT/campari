@@ -1,0 +1,1 @@
+The regression test now automatically checks the saved SN and Static PSF grids to search for what changed, if anything. Helps in diagnosing errors.
