@@ -116,7 +116,6 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
         raise ValueError("No images in the given image list or paths matched the requested band")
     sky_background = [a for a in sky_background if a is not None]
 
-
     # Non detection images first, then detection images, each sorted by MJD. Done on indices so that the same
     # reordering is applied to the whole SCA WCS list.
     in_window = [diaobj.mjd_start <= a.mjd <= diaobj.mjd_end for a in cutout_image_list]
