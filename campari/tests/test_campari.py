@@ -1004,7 +1004,8 @@ def test_build_model_one_image():
                                                    pixel=False, band="Y106", sedlist=None,
                                                    image_index=0, num_total_images=2,
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
-                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate")
+                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate",
+                                                   whole_sca_wcs=image_list[0].get_wcs())
 
     reg_bg_array = np.load(pathlib.Path(__file__).parent / "testdata/reg_bg_array.npy")
     reg_sn_array = np.load(pathlib.Path(__file__).parent / "testdata/reg_sn_array.npy", allow_pickle=True)
