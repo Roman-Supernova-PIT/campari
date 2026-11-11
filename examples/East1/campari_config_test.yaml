@@ -29,6 +29,8 @@ photometry:
     psf:
       galaxy_class: gaussian
       transient_class: gaussian
+      galaxy_kwargs: []   # list of "key=value" strings passed to the galaxy PSF constructor
+      transient_kwargs: []   # e.g. ["sigmax=0.43", "sigmay=0.43"] for a gaussian PSF
 
     grid_options:
       type: regular

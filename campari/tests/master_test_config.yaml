@@ -20,6 +20,8 @@ photometry:
     psf:
       galaxy_class: ou24PSF
       transient_class: ou24PSF_slow
+      galaxy_kwargs: []   # list of "key=value" strings passed to the galaxy PSF constructor
+      transient_kwargs: []   # e.g. ["sigmax=0.43", "sigmay=0.43"] for a gaussian PSF
 
     grid_options:
       type: contour
