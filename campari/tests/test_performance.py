@@ -1,5 +1,6 @@
 # Standard Library
 import os
+import pathlib
 import time
 import pytest
 
@@ -37,8 +38,11 @@ def test_memory(cfg, capsys):
     time_start = time.time()
 
     nprocs = 20
+    # Use an explicit list of the 8 images stored in photometry_test_data, so this test can run on GitHub Actions
+    # without needing the full OU2024 image set.
+    img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_memory_image_list.csv"
     output = os.system(
-        f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -t 10 -n 10 "
+        f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -i {img_list} "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type regular "
