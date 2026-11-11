@@ -35,6 +35,12 @@ def test_memory(cfg, capsys):
             raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
         location = "NERSC"
 
+    # Remove any lightcurve left over from an earlier run (e.g. test_regression writes the same file).
+    # Older snappl versions (< 0.48.0) ignore overwrite=True, so an existing file would make this test fail.
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    assert not curfile.exists()
+
     time_start = time.time()
 
     nprocs = 20
