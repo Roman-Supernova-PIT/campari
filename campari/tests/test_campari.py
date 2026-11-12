@@ -422,6 +422,13 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     curfile.unlink(missing_ok=True)
     debug_file = pathlib.Path(cfg.value("photometry.campari_io.debug_dir")) / "20172782_Y106_ou24psf_slow_images.npy"
     debug_file.unlink(missing_ok=True)
+    # The saved PSF (grid) and SN models, which get compared to reference copies in testdata.
+    # Globbed because the filenames embed the number of images / grid points.
+    debug_dir = pathlib.Path(cfg.value("photometry.campari_io.debug_dir"))
+    psf_glob = "psf_matrix_ou24PSF_20172782_*_images*_points.npy"
+    sn_glob = "sn_matrix_ou24PSF_slow_20172782_*_images.npy"
+    for f in [*debug_dir.glob(psf_glob), *debug_dir.glob(sn_glob)]:
+        f.unlink()
     # Make sure the output file we're going to write doesn't exist so
     #  we know we're really running this test!
     assert not curfile.exists()
@@ -445,7 +452,34 @@ def test_regression(campari_test_data, overwrite_meta, nprocs, cfg):
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
-    compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv", overwrite_meta=overwrite_meta)
+    # Compare the saved models to the reference models, but don't fail until the
+    # lightcurve has also been compared, so we can see everything that changed.
+    failures = []
+    for label, pattern, ref_name in [("PSF (grid) matrix", psf_glob, "reg_psf_matrix.npy"),
+                                     ("SN matrix", sn_glob, "reg_sn_matrix.npy")]:
+        found = sorted(debug_dir.glob(pattern))
+        if len(found) != 1:
+            failures.append(f"{label}: expected exactly one file matching {pattern} in {debug_dir}, found {found}")
+            continue
+        ref = np.load(pathlib.Path(__file__).parent / "testdata" / ref_name)
+        try:
+            np.testing.assert_allclose(np.load(found[0]), ref, rtol=1e-3,
+                                       err_msg=f"{label} ({found[0].name}) does not match {ref_name}")
+            print("" + f"{label} ({found[0].name}) matches {ref_name}")
+        except AssertionError as e:
+            failures.append(str(e))
+
+    try:
+        compare_lightcurves(curfile, pathlib.Path(__file__).parent / "testdata/test_lc.ecsv",
+                            overwrite_meta=overwrite_meta)
+    except AssertionError as e:
+        failures.append(f"Lightcurve comparison failed: {e}")
+
+    for msg in failures:
+        SNLogger.error(msg)
+    if failures:
+        pytest.fail("test_regression failures:\n" + "\n\n".join(failures))
+
     if overwrite_meta:
         SNLogger.debug("Overwrote metadata in test_regression so I am rerunning this test.")
         test_regression(campari_test_data, cfg=cfg, overwrite_meta=False, nprocs=nprocs)
