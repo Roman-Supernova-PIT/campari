@@ -198,7 +198,8 @@ def test_prune_images_ra_dec(cfg, nprocs):
     diaobj.mjd_start = 62654.0
     diaobj.mjd_end = 62958.0
     with pytest.raises(ValueError, match="No images in the given image list or paths matched the requested band"):
-        runner.get_exposures(diaobj=diaobj)
+        image_list = runner.get_exposures(diaobj=diaobj)
+        runner.call_run_one_object(diaobj, image_list, None)
 
 
 def test_get_exposures_with_img_glob(cfg):
@@ -258,7 +259,8 @@ def test_prune_images_band(cfg, nprocs):
     dec = 30.03559210999971  # this is the center of the one asdf image we have
     diaobj = DiaObject.find_objects(name=20172782, ra=ra, dec=dec, collection="manual")[0]
     with pytest.raises(ValueError, match="No images in the given image list or paths matched the requested band"):
-        runner.get_exposures(diaobj=diaobj)
+        image_list = runner.get_exposures(diaobj=diaobj)
+        runner.call_run_one_object(diaobj, image_list, None)
 
 
 def test_parse_img_list(cfg):

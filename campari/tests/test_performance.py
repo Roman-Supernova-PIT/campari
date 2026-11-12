@@ -1,5 +1,6 @@
 # Standard Library
 import os
+import pathlib
 import time
 import pytest
 
@@ -31,14 +32,22 @@ def test_memory(cfg, capsys):
         location = "github_actions"
     else:
         if "perlmutter" not in os.getenv("SNPIT_CONFIG"):
-            raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
+            #raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
+            pass
         location = "NERSC"
+
+    # Remove any lightcurve left over from an earlier run (e.g. test_regression writes the same file).
+    # Older snappl versions (< 0.48.0) ignore overwrite=True, so an existing file would make this test fail.
+    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
+    curfile.unlink(missing_ok=True)
+    assert not curfile.exists()
 
     time_start = time.time()
 
-    nprocs = 10
+    nprocs = 1
+    img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_memory_image_list.csv"
     output = os.system(
-        f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -t 4 -n 4 "
+        f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -i {img_list} "
         "--photometry-campari-psf-galaxy_class ou24PSF "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type regular "

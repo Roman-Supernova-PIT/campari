@@ -63,12 +63,16 @@ Adapted from code by Pedro Bernardinelli
 
 def _build_model_for_one_image_worker(index, kwarg_dict):
     image = _shared_image_list[index]
-    return build_model_for_one_image(image=image, image_index=index, **kwarg_dict)
+    whole_sca_wcs = _shared_whole_sca_wcs_list[index]
+    return build_model_for_one_image(image=image, image_index=index, whole_sca_wcs=whole_sca_wcs, **kwarg_dict)
 
 
 # Global variables
 huge_value = 1e32
 SNLogger.set_level("DEBUG")
+# Set in run_one_object before forking workers for model building.
+_shared_image_list = None
+_shared_whole_sca_wcs_list = None
 
 
 def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, band=None, fetch_SED=None, sedlist=None,
@@ -85,34 +89,47 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     percentiles = []
 
-    num_total_images = len(image_list)
-    transient_image_list = [a for a in image_list if a.mjd >= diaobj.mjd_start and a.mjd <= diaobj.mjd_end]
-    num_detect_images = len(transient_image_list)
-
-    no_transient_images = [a for a in image_list if a.mjd < diaobj.mjd_start or a.mjd > diaobj.mjd_end]
-
-    transient_mjds = [a.mjd for a in transient_image_list]
-    no_transient_mjds = [a.mjd for a in no_transient_images]
-    transient_argsort = np.argsort(transient_mjds)
-    no_transient_argsort = np.argsort(no_transient_mjds)
-
-    transient_image_list = [transient_image_list[i] for i in transient_argsort]
-    no_transient_images = [no_transient_images[i] for i in no_transient_argsort]
-
-    image_list = no_transient_images + transient_image_list  # Non detection images first, then detection images,
-    # but still sorted by MJD.
-
-    all_sca_xs, all_sca_ys = \
-        map(list, zip(*[img.get_wcs().world_to_pixel(diaobj.ra, diaobj.dec) for img in image_list]))
+    # Grab the WCS of each whole SCA before we throw away the full images. The cutouts only carry a cutout WCS,
+    # but the PSFs must be evaluated at the object's location on the full SCA. get_wcs() only reads the header,
+    # so this does not load any pixel data.
+    whole_sca_wcs_list = [img.get_wcs() for img in image_list]
 
     # We switched from using different lettered (R062, Y106) bands to F + number bands (F062, F106) in the code at
     # some point, so this catches those cases.
     band = convert_band_name(band)
 
-    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size,
+    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size, band=band,
                                                                      subtract_background_method=subtract_background_method,
                                                                      nprocs=nprocs)
-    # del image_list  # Save memory
+    del image_list  # Save memory
+
+    len_before = len(cutout_image_list)
+    # construct_images preserves input order (with None for skipped images), so filter the WCS list with the
+    # same mask to keep it aligned with the cutouts.
+    keep = [i for i, a in enumerate(cutout_image_list) if a is not None]
+    cutout_image_list = [cutout_image_list[i] for i in keep]
+    whole_sca_wcs_list = [whole_sca_wcs_list[i] for i in keep]
+    len_after = len(cutout_image_list)
+    if len_before != len_after:
+        SNLogger.warning(f"Removed {len_before - len_after} images from the cutout list because they were None.")
+    if len_after == 0:
+        raise ValueError("No images in the given image list or paths matched the requested band")
+    sky_background = [a for a in sky_background if a is not None]
+
+    # Non detection images first, then detection images, each sorted by MJD. Done on indices so that the same
+    # reordering is applied to the whole SCA WCS list.
+    in_window = [diaobj.mjd_start <= a.mjd <= diaobj.mjd_end for a in cutout_image_list]
+    detect_idx = [i for i, w in enumerate(in_window) if w]
+    nondetect_idx = [i for i, w in enumerate(in_window) if not w]
+    detect_idx = [detect_idx[j] for j in np.argsort([cutout_image_list[i].mjd for i in detect_idx])]
+    nondetect_idx = [nondetect_idx[j] for j in np.argsort([cutout_image_list[i].mjd for i in nondetect_idx])]
+    num_detect_images = len(detect_idx)
+
+    order = nondetect_idx + detect_idx
+    cutout_image_list = [cutout_image_list[i] for i in order]
+    whole_sca_wcs_list = [whole_sca_wcs_list[i] for i in order]
+    sky_background = [sky_background[i] for i in order]
+
     noise_maps = [im.noise for im in cutout_image_list]
 
     if Config.get().value("photometry.campari.preplot_cutouts"):
@@ -140,6 +157,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # The num_total_images - num_detect_images check is to ensure we have
     # pre-detection images. Otherwise, initializing the model guess does not
     # make sense.
+    num_total_images = len(cutout_image_list)
     num_nondetect_images = num_total_images - num_detect_images
     if make_initial_guess and num_nondetect_images != 0 and grid_type != "none":
         SNLogger.debug("Making initial guess for the model")
@@ -173,19 +191,23 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     if nprocs > 1:
         SNLogger.debug(f"Using {nprocs} processes for model building")
-        global _shared_image_list
-        _shared_image_list = image_list
+        global _shared_image_list, _shared_whole_sca_wcs_list
+        _shared_image_list = cutout_image_list
+        _shared_whole_sca_wcs_list = whole_sca_wcs_list
         ctx = multiprocessing.get_context("fork")
         with ctx.Pool(nprocs) as pool:
-            for i, image in enumerate(image_list):
+            for i, image in enumerate(cutout_image_list):
                 model_results.append(pool.apply_async(_build_model_for_one_image_worker,
                                                       args=(i, kwarg_dict)))
             pool.close()
             pool.join()
 
     else:
-        for i, image in enumerate(image_list):
-            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i, **kwarg_dict}))
+        print("Total len of cutout_image_list:", len(cutout_image_list))
+        for i, image in enumerate(cutout_image_list):
+            print("starting image:", i)
+            model_results.append(build_model_for_one_image(**{"image": image, "image_index": i,
+                                                              "whole_sca_wcs": whole_sca_wcs_list[i], **kwarg_dict}))
 
     for result in model_results:
         if nprocs > 1:
@@ -299,6 +321,10 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
 
     galaxy_only_model_images = np.sum(X[:-num_detect_images] * psf_matrix[:, :-num_detect_images], axis=1) \
         if num_detect_images > 0 else np.sum(X * psf_matrix, axis=1)
+
+    # Object location on each whole SCA, aligned with cutout_image_list.
+    all_sca_xs, all_sca_ys = map(list, zip(*[wcs.world_to_pixel(diaobj.ra, diaobj.dec)
+                                             for wcs in whole_sca_wcs_list]))
 
     lightcurve_model = campari_lightcurve_model(
             flux=flux, sigma_flux=sigma_flux, images=images, model_images=model_images,

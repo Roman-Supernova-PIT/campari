@@ -1,0 +1,1 @@
+Moved image rejection step to minimize memory usage.

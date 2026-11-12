@@ -1,4 +1,5 @@
 # Standard Library
+from types import SimpleNamespace
 import warnings
 
 # Common Library
@@ -567,14 +568,29 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
 def build_model_for_one_image(image=None, ra=None, dec=None, grid_type=None, ra_grid=None,
                               dec_grid=None, size=None, pixel=False, band=None, sedlist=None,
                               image_index=None, num_total_images=None, num_detect_images=None,
-                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None):
+                              prebuilt_psf_matrix=None, prebuilt_sn_matrix=None, subtract_background_method=None,
+                              whole_sca_wcs=None):
+    """Build the background (grid) and transient model arrays for one image.
+
+    image is typically a cutout, so its own WCS only covers the cutout. whole_sca_wcs must be the WCS of the
+    entire SCA the image came from, since the PSFs need to be evaluated at the object's location on the full SCA.
+    """
 
     print_mem("Starting image model building")
     observation_id, sca = image.observation_id, image.sca
     SNLogger.debug(f"Building model for image with observation_id {observation_id} and sca {sca}")
 
-    whole_sca_wcs = image.get_wcs()
+    if whole_sca_wcs is None:
+        raise ValueError("build_model_for_one_image requires whole_sca_wcs, the WCS of the entire SCA. "
+                         "The image's own WCS may be a cutout WCS, which gives the wrong PSF positions.")
     object_x, object_y = whole_sca_wcs.world_to_pixel(ra, dec)
+
+    # The PSF classes take the stamp's local WCS from image.get_wcs(), evaluated at SCA pixel coordinates, so
+    # they must get the whole SCA WCS, not the cutout's. Passing the cutout itself gives a slightly wrong local
+    # WCS (its CRPIX is shifted by the cutout origin). This stand-in carries only what the PSF code reads, with
+    # no pixel data.
+    psf_image = SimpleNamespace(get_wcs=lambda wcsclass=None: whole_sca_wcs,
+                                band=image.band, observation_id=observation_id, sca=sca)
 
     # Build the model for the background using the correct psf and the
     # grid we made in the previous section.
@@ -590,7 +606,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, grid_type=None, ra_
             object_y,
             size,
             pixel=pixel,
-            image=image,
+            image=psf_image,
             band=band,
         )
     elif grid_type != "none" and prebuilt_psf_matrix is not None:
@@ -653,7 +669,7 @@ def build_model_for_one_image(image=None, ra=None, dec=None, grid_type=None, ra_
             x=object_x,
             y=object_y,
             sed=sed,
-            image=image,
+            image=psf_image,
             flux=1.0
         )
 
