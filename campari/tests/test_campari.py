@@ -524,7 +524,7 @@ def test_make_regular_grid():
 
 
 def test_make_adaptive_grid():
-    wcs_data = np.load("./testdata/wcs_dict.npz", allow_pickle=True)
+    wcs_data = np.load(pathlib.Path(__file__).parent / "testdata/wcs_dict.npz", allow_pickle=True)
     # Loading the data in this way, the data is packaged in an array,
     # this extracts just the value so that we can build the WCS.
     wcs_dict = {key: wcs_data[key].item() for key in wcs_data.files}
@@ -952,7 +952,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
                     SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
                     results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
                                                                                "ra": ra, "dec": dec, "size": size,
-                                                                               "truth": truth,
+                                                                               "truth": truth, "band": band,
                                                                                "subtract_background_method":
                                                                                subtract_background_method}))
 
@@ -962,7 +962,7 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
             for indx, image in enumerate(image_list):
                 SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
                 results.append(construct_one_image(indx=indx, image=image,
-                                                   ra=ra, dec=dec, size=size, truth=truth,
+                                                   ra=ra, dec=dec, size=size, truth=truth, band=band,
                                                    subtract_background_method=subtract_background_method))
 
     for r in results:
@@ -1004,7 +1004,8 @@ def test_build_model_one_image():
                                                    pixel=False, band="Y106", sedlist=None,
                                                    image_index=0, num_total_images=2,
                                                    num_detect_images=1, prebuilt_psf_matrix=None,
-                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate")
+                                                   prebuilt_sn_matrix=None, subtract_background_method="calculate",
+                                                   whole_sca_wcs=image_list[0].get_wcs())
 
     reg_bg_array = np.load(pathlib.Path(__file__).parent / "testdata/reg_bg_array.npy")
     reg_sn_array = np.load(pathlib.Path(__file__).parent / "testdata/reg_sn_array.npy", allow_pickle=True)
