@@ -18,7 +18,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
-from campari.utils import print_mem
+from campari.utils import print_mem, release_memory
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -293,6 +293,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
+    print_mem("Finished setting up PSF object")
 
     # Loop over the grid points, draw a PSF at each one, and append to a list.
     galsim.ChromaticConvolution.resize_effective_prof_cache(10)
@@ -302,10 +303,14 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
         ).flatten()
         if a % 10 == 0:
             SNLogger.debug(f"Constructed PSF for {a} of {num_grid_points} grid points")
+            print_mem(f"Finished constructing PSF for {a} of {num_grid_points} grid points")
     print_mem("Finished constructing static scene")
+    del psf_object
     galsim.ChromaticConvolution.resize_effective_prof_cache(1)
     galsim.ChromaticConvolution._effective_prof_cache.clear()
     galsim.roman.roman_psfs._make_aperture.clear()
+    release_memory()
+    print_mem("Cleared various caches after constructing static scene")
 
     return psfs
 
@@ -368,9 +373,11 @@ def construct_transient_scene(
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
     print_mem("Finished constructing TRANSIENT scene")
+    del psf_object
     galsim.ChromaticConvolution.resize_effective_prof_cache(1)
     galsim.ChromaticConvolution._effective_prof_cache.clear()
     galsim.roman.roman_psfs._make_aperture.clear()
+    release_memory()
     print_mem("Cleared various caches after constructing TRANSIENT scene")
     SNLogger.debug("Returning a psf image of shape {}".format(np.shape(psf_image)))
 

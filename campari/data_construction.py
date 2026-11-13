@@ -160,6 +160,7 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
         del image
         print_mem(f"after freeing full image {indx} ------------------")
         return None, None
+
     num_nans = np.isnan(image_cutout.data).sum()
     if num_nans > 0:
         SNLogger.warning(
@@ -167,7 +168,6 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
             " image. These will be given a weight of zero."
         )
         SNLogger.warning(f"Fraction of NaNs in cutout: {num_nans / size**2:.2%}")
-
     if truth == "truth":
         raise RuntimeError("Truth is broken.")
         # In the future, I'd like to manually insert an array of ones for
@@ -204,7 +204,7 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
                 f"Image cutout is smaller than {min_background_cutout_size}x{min_background_cutout_size} pixels. "
                 f"Taking a {min_background_cutout_size}x{min_background_cutout_size} region for background calculation."
             )
-            bg_cutout = image.get_ra_dec_cutout(ra, dec, min_background_cutout_size, mode="partial", fill_value=np.nan)
+            bg_cutout = image.get_ra_dec_cutout(ra, dec, min_background_cutout_size, mode="partial", fill_value=np.nan)  # noqa: F821
             background_calculation_data = bg_cutout.data
             SNLogger.debug(f"Background calculation cutout shape: {background_calculation_data.shape}")
             del bg_cutout
@@ -232,10 +232,10 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
     # Changed this from _data to data
     image_cutout.data -= bg
     try:
-        image.free()  # Save memory
+        image.free()  # noqa: F821
     except Exception as e:
         SNLogger.warning(f"Could not free image {indx} from memory: {e}")
-    del image
+    del image  # noqa: F821
     print_mem(f"after freeing full image {indx} ------------------")
     return image_cutout, bg
 
