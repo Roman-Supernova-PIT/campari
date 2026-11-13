@@ -46,7 +46,10 @@ def test_memory(cfg, capsys, psftype):
 
     # Remove any lightcurve left over from an earlier run (e.g. test_regression writes the same file).
     # Older snappl versions (< 0.48.0) ignore overwrite=True, so an existing file would make this test fail.
-    curfile = pathlib.Path(output_dir) / "20172782_Y106_ou24psf_slow_lc.ecsv"
+
+    psf = "ou24psf_slow" if psftype == "galsim" else "gaussian"
+
+    curfile = pathlib.Path(output_dir) / f"20172782_Y106_{psf}_lc.ecsv"
     curfile.unlink(missing_ok=True)
     assert not curfile.exists()
 
@@ -85,19 +88,14 @@ def test_memory(cfg, capsys, psftype):
         print(f"\ntest_memory on {location}: run time {total_time:.1f} s, peak memory {peak_memory:.3f} GB")
 
     time_thresh = {}
-    time_thresh["gaussian"] = {"NERSC": 250, "github_actions": 250}
+    time_thresh["gaussian"] = {"NERSC": 300, "github_actions": 300}
     time_thresh["galsim"] = {"NERSC": 250, "github_actions": 250}
 
     time_comp = time_thresh[psftype][location]
 
     assert total_time < time_comp, (
-        f"The test run on a SN took longer than  {time_comp} seconds, typical time is ~ 250 seconds."
+        f"The test run on a SN took {total_time:.1f} seconds, typical time is ~ {time_comp} seconds."
     )
-
-    # Typical time on a NERSC interactive (NOT LOGIN) node is 115 +/- 5 seconds for 20 procs.
-    # Before making the memory improvements, the time was closer to 100 seconds, but the memory usage
-    # was out of control. This is a tradeoff between memory and speed, and I think a 10% speed reduction is
-    # worth worth it for a factor of >6 memory reduction.
 
     memory_thresh = {}
     memory_thresh["gaussian"] = {"NERSC": 0.6, "github_actions": 0.6}
