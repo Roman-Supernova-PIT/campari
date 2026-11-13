@@ -3,6 +3,8 @@ import warnings
 
 # Common Library
 import csv
+import ctypes
+import gc
 import numpy as np
 import os
 import psutil
@@ -26,6 +28,25 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 # Because the Open Universe Sims have dates from the future, we supress a
 # warning about using future dates.
 warnings.filterwarnings("ignore", category=ErfaWarning)
+
+# Handle to glibc, used by release_memory() to return freed heap memory to the OS.
+# Not available on non-glibc platforms (e.g. macOS), in which case it is None.
+try:
+    _libc = ctypes.CDLL("libc.so.6")
+except OSError:
+    _libc = None
+
+
+def release_memory():
+    """Run the garbage collector and ask glibc to return freed heap memory to the OS.
+
+    After large temporary allocations (e.g. building galsim PSFs), glibc often keeps
+    freed memory in the process heap rather than releasing it, so RSS stays high even
+    though Python no longer holds the objects. malloc_trim(0) forces it to be released.
+    """
+    gc.collect()
+    if _libc is not None:
+        _libc.malloc_trim(0)
 
 
 class campari_lightcurve_model:

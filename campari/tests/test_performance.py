@@ -24,7 +24,16 @@ def campari_test_data(cfg):
 
 
 @pytest.mark.run_last
-def test_memory(cfg, capsys):
+@pytest.mark.parametrize("psftype", ["galsim", "gaussian"])
+def test_memory(cfg, capsys, psftype):
+
+    if psftype == "gaussian":
+        galaxy_psf_class = "gaussian"
+        transient_psf_class = "gaussian"
+    elif psftype == "galsim":
+        galaxy_psf_class = "ou24PSF"
+        transient_psf_class = "ou24PSF_slow"
+
     SNLogger.debug("Running test_memory")
     SNLogger.debug(os.getenv("GITHUB_ACTIONS"))
     if os.getenv("GITHUB_ACTIONS") == "true":
@@ -32,8 +41,7 @@ def test_memory(cfg, capsys):
         location = "github_actions"
     else:
         if "perlmutter" not in os.getenv("SNPIT_CONFIG"):
-            #raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
-            pass
+            raise ValueError("This test is only meant to be run on NERSC, or on GitHub Actions.")
         location = "NERSC"
 
     # Remove any lightcurve left over from an earlier run (e.g. test_regression writes the same file).
@@ -48,20 +56,20 @@ def test_memory(cfg, capsys):
     img_list = pathlib.Path(__file__).parent / "testdata/test_imagelists/test_memory_image_list.csv"
     output = os.system(
         f"python ../pipeline.py --diaobject-name 20172782 -f Y106 -i {img_list} "
-        "--photometry-campari-psf-galaxy_class ou24PSF "
+        f"--photometry-campari-psf-galaxy_class {galaxy_psf_class} "
         "--no-photometry-campari-fetch_SED "
         "--photometry-campari-grid_options-type regular "
         "--photometry-campari-cutout_size 19 "
         "--photometry-campari-weighting "
         "--photometry-campari-subtract_background_method SKY_MEAN "
-        "--photometry-campari-psf-transient_class ou24PSF_slow "
+        f"--photometry-campari-psf-transient_class {transient_psf_class} "
         "--save_model --image-collection ou2024 "
         " --no-save-to-db"
         " --diaobject-collection ou2024"
         f" --nprocs {nprocs}"
         " --photometry-campari-grid_options-gaussian_var 1000 "
         "--photometry-campari-print_memory_usage "
-        "--photometry-campari-save_memory_file_name test_regression"
+        f"--photometry-campari-save_memory_file_name test_regression_{psftype}"
     )
     assert output == 0, "The test run on a SN failed. Check the logs"
 
@@ -76,13 +84,14 @@ def test_memory(cfg, capsys):
     with capsys.disabled():
         print(f"\ntest_memory on {location}: run time {total_time:.1f} s, peak memory {peak_memory:.3f} GB")
 
-    time_thresh = {
-        "NERSC": 150,
-        "github_actions": 150
-    }
+    time_thresh = {}
+    time_thresh["gaussian"] = {"NERSC": 250, "github_actions": 250}
+    time_thresh["galsim"] = {"NERSC": 250, "github_actions": 250}
 
-    assert total_time < time_thresh[location], (
-        f"The test run on a SN took longer than {time_thresh[location]} seconds, typical time is ~ 110 seconds."
+    time_comp = time_thresh[psftype][location]
+
+    assert total_time < time_comp, (
+        f"The test run on a SN took longer than  {time_comp} seconds, typical time is ~ 250 seconds."
     )
 
     # Typical time on a NERSC interactive (NOT LOGIN) node is 115 +/- 5 seconds for 20 procs.
@@ -90,17 +99,18 @@ def test_memory(cfg, capsys):
     # was out of control. This is a tradeoff between memory and speed, and I think a 10% speed reduction is
     # worth worth it for a factor of >6 memory reduction.
 
-    memory_thresh = {
-        "NERSC": 1.5,
-        "github_actions": 1.5
-    }
+    memory_thresh = {}
+    memory_thresh["gaussian"] = {"NERSC": 0.6, "github_actions": 0.6}
+    memory_thresh["galsim"] = {"NERSC": 1.3, "github_actions": 1.3}
+
+    mem_compare = memory_thresh[psftype][location]
 
     try:
-        np.testing.assert_array_less(mem_df["memory_gb"].values, memory_thresh[location]),
-        f"Memory usage exceeded the threshold for {location}, which is {memory_thresh[location]} GB"
+        np.testing.assert_array_less(mem_df["memory_gb"].values, mem_compare),
+        f"Memory usage exceeded the threshold for {location}, which is {mem_compare} GB"
     except AssertionError:
         plt.plot(mem_df["elapsed_seconds"].values, mem_df["memory_gb"].values)
         plot_path = f"{debug_dir}/memory_usage_plot.png"
         plt.savefig(plot_path)
-        raise ValueError(f"Memory usage exceeded {memory_thresh[location]} GB. "
+        raise ValueError(f"Memory usage exceeded {mem_compare} GB. "
         f"See plot at {plot_path} for details.")
