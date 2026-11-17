@@ -34,7 +34,7 @@ photometry:
       turn_grid_off: false
       gaussian_var: -1 # Gaussian weighting off by default
       cutoff: 4
-      error_floor: 1.0
+      error_floor: 0.0
       subsize: 4
 
 
