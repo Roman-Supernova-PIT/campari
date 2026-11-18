@@ -115,7 +115,7 @@ gal:
 
 input:
     obseq_data:
-        file_name: /home/photometry_test_data/ou2024/RomanTDS/Roman_TDS_obseq_11_6_23.fits # SMDC current loc
+        file_name: /home/cfmeldorf/snpit/packages/photometry_test_data/ou2024/Roman_TDS_obseq_11_6_23.fits # SMDC current loc
         visit: 80840
         SCA: '@image.SCA'
     roman_psf:
