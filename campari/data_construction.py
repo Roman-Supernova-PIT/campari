@@ -158,9 +158,6 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
         SNLogger.warning(f"Image {indx} does not overlap with the cutout region. Returning None.")
         image.free()
         del image
-        # del imagedata
-        # del errordata
-        # del flags
         print_mem(f"after freeing full image {indx} ------------------")
         return None, None
     num_nans = np.isnan(image_cutout.data).sum()
