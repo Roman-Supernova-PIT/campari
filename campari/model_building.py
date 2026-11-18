@@ -28,6 +28,30 @@ warnings.simplefilter("ignore", category=AstropyWarning)
 warnings.filterwarnings("ignore", category=ErfaWarning)
 
 
+def _parse_psf_kwargs(kwarg_list):
+    """Turn a list of "key=value" strings (from photometry.campari.psf.*_kwargs) into a dict.
+
+    Values are converted to int if possible, then float, otherwise left as strings.
+    """
+    if kwarg_list is None:
+        return {}
+    if isinstance(kwarg_list, dict):
+        return dict(kwarg_list)
+    kwargs = {}
+    for arg in kwarg_list:
+        if "=" not in arg:
+            raise ValueError(f"Failed to parse PSF kwarg '{arg}'; expected key=value")
+        key, val = (part.strip() for part in arg.split("=", 1))
+        try:
+            kwargs[key] = int(val)
+        except ValueError:
+            try:
+                kwargs[key] = float(val)
+            except ValueError:
+                kwargs[key] = val
+    return kwargs
+
+
 def make_regular_grid(image_object, spacing=1.0, subsize=4):
     """Generates a regular grid around a (RA, Dec) center, choosing step size.
 
@@ -268,6 +292,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
 
     cfg = Config.get()
     psfclass = cfg.value("photometry.campari.psf.galaxy_class")
+    galaxy_psf_kwargs = _parse_psf_kwargs(cfg.value("photometry.campari.psf.galaxy_kwargs", default=[]))
 
     num_grid_points = np.size(x_sca)
 
@@ -289,7 +314,7 @@ def construct_static_scene(ra=None, dec=None, sca_wcs=None, x_loc=None, y_loc=No
     sca = image.sca if image is not None else None
 
     psf_object = PSF.get_psf_object(psfclass, observation_id=observation_id, sca=sca,
-                                    stamp_size=stampsize, seed=None, image=image)
+                                    stamp_size=stampsize, seed=None, image=image, **galaxy_psf_kwargs)
     # See run_one_object documentation to explain this pixel coordinate conversion.
     x_loc = int(np.floor(x_loc + 0.5))
     y_loc = int(np.floor(y_loc + 0.5))
@@ -355,8 +380,9 @@ def construct_transient_scene(
 
     cfg = Config.get()
     snpsfclass = cfg.value("photometry.campari.psf.transient_class")
+    transient_psf_kwargs = _parse_psf_kwargs(cfg.value("photometry.campari.psf.transient_kwargs", default=[]))
 
-    SNLogger.debug(f"Using psf class {snpsfclass}")
+    SNLogger.debug(f"Using psf class {snpsfclass} with extra kwargs {transient_psf_kwargs}")
 
     if snpsfclass == "STPSF":
         sed = None
@@ -364,7 +390,7 @@ def construct_transient_scene(
 
     psf_object = PSF.get_psf_object(
         snpsfclass, observation_id=observation_id, sca=sca,
-        image=image, stamp_size=stampsize, sed=sed,
+        image=image, stamp_size=stampsize, sed=sed, **transient_psf_kwargs
     )
     psf_image = psf_object.get_stamp(x0=x0, y0=y0, x=x, y=y, flux=flux)
     print_mem("Finished constructing TRANSIENT scene")
