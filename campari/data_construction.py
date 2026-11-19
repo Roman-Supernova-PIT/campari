@@ -116,8 +116,40 @@ def is_number(s):
         return False
 
 
+def _adjust_zeropoint(image, common_zpt):
+    """Adjusts the zeropoint of the image to a common zeropoint.
+
+    Inputs:
+    image: snappl.image.Image object, the image to be adjusted.
+    common_zpt: float, the common zeropoint to adjust to.
+
+    Returns:
+    image: snappl.image.Image object, the adjusted image.
+    """
+    current_zpt = image.get_zeropoint()
+    """
+    Cole math:
+    zp_current = -2.5 * log (f_current / f0)
+    zp_new = -2.5 * log (f_new / f0)
+    zp_new - zp_current = -2.5 * (log(f_new / f0) - log (f_current / f0))
+    zp_new - zp_current = -2.5 * log(f_new / f_current)
+    f_new / f_current = 10^((zp_current - zp_new) / 2.5)
+    f_new = f_current * 10^((zp_current - zp_new) / 2.5)
+    """
+    if current_zpt is None:
+        raise ValueError("Image has no valid zeropoint.")
+
+    mult = np.power(10, (current_zpt - common_zpt) / 2.5)
+    image.data *= mult
+    image.noise *= mult
+    image.set_zeropoint(common_zpt)
+    SNLogger.debug(f"Adjusted image zeropoint from {current_zpt} to {common_zpt}."
+    f" This is a {100 * (mult - 1):.2f}% change in flux.")
+    return image
+
+
 def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, size=None, truth=None,
-                        subtract_background_method=None, min_background_cutout_size=39):
+                        subtract_background_method=None, min_background_cutout_size=39, common_zpt=None):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -173,16 +205,10 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
         # In the future, I'd like to manually insert an array of ones for
         # the error, or something.
 
-    """
-    try:
-        zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
-    except:
-        zero = -99
-
-    if zero < 0:
-        zero =
-    im = cutout * zero
-    """
+    if common_zpt is None:
+        SNLogger.warning("No common zeropoint could be determined, no zeropoint adjustment will be made.")
+    else:
+        image_cutout = _adjust_zeropoint(image_cutout, common_zpt)
 
     # If we are not fitting the background we subtract it here.
     # When subtract_background is False, we are including the background
