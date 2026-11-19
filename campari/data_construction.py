@@ -32,7 +32,7 @@ huge_value = 1e32
 _construct_images_shared_list = None
 
 
-def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_background_method):
+def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_background_method, common_zpt):
     """Wrapper that pulls the image from a module-level global to avoid pickling it.
     As it turns out, something about ASDF images means their data tree can't be pickled.
     To avoid this, this worker function pulls the image from a global variable that is
@@ -41,10 +41,12 @@ def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_backg
     return construct_one_image(
         indx=indx, image=image, ra=ra, dec=dec, size=size, band=band,
         truth=truth, subtract_background_method=subtract_background_method,
+        common_zpt=None
     )
 
 
-def construct_images(image_list, diaobj, size, band, subtract_background_method=True, nprocs=1):
+def construct_images(image_list, diaobj, size, band, subtract_background_method=True, nprocs=1,
+                    skip_common_zpting=False):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -76,6 +78,14 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
 
     SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
+    if skip_common_zpting:
+        common_zpt = None
+    else:
+        try:
+            common_zpt = image_list[0].get_zeropoint()
+        except Exception as e:
+            raise ValueError(f"Could not get zeropoint from first image: {e}")
+
     if nprocs > 1:
         # Create a global list of images to pull from so that they need to be pickled
         # before they are given to the workers because ASDF images can't be pickled.
@@ -88,7 +98,7 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
                 results.append(
                     pool.apply_async(
                         _construct_one_image_worker,
-                        args=(indx, ra, dec, band, size, truth, subtract_background_method)))
+                        args=(indx, ra, dec, band, size, truth, subtract_background_method, common_zpt)))
             pool.close()
             pool.join()
     else:
@@ -96,7 +106,8 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
             SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
             results.append(construct_one_image(indx=indx, image=image, band=band,
                                                ra=ra, dec=dec, size=size, truth=truth,
-                                               subtract_background_method=subtract_background_method))
+                                               subtract_background_method=subtract_background_method
+                                               common_zpt=common_zpt))
     for r in results:
         if nprocs > 1:
             res = r.get()
