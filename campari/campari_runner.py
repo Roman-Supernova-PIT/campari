@@ -110,6 +110,8 @@ class campari_runner:
 
         self.SED_file = kwargs["SED_file"]
 
+        self.skip_common_zpting = kwargs["skip_common_zpting"]
+
         self.size = self.cfg.value("photometry.campari.cutout_size")
         self.method = self.cfg.value("photometry.campari.method")
         self.make_initial_guess = self.cfg.value("photometry.campari.make_initial_guess")
@@ -405,7 +407,8 @@ class campari_runner:
                            spacing=self.spacing, percentiles=self.percentiles, save_model=self.save_model,
                            prebuilt_psf_matrix=prebuilt_psf_matrix,
                            prebuilt_sn_matrix=prebuilt_sn_matrix, nprocs=self.nprocs, gaussian_var=self.gaussian_var,
-                           cutoff=self.cutoff, error_floor=self.error_floor)
+                           cutoff=self.cutoff, error_floor=self.error_floor,
+                           skip_common_zpting=self.skip_common_zpting)
 
         return lightcurve_model
 
