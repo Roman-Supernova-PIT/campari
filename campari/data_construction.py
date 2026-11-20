@@ -32,7 +32,7 @@ huge_value = 1e32
 _construct_images_shared_list = None
 
 
-def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_background_method):
+def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_background_method, common_zpt):
     """Wrapper that pulls the image from a module-level global to avoid pickling it.
     As it turns out, something about ASDF images means their data tree can't be pickled.
     To avoid this, this worker function pulls the image from a global variable that is
@@ -41,10 +41,12 @@ def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_backg
     return construct_one_image(
         indx=indx, image=image, ra=ra, dec=dec, size=size, band=band,
         truth=truth, subtract_background_method=subtract_background_method,
+        common_zpt=common_zpt
     )
 
 
-def construct_images(image_list, diaobj, size, band, subtract_background_method=True, nprocs=1):
+def construct_images(image_list, diaobj, size, band, subtract_background_method=True, nprocs=1,
+                    skip_common_zpting=False):
     """Constructs the array of Roman images in the format required for the
     linear algebra operations.
 
@@ -76,6 +78,18 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
 
     SNLogger.debug(f"subtract_background_method: {subtract_background_method}")
 
+    if skip_common_zpting:
+        common_zpt = None
+    else:
+        try:
+            original_zpts = np.array([i.get_zeropoint() for i in image_list])
+            common_zpt = original_zpts[0]
+            SNLogger.debug(f"Using common zeropoint of {common_zpt:.4f} from first image in list."
+            f"Zeropoint range in images: {np.min(original_zpts):.4f} - {np.max(original_zpts):.4f}")
+
+        except Exception as e:
+            raise ValueError(f"Could not get zeropoint from first image: {e}")
+
     if nprocs > 1:
         # Create a global list of images to pull from so that they need to be pickled
         # before they are given to the workers because ASDF images can't be pickled.
@@ -88,7 +102,7 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
                 results.append(
                     pool.apply_async(
                         _construct_one_image_worker,
-                        args=(indx, ra, dec, band, size, truth, subtract_background_method)))
+                        args=(indx, ra, dec, band, size, truth, subtract_background_method, common_zpt)))
             pool.close()
             pool.join()
     else:
@@ -96,7 +110,8 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
             SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
             results.append(construct_one_image(indx=indx, image=image, band=band,
                                                ra=ra, dec=dec, size=size, truth=truth,
-                                               subtract_background_method=subtract_background_method))
+                                               subtract_background_method=subtract_background_method,
+                                               common_zpt=common_zpt))
     for r in results:
         if nprocs > 1:
             res = r.get()
@@ -105,7 +120,7 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
 
-    return cutout_image_list, image_list, bgflux
+    return cutout_image_list, image_list, bgflux, original_zpts, common_zpt
 
 
 def is_number(s):
@@ -116,8 +131,42 @@ def is_number(s):
         return False
 
 
+def _adjust_zeropoint(image, common_zpt):
+    """Adjusts the zeropoint of the image to a common zeropoint.
+
+    Inputs:
+    image: snappl.image.Image object, the image to be adjusted.
+    common_zpt: float, the common zeropoint to adjust to.
+
+    Returns:
+    image: snappl.image.Image object, the adjusted image.
+    mult: float, the factor the image data and noise were multiplied by.
+    """
+    current_zpt = image.get_zeropoint()
+    SNLogger.debug(f"Called get zeropoint on a {type(image)} object, got {current_zpt}")
+    """
+    The zeropoint is defined by m = -2.5 * log10(counts) + zp, i.e. zp is the
+    magnitude of a source that produces one count. A given source has a fixed
+    magnitude m, so its pixel counts under the current and new zeropoints obey:
+    -2.5 * log10(c_current) + zp_current = -2.5 * log10(c_new) + zp_new
+    log10(c_new) - log10(c_current) = (zp_new - zp_current) / 2.5
+    c_new = c_current * 10^((zp_new - zp_current) / 2.5)
+    A lower target zeropoint means each count carries more flux, so the pixel
+    values must shrink.
+    """
+    if current_zpt is None:
+        raise ValueError("Image has no valid zeropoint.")
+
+    mult = np.power(10, (common_zpt - current_zpt) / 2.5)
+    image.data *= mult
+    image.noise *= mult
+    SNLogger.debug(f"Adjusted image zeropoint from {current_zpt} to {common_zpt}."
+    f" This is a {100 * (mult - 1):.2f}% change in flux.")
+    return image, mult
+
+
 def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, size=None, truth=None,
-                        subtract_background_method=None, min_background_cutout_size=39):
+                        subtract_background_method=None, min_background_cutout_size=39, common_zpt=None):
     """Constructs a single Roman image in the format required for the
     linear algebra operations. This is the function that is called in parallel
     by campari.data_construction.construct_images
@@ -173,17 +222,6 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
         # In the future, I'd like to manually insert an array of ones for
         # the error, or something.
 
-    """
-    try:
-        zero = np.power(10, -(i["zeropoint"] - self.common_zpt)/2.5)
-    except:
-        zero = -99
-
-    if zero < 0:
-        zero =
-    im = cutout * zero
-    """
-
     # If we are not fitting the background we subtract it here.
     # When subtract_background is False, we are including the background
     # level as a free parameter in our fit, so it should not be subtracted
@@ -231,6 +269,14 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
+
+    # Adjust to the common zeropoint only after subtracting the background, since bg (from the header, user
+    # input, or a larger cutout of the full image) is in the image's original units.
+    if common_zpt is None:
+        SNLogger.warning("No common zeropoint could be determined, no zeropoint adjustment will be made.")
+    else:
+        image_cutout, mult = _adjust_zeropoint(image_cutout, common_zpt)
+        bg = bg * mult
     try:
         image.free()  # Save memory
     except Exception as e:

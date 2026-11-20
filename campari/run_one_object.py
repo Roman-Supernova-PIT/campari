@@ -83,7 +83,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
                    save_model=False, prebuilt_psf_matrix=None,
                    prebuilt_sn_matrix=None, gaussian_var=None,
                    cutoff=None, error_floor=None, subsize=None,
-                   nprocs=None):
+                   nprocs=None, skip_common_zpting=False):
     psf_matrix = []
     sn_matrix = []
 
@@ -98,9 +98,11 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     # some point, so this catches those cases.
     band = convert_band_name(band)
 
-    cutout_image_list, image_list, sky_background = construct_images(image_list, diaobj, size, band=band,
+    cutout_image_list, image_list, sky_background, original_zpts, common_zpt = construct_images(image_list, diaobj,
+                                                                     size, band=band,
                                                                      subtract_background_method=subtract_background_method,
-                                                                     nprocs=nprocs)
+                                                                     nprocs=nprocs,
+                                                                     skip_common_zpting=skip_common_zpting)
     del image_list  # Save memory
 
     len_before = len(cutout_image_list)

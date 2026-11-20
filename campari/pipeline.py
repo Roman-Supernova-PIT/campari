@@ -286,6 +286,9 @@ def main():
                         "will add the truth fluxes from ou2024 to the lightcurve output. Default False.")
 
     parser.add_argument("--nprocs", type=int, default=10, help="Number of processes to use. Default 10.")
+    parser.add_argument("--skip-common-zpting", action=argparse.BooleanOptionalAction, default=False, help="If True, "
+                        "will skip the common zero pointing step. This should not be used in production, only in"
+                        "old tests with images without zeropoints. Default False.")
 
     if cfg is not None:
         cfg.augment_argparse(parser)
