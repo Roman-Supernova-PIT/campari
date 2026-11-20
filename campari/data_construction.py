@@ -82,7 +82,11 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
         common_zpt = None
     else:
         try:
-            common_zpt = image_list[0].get_zeropoint()
+            original_zpts = np.array([i.get_zeropoint() for i in image_list])
+            common_zpt = original_zpts[0]
+            SNLogger.debug(f"Using common zeropoint of {common_zpt:.4f} from first image in list."
+            f"Zeropoint range in images: {np.min(original_zpts):.4f} - {np.max(original_zpts):.4f}")
+
         except Exception as e:
             raise ValueError(f"Could not get zeropoint from first image: {e}")
 
@@ -116,7 +120,7 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
         cutout_image_list.append(res[0])
         bgflux.append(res[1])
 
-    return cutout_image_list, image_list, bgflux
+    return cutout_image_list, image_list, bgflux, original_zpts, common_zpt
 
 
 def is_number(s):
@@ -156,7 +160,6 @@ def _adjust_zeropoint(image, common_zpt):
     mult = np.power(10, (common_zpt - current_zpt) / 2.5)
     image.data *= mult
     image.noise *= mult
-    #image.set_zeropoint(common_zpt)
     SNLogger.debug(f"Adjusted image zeropoint from {current_zpt} to {common_zpt}."
     f" This is a {100 * (mult - 1):.2f}% change in flux.")
     return image, mult

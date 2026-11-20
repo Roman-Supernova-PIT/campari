@@ -1067,7 +1067,6 @@ def test_construct_one_image_adjust_to_common_zpt(cfg, campari_test_data, nprocs
                                reg_cutout_list[1].data * 10**(-0.4 * (zpts[1] - zpts[0])), atol=1e-7)
 
 
-
 def test_build_model_one_image():
     ra = 7.551093401915147
     dec = -44.80718106491529

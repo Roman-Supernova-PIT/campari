@@ -61,7 +61,9 @@ def build_lightcurve(diaobj, lc_model, obj_pos_prov=None, dbclient=None, cam_pro
     cutout_image_list = lc_model.cutout_image_list
     band = cutout_image_list[0].band
     SNLogger.debug(f"building lightcurve for diaobj {diaobj.name} in band {band} with ID {diaobj.id}")
-    mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band)
+
+    common_zpt = lc_model.common_zpt
+    mag, magerr, zp = calc_mag_and_err(flux, sigma_flux, band, zp=common_zpt)
 
     meta_dict = cam_prov.params["photometry"]["campari"].copy()
     meta_dict.update({"ID": diaobj.name, "ra": diaobj.ra, "dec": diaobj.dec})

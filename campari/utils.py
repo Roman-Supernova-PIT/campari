@@ -58,7 +58,9 @@ class campari_lightcurve_model:
         sky_background=None,
         image_collection_prov=None,
         sca_x_locations=None,
-        sca_y_locations=None
+        sca_y_locations=None,
+        original_zpts=None,
+        common_zpt=None,
     ):
         """Initialize the Campari lightcurve model with the SNID and its properties.
         Parameters
@@ -107,6 +109,12 @@ class campari_lightcurve_model:
             The local surface brightness around the transient location in mag/arcsec^2.
         sky_background: list
             The sky background fluxes subtracted out of each image cutout.
+        original_zpts: array
+            In the same order as image_list, the original zpts of each image before campari
+            re-zeropoints them.
+        common_zpt: float
+            The common zpt that campari re-zeropoints all images to. This is the zpt of the
+            first image in image_list.
         """
         self.diaobj = diaobj
         self.flux = flux
@@ -134,6 +142,8 @@ class campari_lightcurve_model:
         self.image_collection_prov = image_collection_prov
         self.sca_x_locations = sca_x_locations
         self.sca_y_locations = sca_y_locations
+        self.original_zpts = original_zpts
+        self.common_zpt = common_zpt
 
 
 def gaussian(x, A, mu, sigma):
