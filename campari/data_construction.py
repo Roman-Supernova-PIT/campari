@@ -106,7 +106,7 @@ def construct_images(image_list, diaobj, size, band, subtract_background_method=
             SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
             results.append(construct_one_image(indx=indx, image=image, band=band,
                                                ra=ra, dec=dec, size=size, truth=truth,
-                                               subtract_background_method=subtract_background_method
+                                               subtract_background_method=subtract_background_method,
                                                common_zpt=common_zpt))
     for r in results:
         if nprocs > 1:
@@ -138,6 +138,7 @@ def _adjust_zeropoint(image, common_zpt):
     image: snappl.image.Image object, the adjusted image.
     """
     current_zpt = image.get_zeropoint()
+    SNLogger.debug(f"Called get zeropoint on a {type(image)} object, got {current_zpt}")
     """
     Cole math:
     zp_current = -2.5 * log (f_current / f0)
@@ -153,7 +154,7 @@ def _adjust_zeropoint(image, common_zpt):
     mult = np.power(10, (current_zpt - common_zpt) / 2.5)
     image.data *= mult
     image.noise *= mult
-    image.set_zeropoint(common_zpt)
+    #image.set_zeropoint(common_zpt)
     SNLogger.debug(f"Adjusted image zeropoint from {current_zpt} to {common_zpt}."
     f" This is a {100 * (mult - 1):.2f}% change in flux.")
     return image
