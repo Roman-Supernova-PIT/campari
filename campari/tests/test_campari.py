@@ -941,29 +941,27 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
     truth = "simple_model"
     subtract_background_method = "SKY_MEAN"
 
-    for nprocs in [10, 1]:
-        SNLogger.debug(f"Testing construct_one_image with nprocs={nprocs}")
-        cutout_image_list = []
-        results = []
-        if nprocs > 1:
-            with Pool(nprocs) as pool:
-                for indx, image in enumerate(image_list):
-                    SNLogger.debug(f"image path {image.full_filepath}")
-                    SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
-                    results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
-                                                                               "ra": ra, "dec": dec, "size": size,
-                                                                               "truth": truth, "band": band,
-                                                                               "subtract_background_method":
-                                                                               subtract_background_method}))
-
-                pool.close()
-                pool.join()
-        else:
+    cutout_image_list = []
+    results = []
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
+                SNLogger.debug(f"image path {image.full_filepath}")
                 SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
-                results.append(construct_one_image(indx=indx, image=image,
-                                                   ra=ra, dec=dec, size=size, truth=truth, band=band,
-                                                   subtract_background_method=subtract_background_method))
+                results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                            "ra": ra, "dec": dec, "size": size,
+                                                                            "truth": truth, "band": band,
+                                                                            "subtract_background_method":
+                                                                            subtract_background_method}))
+
+            pool.close()
+            pool.join()
+    else:
+        for indx, image in enumerate(image_list):
+            SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
+            results.append(construct_one_image(indx=indx, image=image,
+                                                ra=ra, dec=dec, size=size, truth=truth, band=band,
+                                                subtract_background_method=subtract_background_method))
 
     for r in results:
         if nprocs > 1:
@@ -979,25 +977,37 @@ def test_construct_one_image(cfg, campari_test_data, nprocs):
         np.testing.assert_array_equal(cutout.get_wcs()._wcs.to_header(), reg_cutout.get_wcs()._wcs.to_header())
 
 
+class ZptOverrideImage:
+    """I just made this so I could override the zeropoint!"""
+    def __init__(self, image, zeropoint):
+        self._image = image
+        self.zeropoint = zeropoint
+
+    def get_zeropoint(self, *args, **kwargs):
+        SNLogger.debug("Returning dummy zeropoint: {}".format(self.zeropoint))
+        return self.zeropoint
+
+    def get_ra_dec_cutout(self, *args, **kwargs):
+        return ZptOverrideImage(self._image.get_ra_dec_cutout(*args, **kwargs), self.zeropoint)
+
+    def __getattr__(self, name):
+        # Guard against infinite recursion during unpickling, when _image isn't set yet.
+        if name == "_image" or (name.startswith("__") and name.endswith("__")):
+            raise AttributeError(name)
+        return getattr(self._image, name)
+
+    def __setattr__(self, name, value):
+        # Forward attribute writes (e.g. cutout.data *= mult) to the wrapped image.
+        if name in ("_image", "zeropoint"):
+            object.__setattr__(self, name, value)
+        else:
+            setattr(self._image, name, value)
+
 
 @pytest.mark.parametrize("nprocs", [(10), (1)])
 def test_construct_one_image_adjust_to_common_zpt(cfg, campari_test_data, nprocs):
     img_collection = ImageCollection()
     img_collection = img_collection.get_collection("ou2024")
-
-    class DummyImage:
-        """ I made this just so I could change the zpt.
-        """
-        def __init__(self, image, zeropoint):
-            self._image = image
-            self.zeropoint = zeropoint
-
-        def get_zeropoint(self):
-            SNLogger.debug("Returning dummy zeropoint: {}".format(self.zeropoint))
-            return self.zeropoint
-
-        def __getattr__(self, name):
-            return getattr(self._image, name)
 
     observation_ids = ["5934", "35198"]
     scas = [3, 2]
@@ -1007,7 +1017,7 @@ def test_construct_one_image_adjust_to_common_zpt(cfg, campari_test_data, nprocs
     image_list = []
     for oid, sca, z in zip(observation_ids, scas, zpts):
         image = img_collection.get_image(observation_id=oid, sca=sca, band=band)
-        image_list.append(DummyImage(image, z))
+        image_list.append(ZptOverrideImage(image, z))
     zpts = [i.get_zeropoint() for i in image_list]
     ra = 7.551093401915147
     dec = -44.80718106491529
@@ -1015,35 +1025,33 @@ def test_construct_one_image_adjust_to_common_zpt(cfg, campari_test_data, nprocs
     truth = "simple_model"
     subtract_background_method = "SKY_MEAN"
 
-    for nprocs in [10, 1]:
-        SNLogger.debug(f"Testing construct_one_image with nprocs={nprocs}")
-        cutout_image_list = []
-        results = []
+    cutout_image_list = []
+    results = []
 
-        with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl", "rb") as f:
-            reg_cutout_list = pickle.load(f)
+    with open(pathlib.Path(__file__).parent / "testdata/reg_test_cutouts.pkl", "rb") as f:
+        reg_cutout_list = pickle.load(f)
 
-        if nprocs > 1:
-            with Pool(nprocs) as pool:
-                for indx, image in enumerate(image_list):
-                    SNLogger.debug(f"image path {image.full_filepath}")
-                    SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
-                    results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
-                                                                               "ra": ra, "dec": dec, "size": size,
-                                                                               "truth": truth, "band": band,
-                                                                               "subtract_background_method":
-                                                                               subtract_background_method,
-                                                                               "common_zpt": zpts[0]}))
-
-                pool.close()
-                pool.join()
-        else:
+    if nprocs > 1:
+        with Pool(nprocs) as pool:
             for indx, image in enumerate(image_list):
+                SNLogger.debug(f"image path {image.full_filepath}")
                 SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
-                results.append(construct_one_image(indx=indx, image=image,
-                                                   ra=ra, dec=dec, size=size, truth=truth, band=band,
-                                                   subtract_background_method=subtract_background_method,
-                                                   common_zpt=zpts[0]))
+                results.append(pool.apply_async(construct_one_image, kwds={"indx": indx, "image": image,
+                                                                            "ra": ra, "dec": dec, "size": size,
+                                                                            "truth": truth, "band": band,
+                                                                            "subtract_background_method":
+                                                                            subtract_background_method,
+                                                                            "common_zpt": zpts[0]}))
+
+            pool.close()
+            pool.join()
+    else:
+        for indx, image in enumerate(image_list):
+            SNLogger.debug(f"Constructing cutout for image {indx + 1} of {image}")
+            results.append(construct_one_image(indx=indx, image=image,
+                                                ra=ra, dec=dec, size=size, truth=truth, band=band,
+                                                subtract_background_method=subtract_background_method,
+                                                common_zpt=zpts[0]))
 
     for r in results:
         if nprocs > 1:

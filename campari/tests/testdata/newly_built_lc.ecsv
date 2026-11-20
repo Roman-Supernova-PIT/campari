@@ -28,26 +28,26 @@
 # - {subtract_background_method: calculate}
 # - {use_real_images: true}
 # - {print_memory_usage: false}
-# - {preplot_cutouts: false}
-# - {postplot_cutouts: false}
-# - {save_memory_file_name: None}
-# - psf: {galaxy_class: ou24PSF, transient_class: ou24PSF_slow}
+# - {preplot_cutouts: true}
+# - {postplot_cutouts: true}
+# - {save_memory_file_name: test_memory_file}
+# - psf: {galaxy_class: gaussian, transient_class: gaussian}
 # - grid_options:
-#     cutoff: 4
-#     error_floor: 1.0
+#     cutoff: 5
+#     error_floor: 0.0
 #     gaussian_var: -1
 #     percentiles: [0, 90, 98, 100]
 #     spacing: 0.75
-#     subsize: 4
+#     subsize: 8
 #     turn_grid_off: false
-#     type: contour
+#     type: regular
 # - {ID: '20172782'}
 # - {ra: 7.0}
 # - {dec: -41.0}
 # - {band: Y106}
 # - {diaobject_position_id: null}
-# - {provenance_id: 7d9fabfc-c88b-62e3-14cd-7490f41cfe7d}
-# - {diaobject_id: 72c8624e-f184-4d55-98b7-d7249b0f1f43}
+# - {provenance_id: aaf67437-7d21-5bbf-8cd7-864625f36516}
+# - {diaobject_id: 7a2fbead-ec3e-477e-9712-8b17743ef65c}
 # - {iau_name: null}
 # - {ra_err: 0.0}
 # - {dec_err: 0.0}

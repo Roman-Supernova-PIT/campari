@@ -41,7 +41,7 @@ def _construct_one_image_worker(indx, ra, dec, band, size, truth, subtract_backg
     return construct_one_image(
         indx=indx, image=image, ra=ra, dec=dec, size=size, band=band,
         truth=truth, subtract_background_method=subtract_background_method,
-        common_zpt=None
+        common_zpt=common_zpt
     )
 
 
@@ -136,28 +136,30 @@ def _adjust_zeropoint(image, common_zpt):
 
     Returns:
     image: snappl.image.Image object, the adjusted image.
+    mult: float, the factor the image data and noise were multiplied by.
     """
     current_zpt = image.get_zeropoint()
     SNLogger.debug(f"Called get zeropoint on a {type(image)} object, got {current_zpt}")
     """
-    Cole math:
-    zp_current = -2.5 * log (f_current / f0)
-    zp_new = -2.5 * log (f_new / f0)
-    zp_new - zp_current = -2.5 * (log(f_new / f0) - log (f_current / f0))
-    zp_new - zp_current = -2.5 * log(f_new / f_current)
-    f_new / f_current = 10^((zp_current - zp_new) / 2.5)
-    f_new = f_current * 10^((zp_current - zp_new) / 2.5)
+    The zeropoint is defined by m = -2.5 * log10(counts) + zp, i.e. zp is the
+    magnitude of a source that produces one count. A given source has a fixed
+    magnitude m, so its pixel counts under the current and new zeropoints obey:
+    -2.5 * log10(c_current) + zp_current = -2.5 * log10(c_new) + zp_new
+    log10(c_new) - log10(c_current) = (zp_new - zp_current) / 2.5
+    c_new = c_current * 10^((zp_new - zp_current) / 2.5)
+    A lower target zeropoint means each count carries more flux, so the pixel
+    values must shrink.
     """
     if current_zpt is None:
         raise ValueError("Image has no valid zeropoint.")
 
-    mult = np.power(10, (current_zpt - common_zpt) / 2.5)
+    mult = np.power(10, (common_zpt - current_zpt) / 2.5)
     image.data *= mult
     image.noise *= mult
     #image.set_zeropoint(common_zpt)
     SNLogger.debug(f"Adjusted image zeropoint from {current_zpt} to {common_zpt}."
     f" This is a {100 * (mult - 1):.2f}% change in flux.")
-    return image
+    return image, mult
 
 
 def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, size=None, truth=None,
@@ -217,11 +219,6 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
         # In the future, I'd like to manually insert an array of ones for
         # the error, or something.
 
-    if common_zpt is None:
-        SNLogger.warning("No common zeropoint could be determined, no zeropoint adjustment will be made.")
-    else:
-        image_cutout = _adjust_zeropoint(image_cutout, common_zpt)
-
     # If we are not fitting the background we subtract it here.
     # When subtract_background is False, we are including the background
     # level as a free parameter in our fit, so it should not be subtracted
@@ -269,6 +266,14 @@ def construct_one_image(indx=None, image=None, band=None, ra=None, dec=None, siz
                              f"'{subtract_background_method}' for image {indx}.")
     # Changed this from _data to data
     image_cutout.data -= bg
+
+    # Adjust to the common zeropoint only after subtracting the background, since bg (from the header, user
+    # input, or a larger cutout of the full image) is in the image's original units.
+    if common_zpt is None:
+        SNLogger.warning("No common zeropoint could be determined, no zeropoint adjustment will be made.")
+    else:
+        image_cutout, mult = _adjust_zeropoint(image_cutout, common_zpt)
+        bg = bg * mult
     try:
         image.free()  # Save memory
     except Exception as e:
