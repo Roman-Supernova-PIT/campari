@@ -65,6 +65,8 @@ output_dir = cfg.value("photometry.campari_io.output_dir")
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
 SNLogger.debug(f"SNAPPL VERSION: {snappl.__version__}")
+SNLogger.debug(f"GALSIM VERSION: {galsim.__version__}")
+
 
 @pytest.fixture(scope="module")
 def photometry_test_data(cfg):
