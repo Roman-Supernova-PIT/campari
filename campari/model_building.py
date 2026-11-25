@@ -18,7 +18,7 @@ from galsim import roman
 from snappl.psf import PSF
 from snappl.logger import SNLogger
 from snappl.config import Config
-from campari.utils import print_mem
+from campari.utils import print_mem, safe_pixel_to_world, safe_world_to_pixel
 
 # This supresses a warning because the Open Universe Simulations dates are not
 # FITS compliant.
@@ -98,7 +98,7 @@ def make_regular_grid(image_object, spacing=1.0, subsize=4):
     yy = yy.flatten()
 
     # Astropy takes (y, x) order:
-    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+    ra_grid, dec_grid = safe_pixel_to_world(wcs, yy, xx)
 
     return ra_grid, dec_grid
 
@@ -217,7 +217,7 @@ def make_adaptive_grid(image_object, percentiles=[45, 90], subsize=9, subpixel_g
     SNLogger.debug(f"Built a grid with {np.size(xx)} points")
 
     # Astropy takes (y,x) order:
-    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+    ra_grid, dec_grid = safe_pixel_to_world(wcs, yy, xx)
 
     return ra_grid, dec_grid
 
@@ -249,7 +249,7 @@ def generate_guess(imlist, ra_grid, dec_grid):
     imdata = [im.data.flatten() for im in imlist]
     for i, imwcs in enumerate(zip(imdata, wcslist)):
         im, wcs = imwcs
-        xx, yy = wcs.world_to_pixel(ra_grid, dec_grid)
+        xx, yy = safe_world_to_pixel(wcs, ra_grid, dec_grid)
         grid_point_vals = np.atleast_1d(np.zeros_like(xx))
         # For testing purposes, sometimes the grid is exactly one point, so we force it to be 1d.
         xx = np.atleast_1d(xx)
@@ -586,7 +586,7 @@ def make_contour_grid(img_obj, numlevels=None, percentiles=[0, 90, 98, 100], sub
     SNLogger.debug(f"First {first_n} grid points: {xx[:first_n]}, {yy[:first_n]}")
 
     # Astropy takes (y ,x) order:
-    ra_grid, dec_grid = wcs.pixel_to_world(yy, xx)
+    ra_grid, dec_grid = safe_pixel_to_world(wcs, yy, xx)
 
     return ra_grid, dec_grid
 
