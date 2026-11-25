@@ -307,7 +307,7 @@ def run_one_object(diaobj=None, object_type=None, image_list=None, size=None, ba
     try:
         cov = np.linalg.inv(inv_cov)
     except LinAlgError:
-        cov = np.linalg.pinv(inv_cov)
+        cov = np.linalg.pinv(inv_cov, rtol=None, hermitian=True)
 
     if num_detect_images > 0:
         SNLogger.debug(f"flux: {np.array2string(flux, separator=', ')}")

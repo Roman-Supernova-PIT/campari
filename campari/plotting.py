@@ -13,6 +13,8 @@ import snappl
 from snappl.config import Config
 from snappl.logger import SNLogger
 from snappl.wcs import AstropyWCS
+
+from campari.utils import safe_world_to_pixel
 cfg = Config.get()
 debug_dir = cfg.value("photometry.campari_io.debug_dir")
 
@@ -42,7 +44,7 @@ def plot_images(fileroot, size=11):
 
     for i, wcs in enumerate(cutout_wcs_list):
         extent = [-0.5, size - 0.5, -0.5, size - 0.5]
-        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
+        xx, yy = safe_world_to_pixel(cutout_wcs_list[i], ra_grid, dec_grid)
         object_x, object_y = wcs.world_to_pixel(ra, dec)
         galx, galy = wcs.world_to_pixel(galra, galdec)
 
@@ -62,7 +64,7 @@ def plot_images(fileroot, size=11):
         plt.title("Model")
 
         im1 = sumimages[i * size**2 : (i + 1) * size**2].reshape(size, size)
-        xx, yy = cutout_wcs_list[i].world_to_pixel(ra_grid, dec_grid)
+        xx, yy = safe_world_to_pixel(cutout_wcs_list[i], ra_grid, dec_grid)
 
         vmin = imshow.get_clim()[0]
         vmax = imshow.get_clim()[1]

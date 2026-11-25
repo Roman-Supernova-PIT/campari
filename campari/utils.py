@@ -136,6 +136,30 @@ class campari_lightcurve_model:
         self.sca_y_locations = sca_y_locations
 
 
+def _scalar_if_single(a):
+    """Return a Python float if ``a`` holds exactly one element, else ``a`` unchanged."""
+    if np.size(a) == 1:
+        return float(np.ravel(a)[0])
+    return a
+
+
+def safe_pixel_to_world(wcs, x, y):
+    """Call ``wcs.pixel_to_world`` so that a single-point grid doesn't crash.
+
+    This is a workaround for a bug in snappl's WCS classes.
+    There is a snappl bug that causes this to fail on single point grids.
+    Until that is fixed, this is a placeholder.
+    """
+    return wcs.pixel_to_world(_scalar_if_single(x), _scalar_if_single(y))
+
+
+def safe_world_to_pixel(wcs, ra, dec):
+    """This is a workaround for a bug in snappl's WCS classes.
+    There is a snappl bug that causes this to fail on single point grids.
+    Until that is fixed, this is a placeholder."""
+    return wcs.world_to_pixel(_scalar_if_single(ra), _scalar_if_single(dec))
+
+
 def gaussian(x, A, mu, sigma):
     """See name of function. :D"""
     return A * np.exp(-((x - mu) ** 2) / (2 * sigma**2))

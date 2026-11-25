@@ -4,7 +4,7 @@ matplotlib
 numpy
 pandas
 pyerfa
-git+https://github.com/matroxel/roman_imsim.git
+git+https://github.com/matroxel/roman_imsim.git@21ea15a
 scipy
 scikit-learn
 requests
